@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "korankaltim-fe",
+      name: "klandesa-webapp",
       script: "node_modules/next/dist/bin/next",
       args: "start -p 2042",
       cwd: "/var/www/html/klandesa/klandesa-webapp",
