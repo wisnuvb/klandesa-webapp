@@ -15,7 +15,6 @@ import {
   Zap,
 } from "lucide-react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 // NextAuth will handle auth; Redux sync happens via the hook below
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
@@ -33,7 +32,6 @@ export function LoginModal({ onClose }: LoginModalProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   // Initialize hook to sync NextAuth session into Redux store
   useNextAuthSession();
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +49,8 @@ export function LoginModal({ onClose }: LoginModalProps) {
 
         // Redirect ke subdomain app
         const currentHost = window.location.host;
-        const domain = currentHost.replace(/^(www\.|app\.)?/, ""); // Remove www atau app
-        const appUrl = `${window.location.protocol}//app.${domain}`;
+        const domain = currentHost.replace(/^(www\.|my\.)?/, ""); // Remove www atau app
+        const appUrl = `${window.location.protocol}//my.${domain}`;
 
         // Redirect ke app subdomain
         window.location.href = appUrl;
@@ -90,7 +88,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
       <div className="relative w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
@@ -101,7 +99,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
           <X className="w-6 h-6 text-gray-700" />
         </button>
 
-        <div className="grid md:grid-cols-2 min-h-[600px]">
+        <div className="grid md:grid-cols-2 min-h-150">
           {/* Left Side - Login Form */}
           <div className="p-8 md:p-12 flex flex-col justify-center">
             <div className="max-w-md mx-auto w-full">
@@ -203,7 +201,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white py-3.5 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="w-full bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white py-3.5 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   <span>{isSubmitting ? "Memproses…" : "Masuk"}</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -243,7 +241,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
           </div>
 
           {/* Right Side - Features */}
-          <div className="relative bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] p-8 md:p-12 hidden md:flex flex-col justify-center overflow-hidden">
+          <div className="relative bg-linear-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] p-8 md:p-12 hidden md:flex flex-col justify-center overflow-hidden">
             {/* Animated Background */}
             <div className="absolute inset-0 opacity-20">
               <div className="absolute top-10 right-10 w-64 h-64 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"></div>

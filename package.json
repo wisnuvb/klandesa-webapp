@@ -12,7 +12,8 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "db:verify-fk": "tsx scripts/verify-fk.ts",
-    "test:api": "bash scripts/test-api.sh"
+    "test:api": "bash scripts/test-api.sh",
+    "restart": "git pull && yarn && yarn build && pm2 restart ecosystem.config.js --env production"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
