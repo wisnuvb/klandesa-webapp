@@ -37,9 +37,14 @@ export function isMainDomain(subdomain: string | null): boolean {
 }
 
 export function isAppSubdomain(subdomain: string | null): boolean {
-  return subdomain === "app";
+  return subdomain === "app" || subdomain === "my";
 }
 
 export function isTenantSubdomain(subdomain: string | null): boolean {
-  return subdomain !== null && subdomain !== "www" && subdomain !== "app";
+  return (
+    subdomain !== null &&
+    subdomain !== "www" &&
+    subdomain !== "app" &&
+    subdomain !== "my"
+  );
 }
