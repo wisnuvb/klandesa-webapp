@@ -1,0 +1,186 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { getSubdomain } from "@/lib/subdomain";
+
+async function resolveVillage(
+  req: NextRequest,
+  queryVillageCode?: string,
+  session?: any
+) {
+  if (session?.user?.villageCode) {
+    const village = await prisma.village.findUnique({
+      where: { code: session.user.villageCode },
+    });
+    if (village) return village;
+  }
+
+  if (queryVillageCode) {
+    const village = await prisma.village.findUnique({
+      where: { code: queryVillageCode },
+    });
+    if (village) return village;
+  }
+
+  const sub = getSubdomain(req);
+  if (sub && sub !== "app") {
+    const village = await prisma.village.findUnique({ where: { code: sub } });
+    if (village) return village;
+  }
+
+  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
+  if (defaultCode) {
+    const village = await prisma.village.findUnique({
+      where: { code: defaultCode },
+    });
+    if (village) return village;
+  }
+
+  const firstVillage = await prisma.village.findFirst();
+  return firstVillage;
+}
+
+// GET - Fetch village potentials
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const village = await resolveVillage(req, undefined, session);
+
+    if (!village) {
+      return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+
+    const searchParams = req.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+    const search = searchParams.get("search") || "";
+    const year = searchParams.get("year") || "";
+
+    const skip = (page - 1) * pageSize;
+
+    // Build where clause
+    const where: any = {
+      villageId: village.id,
+    };
+
+    if (search) {
+      where.OR = [
+        { year: { contains: search } },
+        { economicPotential: { contains: search } },
+        { waterResources: { contains: search } },
+      ];
+    }
+
+    if (year && year !== "all") {
+      where.year = year;
+    }
+
+    // Fetch data with pagination
+    const [rows, total] = await Promise.all([
+      prisma.villagePotential.findMany({
+        where,
+        orderBy: { year: "desc" },
+        skip,
+        take: pageSize,
+      }),
+      prisma.villagePotential.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      rows,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    });
+  } catch (error) {
+    console.error("Error fetching village potentials:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch village potentials" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Create village potential
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const body = await req.json();
+    const village = await resolveVillage(req, body.villageCode, session);
+
+    if (!village) {
+      return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+
+    // Validate required fields
+    const requiredFields = [
+      "year",
+      "population",
+      "households",
+      "area",
+      "agricultureLand",
+      "plantationLand",
+      "forestArea",
+    ];
+
+    for (const field of requiredFields) {
+      if (
+        body[field] === undefined ||
+        body[field] === null ||
+        body[field] === ""
+      ) {
+        return NextResponse.json(
+          { error: `Field ${field} is required` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check if year already exists for this village
+    const existing = await prisma.villagePotential.findUnique({
+      where: {
+        villageId_year: {
+          villageId: village.id,
+          year: body.year,
+        },
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: `Data for year ${body.year} already exists` },
+        { status: 400 }
+      );
+    }
+
+    // Create village potential
+    const villagePotential = await prisma.villagePotential.create({
+      data: {
+        villageId: village.id,
+        year: body.year,
+        population: parseInt(body.population),
+        households: parseInt(body.households),
+        area: parseFloat(body.area),
+        agricultureLand: parseFloat(body.agricultureLand),
+        plantationLand: parseFloat(body.plantationLand),
+        forestArea: parseFloat(body.forestArea),
+        educationFacilities: parseInt(body.educationFacilities || 0),
+        healthFacilities: parseInt(body.healthFacilities || 0),
+        tourismSpots: parseInt(body.tourismSpots || 0),
+        waterResources: body.waterResources || null,
+        economicPotential: body.economicPotential || null,
+      },
+    });
+
+    return NextResponse.json(villagePotential, { status: 201 });
+  } catch (error) {
+    console.error("Error creating village potential:", error);
+    return NextResponse.json(
+      { error: "Failed to create village potential" },
+      { status: 500 }
+    );
+  }
+}

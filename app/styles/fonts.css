@@ -1,0 +1,55 @@
+/* Import Professional Fonts for Dashboard */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;0,7..72,700;1,7..72,400&display=swap');
+
+/* 
+  Font Stack:
+  - Inter: Modern, professional, for UI elements
+  - Literata: Formal serif font for official documents/letters
+*/
+
+:root {
+  /* Base font family for UI */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  
+  /* Serif font for formal documents */
+  --font-serif: 'Literata', 'Times New Roman', serif;
+  
+  /* Font sizes - more refined scale */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
+  
+  /* Letter spacing for better readability */
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+}
+
+/* Apply base font to body */
+body {
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings with Inter */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Utility class for serif font (for official documents) */
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Utility class for sans font */
+.font-sans {
+  font-family: var(--font-sans);
+}

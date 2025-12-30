@@ -1,0 +1,881 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE SYSTEM - Multi-tenant & Authentication
+// ============================================
+
+model Village {
+  id       Int    @id @default(autoincrement())
+  code     String @unique @db.VarChar(20) // Kode desa unik
+  name     String @db.VarChar(255)
+  district String @db.VarChar(255) // Kecamatan
+  regency  String @db.VarChar(255) // Kabupaten
+  province String @db.VarChar(255)
+
+  // Contact & Address
+  address    String  @db.Text
+  postalCode String? @db.VarChar(10)
+  phone      String? @db.VarChar(20)
+  email      String? @db.VarChar(255)
+  website    String? @db.VarChar(255)
+
+  // Logo & Branding
+  logoUrl String? @db.Text
+
+  // Settings
+  settings Json? // Theme, preferences, etc
+
+  // Subscription & Limits
+  subscriptionPlan   String    @default("starter") @db.VarChar(50) // starter, profesional, enterprise
+  subscriptionStatus String    @default("active") @db.VarChar(50) // active, inactive, trial, cancelled
+  subscriptionDate   DateTime? // Tanggal mulai berlangganan
+  subscriptionExpiry DateTime?
+  storageLimit       Int       @default(1) // in GB
+  storageUsed        Float     @default(0) // in GB
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users             User[]
+  residents         Resident[]
+  officials         Official[]
+  positions         Position[]
+  requests          Request[]
+  mailTemplates     MailTemplate[]
+  mailServices      MailService[]
+  mailRequests      MailRequest[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  potentials        Potential[]
+  villagePotentials VillagePotential[]
+  digitalArchives   DigitalArchive[]
+  statistics        Statistic[]
+  announcements     Announcement[]
+
+  @@index([code])
+  @@index([isActive])
+  @@map("villages")
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  email    String @unique @db.VarChar(255)
+  password String @db.VarChar(255) // Hashed
+
+  name   String  @db.VarChar(255)
+  phone  String? @db.VarChar(20)
+  avatar String? @db.Text
+
+  role String @db.VarChar(50) // admin, staff, village_head, secretary
+
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  createdMailServices MailService[] @relation("CreatedBy")
+  createdRequests     Request[]     @relation("CreatedBy")
+  createdBudgets      Budget[]      @relation("CreatedBy")
+  mailHistory         MailHistory[]
+
+  @@index([villageId, role])
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================
+// DATA WARGA - Residents Management
+// ============================================
+
+model Resident {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  // Identitas
+  nik  String  @db.VarChar(16) // NIK must be unique per desa
+  kk   String? @db.VarChar(16) // Nomor Kartu Keluarga
+  name String  @db.VarChar(255)
+
+  // Personal Info
+  birthplace    String   @db.VarChar(255)
+  birthDate     DateTime
+  gender        String   @db.VarChar(20) // Laki-laki, Perempuan
+  bloodType     String?  @db.VarChar(5) // A, B, AB, O, A+, B+, AB+, O+, A-, B-, AB-, O-
+  religion      String   @db.VarChar(50) // Islam, Kristen, Katolik, Hindu, Buddha, Konghucu, dll
+  maritalStatus String   @db.VarChar(50) // Belum Menikah, Menikah, Cerai Hidup, Cerai Mati
+  familyRole    String   @db.VarChar(50) // Kepala Keluarga, Istri, Anak, dll
+
+  // Address
+  address String  @db.Text
+  rt      String? @db.VarChar(10)
+  rw      String? @db.VarChar(10)
+  hamlet  String? @db.VarChar(100) // Dusun
+
+  // Work & Education
+  occupation String? @db.VarChar(255)
+  education  String? @db.VarChar(100)
+
+  // Additional
+  nationality String  @default("Indonesia") @db.VarChar(50)
+  phone       String? @db.VarChar(20)
+  email       String? @db.VarChar(255)
+
+  // Family Links
+  fatherNik  String? @db.VarChar(16)
+  fatherName String? @db.VarChar(255)
+  motherNik  String? @db.VarChar(16)
+  motherName String? @db.VarChar(255)
+
+  // Health & Social
+  isIlliterate    Boolean?  @default(false)
+  isDisability    Boolean?  @default(false)
+  disabilityId    Int?
+  otherDisability String?   @db.VarChar(255)
+  isPregnant      Boolean?  @default(false)
+  datePregnant    DateTime?
+  isBreastfeeding Boolean?  @default(false)
+  isStunting      Boolean?  @default(false)
+  isBpjsKis       Boolean?  @default(false)
+  contraception   String?   @db.VarChar(100)
+  height          Int?
+  weight          Int?
+  income          Int?
+
+  // Media
+  cover      String? @db.Text
+  coverThumb String? @db.Text
+  photo      String? @db.Text
+  photoThumb String? @db.Text
+
+  // Misc
+  countryCode    String? @db.VarChar(10)
+  tempIdNumber   String? @db.VarChar(20)
+  tempRt         String? @db.VarChar(10)
+  houseOwnership String? @db.VarChar(100)
+  desil          String? @db.VarChar(50)
+
+  // Status
+  isAlive   Boolean   @default(true)
+  moveDate  DateTime? // Place of residence if already moved
+  deathDate DateTime? // Date of death
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([villageId, nik])
+  @@index([villageId, name])
+  @@index([villageId, nik])
+  @@index([villageId, kk])
+  @@map("residents")
+}
+
+// ============================================
+// DATA PERANGKAT - Village Officials
+// ============================================
+
+model Position {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name  String @db.VarChar(255)
+  level Int    @default(1) // Hierarchy of position
+
+  // Compensation
+  salary    Float?
+  allowance Float?
+
+  description String? @db.Text
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  officials Official[]
+
+  @@index([villageId, isActive])
+  @@map("positions")
+}
+
+model Official {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  positionId Int
+  position   Position @relation(fields: [positionId], references: [id])
+
+  // Personal Info
+  nik        String   @db.VarChar(16)
+  name       String   @db.VarChar(255)
+  birthplace String   @db.VarChar(255)
+  birthDate  DateTime
+  gender     String   @db.VarChar(20)
+
+  // Contact
+  phone   String? @db.VarChar(20)
+  email   String? @db.VarChar(255)
+  address String  @db.Text
+
+  // Work Info
+  startDate DateTime
+  endDate   DateTime?
+
+  // Education & Certification
+  education     String? @db.VarChar(100)
+  certification String? @db.Text
+
+  // Status
+  status String @default("active") @db.VarChar(50) // active, inactive, retired
+
+  // Documents
+  skPengangkatan String? @db.Text // SK Pengangkatan file URL
+  photoUrl       String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, status])
+  @@index([villageId, positionId])
+  @@map("officials")
+}
+
+// ============================================
+// PERMOHONAN WARGA - Citizen Requests
+// ============================================
+
+model Request {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  // Request Info
+  requestNumber String @unique @db.VarChar(100)
+  category      String @db.VarChar(100) // Pengaduan, Permohonan, Informasi
+  title         String @db.VarChar(255)
+  description   String @db.Text
+
+  // Requester
+  requesterNik   String  @db.VarChar(16)
+  requesterName  String  @db.VarChar(255)
+  requesterPhone String? @db.VarChar(20)
+  requesterEmail String? @db.VarChar(255)
+
+  // Status & Priority
+  status   String @db.VarChar(50) // pending, in_progress, completed, rejected
+  priority String @default("medium") @db.VarChar(50) // low, medium, high, urgent
+
+  // Response
+  response        String?   @db.Text
+  responseDate    DateTime?
+  respondedBy     Int?
+  respondedByUser User?     @relation("CreatedBy", fields: [respondedBy], references: [id])
+
+  // Attachments
+  attachments Json? // Array of file URLs
+
+  // Dates
+  requestDate   DateTime  @default(now())
+  completedDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, status])
+  @@index([villageId, category])
+  @@index([requestNumber])
+  @@map("requests")
+}
+
+// ============================================
+// LAYANAN SURAT - Mail Service System
+// ============================================
+
+model MailTemplate {
+  id        Int      @id @default(autoincrement())
+  villageId Int? // NULL = global template
+  village   Village? @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name        String @db.VarChar(255)
+  description String @db.Text
+  category    String @db.VarChar(100) // Keterangan, Pengantar, Kependudukan, dll
+
+  // Template Structure (JSON)
+  templateStructure Json // { variables: [], required_fields: [], header_id, footer_id }
+  contentTemplate   String @db.Text // Template content with {VARIABLES}
+
+  // Configuration
+  isActive Boolean @default(true)
+  isGlobal Boolean @default(false) // Available for all villages
+
+  // Stats
+  usageCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  mailServices MailService[]
+
+  @@index([villageId, isActive])
+  @@index([category])
+  @@index([isGlobal])
+  @@map("mail_templates")
+}
+
+model MailService {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  templateId       Int
+  template         MailTemplate @relation(fields: [templateId], references: [id])
+  templateName     String       @db.VarChar(255) // Denormalized for quick access
+  templateCategory String       @db.VarChar(100)
+
+  // Letter Identification
+  letterNumber String   @unique @db.VarChar(255)
+  letterDate   DateTime
+
+  // Applicant (Normalized for fast query)
+  applicantName String @db.VarChar(255)
+  applicantNik  String @db.VarChar(16)
+
+  // Signer
+  signerRole String? @db.VarChar(50) // kepala_desa, sekretaris, camat
+  signerName String? @db.VarChar(255)
+
+  // Dynamic Form Data (JSONB)
+  formData Json // All dynamic fields from template
+
+  // Generated Content (Immutable snapshot)
+  contentHtml String? @db.Text
+
+  // Status
+  status String @default("draft") @db.VarChar(50) // draft, completed, archived, cancelled
+
+  // Audit Trail
+  createdBy   Int?
+  createdUser User? @relation("CreatedBy", fields: [createdBy], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  printedAt   DateTime?
+  printCount  Int       @default(0)
+
+  // Relations
+  history     MailHistory[]
+  attachments MailAttachment[]
+
+  @@index([villageId, createdAt(sort: Desc)])
+  @@index([villageId, applicantNik])
+  @@index([villageId, status])
+  @@index([letterNumber])
+  @@index([templateId])
+  @@map("mail_services")
+}
+
+model MailHistory {
+  id            BigInt      @id @default(autoincrement())
+  mailServiceId BigInt
+  mailService   MailService @relation(fields: [mailServiceId], references: [id], onDelete: Cascade)
+
+  action  String @db.VarChar(50) // created, updated, completed, printed, cancelled
+  changes Json? // What changed
+
+  changedBy   Int?
+  changedUser User? @relation(fields: [changedBy], references: [id])
+
+  changedAt DateTime @default(now())
+
+  @@index([mailServiceId])
+  @@map("mail_history")
+}
+
+model MailAttachment {
+  id            BigInt      @id @default(autoincrement())
+  mailServiceId BigInt
+  mailService   MailService @relation(fields: [mailServiceId], references: [id], onDelete: Cascade)
+
+  fileName String @db.VarChar(255)
+  filePath String @db.VarChar(500)
+  fileType String @db.VarChar(50)
+  fileSize Int // in bytes
+
+  uploadedAt DateTime @default(now())
+
+  @@index([mailServiceId])
+  @@map("mail_attachments")
+}
+
+// ============================================
+// PELAYANAN SURAT - Mail Requests from Portal
+// ============================================
+
+model MailRequest {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  requestNumber String @unique @db.VarChar(100)
+
+  // Requester
+  nik  String @db.VarChar(16)
+  name String @db.VarChar(255)
+
+  // Request
+  mailType String @db.VarChar(255) // Jenis surat yang diminta
+  purpose  String @db.Text // Keperluan
+
+  // Status
+  status String @default("pending") @db.VarChar(50) // pending, approved, rejected
+
+  // Response
+  notes           String? @db.Text
+  rejectionReason String? @db.Text
+
+  // Dates
+  requestDate   DateTime  @default(now())
+  processedDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, status])
+  @@index([villageId, nik])
+  @@map("mail_requests")
+}
+
+// ============================================
+// KEUANGAN - Financial Management
+// ============================================
+
+model Transaction {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  transactionNumber String   @unique @db.VarChar(100)
+  transactionDate   DateTime
+
+  // Type & Category
+  type     String @db.VarChar(50) // income, expense
+  category String @db.VarChar(100) // Pendapatan, Belanja Pegawai, dll
+
+  // Details
+  description String  @db.Text
+  amount      Decimal @db.Decimal(15, 2)
+
+  // Budget Reference
+  budgetId BigInt?
+  budget   Budget? @relation(fields: [budgetId], references: [id])
+
+  // Payment Info
+  paymentMethod   String? @db.VarChar(100) // transfer, cash, check
+  referenceNumber String? @db.VarChar(100)
+
+  // Attachments
+  receiptUrl  String? @db.Text
+  attachments Json? // Array of URLs
+
+  // Status
+  status String @default("pending") @db.VarChar(50) // pending, verified, approved, rejected
+
+  // Verification
+  verifiedBy Int?
+  verifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, transactionDate(sort: Desc)])
+  @@index([villageId, type, category])
+  @@index([villageId, status])
+  @@map("transactions")
+}
+
+// ============================================
+// ANGGARAN - Budget Management
+// ============================================
+
+model Budget {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  budgetCode String @db.VarChar(50) // Kode anggaran
+  year       Int
+
+  // Category
+  category    String  @db.VarChar(100)
+  subCategory String? @db.VarChar(100)
+
+  // Budget vs Realization
+  budgetAmount    Decimal @db.Decimal(15, 2)
+  realizedAmount  Decimal @default(0) @db.Decimal(15, 2)
+  remainingAmount Decimal @db.Decimal(15, 2)
+
+  // Percentage
+  realizationPercent Float @default(0)
+
+  // Description
+  description String @db.Text
+
+  // Status
+  status String @default("active") @db.VarChar(50) // active, completed, cancelled
+
+  // Audit
+  createdBy   Int
+  createdUser User @relation("CreatedBy", fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  transactions Transaction[]
+
+  @@unique([villageId, budgetCode, year])
+  @@index([villageId, year])
+  @@index([villageId, category])
+  @@map("budgets")
+}
+
+// ============================================
+// POTENSI DESA - Village Potentials
+// ============================================
+
+model Potential {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  category    String  @db.VarChar(100) // Pertanian, Peternakan, UMKM, Pariwisata, dll
+  subCategory String? @db.VarChar(100)
+
+  name        String @db.VarChar(255)
+  description String @db.Text
+
+  // Location
+  location String? @db.Text
+  area     Float? // in hectare or relevant unit
+
+  // Value & Production
+  productionValue Decimal? @db.Decimal(15, 2)
+  productionUnit  String?  @db.VarChar(50) // ton, kg, unit, dll
+  annualIncome    Decimal? @db.Decimal(15, 2)
+
+  // People involved
+  involvedPeople Int? // Jumlah orang yang terlibat
+
+  // Images
+  images Json? // Array of image URLs
+
+  // Status
+  status String @default("active") @db.VarChar(50) // active, inactive, potential
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, category])
+  @@index([villageId, status])
+  @@map("potentials")
+}
+
+// Village Potential - Data agregat potensi desa per tahun
+model VillagePotential {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  year String @db.VarChar(4) // Tahun data
+
+  // Demografi
+  population Int // Jumlah penduduk
+  households Int // Jumlah KK
+
+  // Wilayah (dalam hektar)
+  area            Float // Luas total
+  agricultureLand Float // Lahan pertanian
+  plantationLand  Float // Lahan perkebunan
+  forestArea      Float // Hutan
+
+  // Fasilitas
+  educationFacilities Int @default(0) // Jumlah sekolah/lembaga pendidikan
+  healthFacilities    Int @default(0) // Jumlah puskesmas/posyandu/klinik
+  tourismSpots        Int @default(0) // Jumlah objek wisata
+
+  // Potensi
+  waterResources    String? @db.Text // Deskripsi sumber air
+  economicPotential String? @db.Text // Deskripsi potensi ekonomi
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([villageId, year])
+  @@index([villageId, year])
+  @@map("village_potentials")
+}
+
+// ============================================
+// ARSIP DIGITAL - Digital Archive
+// ============================================
+
+model DigitalArchive {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  // File Info
+  fileName String @db.VarChar(255)
+  filePath String @db.VarChar(500) // S3, local storage path
+  fileType String @db.VarChar(50) // pdf, doc, jpg, etc
+  fileSize BigInt // in bytes
+
+  // Metadata
+  category    String  @db.VarChar(100) // Surat, Laporan, SK, dll
+  subCategory String? @db.VarChar(100)
+  year        Int?
+
+  // Description
+  title       String  @db.VarChar(255)
+  description String? @db.Text
+  tags        Json? // Array of tags for search
+
+  // Access Control
+  isPublic    Boolean @default(false)
+  accessLevel String  @default("admin") @db.VarChar(50) // admin, staff, public
+
+  // Upload Info
+  uploadedBy Int
+  uploadedAt DateTime @default(now())
+
+  // Download stats
+  downloadCount Int       @default(0)
+  lastAccessed  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, category])
+  @@index([villageId, year])
+  @@index([villageId, isPublic])
+  @@map("digital_archives")
+}
+
+// ============================================
+// STATISTIK - Village Statistics
+// ============================================
+
+model Statistic {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  // Period
+  year  Int
+  month Int? // NULL = yearly stat
+
+  // Population Stats
+  totalPopulation  Int?
+  malePopulation   Int?
+  femalePopulation Int?
+  familyCount      Int?
+
+  // Age Groups
+  ageGroup0_4    Int?
+  ageGroup5_14   Int?
+  ageGroup15_24  Int?
+  ageGroup25_54  Int?
+  ageGroup55Plus Int?
+
+  // Education
+  educationSD      Int?
+  educationSMP     Int?
+  educationSMA     Int?
+  educationDiploma Int?
+  educationS1Plus  Int?
+
+  // Occupation
+  occupationFarmer   Int?
+  occupationMerchant Int?
+  occupationEmployee Int?
+  occupationOther    Int?
+
+  // Religion
+  religionIslam    Int?
+  religionKristen  Int?
+  religionKatolik  Int?
+  religionHindu    Int?
+  religionBuddha   Int?
+  religionKonghucu Int?
+
+  // Service Stats
+  totalMailServices Int?
+  totalRequests     Int?
+  completedRequests Int?
+
+  // Financial Stats
+  totalIncome  Decimal? @db.Decimal(15, 2)
+  totalExpense Decimal? @db.Decimal(15, 2)
+
+  // Additional data
+  additionalData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([villageId, year, month])
+  @@index([villageId, year])
+  @@map("statistics")
+}
+
+// ============================================
+// PORTAL WARGA - Citizen Portal
+// ============================================
+
+model Announcement {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  title    String @db.VarChar(255)
+  content  String @db.Text
+  category String @db.VarChar(100) // Pengumuman, Berita, Event
+
+  // Media
+  imageUrl String? @db.Text
+
+  // Priority
+  isPinned Boolean @default(false)
+  priority Int     @default(0)
+
+  // Publication
+  publishDate DateTime  @default(now())
+  expiryDate  DateTime?
+
+  isActive  Boolean @default(true)
+  viewCount Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, isActive, publishDate(sort: Desc)])
+  @@index([villageId, category])
+  @@map("announcements")
+}
+
+// ============================================
+// TEMPLATE WEBSITE - Website Templates
+// ============================================
+
+model WebsiteTemplate {
+  id Int @id @default(autoincrement())
+
+  name        String @db.VarChar(255)
+  description String @db.Text
+  category    String @db.VarChar(100)
+
+  // Template Files
+  previewImage String  @db.Text
+  thumbnailUrl String  @db.Text
+  demoUrl      String? @db.Text
+
+  // Template Structure
+  structure Json // Page layouts, sections, components
+
+  // Pricing
+  price            Decimal @db.Decimal(10, 2)
+  subscriptionType String  @db.VarChar(50) // yearly, lifetime
+
+  // Stats
+  usageCount  Int   @default(0)
+  rating      Float @default(0)
+  reviewCount Int   @default(0)
+
+  isActive   Boolean @default(true)
+  isFeatured Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subscriptions WebsiteSubscription[]
+
+  @@index([isActive, isFeatured])
+  @@index([category])
+  @@map("website_templates")
+}
+
+model WebsiteSubscription {
+  id        Int @id @default(autoincrement())
+  villageId Int @unique
+
+  templateId Int
+  template   WebsiteTemplate @relation(fields: [templateId], references: [id])
+
+  // Subscription Info
+  startDate  DateTime
+  expiryDate DateTime
+
+  // Customization
+  customization Json? // Colors, fonts, content overrides
+
+  // Domain
+  customDomain String? @db.VarChar(255)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId])
+  @@index([templateId])
+  @@map("website_subscriptions")
+}
+
+// ============================================
+// SYSTEM LOGS & AUDIT
+// ============================================
+
+model AuditLog {
+  id BigInt @id @default(autoincrement())
+
+  villageId Int?
+  userId    Int?
+
+  // Action Info
+  action   String  @db.VarChar(100) // create, update, delete, login, etc
+  entity   String  @db.VarChar(100) // residents, officials, mail_services, etc
+  entityId String? @db.VarChar(100)
+
+  // Details
+  changes  Json? // What changed
+  metadata Json? // Additional context
+
+  // Request Info
+  ipAddress String? @db.VarChar(50)
+  userAgent String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([villageId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}

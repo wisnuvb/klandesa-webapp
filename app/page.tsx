@@ -1,65 +1,77 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React from "react";
+import Head from "next/head";
+
+import { AboutSection } from "@/components/features/AboutSection";
+import { BenefitsSection } from "@/components/features/BenefitsSection";
+import { ContactModal } from "@/components/features/ContactModal";
+import { CTASection } from "@/components/features/CTASection";
+import { Footer } from "@/components/features/Footer";
+import { HeroSection } from "@/components/features/HeroSection";
+import { LoginModal } from "@/components/features/LoginModal";
+import { Navbar } from "@/components/features/Navbar";
+import { RegistrationModal } from "@/components/features/RegistrationModal";
+import { StatsSection } from "@/components/features/StatsSection";
+import { WhatsAppButton } from "@/components/features/WhatsAppButton";
+import {
+  DESCRIPTION_WEB,
+  LOGO_SINGLE_BIG,
+  TITLE_WEB,
+} from "@/utils/constants/seo";
+
+export default function HomePage() {
+  const [showLogin, setShowLogin] = React.useState(false);
+  const [showRegistration, setShowRegistration] = React.useState(false);
+  const [showContact, setShowContact] = React.useState(false);
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://klandesa.id";
+  const pageUrl = `${siteUrl}/`;
+  const ogImage = `${siteUrl}${LOGO_SINGLE_BIG}`;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <>
+      <Head>
+        <title>{TITLE_WEB}</title>
+        <meta name="description" content={DESCRIPTION_WEB} />
+        <meta name="robots" content="index,follow" />
+        <link rel="canonical" href={pageUrl} />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={TITLE_WEB} />
+        <meta property="og:description" content={DESCRIPTION_WEB} />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:image" content={ogImage} />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={TITLE_WEB} />
+        <meta name="twitter:description" content={DESCRIPTION_WEB} />
+        <meta name="twitter:image" content={ogImage} />
+
+        <meta name="theme-color" content="#0d9488" />
+      </Head>
+
+      <div className="min-h-screen bg-white">
+        <Navbar onLoginClick={() => setShowLogin(true)} />
+        <HeroSection onRegisterClick={() => setShowRegistration(true)} />
+        <AboutSection />
+        <BenefitsSection />
+        <StatsSection onRegisterClick={() => setShowRegistration(true)} />
+        <CTASection
+          onRegisterClick={() => setShowRegistration(true)}
+          onContactClick={() => setShowContact(true)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <Footer />
+        <WhatsAppButton />
+
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+        {showRegistration && (
+          <RegistrationModal onClose={() => setShowRegistration(false)} />
+        )}
+        {showContact && <ContactModal onClose={() => setShowContact(false)} />}
+      </div>
+    </>
   );
 }

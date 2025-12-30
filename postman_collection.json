@@ -1,0 +1,252 @@
+{
+  "info": {
+    "_postman_id": "klandesa-village-potentials",
+    "name": "Klandesa - Village Potentials API",
+    "description": "Collection untuk testing Village Potentials API dan related endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Village Potentials",
+      "item": [
+        {
+          "name": "Get All Potentials",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tenant-subdomain",
+                "value": "desa001",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/village-potentials?page=1&pageSize=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "village-potentials"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by Year",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tenant-subdomain",
+                "value": "desa001",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/village-potentials?page=1&pageSize=10&year=2024",
+              "host": ["{{base_url}}"],
+              "path": ["api", "village-potentials"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "year",
+                  "value": "2024"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Potentials",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tenant-subdomain",
+                "value": "desa001",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/village-potentials?search=pertanian",
+              "host": ["{{base_url}}"],
+              "path": ["api", "village-potentials"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "pertanian"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create New Potential",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tenant-subdomain",
+                "value": "desa001",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": \"2025\",\n  \"population\": 5600,\n  \"households\": 1400,\n  \"area\": 1250,\n  \"agricultureLand\": 460,\n  \"plantationLand\": 330,\n  \"forestArea\": 275,\n  \"educationFacilities\": 8,\n  \"healthFacilities\": 3,\n  \"tourismSpots\": 6,\n  \"waterResources\": \"Sungai Bone, 4 Mata Air, 18 Sumur Bor\",\n  \"economicPotential\": \"Pertanian, Perkebunan, Peternakan, Wisata\"\n}\n"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/village-potentials",
+              "host": ["{{base_url}}"],
+              "path": ["api", "village-potentials"]
+            }
+          }
+        },
+        {
+          "name": "Delete Potential",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-tenant-subdomain",
+                "value": "desa001",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/village-potentials/{{potential_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "village-potentials", "{{potential_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Positions",
+      "item": [
+        {
+          "name": "Get All Positions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tenant-subdomain",
+                "value": "desa001",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/positions?page=1&pageSize=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "positions"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Officials",
+      "item": [
+        {
+          "name": "Get All Officials",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tenant-subdomain",
+                "value": "desa001",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/officials?page=1&pageSize=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "officials"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "potential_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
