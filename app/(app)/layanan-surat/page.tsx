@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useRef } from "react";
@@ -570,7 +571,7 @@ const mockLetterHistory: LetterHistory[] = [
       KEPERLUAN: "Pengajuan Kredit Usaha Rakyat",
     },
     templateData: {
-      id: 0,
+      id: "0",
       name: "Surat Keterangan Usaha",
       description: "Template dengan format blocks modern",
       category: "Keterangan",
@@ -998,7 +999,7 @@ export function LayananSurat() {
     // Parse content template to blocks (simplified - create one text block)
     const blocks = [
       {
-        id: `block-${Date.now()}`,
+        id: `block-${template.id}`,
         type: "text" as const,
         content: template.content_template,
         style: {
@@ -1586,7 +1587,7 @@ export function LayananSurat() {
                   </TabsContent>
 
                   <TabsContent value="preview" className="space-y-4 mt-4">
-                    <div className="border rounded-lg p-8 bg-white min-h-[700px] font-serif">
+                    <div className="border rounded-lg p-8 bg-white min-h-175 font-serif">
                       <div
                         dangerouslySetInnerHTML={{ __html: generatePreview() }}
                         style={{
@@ -1649,7 +1650,7 @@ export function LayananSurat() {
               </DialogHeader>
 
               {previewTemplate && (
-                <div className="border rounded-lg p-8 bg-white min-h-[700px] font-serif">
+                <div className="border rounded-lg p-8 bg-white min-h-175 font-serif">
                   <div
                     dangerouslySetInnerHTML={{
                       __html: generateTemplatePreview(previewTemplate),
@@ -2095,7 +2096,7 @@ export function LayananSurat() {
               {selectedLetter && (
                 <div
                   ref={letterPreviewRef}
-                  className="border rounded-lg p-8 bg-white min-h-[700px] font-serif"
+                  className="border rounded-lg p-8 bg-white min-h-175 font-serif"
                 >
                   {selectedLetter.templateData ? (
                     // Modern template dengan blocks
