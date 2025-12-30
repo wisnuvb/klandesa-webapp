@@ -31,7 +31,7 @@ async function main() {
   }
 
   // Hash password
-  const hashedPassword = await bcrypt.hash("password123", 10);
+  const hashedPassword = await bcrypt.hash("123456", 10);
 
   // Create or get user
   let user = await prisma.user.findUnique({

@@ -1,3 +1,4 @@
+import "@/env";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, generateTokens } from "@/lib/auth";

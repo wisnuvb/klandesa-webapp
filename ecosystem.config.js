@@ -10,6 +10,9 @@ module.exports = {
       env: {
         NODE_ENV: "production",
       },
+      env_production: {
+        NODE_ENV: "production",
+      },
       // Memory & restart
       max_memory_restart: "512M",
       max_restarts: 10,
