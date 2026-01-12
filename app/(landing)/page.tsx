@@ -1,55 +1,66 @@
-export default function LandingPage() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-linear-to-b from-white to-gray-100 dark:from-black dark:to-gray-900">
-      <main className="container mx-auto px-4 py-16">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold mb-6">Welcome to Klandesa</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-            Platform multi-tenant untuk membuat website dan mengelola bisnis
-            Anda
-          </p>
-          <div className="flex gap-4 justify-center">
-            <a
-              href="http://app.localhost:3000"
-              className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-lg font-medium hover:opacity-90 transition-opacity"
-            >
-              Get Started
-            </a>
-            <a
-              href="#features"
-              className="px-6 py-3 border border-gray-300 dark:border-gray-700 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              Learn More
-            </a>
-          </div>
-        </div>
+"use client";
 
-        <section id="features" className="mt-24">
-          <h2 className="text-3xl font-bold text-center mb-12">Features</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-6 border border-gray-200 dark:border-gray-800 rounded-lg">
-              <h3 className="text-xl font-semibold mb-3">Multi-Tenant</h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Setiap tenant mendapatkan subdomain sendiri dengan isolasi data
-                yang aman
-              </p>
-            </div>
-            <div className="p-6 border border-gray-200 dark:border-gray-800 rounded-lg">
-              <h3 className="text-xl font-semibold mb-3">Custom Websites</h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Buat website khusus untuk setiap tenant dengan branding
-                masing-masing
-              </p>
-            </div>
-            <div className="p-6 border border-gray-200 dark:border-gray-800 rounded-lg">
-              <h3 className="text-xl font-semibold mb-3">Powerful Dashboard</h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Dashboard lengkap untuk mengelola konten dan pengaturan
-              </p>
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
+import React from "react";
+import Head from "next/head";
+import { AboutSection } from "@/components/features/AboutSection";
+import { BenefitsSection } from "@/components/features/BenefitsSection";
+import { CTASection } from "@/components/features/CTASection";
+import { HeroSection } from "@/components/features/HeroSection";
+import { StatsSection } from "@/components/features/StatsSection";
+import {
+  DESCRIPTION_WEB,
+  LOGO_SINGLE_BIG,
+  TITLE_WEB,
+} from "@/utils/constants/seo";
+import { RegistrationModal } from "@/components/features/RegistrationModal";
+import { ContactModal } from "@/components/features/ContactModal";
+
+export default function HomePage() {
+  const [showRegistration, setShowRegistration] = React.useState(false);
+  const [showContact, setShowContact] = React.useState(false);
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://klandesa.com";
+  const pageUrl = `${siteUrl}/`;
+  const ogImage = `${siteUrl}${LOGO_SINGLE_BIG}`;
+
+  return (
+    <>
+      <Head>
+        <title>{TITLE_WEB}</title>
+        <meta name="description" content={DESCRIPTION_WEB} />
+        <meta name="robots" content="index,follow" />
+        <link rel="canonical" href={pageUrl} />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={TITLE_WEB} />
+        <meta property="og:description" content={DESCRIPTION_WEB} />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:image" content={ogImage} />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={TITLE_WEB} />
+        <meta name="twitter:description" content={DESCRIPTION_WEB} />
+        <meta name="twitter:image" content={ogImage} />
+
+        <meta name="theme-color" content="#0d9488" />
+      </Head>
+
+      <HeroSection onRegisterClick={() => setShowRegistration(true)} />
+      <AboutSection />
+      <BenefitsSection />
+      <StatsSection onRegisterClick={() => setShowRegistration(true)} />
+      <CTASection
+        onRegisterClick={() => setShowRegistration(true)}
+        onContactClick={() => setShowContact(true)}
+      />
+
+      {showRegistration && (
+        <RegistrationModal onClose={() => setShowRegistration(false)} />
+      )}
+
+      {showContact && <ContactModal onClose={() => setShowContact(false)} />}
+    </>
   );
 }

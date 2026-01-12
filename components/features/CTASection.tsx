@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowRight } from 'lucide-react';
+import React from "react";
+import { ArrowRight } from "lucide-react";
 
 interface CTASectionProps {
   onRegisterClick: () => void;
@@ -28,8 +28,8 @@ export function CTASection({
           className="absolute inset-0"
           style={{
             backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-            backgroundSize: '50px 50px',
+              "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+            backgroundSize: "50px 50px",
           }}
         ></div>
       </div>
@@ -48,7 +48,7 @@ export function CTASection({
 
         {/* Main Heading */}
         <h2 className="text-4xl md:text-5xl lg:text-6xl text-white mb-6 leading-tight">
-          Siap{' '}
+          Siap{" "}
           <span className="relative inline-block">
             Transformasi
             <svg
@@ -65,7 +65,7 @@ export function CTASection({
                 strokeLinecap="round"
               />
             </svg>
-          </span>{' '}
+          </span>{" "}
           Desa Anda?
         </h2>
 
@@ -78,7 +78,7 @@ export function CTASection({
         <div className="flex flex-col sm:flex-row gap-4 justify-center pb-12">
           <button
             onClick={onRegisterClick}
-            className="group relative bg-white text-[#0d9488] px-8 py-4 rounded-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center justify-center gap-2"
+            className="group relative bg-white text-[#0d9488] px-8 py-4 rounded-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>Daftar Sekarang</span>
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -86,7 +86,7 @@ export function CTASection({
 
           <button
             onClick={onContactClick}
-            className="relative bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl hover:bg-white/10 transition-all backdrop-blur-sm hover:scale-105 hover:border-[#fbbf24] hover:text-[#fbbf24] group"
+            className="relative bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl hover:bg-white/10 transition-all backdrop-blur-sm hover:scale-105 hover:border-[#fbbf24] hover:text-[#fbbf24] group cursor-pointer"
           >
             <span>Hubungi Kami</span>
           </button>

@@ -16,20 +16,19 @@ export async function middleware(req: NextRequest) {
 
   // Handle main domain (landing page)
   if (isMainDomain(subdomain)) {
-    // Allow public access to landing page
-    if (url.pathname === "/" || url.pathname.startsWith("/(landing)")) {
+    // Skip rewrite for Next.js internal routes and API routes
+    if (url.pathname.startsWith("/_next") || url.pathname.startsWith("/api")) {
+      return NextResponse.next();
+    }
+
+    if (url.pathname === "/") {
       return NextResponse.next();
     }
 
     // Rewrite to landing routes
-    if (
-      !url.pathname.startsWith("/_next") &&
-      !url.pathname.startsWith("/api")
-    ) {
-      return NextResponse.rewrite(
-        new URL(`/(landing)${url.pathname}`, req.url)
-      );
-    }
+    // Note: Route groups like (landing) are not part of the URL
+    // Next.js will automatically find the route in the (landing) folder
+    return NextResponse.rewrite(new URL(url.pathname, req.url));
   }
 
   // Handle app subdomain (dashboard)

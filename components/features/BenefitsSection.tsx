@@ -1,22 +1,25 @@
-import React from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X } from "lucide-react";
+import React from "react";
+import { RegistrationModal } from "./RegistrationModal";
+
+const withoutKlandesa = [
+  "Proses administrasi yang rumit dan memakan waktu",
+  "Kurang transparansi dalam layanan desa",
+  "Akses informasi yang terbatas",
+  "Pelayanan tidak terintegrasi",
+  "Kesulitan dalam pelaporan dan dokumentasi",
+];
+
+const withKlandesa = [
+  "Proses administrasi cepat dan efisien",
+  "Transparansi penuh dalam setiap layanan",
+  "Akses informasi real-time kapan saja",
+  "Semua layanan terintegrasi dalam satu platform",
+  "Pelaporan dan dokumentasi otomatis",
+];
 
 export function BenefitsSection() {
-  const withoutKlandesa = [
-    'Proses administrasi yang rumit dan memakan waktu',
-    'Kurang transparansi dalam layanan desa',
-    'Akses informasi yang terbatas',
-    'Pelayanan tidak terintegrasi',
-    'Kesulitan dalam pelaporan dan dokumentasi',
-  ];
-
-  const withKlandesa = [
-    'Proses administrasi cepat dan efisien',
-    'Transparansi penuh dalam setiap layanan',
-    'Akses informasi real-time kapan saja',
-    'Semua layanan terintegrasi dalam satu platform',
-    'Pelaporan dan dokumentasi otomatis',
-  ];
+  const [showRegistration, setShowRegistration] = React.useState(false);
 
   return (
     <section
@@ -35,8 +38,8 @@ export function BenefitsSection() {
           className="absolute inset-0"
           style={{
             backgroundImage:
-              'linear-gradient(#0d9488 1px, transparent 1px), linear-gradient(90deg, #0d9488 1px, transparent 1px)',
-            backgroundSize: '50px 50px',
+              "linear-gradient(#0d9488 1px, transparent 1px), linear-gradient(90deg, #0d9488 1px, transparent 1px)",
+            backgroundSize: "50px 50px",
           }}
         ></div>
       </div>
@@ -50,7 +53,7 @@ export function BenefitsSection() {
           </div>
 
           <h2 className="text-4xl md:text-5xl lg:text-6xl text-gray-900 mb-4 leading-tight">
-            Manfaat{' '}
+            Manfaat{" "}
             <span className="bg-gradient-to-r from-[#0d9488] to-[#6366f1] bg-clip-text text-transparent">
               Klandesa
             </span>
@@ -161,11 +164,18 @@ export function BenefitsSection() {
         {/* Call to Action */}
         <div className="text-center mt-12">
           <p className="text-gray-600 mb-6">Siap untuk transformasi digital?</p>
-          <button className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-4 rounded-xl hover:shadow-xl transition-all hover:scale-105 shadow-lg">
+          <button
+            className="cursor-pointer bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-4 rounded-xl hover:shadow-xl transition-all hover:scale-105 shadow-lg"
+            onClick={() => setShowRegistration(true)}
+          >
             Mulai Transformasi Sekarang
           </button>
         </div>
       </div>
+
+      {showRegistration && (
+        <RegistrationModal onClose={() => setShowRegistration(false)} />
+      )}
     </section>
   );
 }

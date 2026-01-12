@@ -1,11 +1,11 @@
-import React from 'react';
-import { MessageCircle } from 'lucide-react';
+import React from "react";
+import { MessageCircle } from "lucide-react";
 
 export function WhatsAppButton() {
   return (
     <div className="fixed bottom-6 right-6 z-50 group">
       <a
-        href="https://wa.me/62123456789"
+        href="https://wa.me/6282320337777?text=Halo, saya ingin bertanya tentang Klandesa"
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center justify-center bg-[#25D366] text-white p-4 rounded-full shadow-2xl hover:bg-[#20ba5a] transition-all hover:scale-110 relative"

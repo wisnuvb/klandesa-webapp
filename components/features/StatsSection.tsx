@@ -1,5 +1,5 @@
-import React from 'react';
-import { Award, MapPin, TrendingUp, Users } from 'lucide-react';
+import React from "react";
+import { Award, MapPin, TrendingUp, Users } from "lucide-react";
 
 interface StatsSectionProps {
   onRegisterClick: () => void;
@@ -9,21 +9,21 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
   const stats = [
     {
       icon: MapPin,
-      number: '500+',
-      label: 'Desa Terdaftar',
-      color: 'bg-[#6366f1]',
+      number: "500+",
+      label: "Desa Terdaftar",
+      color: "bg-[#6366f1]",
     },
     {
       icon: TrendingUp,
-      number: '50+',
-      label: 'Kabupaten',
-      color: 'bg-[#0d9488]',
+      number: "50+",
+      label: "Kabupaten",
+      color: "bg-[#0d9488]",
     },
     {
       icon: Users,
-      number: '100,000+',
-      label: 'Pengguna Aktif',
-      color: 'bg-[#f59e0b]',
+      number: "100,000+",
+      label: "Pengguna Aktif",
+      color: "bg-[#f59e0b]",
     },
   ];
 
@@ -45,8 +45,8 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
           className="absolute inset-0"
           style={{
             backgroundImage:
-              'radial-gradient(circle, #0d9488 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
+              "radial-gradient(circle, #0d9488 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
         ></div>
       </div>
@@ -64,7 +64,7 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
           </div>
 
           <h2 className="text-4xl md:text-5xl lg:text-6xl text-gray-900 mb-4 leading-tight">
-            Statistik{' '}
+            Statistik{" "}
             <span className="bg-gradient-to-r from-[#0d9488] to-[#6366f1] bg-clip-text text-transparent">
               Pengguna
             </span>
@@ -158,7 +158,7 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
             </div>
             <button
               onClick={onRegisterClick}
-              className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-3 rounded-xl hover:shadow-xl transition-all hover:scale-105 shadow-md whitespace-nowrap"
+              className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-3 rounded-xl hover:shadow-xl transition-all hover:scale-105 shadow-md whitespace-nowrap cursor-pointer"
             >
               Daftar Sekarang
             </button>

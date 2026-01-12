@@ -9,9 +9,10 @@ import { KlandesaLogo } from "./KlandesaLogo";
 
 interface NavbarProps {
   onLoginClick: () => void;
+  onRegisterClick: () => void;
 }
 
-export function Navbar({ onLoginClick }: NavbarProps) {
+export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
   // const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const router = useRouter();
@@ -73,7 +74,7 @@ export function Navbar({ onLoginClick }: NavbarProps) {
               <button
                 key={link.name}
                 onClick={() => handleNavClick(link.href, link.type)}
-                className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 rounded-lg hover:bg-gray-50"
+                className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
               >
                 {link.name}
               </button>
@@ -84,11 +85,14 @@ export function Navbar({ onLoginClick }: NavbarProps) {
           <div className="hidden md:flex items-center gap-3">
             <button
               onClick={onLoginClick}
-              className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2"
+              className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 cursor-pointer"
             >
               Masuk
             </button>
-            <button className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-2.5 rounded-lg hover:shadow-lg transition-all hover:scale-105">
+            <button
+              onClick={() => onRegisterClick()}
+              className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-2.5 rounded-lg hover:shadow-lg transition-all hover:scale-105 cursor-pointer"
+            >
               Daftar Sekarang
             </button>
           </div>
@@ -96,7 +100,7 @@ export function Navbar({ onLoginClick }: NavbarProps) {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 rounded-lg transition-colors"
+            className="md:hidden p-2 text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
           >
             {isMenuOpen ? (
               <X className="w-6 h-6" />
@@ -115,7 +119,7 @@ export function Navbar({ onLoginClick }: NavbarProps) {
               <button
                 key={link.name}
                 onClick={() => handleNavClick(link.href, link.type)}
-                className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg"
+                className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg cursor-pointer"
               >
                 {link.name}
               </button>
@@ -129,11 +133,11 @@ export function Navbar({ onLoginClick }: NavbarProps) {
                 onLoginClick();
                 setIsMenuOpen(false);
               }}
-              className="w-full text-center text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="w-full text-center text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"
             >
               Masuk
             </button>
-            <button className="w-full bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-4 py-3 rounded-lg hover:shadow-lg transition-all">
+            <button className="w-full bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-4 py-3 rounded-lg hover:shadow-lg transition-all cursor-pointer">
               Daftar Sekarang
             </button>
           </div>
