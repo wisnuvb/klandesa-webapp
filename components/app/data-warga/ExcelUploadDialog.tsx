@@ -34,13 +34,21 @@ import {
   MARITAL_STATUS_OPTIONS,
   BLOOD_TYPE_OPTIONS,
 } from "@/utils/constants/user";
-import { Download, Upload, X, Loader2 } from "lucide-react";
+import {
+  Download,
+  Upload,
+  X,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 // Max batch size - must match API constant
-const MAX_BATCH_SIZE = 500;
+const MAX_BATCH_SIZE = 50000;
+const PREVIEW_PAGE_SIZE = 100; // Show 100 rows per page for preview
 
 // Mapping field Excel (Bahasa Indonesia) ke field API (Bahasa Inggris)
 const FIELD_MAPPING: Record<string, string> = {
@@ -111,9 +119,11 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
   const [errors, setErrors] = useState<
     Array<{ rowNumber: number; errors: string[] }>
   >([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isValidating, setIsValidating] = useState(false);
 
   // Validasi data berdasarkan schema Prisma
-  const validateRow = useCallback((row: any, rowIndex: number) => {
+  const validateRow = useCallback((row: any) => {
     const rowErrors: string[] = [];
 
     // Required fields validation
@@ -123,11 +133,11 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
       rowErrors.push("Nama Lengkap maksimal 255 karakter");
     }
 
-    if (!row.id_number?.toString().trim()) {
-      rowErrors.push("NIK harus diisi");
-    } else if (row.id_number.toString().length !== 16) {
-      rowErrors.push("NIK harus 16 digit");
-    }
+    // if (!row.id_number?.toString().trim()) {
+    //   rowErrors.push("NIK harus diisi");
+    // } else if (row.id_number.toString().length !== 16) {
+    //   rowErrors.push("NIK harus 16 digit");
+    // }
 
     if (!row.birthplace?.toString().trim()) {
       rowErrors.push("Tempat Lahir harus diisi");
@@ -135,31 +145,24 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
       rowErrors.push("Tempat Lahir maksimal 255 karakter");
     }
 
-    if (!row.date_of_birth?.toString().trim()) {
-      rowErrors.push("Tanggal Lahir harus diisi");
-    } else {
-      const dateValue = new Date(row.date_of_birth);
-      if (isNaN(dateValue.getTime())) {
-        rowErrors.push("Format Tanggal Lahir tidak valid (gunakan YYYY-MM-DD)");
-      }
-    }
+    // Date of birth: tidak ada validasi, akan di-auto-fill dengan hari ini jika kosong/invalid
 
-    if (!row.gender?.toString().trim()) {
-      rowErrors.push("Jenis Kelamin harus diisi");
-    } else if (
-      !["Laki-laki", "Perempuan"].includes(row.gender.toString().trim())
-    ) {
-      rowErrors.push("Jenis Kelamin hanya boleh Laki-laki atau Perempuan");
-    }
+    // if (!row.gender?.toString().trim()) {
+    //   rowErrors.push("Jenis Kelamin harus diisi");
+    // } else if (
+    //   !["Laki-laki", "Perempuan"].includes(row.gender.toString().trim())
+    // ) {
+    //   rowErrors.push("Jenis Kelamin hanya boleh Laki-laki atau Perempuan");
+    // }
 
-    if (!row.address?.toString().trim()) {
-      rowErrors.push("Alamat harus diisi");
-    }
+    // if (!row.address?.toString().trim()) {
+    //   rowErrors.push("Alamat harus diisi");
+    // }
 
     // Optional fields with length validation
     if (
       row.family_card_number &&
-      row.family_card_number.toString().length > 16
+      row.family_card_number.toString().length > 20
     ) {
       rowErrors.push("No. KK maksimal 16 digit");
     }
@@ -187,22 +190,33 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
     return rowErrors;
   }, []);
 
-  // Validasi semua data
+  // Validasi semua data dengan debounce untuk performa
   const validateAllData = useCallback(() => {
-    const newErrors = excelData
-      .map((row, idx) => {
-        const rowErrors = validateRow(row, idx);
-        return rowErrors.length > 0
-          ? { rowNumber: idx + 1, errors: rowErrors }
-          : null;
-      })
-      .filter((item) => item !== null) as Array<{
-      rowNumber: number;
-      errors: string[];
-    }>;
+    setIsValidating(true);
 
-    setErrors(newErrors);
-    return newErrors.length === 0;
+    // Batch validation untuk performa
+    const BATCH_SIZE = 1000;
+    const allErrors: Array<{ rowNumber: number; errors: string[] }> = [];
+
+    for (let i = 0; i < excelData.length; i += BATCH_SIZE) {
+      const batch = excelData.slice(i, i + BATCH_SIZE);
+      const batchErrors = batch
+        .map((row, idx) => {
+          const rowErrors = validateRow(row);
+          return rowErrors.length > 0
+            ? { rowNumber: i + idx + 1, errors: rowErrors }
+            : null;
+        })
+        .filter((item) => item !== null) as Array<{
+        rowNumber: number;
+        errors: string[];
+      }>;
+      allErrors.push(...batchErrors);
+    }
+
+    setErrors(allErrors);
+    setIsValidating(false);
+    return allErrors.length === 0;
   }, [excelData, validateRow]);
 
   const handleDownloadTemplate = () => {
@@ -270,11 +284,14 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
     if (file) {
       setExcelFile(file);
       setErrors([]);
+      setCurrentPage(1);
+      setIsValidating(true);
+
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
           const data = event.target?.result;
-          const workbook = XLSX.read(data, { type: "binary" });
+          const workbook = XLSX.read(data, { type: "binary", cellDates: true });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           const json = XLSX.utils.sheet_to_json(worksheet);
@@ -284,57 +301,53 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
             const mappedRow: any = {};
             for (const [key, value] of Object.entries(row)) {
               const mappedKey = FIELD_MAPPING[key as string] || key;
-              mappedRow[mappedKey] = value;
+
+              // Convert Date object to YYYY-MM-DD string with validation
+              if (value instanceof Date) {
+                const year = value.getFullYear();
+                // Validate year range (1900-2100), if invalid use today
+                if (year >= 1900 && year <= 2100) {
+                  mappedRow[mappedKey] = value.toISOString().split("T")[0];
+                } else {
+                  // Invalid year, use today's date
+                  const today = new Date();
+                  mappedRow[mappedKey] = today.toISOString().split("T")[0];
+                }
+              } else {
+                mappedRow[mappedKey] = value;
+              }
             }
             return mappedRow;
           });
 
           if (mappedJson.length > MAX_BATCH_SIZE) {
             toast.error(
-              `Maksimal ${MAX_BATCH_SIZE} data per upload. File Anda: ${mappedJson.length}`
+              `Maksimal ${MAX_BATCH_SIZE.toLocaleString()} data per upload. File Anda: ${mappedJson.length.toLocaleString()}`
             );
             const slicedData = mappedJson.slice(0, MAX_BATCH_SIZE);
             setExcelData(slicedData);
-            // Validate langsung setelah data di-set
+
+            // Async validation untuk tidak block UI
             setTimeout(() => {
-              const validationErrors = slicedData
-                .map((row, idx) => {
-                  const rowErrors = validateRow(row, idx);
-                  return rowErrors.length > 0
-                    ? { rowNumber: idx + 1, errors: rowErrors }
-                    : null;
-                })
-                .filter((item) => item !== null) as Array<{
-                rowNumber: number;
-                errors: string[];
-              }>;
-              setErrors(validationErrors);
-            }, 0);
+              validateAllData();
+            }, 100);
             return;
           }
 
           setExcelData(mappedJson);
-          // Validate langsung setelah data di-load
-          setTimeout(() => {
-            const validationErrors = mappedJson
-              .map((row, idx) => {
-                const rowErrors = validateRow(row, idx);
-                return rowErrors.length > 0
-                  ? { rowNumber: idx + 1, errors: rowErrors }
-                  : null;
-              })
-              .filter((item) => item !== null) as Array<{
-              rowNumber: number;
-              errors: string[];
-            }>;
-            setErrors(validationErrors);
-          }, 0);
+          console.log(mappedJson);
           toast.success(
-            `Berhasil membaca ${mappedJson.length} data dari Excel`
+            `Berhasil membaca ${mappedJson.length.toLocaleString()} data dari Excel`
           );
+
+          // Async validation untuk tidak block UI
+          setTimeout(() => {
+            validateAllData();
+          }, 100);
         } catch (error) {
           toast.error("Gagal membaca file Excel");
           console.error(error);
+          setIsValidating(false);
         }
       };
       reader.readAsBinaryString(file);
@@ -348,7 +361,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
       setExcelData(newData);
 
       // Validate baris yang di-edit secara real-time
-      const rowErrors = validateRow(newData[index], index);
+      const rowErrors = validateRow(newData[index]);
       setErrors((prevErrors) => {
         const otherErrors = prevErrors.filter((e) => e.rowNumber !== index + 1);
         if (rowErrors.length > 0) {
@@ -382,6 +395,12 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
     return map;
   }, [errors]);
 
+  // Pagination untuk preview
+  const totalPages = Math.ceil(excelData.length / PREVIEW_PAGE_SIZE);
+  const startIndex = (currentPage - 1) * PREVIEW_PAGE_SIZE;
+  const endIndex = startIndex + PREVIEW_PAGE_SIZE;
+  const currentPageData = excelData.slice(startIndex, endIndex);
+
   const handleSubmitExcelData = useCallback(async () => {
     // Validate sebelum submit
     if (!validateAllData()) {
@@ -395,10 +414,31 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
     setIsSubmitting(true);
 
     try {
+      // Normalize data: fill empty/invalid date_of_birth with today
+      const normalizedData = excelData.map((row) => {
+        const normalized = { ...row };
+
+        // If date_of_birth is empty or invalid, use today's date
+        const dateStr = row.date_of_birth?.toString().trim();
+        if (!dateStr) {
+          const today = new Date();
+          normalized.date_of_birth = today.toISOString().split("T")[0]; // YYYY-MM-DD
+        } else {
+          const dateValue = new Date(dateStr);
+          if (isNaN(dateValue.getTime())) {
+            // Invalid date format, use today's date
+            const today = new Date();
+            normalized.date_of_birth = today.toISOString().split("T")[0];
+          }
+        }
+
+        return normalized;
+      });
+
       const response = await fetch("/api/residents/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ residents: excelData }),
+        body: JSON.stringify({ residents: normalizedData }),
       });
 
       const result = await response.json();
@@ -529,14 +569,22 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
           {/* Preview Data Section */}
           {excelData.length > 0 && (
             <div className="space-y-2">
-              <Label>Step 3: Review Data yang Akan Diupload</Label>
+              <div className="flex items-center justify-between">
+                <Label>Step 3: Review Data yang Akan Diupload</Label>
+                {isValidating && (
+                  <Badge variant="outline" className="gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Memvalidasi data...
+                  </Badge>
+                )}
+              </div>
               {errors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <h4 className="font-medium text-red-800 mb-2">
                     ⚠️ {errors.length} baris memiliki kesalahan:
                   </h4>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {errors.map((error, idx) => (
+                    {errors.slice(0, 10).map((error, idx) => (
                       <div key={idx} className="text-sm text-red-700">
                         <span className="font-medium">
                           Baris {error.rowNumber}:
@@ -548,9 +596,53 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                         </ul>
                       </div>
                     ))}
+                    {errors.length > 10 && (
+                      <p className="text-sm text-red-600 font-medium">
+                        ... dan {errors.length - 10} error lainnya
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
+
+              {/* Pagination Controls */}
+              {excelData.length > PREVIEW_PAGE_SIZE && (
+                <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+                  <div className="text-sm text-muted-foreground">
+                    Menampilkan baris {startIndex + 1} -{" "}
+                    {Math.min(endIndex, excelData.length)} dari{" "}
+                    {excelData.length.toLocaleString()} total data
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Prev
+                    </Button>
+                    <div className="text-sm font-medium">
+                      Halaman {currentPage} dari {totalPages}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   <Table>
@@ -593,12 +685,13 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {excelData.map((data, index) => {
-                        const rowErrors = errorsByRow[index + 1] || [];
+                      {currentPageData.map((data, index) => {
+                        const actualIndex = startIndex + index;
+                        const rowErrors = errorsByRow[actualIndex + 1] || [];
                         const hasError = rowErrors.length > 0;
                         return (
                           <TableRow
-                            key={index}
+                            key={actualIndex}
                             className={`${
                               hasError
                                 ? "bg-red-50 hover:bg-red-100"
@@ -606,7 +699,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                             }`}
                           >
                             <TableCell className="text-center text-muted-foreground">
-                              {index + 1}
+                              {actualIndex + 1}
                             </TableCell>
                             <TableCell className="text-center">
                               {hasError ? (
@@ -630,7 +723,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.name || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "name",
                                     e.target.value
                                   )
@@ -644,7 +737,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.id_number || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "id_number",
                                     e.target.value
                                   )
@@ -658,7 +751,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.family_card_number || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "family_card_number",
                                     e.target.value
                                   )
@@ -672,7 +765,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.gender || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "gender",
                                     e.target.value
                                   )
@@ -687,7 +780,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.birthplace || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "birthplace",
                                     e.target.value
                                   )
@@ -701,7 +794,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.date_of_birth || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "date_of_birth",
                                     e.target.value
                                   )
@@ -716,7 +809,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={String(data.blood_type_id || "")}
                                 onValueChange={(value) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "blood_type_id",
                                     Number(value) || null
                                   )
@@ -741,7 +834,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.address || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "address",
                                     e.target.value
                                   )
@@ -756,7 +849,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                   value={data.rt || ""}
                                   onChange={(e) =>
                                     handleEditExcelData(
-                                      index,
+                                      actualIndex,
                                       "rt",
                                       e.target.value
                                     )
@@ -769,7 +862,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                   value={data.rw || ""}
                                   onChange={(e) =>
                                     handleEditExcelData(
-                                      index,
+                                      actualIndex,
                                       "rw",
                                       e.target.value
                                     )
@@ -784,7 +877,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.hamlet || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "hamlet",
                                     e.target.value
                                   )
@@ -798,7 +891,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={String(data.education_id || "")}
                                 onValueChange={(value) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "education_id",
                                     Number(value) || null
                                   )
@@ -823,7 +916,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={String(data.job_id || "")}
                                 onValueChange={(value) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "job_id",
                                     Number(value) || null
                                   )
@@ -848,7 +941,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.marital_status || ""}
                                 onValueChange={(value) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "marital_status",
                                     value
                                   )
@@ -873,7 +966,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={String(data.status_family_id || "")}
                                 onValueChange={(value) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "status_family_id",
                                     Number(value) || null
                                   )
@@ -898,7 +991,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.phone_number || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "phone_number",
                                     e.target.value
                                   )
@@ -912,7 +1005,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.email || ""}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "email",
                                     e.target.value
                                   )
@@ -927,7 +1020,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 value={data.nationality || "Indonesia"}
                                 onChange={(e) =>
                                   handleEditExcelData(
-                                    index,
+                                    actualIndex,
                                     "nationality",
                                     e.target.value
                                   )
@@ -942,7 +1035,7 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => handleRemoveRow(index)}
+                                onClick={() => handleRemoveRow(actualIndex)}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -954,10 +1047,22 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
                   </Table>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Total {excelData.length} data siap diupload. Pastikan semua data
-                sudah benar sebelum menyimpan.
-              </p>
+
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <p>
+                  Total {excelData.length.toLocaleString()} data siap diupload.
+                  {excelData.length > PREVIEW_PAGE_SIZE &&
+                    ` (Preview menampilkan ${PREVIEW_PAGE_SIZE} baris per halaman)`}
+                </p>
+                {errors.length === 0 && !isValidating && (
+                  <Badge
+                    variant="outline"
+                    className="bg-green-50 text-green-700"
+                  >
+                    ✓ Semua data valid
+                  </Badge>
+                )}
+              </div>
             </div>
           )}
 
@@ -1001,7 +1106,12 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({
               type="button"
               className="gap-2"
               onClick={handleSubmitExcelData}
-              disabled={excelData.length === 0 || isSubmitting}
+              disabled={
+                excelData.length === 0 ||
+                isSubmitting ||
+                errors.length > 0 ||
+                isValidating
+              }
             >
               {isSubmitting ? (
                 <>

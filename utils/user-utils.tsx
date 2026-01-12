@@ -1,4 +1,3 @@
-import { get } from "http";
 import {
   EDUCATION_OPTIONS,
   JOB_OPTIONS,
@@ -25,4 +24,69 @@ export const getKKRelationshipStatus = (id: number): string => {
 
 export const getReligion = (id: number): string => {
   return RELIGION_OPTIONS[id] || "Lainnya";
+};
+
+// Reverse mapping functions for bulk import (handle both string values and numeric IDs)
+export const parseReligion = (value: string | number): string => {
+  if (typeof value === "number") {
+    return getReligion(value);
+  }
+  const val = value.toString().trim();
+  // Direct match
+  if (RELIGION_OPTIONS[val]) {
+    return val;
+  }
+  // Case-insensitive search
+  const found = Object.keys(RELIGION_OPTIONS).find(
+    (key) => key.toLowerCase() === val.toLowerCase()
+  );
+  return found || val;
+};
+
+export const parseEducation = (value: string | number): string => {
+  if (typeof value === "number") {
+    return getEducationLevel(value);
+  }
+  const val = value.toString().trim();
+  // Direct match
+  if (EDUCATION_OPTIONS[val]) {
+    return val;
+  }
+  // Case-insensitive search
+  const found = Object.keys(EDUCATION_OPTIONS).find(
+    (key) => key.toLowerCase() === val.toLowerCase()
+  );
+  return found || val;
+};
+
+export const parseJob = (value: string | number): string => {
+  if (typeof value === "number") {
+    return getJob(value);
+  }
+  const val = value.toString().trim();
+  // Direct match
+  if (JOB_OPTIONS[val]) {
+    return val;
+  }
+  // Case-insensitive search
+  const found = Object.keys(JOB_OPTIONS).find(
+    (key) => key.toLowerCase() === val.toLowerCase()
+  );
+  return found || val;
+};
+
+export const parseFamilyRole = (value: string | number): string => {
+  if (typeof value === "number") {
+    return getKKRelationshipStatus(value);
+  }
+  const val = value.toString().trim();
+  // Direct match
+  if (KK_RELATIONSHIP_STATUS[val]) {
+    return val;
+  }
+  // Case-insensitive search
+  const found = Object.keys(KK_RELATIONSHIP_STATUS).find(
+    (key) => key.toLowerCase() === val.toLowerCase()
+  );
+  return found || val;
 };

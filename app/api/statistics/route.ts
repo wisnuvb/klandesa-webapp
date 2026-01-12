@@ -195,7 +195,7 @@ export async function GET(req: NextRequest) {
 
     // 1. Statistik Jenis Kelamin
     const genderStats = residents.reduce((acc, r) => {
-      const gender = r.gender.toUpperCase() === "M" ? "Laki-laki" : "Perempuan";
+      const gender = r.gender;
       acc[gender] = (acc[gender] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);

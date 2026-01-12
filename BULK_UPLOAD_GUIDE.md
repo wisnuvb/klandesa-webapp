@@ -49,6 +49,32 @@ Proper field mapping from Excel to Prisma model:
 ```
 id_number → nik
 family_card_number → kk
+name → name
+birthplace → birthplace
+date_of_birth → birthDate
+gender → gender
+blood_type_id → bloodType
+religion_id → religion (parsed via parseReligion)
+marital_status → maritalStatus (parsed via getMaritalStatus)
+status_family_id → familyRole (parsed via parseFamilyRole)
+job_id → occupation (parsed via parseJob)
+education_id → education (parsed via parseEducation)
+address → address
+rt → rt
+rw → rw
+hamlet → hamlet
+```
+
+**Important**: The bulk import now supports **both formats**:
+- **Numeric IDs**: e.g., `religion_id: 1` (legacy format)
+- **String values**: e.g., `religion_id: "Islam"` (new format from Excel)
+
+Mapping functions automatically detect and convert:
+- `parseReligion()` - Handles "Islam", "Kristen", "Katholik", "Hindu", "Budha", "Khonghucu"
+- `parseEducation()` - Handles "Tamat SD", "SLTP", "SLTA", "Strata I", etc.
+- `parseJob()` - Handles "Wiraswasta", "Petani/Pekebun", "PNS", etc.
+- `parseFamilyRole()` - Handles "Kepala Keluarga", "Istri", "Anak", etc.
+family_card_number → kk
 date_of_birth → birthDate
 religion_id → mapReligionId()
 status_family_id → mapFamilyRole()
