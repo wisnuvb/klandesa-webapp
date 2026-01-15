@@ -17,6 +17,8 @@ import { authOptions } from "@/auth";
 export const maxDuration = 300; // 5 minutes
 export const dynamic = "force-dynamic";
 
+export const runtime = "nodejs";
+
 // Constants
 const MAX_BATCH_SIZE = 50000;
 const CHUNK_SIZE = 1000; // Process in chunks to avoid memory issues
