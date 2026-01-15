@@ -15,6 +15,7 @@ import {
 import { Badge } from "../ui/badge";
 import { signOut } from "next-auth/react";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
+import { getInitials } from "@/utils";
 
 interface HeaderProps {
   title: string;
@@ -24,15 +25,6 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
   const { user, isLoading } = useNextAuthSession();
-
-  const getInitials = (name?: string | null) => {
-    if (!name) return "U";
-    const parts = name.trim().split(" ");
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  };
 
   const getDisplayName = () => {
     if (isLoading) return "Memuat...";

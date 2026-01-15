@@ -1,13 +1,25 @@
-import { X, Users, MapPin, Home, Phone, Mail, Calendar, Briefcase, GraduationCap, Heart } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
+import {
+  X,
+  Users,
+  MapPin,
+  Home,
+  Phone,
+  Mail,
+  Calendar,
+  Briefcase,
+  GraduationCap,
+  Heart,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { calculateAge } from "@/utils";
 
 interface AnggotaKeluarga {
   id: number;
   name: string;
   id_number: string;
-  gender: 'M' | 'F';
+  gender: "M" | "F";
   birthplace: string;
   date_of_birth: string;
   religion_id: number;
@@ -40,75 +52,64 @@ interface DetailKKModalProps {
 // Helper functions untuk mapping data
 const getEducationLevel = (id: number): string => {
   const educationMap: Record<number, string> = {
-    1: 'Tidak/Belum Sekolah',
-    2: 'Belum Tamat SD/Sederajat',
-    3: 'Tamat SD/Sederajat',
-    4: 'SLTP/Sederajat',
-    5: 'SLTA/Sederajat',
-    6: 'Diploma I/II',
-    7: 'Akademi/Diploma III/S.Muda',
-    8: 'Diploma IV/Strata I',
-    9: 'Strata II',
-    10: 'Strata III'
+    1: "Tidak/Belum Sekolah",
+    2: "Belum Tamat SD/Sederajat",
+    3: "Tamat SD/Sederajat",
+    4: "SLTP/Sederajat",
+    5: "SLTA/Sederajat",
+    6: "Diploma I/II",
+    7: "Akademi/Diploma III/S.Muda",
+    8: "Diploma IV/Strata I",
+    9: "Strata II",
+    10: "Strata III",
   };
-  return educationMap[id] || 'Tidak Diketahui';
+  return educationMap[id] || "Tidak Diketahui";
 };
 
 const getReligion = (id: number): string => {
   const religionMap: Record<number, string> = {
-    1: 'Islam',
-    2: 'Kristen',
-    3: 'Katolik',
-    4: 'Hindu',
-    5: 'Buddha',
-    6: 'Konghucu'
+    1: "Islam",
+    2: "Kristen",
+    3: "Katolik",
+    4: "Hindu",
+    5: "Buddha",
+    6: "Konghucu",
   };
-  return religionMap[id] || 'Tidak Diketahui';
+  return religionMap[id] || "Tidak Diketahui";
 };
 
 const getJob = (id: number): string => {
   const jobMap: Record<number, string> = {
-    1: 'Belum/Tidak Bekerja',
-    5: 'Petani/Pekebun',
-    10: 'Buruh Harian Lepas',
-    11: 'Buruh Tani/Perkebunan',
-    15: 'Wiraswasta',
-    20: 'Guru',
-    25: 'Pegawai Negeri Sipil',
-    30: 'Pedagang',
-    48: 'Ibu Rumah Tangga',
-    51: 'Karyawan Swasta'
+    1: "Belum/Tidak Bekerja",
+    5: "Petani/Pekebun",
+    10: "Buruh Harian Lepas",
+    11: "Buruh Tani/Perkebunan",
+    15: "Wiraswasta",
+    20: "Guru",
+    25: "Pegawai Negeri Sipil",
+    30: "Pedagang",
+    48: "Ibu Rumah Tangga",
+    51: "Karyawan Swasta",
   };
-  return jobMap[id] || 'Lainnya';
+  return jobMap[id] || "Lainnya";
 };
 
 const getMaritalStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
-    'TM': 'Belum Menikah',
-    'M': 'Menikah',
-    'CH': 'Cerai Hidup',
-    'CM': 'Cerai Mati'
+    TM: "Belum Menikah",
+    M: "Menikah",
+    CH: "Cerai Hidup",
+    CM: "Cerai Mati",
   };
   return statusMap[status] || status;
 };
 
-const calculateAge = (birthDate: string): number => {
-  const today = new Date();
-  const birth = new Date(birthDate);
-  let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-    age--;
-  }
-  return age;
-};
-
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
-  return date.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
+  return date.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
 };
 
@@ -137,8 +138,12 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
               {/* Header */}
               <div className="bg-primary text-primary-foreground p-6 flex items-start justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold mb-2">Detail Kartu Keluarga</h2>
-                  <p className="text-sm opacity-90">No. KK: {kkData.family_card_number}</p>
+                  <h2 className="text-2xl font-semibold mb-2">
+                    Detail Kartu Keluarga
+                  </h2>
+                  <p className="text-sm opacity-90">
+                    No. KK: {kkData.family_card_number}
+                  </p>
                 </div>
                 <button
                   onClick={onClose}
@@ -152,25 +157,33 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
               <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
                 {/* Info KK */}
                 <div className="p-6 border-b">
-                  <h3 className="text-lg font-semibold mb-4">Informasi Kartu Keluarga</h3>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Informasi Kartu Keluarga
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex gap-3">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <Users className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Kepala Keluarga</p>
+                        <p className="text-sm text-muted-foreground">
+                          Kepala Keluarga
+                        </p>
                         <p className="font-medium">{kkData.kepalaKeluarga}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-3">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <Users className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Jumlah Anggota</p>
-                        <p className="font-medium">{kkData.jumlahAnggota} Orang</p>
+                        <p className="text-sm text-muted-foreground">
+                          Jumlah Anggota
+                        </p>
+                        <p className="font-medium">
+                          {kkData.jumlahAnggota} Orang
+                        </p>
                       </div>
                     </div>
 
@@ -189,8 +202,12 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
                         <Home className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">RT/RW/Dusun</p>
-                        <p className="font-medium">RT {kkData.rt} / RW {kkData.rw} - {kkData.hamlet}</p>
+                        <p className="text-sm text-muted-foreground">
+                          RT/RW/Dusun
+                        </p>
+                        <p className="font-medium">
+                          RT {kkData.rt} / RW {kkData.rw} - {kkData.hamlet}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -198,7 +215,9 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
 
                 {/* Anggota Keluarga */}
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Daftar Anggota Keluarga</h3>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Daftar Anggota Keluarga
+                  </h3>
                   <div className="space-y-4">
                     {kkData.anggotaKeluarga.map((anggota, index) => (
                       <motion.div
@@ -216,13 +235,29 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
                               </span>
                             </div>
                             <div>
-                              <h4 className="font-semibold text-lg">{anggota.name}</h4>
+                              <h4 className="font-semibold text-lg">
+                                {anggota.name}
+                              </h4>
                               <div className="flex gap-2 mt-1 flex-wrap">
-                                <Badge variant={anggota.status_family === 'Kepala Keluarga' ? 'default' : 'secondary'}>
+                                <Badge
+                                  variant={
+                                    anggota.status_family === "Kepala Keluarga"
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                >
                                   {anggota.status_family}
                                 </Badge>
-                                <Badge variant={anggota.gender === 'M' ? 'default' : 'secondary'}>
-                                  {anggota.gender === 'M' ? 'Laki-laki' : 'Perempuan'}
+                                <Badge
+                                  variant={
+                                    anggota.gender === "M"
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                >
+                                  {anggota.gender === "M"
+                                    ? "Laki-laki"
+                                    : "Perempuan"}
                                 </Badge>
                                 <Badge variant="outline">
                                   {calculateAge(anggota.date_of_birth)} Tahun
@@ -238,7 +273,9 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
                               <Phone className="h-4 w-4 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">NIK</p>
+                              <p className="text-xs text-muted-foreground">
+                                NIK
+                              </p>
                               <p className="font-mono">{anggota.id_number}</p>
                             </div>
                           </div>
@@ -248,8 +285,13 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
                               <Calendar className="h-4 w-4 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Tempat, Tanggal Lahir</p>
-                              <p>{anggota.birthplace}, {formatDate(anggota.date_of_birth)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Tempat, Tanggal Lahir
+                              </p>
+                              <p>
+                                {anggota.birthplace},{" "}
+                                {formatDate(anggota.date_of_birth)}
+                              </p>
                             </div>
                           </div>
 
@@ -258,7 +300,9 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
                               <GraduationCap className="h-4 w-4 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Pendidikan</p>
+                              <p className="text-xs text-muted-foreground">
+                                Pendidikan
+                              </p>
                               <p>{getEducationLevel(anggota.education_id)}</p>
                             </div>
                           </div>
@@ -268,7 +312,9 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
                               <Briefcase className="h-4 w-4 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Pekerjaan</p>
+                              <p className="text-xs text-muted-foreground">
+                                Pekerjaan
+                              </p>
                               <p>{getJob(anggota.job_id)}</p>
                             </div>
                           </div>
@@ -278,7 +324,9 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
                               <Heart className="h-4 w-4 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Status Perkawinan</p>
+                              <p className="text-xs text-muted-foreground">
+                                Status Perkawinan
+                              </p>
                               <p>{getMaritalStatus(anggota.marital_status)}</p>
                             </div>
                           </div>
@@ -288,7 +336,9 @@ export function DetailKKModal({ isOpen, onClose, kkData }: DetailKKModalProps) {
                               <Home className="h-4 w-4 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Agama</p>
+                              <p className="text-xs text-muted-foreground">
+                                Agama
+                              </p>
                               <p>{getReligion(anggota.religion_id)}</p>
                             </div>
                           </div>

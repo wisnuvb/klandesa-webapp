@@ -3,61 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getSubdomain } from "@/lib/subdomain";
-
-async function resolveVillage(
-  req: NextRequest,
-  queryVillageCode?: string,
-  session?: any
-) {
-  if (session?.user?.villageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (village) return village;
-  }
-
-  if (queryVillageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: queryVillageCode },
-    });
-    if (village) return village;
-  }
-
-  const sub = getSubdomain(req);
-  if (sub && sub !== "app") {
-    const village = await prisma.village.findUnique({ where: { code: sub } });
-    if (village) return village;
-  }
-
-  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
-  if (defaultCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: defaultCode },
-    });
-    if (village) return village;
-  }
-
-  const firstVillage = await prisma.village.findFirst({
-    orderBy: { id: "asc" },
-  });
-  if (firstVillage) return firstVillage;
-
-  return null;
-}
-
-function calculateAge(birthDate: Date) {
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (
-    monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < birthDate.getDate())
-  ) {
-    age -= 1;
-  }
-  return age;
-}
+import { resolveVillage } from "@/lib/village";
+import { calculateAge } from "@/utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -65,7 +12,11 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
-    const village = await resolveVillage(req, villageCode, session);
+    const village = await resolveVillage({
+      req,
+      queryVillageCode: villageCode,
+      session,
+    });
     if (!village) {
       return NextResponse.json(
         {
@@ -97,8 +48,8 @@ export async function GET(req: NextRequest) {
 
     const genderCount = residents.reduce(
       (acc, r) => {
-        if (r.gender === "M") acc.male += 1;
-        else if (r.gender === "F") acc.female += 1;
+        if (r.gender === "Laki-laki") acc.male += 1;
+        else if (r.gender === "Perempuan") acc.female += 1;
         return acc;
       },
       { male: 0, female: 0 }

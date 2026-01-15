@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Resident } from "@prisma/client";
+import { ExportDataModal } from "./ExportDataModal";
 
 interface DataWargaTableProps {
   refreshKey?: number;
@@ -56,6 +57,10 @@ export const DataWargaTable = ({
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"excel" | "csv" | "pdf">(
+    "excel"
+  );
 
   // Memoize filters object to prevent unnecessary re-renders
   const filters = useMemo(
@@ -129,6 +134,11 @@ export const DataWargaTable = ({
       setShowExcelDialog?.(true);
     };
 
+    const handleExport = (format: "excel" | "csv" | "pdf") => {
+      setExportFormat(format);
+      setShowExportModal(true);
+    };
+
     return (
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
@@ -171,30 +181,15 @@ export const DataWargaTable = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel>Export Data</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => {
-                  // TODO: Implement Excel export
-                  console.log("Export Excel");
-                }}
-              >
+              <DropdownMenuItem onClick={() => handleExport("excel")}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Download Excel
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  // TODO: Implement CSV export
-                  console.log("Export CSV");
-                }}
-              >
+              <DropdownMenuItem onClick={() => handleExport("csv")}>
                 <FileText className="h-4 w-4 mr-2" />
                 Download CSV
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  // TODO: Implement PDF export
-                  console.log("Export PDF");
-                }}
-              >
+              <DropdownMenuItem onClick={() => handleExport("pdf")}>
                 <Download className="h-4 w-4 mr-2" />
                 Download PDF
               </DropdownMenuItem>
@@ -249,6 +244,15 @@ export const DataWargaTable = ({
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onSuccess={onRefresh}
+      />
+
+      <ExportDataModal
+        open={showExportModal}
+        onOpenChange={setShowExportModal}
+        currentFilters={{
+          gender: filterGender,
+          status: filterStatus,
+        }}
       />
     </Card>
   );
