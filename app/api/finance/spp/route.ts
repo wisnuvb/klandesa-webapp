@@ -31,7 +31,7 @@ async function resolveVillage(session: any, token?: any) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req, secret: authOptions.secret });
     const apiKeyHeader = req.headers.get("x-api-key");
     const validApiKey = process.env.FINANCE_API_KEY;
     if (!session?.user && !token?.id) {

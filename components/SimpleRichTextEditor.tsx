@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ComponentType } from 'react';
 import { 
   Bold, 
   Italic, 
@@ -19,6 +19,43 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { ImageAssetModal } from './ImageAssetModal';
+
+type ToolbarIcon = ComponentType<{ className?: string }>;
+
+function ToolbarButton({
+  icon: Icon,
+  title,
+  active,
+  onClick,
+}: {
+  icon: ToolbarIcon;
+  title: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
+      onMouseDown={(e) => e.preventDefault()}
+      title={title}
+      className={`p-2 rounded-lg transition-all hover:scale-110 ${
+        active
+          ? 'bg-teal-600 text-white shadow-md'
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+}
+
+function Divider() {
+  return <div className="w-px h-8 bg-gray-200" />;
+}
 
 interface SimpleRichTextEditorProps {
   value: string;
@@ -121,51 +158,6 @@ export function SimpleRichTextEditor({
     handleInput();
   };
 
-  const ToolbarButton = ({ 
-    icon: Icon, 
-    command, 
-    value, 
-    title, 
-    active, 
-    onClick 
-  }: { 
-    icon: any; 
-    command?: string; 
-    value?: string; 
-    title: string; 
-    active?: boolean;
-    onClick?: () => void;
-  }) => (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        if (onClick) {
-          onClick();
-        } else if (command) {
-          if (value) {
-            formatBlock(value);
-          } else {
-            execCommand(command);
-          }
-        }
-      }}
-      onMouseDown={(e) => e.preventDefault()}
-      title={title}
-      className={`p-2 rounded-lg transition-all hover:scale-110 ${
-        active 
-          ? 'bg-teal-600 text-white shadow-md' 
-          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-    </button>
-  );
-
-  const Divider = () => (
-    <div className="w-px h-8 bg-gray-200" />
-  );
-
   return (
     <div className="border-2 border-gray-300 rounded-xl overflow-hidden focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100 transition-all">
       {/* Toolbar */}
@@ -175,27 +167,27 @@ export function SimpleRichTextEditor({
           <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
             <ToolbarButton 
               icon={Bold} 
-              command="bold" 
               title="Bold (Ctrl+B)" 
               active={activeFormats.has('bold')}
+              onClick={() => execCommand('bold')}
             />
             <ToolbarButton 
               icon={Italic} 
-              command="italic" 
               title="Italic (Ctrl+I)" 
               active={activeFormats.has('italic')}
+              onClick={() => execCommand('italic')}
             />
             <ToolbarButton 
               icon={Underline} 
-              command="underline" 
               title="Underline (Ctrl+U)" 
               active={activeFormats.has('underline')}
+              onClick={() => execCommand('underline')}
             />
             <ToolbarButton 
               icon={Strikethrough} 
-              command="strikeThrough" 
               title="Strikethrough" 
               active={activeFormats.has('strikethrough')}
+              onClick={() => execCommand('strikeThrough')}
             />
           </div>
 
@@ -205,31 +197,27 @@ export function SimpleRichTextEditor({
           <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
             <ToolbarButton 
               icon={Type} 
-              command="formatBlock" 
-              value="p" 
               title="Normal Text" 
               active={!activeFormats.has('h1') && !activeFormats.has('h2') && !activeFormats.has('h3')}
+              onClick={() => formatBlock('p')}
             />
             <ToolbarButton 
               icon={Heading1} 
-              command="formatBlock" 
-              value="h1" 
               title="Heading 1" 
               active={activeFormats.has('h1')}
+              onClick={() => formatBlock('h1')}
             />
             <ToolbarButton 
               icon={Heading2} 
-              command="formatBlock" 
-              value="h2" 
               title="Heading 2" 
               active={activeFormats.has('h2')}
+              onClick={() => formatBlock('h2')}
             />
             <ToolbarButton 
               icon={Heading3} 
-              command="formatBlock" 
-              value="h3" 
               title="Heading 3" 
               active={activeFormats.has('h3')}
+              onClick={() => formatBlock('h3')}
             />
           </div>
 
@@ -239,15 +227,15 @@ export function SimpleRichTextEditor({
           <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
             <ToolbarButton 
               icon={List} 
-              command="insertUnorderedList" 
               title="Bulleted List" 
               active={activeFormats.has('ul')}
+              onClick={() => execCommand('insertUnorderedList')}
             />
             <ToolbarButton 
               icon={ListOrdered} 
-              command="insertOrderedList" 
               title="Numbered List" 
               active={activeFormats.has('ol')}
+              onClick={() => execCommand('insertOrderedList')}
             />
           </div>
 
@@ -257,21 +245,21 @@ export function SimpleRichTextEditor({
           <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
             <ToolbarButton 
               icon={AlignLeft} 
-              command="justifyLeft" 
               title="Align Left" 
               active={activeFormats.has('left')}
+              onClick={() => execCommand('justifyLeft')}
             />
             <ToolbarButton 
               icon={AlignCenter} 
-              command="justifyCenter" 
               title="Align Center" 
               active={activeFormats.has('center')}
+              onClick={() => execCommand('justifyCenter')}
             />
             <ToolbarButton 
               icon={AlignRight} 
-              command="justifyRight" 
               title="Align Right" 
               active={activeFormats.has('right')}
+              onClick={() => execCommand('justifyRight')}
             />
           </div>
 
@@ -297,13 +285,13 @@ export function SimpleRichTextEditor({
           <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
             <ToolbarButton 
               icon={Undo} 
-              command="undo" 
               title="Undo (Ctrl+Z)" 
+              onClick={() => execCommand('undo')}
             />
             <ToolbarButton 
               icon={Redo} 
-              command="redo" 
               title="Redo (Ctrl+Y)" 
+              onClick={() => execCommand('redo')}
             />
           </div>
         </div>

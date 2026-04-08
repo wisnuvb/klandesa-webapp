@@ -45,21 +45,30 @@ model Village {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users             User[]
-  residents         Resident[]
-  officials         Official[]
-  positions         Position[]
-  requests          Request[]
-  mailTemplates     MailTemplate[]
-  mailServices      MailService[]
-  mailRequests      MailRequest[]
-  transactions      Transaction[]
-  budgets           Budget[]
-  potentials        Potential[]
-  villagePotentials VillagePotential[]
-  digitalArchives   DigitalArchive[]
-  statistics        Statistic[]
-  announcements     Announcement[]
+  users                  User[]
+  residents              Resident[]
+  officials              Official[]
+  workShifts             WorkShift[]
+  attendances            Attendance[]
+  positions              Position[]
+  requests               Request[]
+  mailTemplates          MailTemplate[]
+  mailServices           MailService[]
+  mailRequests           MailRequest[]
+  transactions           Transaction[]
+  budgets                Budget[]
+  potentials             Potential[]
+  villagePotentials      VillagePotential[]
+  digitalArchives        DigitalArchive[]
+  digitalArchiveFolders  DigitalArchiveFolder[]
+  statistics             Statistic[]
+  announcements          Announcement[]
+  forumThreads           ForumThread[]
+  forumReplies           ForumReply[]
+  citizenReports         CitizenReport[]
+  citizenReportResponses CitizenReportResponse[]
+  adminNotifications     AdminNotification[]
+  billingInvoices        BillingInvoice[]
 
   @@index([code])
   @@index([isActive])
@@ -86,14 +95,61 @@ model User {
   updatedAt DateTime  @updatedAt
 
   // Relations
-  createdMailServices MailService[] @relation("CreatedBy")
-  createdRequests     Request[]     @relation("CreatedBy")
-  createdBudgets      Budget[]      @relation("CreatedBy")
-  mailHistory         MailHistory[]
+  createdMailServices    MailService[]           @relation("CreatedBy")
+  createdRequests        Request[]               @relation("CreatedBy")
+  createdBudgets         Budget[]                @relation("CreatedBy")
+  createdAnnouncements   Announcement[]          @relation("CreatedBy")
+  mailHistory            MailHistory[]
+  forumThreads           ForumThread[]           @relation("ForumThreadCreatedBy")
+  forumReplies           ForumReply[]            @relation("ForumReplyCreatedBy")
+  citizenReportsDone     CitizenReport[]         @relation("CitizenReportDoneBy")
+  citizenReportResponses CitizenReportResponse[]
+  notificationReads      NotificationRead[]
+  respondedContacts      Contact[]               @relation("ContactRespondedBy")
 
   @@index([villageId, role])
   @@index([email])
   @@map("users")
+}
+
+// ============================================
+// NOTIFIKASI ADMIN (header app)
+// ============================================
+
+model AdminNotification {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// mail_request_pending | finance_transaction | resident_update
+  type      String  @db.VarChar(50)
+  title     String  @db.VarChar(255)
+  body      String? @db.Text
+  href      String? @db.VarChar(500)
+  /// Kunci stabil untuk upsync (mis. mail-req-1, tx-2, resident-3)
+  sourceKey String  @db.VarChar(120)
+
+  createdAt DateTime @default(now())
+
+  reads NotificationRead[]
+
+  @@unique([villageId, sourceKey])
+  @@index([villageId, createdAt(sort: Desc)])
+  @@map("admin_notifications")
+}
+
+model NotificationRead {
+  id             Int               @id @default(autoincrement())
+  notificationId Int
+  notification   AdminNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId         Int
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  readAt DateTime @default(now())
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+  @@map("notification_reads")
 }
 
 // ============================================
@@ -220,6 +276,10 @@ model Official {
   positionId Int
   position   Position @relation(fields: [positionId], references: [id])
 
+  supervisorId Int?
+  supervisor   Official?  @relation("OfficialHierarchy", fields: [supervisorId], references: [id], onDelete: SetNull)
+  subordinates Official[] @relation("OfficialHierarchy")
+
   // Personal Info
   nik        String   @db.VarChar(16)
   name       String   @db.VarChar(255)
@@ -250,8 +310,11 @@ model Official {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  attendances Attendance[]
+
   @@index([villageId, status])
   @@index([villageId, positionId])
+  @@index([villageId, supervisorId])
   @@map("officials")
 }
 
@@ -305,6 +368,63 @@ model Request {
 // ============================================
 // LAYANAN SURAT - Mail Service System
 // ============================================
+
+model ForumThread {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  title    String @db.VarChar(255)
+  content  String @db.Text
+  category String @db.VarChar(50) // UMUM, PEMBANGUNAN, KESEHATAN, PENDIDIKAN, KEAMANAN, EKONOMI
+  status   String @default("OPEN") @db.VarChar(20) // OPEN, CLOSED
+
+  isPinned Boolean @default(false)
+  isLocked Boolean @default(false)
+
+  likesCount Int @default(0)
+  viewsCount Int @default(0)
+
+  createdBy     Int?
+  createdByUser User?  @relation("ForumThreadCreatedBy", fields: [createdBy], references: [id])
+  createdByName String @db.VarChar(255)
+  createdByRole String @db.VarChar(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  replies ForumReply[]
+
+  @@index([villageId, createdAt(sort: Desc)])
+  @@index([villageId, category])
+  @@index([villageId, status])
+  @@map("forum_threads")
+}
+
+model ForumReply {
+  id       BigInt      @id @default(autoincrement())
+  threadId BigInt
+  thread   ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  content String @db.Text
+
+  likesCount Int @default(0)
+
+  createdBy     Int?
+  createdByUser User?  @relation("ForumReplyCreatedBy", fields: [createdBy], references: [id])
+  createdByName String @db.VarChar(255)
+  createdByRole String @db.VarChar(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([threadId, createdAt])
+  @@index([villageId, createdAt(sort: Desc)])
+  @@map("forum_replies")
+}
 
 model MailTemplate {
   id        Int      @id @default(autoincrement())
@@ -636,16 +756,45 @@ model VillagePotential {
 // ARSIP DIGITAL - Digital Archive
 // ============================================
 
+model DigitalArchiveFolder {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  parentId BigInt?
+  parent   DigitalArchiveFolder?  @relation("DigitalArchiveFolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children DigitalArchiveFolder[] @relation("DigitalArchiveFolderHierarchy")
+
+  /// Segmen nama folder (unescaped)
+  name String @db.VarChar(255)
+  /// Path unik per desa, mis. "/Surat/2024" (tanpa trailing slash)
+  path String @db.VarChar(600)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  archives DigitalArchive[]
+
+  @@unique([villageId, path])
+  @@index([villageId, parentId])
+  @@map("digital_archive_folders")
+}
+
 model DigitalArchive {
   id        BigInt  @id @default(autoincrement())
   villageId Int
   village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
 
+  folderId BigInt?
+  folder   DigitalArchiveFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
   // File Info
-  fileName String @db.VarChar(255)
-  filePath String @db.VarChar(500) // S3, local storage path
-  fileType String @db.VarChar(50) // pdf, doc, jpg, etc
-  fileSize BigInt // in bytes
+  fileName   String  @db.VarChar(255)
+  filePath   String  @db.VarChar(500) // S3, local storage path
+  /// Key objek di Spaces (untuk hapus & konsistensi)
+  storageKey String? @db.VarChar(600)
+  fileType   String  @db.VarChar(50) // pdf, doc, jpg, etc
+  fileSize   BigInt // in bytes
 
   // Metadata
   category    String  @db.VarChar(100) // Surat, Laporan, SK, dll
@@ -675,6 +824,7 @@ model DigitalArchive {
   @@index([villageId, category])
   @@index([villageId, year])
   @@index([villageId, isPublic])
+  @@index([villageId, folderId])
   @@map("digital_archives")
 }
 
@@ -772,6 +922,10 @@ model Announcement {
   isActive  Boolean @default(true)
   viewCount Int     @default(0)
 
+  // Author
+  createdById Int?
+  createdBy   User? @relation("CreatedBy", fields: [createdById], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -849,6 +1003,116 @@ model WebsiteSubscription {
   @@map("website_subscriptions")
 }
 
+model BillingInvoice {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  invoiceNumber String @unique @db.VarChar(100)
+  provider      String @default("LINKQU") @db.VarChar(30)
+  partnerReff   String @unique @db.VarChar(100)
+
+  productType String @db.VarChar(50)
+  planCode    String @db.VarChar(50)
+
+  currency String  @default("IDR") @db.VarChar(10)
+  amount   Decimal @db.Decimal(15, 2)
+  status   String  @default("pending") @db.VarChar(30)
+
+  paymentMethod String? @db.VarChar(30)
+  bankCode      String? @db.VarChar(30)
+  retailCode    String? @db.VarChar(30)
+
+  paymentUrl String? @db.Text
+  qrContent  String? @db.Text
+  qrImageUrl String? @db.Text
+  vaNumber   String? @db.VarChar(80)
+
+  externalTransactionId String? @db.VarChar(120)
+
+  expiresAt DateTime?
+  paidAt    DateTime?
+
+  rawResponse Json?
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items  BillingInvoiceItem[]
+  events BillingPaymentEvent[]
+
+  @@index([villageId, createdAt(sort: Desc)])
+  @@index([villageId, status])
+  @@map("billing_invoices")
+}
+
+model BillingInvoiceItem {
+  id        BigInt         @id @default(autoincrement())
+  invoiceId BigInt
+  invoice   BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  name        String  @db.VarChar(255)
+  description String? @db.Text
+  quantity    Int     @default(1)
+  unitAmount  Decimal @db.Decimal(15, 2)
+  totalAmount Decimal @db.Decimal(15, 2)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId])
+  @@map("billing_invoice_items")
+}
+
+model BillingPaymentEvent {
+  id        BigInt         @id @default(autoincrement())
+  invoiceId BigInt
+  invoice   BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  provider       String  @default("LINKQU") @db.VarChar(30)
+  eventType      String  @default("callback") @db.VarChar(50)
+  partnerReff    String? @db.VarChar(100)
+  transactionId  String? @db.VarChar(120)
+  status         String? @db.VarChar(50)
+  signatureValid Boolean @default(false)
+
+  payload Json
+
+  createdAt DateTime @default(now())
+
+  @@unique([provider, partnerReff, transactionId])
+  @@index([invoiceId, createdAt(sort: Desc)])
+  @@map("billing_payment_events")
+}
+
+model Contact {
+  id BigInt @id @default(autoincrement())
+
+  name    String  @db.VarChar(255)
+  email   String  @db.VarChar(255)
+  phone   String? @db.VarChar(30)
+  subject String  @db.VarChar(120)
+  message String  @db.Text
+
+  source String @default("landing") @db.VarChar(50)
+
+  isResponded       Boolean   @default(false)
+  respondedAt       DateTime?
+  respondedByUserId Int?
+  respondedByUser   User?     @relation("ContactRespondedBy", fields: [respondedByUserId], references: [id], onDelete: SetNull)
+
+  ipAddress String? @db.VarChar(80)
+  userAgent String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isResponded, createdAt(sort: Desc)])
+  @@map("contacts")
+}
+
 // ============================================
 // SYSTEM LOGS & AUDIT
 // ============================================
@@ -878,4 +1142,131 @@ model AuditLog {
   @@index([userId, createdAt(sort: Desc)])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+// ============================================
+// PENGADUAN MASYARAKAT - Citizen Reports
+// ============================================
+
+model CitizenReport {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  reportType String  @db.VarChar(20) // PEMDES, BPD, KADUS, RT, RW, WARGA
+  title      String  @db.VarChar(255)
+  content    String  @db.Text
+  images     String? @db.Text // Comma-separated URLs or JSON array
+
+  status   String  @default("PENDING") @db.VarChar(20) // DRAFT, PENDING, PROCESS, DONE, REJECT
+  isPublic Boolean @default(true)
+
+  // Reporter info (denormalized)
+  reporterName String  @db.VarChar(255)
+  reporterNik  String? @db.VarChar(16)
+
+  // Processing
+  doneById Int?
+  doneBy   User? @relation("CitizenReportDoneBy", fields: [doneById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  responses CitizenReportResponse[]
+
+  @@index([villageId, status])
+  @@index([villageId, reportType])
+  @@index([villageId, createdAt(sort: Desc)])
+  @@map("citizen_reports")
+}
+
+model CitizenReportResponse {
+  id              BigInt        @id @default(autoincrement())
+  citizenReportId BigInt
+  citizenReport   CitizenReport @relation(fields: [citizenReportId], references: [id], onDelete: Cascade)
+
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  response String  @db.Text
+  images   String? @db.Text
+
+  responderId   Int?
+  responder     User?  @relation(fields: [responderId], references: [id])
+  responderName String @db.VarChar(255)
+  responderRole String @db.VarChar(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([citizenReportId])
+  @@index([villageId])
+  @@map("citizen_report_responses")
+}
+
+// ============================================
+// ABSENSI - Attendance Management
+// ============================================
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+}
+
+enum CheckInMethod {
+  QR
+  GPS
+}
+
+model WorkShift {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name                 String  @db.VarChar(100)
+  startTime            String  @db.VarChar(8)
+  endTime              String  @db.VarChar(8)
+  lateToleranceMinutes Int     @default(0)
+  isActive             Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendances Attendance[]
+
+  @@index([villageId, isActive])
+  @@map("work_shifts")
+}
+
+model Attendance {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  officialId Int
+  official   Official @relation(fields: [officialId], references: [id], onDelete: Cascade)
+
+  shiftId Int?
+  shift   WorkShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  attendanceDate DateTime @db.Date
+
+  checkInAt     DateTime?
+  checkOutAt    DateTime?
+  status        AttendanceStatus @default(ABSENT)
+  checkInMethod CheckInMethod?
+
+  locationLat Float?
+  locationLng Float?
+  notes       String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([villageId, officialId, attendanceDate])
+  @@index([villageId, attendanceDate])
+  @@index([officialId, attendanceDate])
+  @@map("attendances")
 }

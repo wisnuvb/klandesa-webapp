@@ -38,7 +38,7 @@ function generateBudgetCode(category: string, year: number) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req, secret: authOptions.secret });
     const apiKeyHeader = req.headers.get("x-api-key");
     const validApiKey = process.env.FINANCE_API_KEY;
     if (!session?.user && !token?.id) {
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req, secret: authOptions.secret });
     if (!session?.user && !token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

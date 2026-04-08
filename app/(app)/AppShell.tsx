@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
@@ -12,6 +12,10 @@ const pageConfig = {
   dashboard: {
     title: "Dashboard",
     subtitle: "Ringkasan informasi dan statistik desa",
+  },
+  profil: {
+    title: "Profil Akun",
+    subtitle: "Informasi pengguna yang sedang masuk",
   },
   "data-warga": {
     title: "Data Warga",
@@ -61,6 +65,10 @@ const pageConfig = {
     title: "Layanan Surat",
     subtitle: "Buat dan kelola template surat desa",
   },
+  "pengaturan-desa": {
+    title: "Pengaturan Desa",
+    subtitle: "Profil desa, kontak, dan pengaturan kop surat",
+  },
   layanan: {
     title: "Pelayanan Surat",
     subtitle: "Kelola permohonan surat dari warga",
@@ -68,6 +76,10 @@ const pageConfig = {
   keuangan: {
     title: "Sistem Keuangan Desa",
     subtitle: "Pengelolaan keuangan dan laporan",
+  },
+  billing: {
+    title: "Billing",
+    subtitle: "Kelola paket, invoice, dan pembayaran",
   },
   portal: {
     title: "Portal Warga",
@@ -133,6 +145,7 @@ export function AppShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const enforcedRef = useRef(false);
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -142,9 +155,43 @@ export function AppShell({
     setActivePage(derivePageKey(pathname));
   }, [pathname]);
 
+  useEffect(() => {
+    if (session === null) {
+      router.replace("/auth/signin");
+    }
+  }, [router, session]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    if (enforcedRef.current) return;
+
+    const current = pathname || "/";
+    if (current.startsWith("/billing") || current.startsWith("/profil")) return;
+    if (current.startsWith("/auth")) return;
+
+    const check = async () => {
+      try {
+        const res = await fetch("/api/billing/status", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => null)) as {
+          subscription?: { active?: boolean };
+        } | null;
+        const active = data?.subscription?.active === true;
+        if (!active) {
+          enforcedRef.current = true;
+          router.replace("/billing");
+        }
+      } catch {
+        return;
+      }
+    };
+
+    void check();
+  }, [pathname, router, session?.user?.id]);
+
   const { title, subtitle } = useMemo(
     () => pageConfig[activePage],
-    [activePage]
+    [activePage],
   );
 
   const handlePageChange = (page: string) => {

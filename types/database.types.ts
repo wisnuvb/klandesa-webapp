@@ -20,7 +20,7 @@ export interface Village {
   email?: string;
   website?: string;
   logoUrl?: string;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
   subscriptionPlan: string;
   subscriptionExpiry?: Date;
   storageLimit: number;
@@ -206,7 +206,7 @@ export interface MailHistory {
   id: number;
   mailServiceId: number;
   action: 'created' | 'updated' | 'completed' | 'printed' | 'cancelled';
-  changes?: Record<string, any>;
+  changes?: Record<string, unknown>;
   changedBy?: number;
   changedAt: Date;
 }
@@ -327,8 +327,10 @@ export type PotentialUpdateInput = Partial<PotentialCreateInput>;
 export interface DigitalArchive {
   id: number;
   villageId: number;
+  folderId?: number;
   fileName: string;
   filePath: string;
+  storageKey?: string;
   fileType: string;
   fileSize: number;
   category: string;
@@ -387,7 +389,7 @@ export interface Statistic {
   completedRequests?: number;
   totalIncome?: number;
   totalExpense?: number;
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -425,7 +427,7 @@ export interface WebsiteTemplate {
   previewImage: string;
   thumbnailUrl: string;
   demoUrl?: string;
-  structure: Record<string, any>;
+  structure: Record<string, unknown>;
   price: number;
   subscriptionType: 'yearly' | 'lifetime';
   usageCount: number;
@@ -443,7 +445,7 @@ export interface WebsiteSubscription {
   templateId: number;
   startDate: Date;
   expiryDate: Date;
-  customization?: Record<string, any>;
+  customization?: Record<string, unknown>;
   customDomain?: string;
   isActive: boolean;
   createdAt: Date;
@@ -461,8 +463,8 @@ export interface AuditLog {
   action: string;
   entity: string;
   entityId?: string;
-  changes?: Record<string, any>;
-  metadata?: Record<string, any>;
+  changes?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   createdAt: Date;

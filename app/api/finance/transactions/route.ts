@@ -85,7 +85,7 @@ function generateTransactionNumber(type: string, date: Date) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req, secret: authOptions.secret });
 
     // Parse body early to read optional villageCode
     const body = await req.json();
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req, secret: authOptions.secret });
     // No hard auth check here; follow residents pattern
 
     const url = new URL(req.url);
@@ -217,7 +217,7 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req, secret: authOptions.secret });
     // No hard auth check here; follow residents pattern
 
     const { searchParams } = new URL(req.url);

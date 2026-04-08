@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Users, FileText, Home, UserCircle, Heart } from 'lucide-react';
-import { TemplateData, VariableGroup, AVAILABLE_VARIABLES } from './template-builder/types';
+import { TemplateData, AVAILABLE_VARIABLES } from './template-builder/types';
 
 interface MultiPageLetterFormProps {
   template: TemplateData;
@@ -14,7 +14,9 @@ interface MultiPageLetterFormProps {
   onFormDataChange: (data: Record<string, string>) => void;
 }
 
-const ICON_MAP: Record<string, any> = {
+type IconComponent = ComponentType<{ className?: string }>;
+
+const ICON_MAP: Record<string, IconComponent> = {
   users: Users,
   'file-text': FileText,
   home: Home,

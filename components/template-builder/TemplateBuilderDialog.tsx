@@ -1,44 +1,50 @@
-import { useState } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription 
-} from '../ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Badge } from '../ui/badge';
-import { 
-  Eye, 
-  Save, 
-  FileText, 
-  Settings, 
-  AlignLeft, 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Badge } from "../ui/badge";
+import {
+  Eye,
+  Save,
+  FileText,
+  Settings,
+  AlignLeft,
   AlignJustify,
   Variable,
   X,
   BookTemplate,
-  Hash
-} from 'lucide-react';
-import { HeaderCustomizer } from './HeaderCustomizer';
-import { FooterBuilder } from './FooterBuilder';
-import { LetterNumberBuilder } from './LetterNumberBuilder';
-import { ContentBlockEditor } from './ContentBlockEditor';
-import { VariablePicker } from './VariablePicker';
-import { TemplatePreview } from './TemplatePreview';
-import { TemplateLibraryDialog } from './TemplateLibraryDialog';
-import { 
-  TemplateData, 
-  DEFAULT_HEADER_CONFIG, 
+  Hash,
+} from "lucide-react";
+import { HeaderCustomizer } from "./HeaderCustomizer";
+import { FooterBuilder } from "./FooterBuilder";
+import { LetterNumberBuilder } from "./LetterNumberBuilder";
+import { ContentBlockEditor } from "./ContentBlockEditor";
+import { VariablePicker } from "./VariablePicker";
+import { TemplatePreview } from "./TemplatePreview";
+import { TemplateLibraryDialog } from "./TemplateLibraryDialog";
+import {
+  TemplateData,
+  DEFAULT_HEADER_CONFIG,
   DEFAULT_FOOTER_CONFIG,
   DEFAULT_LETTER_NUMBER_CONFIG,
-  AVAILABLE_VARIABLES 
-} from './types';
+} from "./types";
 
 interface TemplateBuilderDialogProps {
   open: boolean;
@@ -48,24 +54,24 @@ interface TemplateBuilderDialogProps {
   editTemplate?: TemplateData | null;
 }
 
-export function TemplateBuilderDialog({ 
-  open, 
-  onOpenChange, 
+export function TemplateBuilderDialog({
+  open,
+  onOpenChange,
   onSave,
   desaSettings,
-  editTemplate 
+  editTemplate,
 }: TemplateBuilderDialogProps) {
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTab, setActiveTab] = useState("info");
   const [showVariablePicker, setShowVariablePicker] = useState(false);
   const [currentBlockId, setCurrentBlockId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
-  
+
   const [templateData, setTemplateData] = useState<TemplateData>(
     editTemplate || {
-      name: '',
-      description: '',
-      category: 'Keterangan',
+      name: "",
+      description: "",
+      category: "Keterangan",
       is_multi_page: false,
       header: DEFAULT_HEADER_CONFIG,
       letterNumber: DEFAULT_LETTER_NUMBER_CONFIG,
@@ -73,46 +79,47 @@ export function TemplateBuilderDialog({
       footer: DEFAULT_FOOTER_CONFIG,
       variables: [],
       is_active: true,
-    }
+    },
   );
-  
+
   const updateTemplateData = (updates: Partial<TemplateData>) => {
-    setTemplateData(prev => ({ ...prev, ...updates }));
+    setTemplateData((prev) => ({ ...prev, ...updates }));
   };
-  
+
   const extractVariablesFromBlocks = () => {
     const variableSet = new Set<string>();
-    
-    templateData.blocks.forEach(block => {
-      const content = typeof block.content === 'string' 
-        ? block.content 
-        : JSON.stringify(block.content);
-      
+
+    templateData.blocks.forEach((block) => {
+      const content =
+        typeof block.content === "string"
+          ? block.content
+          : JSON.stringify(block.content);
+
       const matches = content.match(/{([A-Z_]+)}/g);
       if (matches) {
-        matches.forEach(match => {
-          const varName = match.replace(/[{}]/g, '');
+        matches.forEach((match) => {
+          const varName = match.replace(/[{}]/g, "");
           variableSet.add(varName);
         });
       }
     });
-    
+
     return Array.from(variableSet);
   };
-  
+
   const handleInsertVariable = (blockId: string) => {
     setCurrentBlockId(blockId);
     setShowVariablePicker(true);
   };
-  
+
   const handleVariableSelect = (variable: string) => {
     if (currentBlockId) {
-      const block = templateData.blocks.find(b => b.id === currentBlockId);
-      if (block && typeof block.content === 'string') {
-        const updatedBlocks = templateData.blocks.map(b => 
-          b.id === currentBlockId 
+      const block = templateData.blocks.find((b) => b.id === currentBlockId);
+      if (block && typeof block.content === "string") {
+        const updatedBlocks = templateData.blocks.map((b) =>
+          b.id === currentBlockId
             ? { ...b, content: `${b.content}{${variable}}` }
-            : b
+            : b,
         );
         updateTemplateData({ blocks: updatedBlocks });
       }
@@ -120,22 +127,22 @@ export function TemplateBuilderDialog({
     setShowVariablePicker(false);
     setCurrentBlockId(null);
   };
-  
+
   const handleSave = () => {
     const extractedVariables = extractVariablesFromBlocks();
     const finalTemplate = {
       ...templateData,
       variables: extractedVariables,
     };
-    
+
     onSave(finalTemplate);
     onOpenChange(false);
-    
+
     // Reset form
     setTemplateData({
-      name: '',
-      description: '',
-      category: 'Keterangan',
+      name: "",
+      description: "",
+      category: "Keterangan",
       is_multi_page: false,
       header: DEFAULT_HEADER_CONFIG,
       letterNumber: DEFAULT_LETTER_NUMBER_CONFIG,
@@ -144,26 +151,28 @@ export function TemplateBuilderDialog({
       variables: [],
       is_active: true,
     });
-    setActiveTab('info');
+    setActiveTab("info");
   };
-  
+
   const handleLoadTemplate = (template: TemplateData) => {
     setTemplateData(template);
-    setActiveTab('info');
+    setActiveTab("info");
   };
-  
+
   const usedVariables = extractVariablesFromBlocks();
-  
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-[96vw] w-full h-[92vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  {editTemplate ? 'Edit Template Surat' : 'Buat Template Surat Baru'}
+                  {editTemplate
+                    ? "Edit Template Surat"
+                    : "Buat Template Surat Baru"}
                 </DialogTitle>
                 <DialogDescription>
                   Buat template surat dengan sistem block editor yang fleksibel
@@ -179,12 +188,16 @@ export function TemplateBuilderDialog({
               </Button>
             </div>
           </DialogHeader>
-          
+
           <div className="flex-1 flex overflow-hidden min-h-0">
             {/* Main Editor */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-                <div className="border-b px-6 flex-shrink-0">
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="flex-1 flex flex-col overflow-hidden"
+              >
+                <div className="border-b px-6 shrink-0">
                   <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="info" className="gap-2">
                       <FileText className="h-4 w-4" />
@@ -208,7 +221,7 @@ export function TemplateBuilderDialog({
                     </TabsTrigger>
                   </TabsList>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto min-h-0">
                   {/* Info Tab */}
                   <TabsContent value="info" className="p-6 space-y-4 mt-0">
@@ -217,34 +230,46 @@ export function TemplateBuilderDialog({
                         <Label>Nama Template *</Label>
                         <Input
                           value={templateData.name}
-                          onChange={(e) => updateTemplateData({ name: e.target.value })}
+                          onChange={(e) =>
+                            updateTemplateData({ name: e.target.value })
+                          }
                           placeholder="Contoh: Surat Keterangan Domisili"
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label>Deskripsi</Label>
                         <Textarea
                           value={templateData.description}
-                          onChange={(e) => updateTemplateData({ description: e.target.value })}
+                          onChange={(e) =>
+                            updateTemplateData({ description: e.target.value })
+                          }
                           placeholder="Deskripsi singkat tentang template ini..."
                           rows={3}
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label>Kategori</Label>
                         <Select
                           value={templateData.category}
-                          onValueChange={(value) => updateTemplateData({ category: value })}
+                          onValueChange={(value) =>
+                            updateTemplateData({ category: value })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Keterangan">Surat Keterangan</SelectItem>
-                            <SelectItem value="Pengantar">Surat Pengantar</SelectItem>
-                            <SelectItem value="Keterangan Usaha">Keterangan Usaha</SelectItem>
+                            <SelectItem value="Keterangan">
+                              Surat Keterangan
+                            </SelectItem>
+                            <SelectItem value="Pengantar">
+                              Surat Pengantar
+                            </SelectItem>
+                            <SelectItem value="Keterangan Usaha">
+                              Keterangan Usaha
+                            </SelectItem>
                             <SelectItem value="Domisili">Domisili</SelectItem>
                             <SelectItem value="Kuasa">Surat Kuasa</SelectItem>
                             <SelectItem value="Izin">Surat Izin</SelectItem>
@@ -252,26 +277,30 @@ export function TemplateBuilderDialog({
                           </SelectContent>
                         </Select>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           id="is_active"
                           checked={templateData.is_active}
-                          onChange={(e) => updateTemplateData({ is_active: e.target.checked })}
+                          onChange={(e) =>
+                            updateTemplateData({ is_active: e.target.checked })
+                          }
                           className="h-4 w-4"
                         />
                         <Label htmlFor="is_active" className="cursor-pointer">
                           Template Aktif (dapat digunakan)
                         </Label>
                       </div>
-                      
+
                       {/* Variables Preview */}
                       {usedVariables.length > 0 && (
                         <div className="space-y-2">
-                          <Label>Variabel yang Terdeteksi ({usedVariables.length})</Label>
+                          <Label>
+                            Variabel yang Terdeteksi ({usedVariables.length})
+                          </Label>
                           <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg border">
-                            {usedVariables.map(variable => (
+                            {usedVariables.map((variable) => (
                               <Badge key={variable} variant="secondary">
                                 {variable}
                               </Badge>
@@ -284,7 +313,7 @@ export function TemplateBuilderDialog({
                       )}
                     </div>
                   </TabsContent>
-                  
+
                   {/* Header Tab */}
                   <TabsContent value="header" className="mt-0">
                     <HeaderCustomizer
@@ -292,15 +321,20 @@ export function TemplateBuilderDialog({
                       onChange={(header) => updateTemplateData({ header })}
                     />
                   </TabsContent>
-                  
+
                   {/* Letter Number Tab */}
                   <TabsContent value="letter" className="p-6 mt-0">
                     <LetterNumberBuilder
-                      config={templateData.letterNumber || DEFAULT_LETTER_NUMBER_CONFIG}
-                      onChange={(letterNumber) => updateTemplateData({ letterNumber })}
+                      config={
+                        templateData.letterNumber ||
+                        DEFAULT_LETTER_NUMBER_CONFIG
+                      }
+                      onChange={(letterNumber) =>
+                        updateTemplateData({ letterNumber })
+                      }
                     />
                   </TabsContent>
-                  
+
                   {/* Content Tab */}
                   <TabsContent value="content" className="p-6 mt-0">
                     <div className="space-y-4">
@@ -320,7 +354,7 @@ export function TemplateBuilderDialog({
                           Lihat Variabel
                         </Button>
                       </div>
-                      
+
                       <ContentBlockEditor
                         blocks={templateData.blocks}
                         onChange={(blocks) => updateTemplateData({ blocks })}
@@ -328,7 +362,7 @@ export function TemplateBuilderDialog({
                       />
                     </div>
                   </TabsContent>
-                  
+
                   {/* Footer Tab */}
                   <TabsContent value="footer" className="mt-0">
                     <FooterBuilder
@@ -339,7 +373,7 @@ export function TemplateBuilderDialog({
                 </div>
               </Tabs>
             </div>
-            
+
             {/* Preview Panel */}
             {showPreview && (
               <div className="w-1/2 border-l bg-muted/30 overflow-y-auto">
@@ -365,7 +399,7 @@ export function TemplateBuilderDialog({
               </div>
             )}
           </div>
-          
+
           {/* Footer Actions */}
           <div className="border-t px-6 py-4 flex items-center justify-between bg-muted/30">
             <Button
@@ -374,14 +408,11 @@ export function TemplateBuilderDialog({
               className="gap-2"
             >
               <Eye className="h-4 w-4" />
-              {showPreview ? 'Sembunyikan' : 'Tampilkan'} Preview
+              {showPreview ? "Sembunyikan" : "Tampilkan"} Preview
             </Button>
-            
+
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Batal
               </Button>
               <Button
@@ -396,20 +427,21 @@ export function TemplateBuilderDialog({
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Variable Picker Dialog */}
       <Dialog open={showVariablePicker} onOpenChange={setShowVariablePicker}>
-        <DialogContent className="max-w-2xl h-[600px] flex flex-col p-0">
+        <DialogContent className="max-w-2xl h-150 flex flex-col p-0">
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle className="flex items-center gap-2">
               <Variable className="h-5 w-5" />
               Pilih Variabel
             </DialogTitle>
             <DialogDescription>
-              Klik variabel untuk {currentBlockId ? 'menambahkan ke block' : 'melihat detail'}
+              Klik variabel untuk{" "}
+              {currentBlockId ? "menambahkan ke block" : "melihat detail"}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex-1 overflow-hidden">
             <VariablePicker
               onSelect={handleVariableSelect}
@@ -418,7 +450,7 @@ export function TemplateBuilderDialog({
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Template Library Dialog */}
       <TemplateLibraryDialog
         open={showLibrary}

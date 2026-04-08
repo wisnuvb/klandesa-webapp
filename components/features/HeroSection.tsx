@@ -1,7 +1,7 @@
-import React from 'react';
-import { ArrowRight, MapPin, TrendingUp, Users, Zap } from 'lucide-react';
+import { ArrowRight, TrendingUp, Zap } from "lucide-react";
 
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useRouter } from "next/navigation";
 
 function Sparkles({ className }: { className?: string }) {
   return (
@@ -26,10 +26,12 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ onRegisterClick }: HeroSectionProps) {
+  const router = useRouter();
+
   return (
     <section
       id="home"
-      className="relative bg-gradient-to-br from-[#f0f9ff] via-[#f0f4ff] to-[#fef3c7] py-20 md:py-32 overflow-hidden"
+      className="relative bg-linear-to-br from-[#f0f9ff] via-[#f0f4ff] to-[#fef3c7] py-20 md:py-32 overflow-hidden"
     >
       {/* Animated Background Pattern */}
       <div className="absolute inset-0 opacity-10">
@@ -44,8 +46,8 @@ export function HeroSection({ onRegisterClick }: HeroSectionProps) {
           className="absolute inset-0"
           style={{
             backgroundImage:
-              'radial-gradient(circle, #0d9488 1px, transparent 1px)',
-            backgroundSize: '30px 30px',
+              "radial-gradient(circle, #0d9488 1px, transparent 1px)",
+            backgroundSize: "30px 30px",
           }}
         ></div>
       </div>
@@ -70,7 +72,7 @@ export function HeroSection({ onRegisterClick }: HeroSectionProps) {
             <div className="relative">
               <h1 className="text-5xl md:text-3xl lg:text-5xl text-gray-900 leading-[1.1] tracking-tight font-extrabold flex flex-col gap-2">
                 Akses Lebih Cepat,
-                <span className="bg-gradient-to-r from-[#0d9488] via-[#0ea5e9] to-[#6366f1] bg-clip-text text-transparent animate-gradient">
+                <span className="bg-linear-to-r from-[#0d9488] via-[#0ea5e9] to-[#6366f1] bg-clip-text text-transparent animate-gradient">
                   Layanan Lebih Baik
                 </span>
               </h1>
@@ -96,12 +98,15 @@ export function HeroSection({ onRegisterClick }: HeroSectionProps) {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <button
                 onClick={onRegisterClick}
-                className="group relative bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-4 rounded-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center justify-center gap-2"
+                className="group relative bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-4 rounded-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center justify-center gap-2"
               >
                 Daftar Sekarang
                 <ArrowRight className="w-5 h-5" />
               </button>
-              <button className="bg-white/80 backdrop-blur-sm text-gray-900 px-8 py-4 rounded-xl hover:bg-white transition-all border border-gray-200 shadow-md hover:shadow-lg">
+              <button
+                className="bg-white/80 backdrop-blur-sm text-gray-900 px-8 py-4 rounded-xl hover:bg-white transition-all border border-gray-200 shadow-md hover:shadow-lg"
+                onClick={() => router.push("/fitur")}
+              >
                 Lihat Fitur
               </button>
             </div>
@@ -112,7 +117,7 @@ export function HeroSection({ onRegisterClick }: HeroSectionProps) {
                 {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0d9488] to-[#6366f1] border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-linear-to-br from-[#0d9488] to-[#6366f1] border-2 border-white"
                   ></div>
                 ))}
               </div>
@@ -128,7 +133,7 @@ export function HeroSection({ onRegisterClick }: HeroSectionProps) {
           {/* Right Content - Hero Image */}
           <div className="flex justify-center md:justify-end relative">
             {/* Decorative card behind image */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0d9488]/10 to-[#6366f1]/10 rounded-3xl transform rotate-3 scale-95"></div>
+            <div className="absolute inset-0 bg-linear-to-br from-[#0d9488]/10 to-[#6366f1]/10 rounded-3xl transform rotate-3 scale-95"></div>
 
             <div className="relative rounded-3xl overflow-hidden shadow-2xl">
               <ImageWithFallback
@@ -137,13 +142,13 @@ export function HeroSection({ onRegisterClick }: HeroSectionProps) {
                 className="w-full max-w-lg h-auto relative z-10"
               />
               {/* Overlay gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0d9488]/20 to-transparent"></div>
+              <div className="absolute inset-0 bg-linear-to-t from-[#0d9488]/20 to-transparent"></div>
             </div>
 
             {/* Floating Stats Card */}
             <div className="absolute -bottom-6 -left-6 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-gray-100 hidden md:block z-10">
               <div className="flex items-center gap-3">
-                <div className="bg-gradient-to-br from-[#0d9488] to-[#0f766e] p-3 rounded-xl">
+                <div className="bg-linear-to-br from-[#0d9488] to-[#0f766e] p-3 rounded-xl">
                   <TrendingUp className="w-6 h-6 text-white" />
                 </div>
                 <div>

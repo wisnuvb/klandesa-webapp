@@ -20,6 +20,7 @@ import {
   MessageCircle,
   AlertCircle,
   Image,
+  Settings2,
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
@@ -107,6 +108,12 @@ const menuItems: MenuItem[] = [
         icon: FileText,
         path: "/layanan-surat",
       },
+      {
+        id: "pengaturan-desa",
+        label: "Pengaturan Desa",
+        icon: Settings2,
+        path: "/pengaturan-desa",
+      },
     ],
   },
   {
@@ -114,6 +121,12 @@ const menuItems: MenuItem[] = [
     label: "Sistem Keuangan",
     icon: Wallet,
     path: "/keuangan",
+  },
+  {
+    id: "billing",
+    label: "Billing",
+    icon: Wallet,
+    path: "/billing",
   },
   {
     id: "portal",

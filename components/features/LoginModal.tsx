@@ -88,8 +88,20 @@ export function LoginModal({ onClose }: LoginModalProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="relative w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 z-[100] overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="login-modal-title"
+    >
+      <div className="flex min-h-full items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Tutup"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300 fill-mode-forwards"
+          onClick={onClose}
+        />
+        <div className="relative z-10 w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 fill-mode-forwards max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -99,7 +111,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
           <X className="w-6 h-6 text-gray-700" />
         </button>
 
-        <div className="grid md:grid-cols-2 min-h-150">
+        <div className="grid md:grid-cols-2 min-h-[min(90vh,36rem)]">
           {/* Left Side - Login Form */}
           <div className="p-8 md:p-12 flex flex-col justify-center">
             <div className="max-w-md mx-auto w-full">
@@ -109,7 +121,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
                   <KlandesaLogo className="w-10 h-10" showText={false} />
                 </div>
 
-                <h2 className="text-3xl text-gray-900 mb-2">
+                <h2 id="login-modal-title" className="text-3xl text-gray-900 mb-2">
                   Selamat Datang Kembali
                 </h2>
                 <p className="text-gray-600">
@@ -209,14 +221,14 @@ export function LoginModal({ onClose }: LoginModalProps) {
               </form>
 
               {/* Divider */}
-              <div className="my-6 flex items-center gap-4">
+              {/* <div className="my-6 flex items-center gap-4">
                 <div className="flex-1 h-px bg-gray-300"></div>
                 <span className="text-sm text-gray-500">atau</span>
                 <div className="flex-1 h-px bg-gray-300"></div>
-              </div>
+              </div> */}
 
               {/* Social Login */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* <div className="grid grid-cols-2 gap-3">
                 <button className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all hover:border-gray-400">
                   <div className="w-5 h-5 bg-gray-300 rounded"></div>
                   <span className="text-sm text-gray-700">Google</span>
@@ -225,7 +237,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
                   <div className="w-5 h-5 bg-gray-300 rounded"></div>
                   <span className="text-sm text-gray-700">Facebook</span>
                 </button>
-              </div>
+              </div> */}
 
               {/* Sign Up Link */}
               <p className="mt-6 text-center text-sm text-gray-600">
@@ -307,6 +319,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

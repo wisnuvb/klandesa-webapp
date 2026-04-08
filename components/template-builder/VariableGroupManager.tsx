@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { Plus, Trash2, Edit2, Users, FileText, Home, UserCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -14,7 +14,9 @@ interface VariableGroupManagerProps {
   onUpdateGroups: (groups: VariableGroup[]) => void;
 }
 
-const ICON_MAP: Record<string, any> = {
+type IconComponent = ComponentType<{ className?: string }>;
+
+const ICON_MAP: Record<string, IconComponent> = {
   users: Users,
   'file-text': FileText,
   home: Home,

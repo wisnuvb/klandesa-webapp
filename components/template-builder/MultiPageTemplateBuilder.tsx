@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -41,12 +41,45 @@ import { PageManager } from "./PageManager";
 import { VariableGroupManager } from "./VariableGroupManager";
 import { TemplateLibraryModal } from "./TemplateLibraryModal";
 import {
-  TemplateData,
-  TemplatePage,
   DEFAULT_HEADER_CONFIG,
   DEFAULT_FOOTER_CONFIG,
   DEFAULT_LETTER_NUMBER_CONFIG,
 } from "./types";
+import type {
+  ContentBlock,
+  FooterConfig,
+  HeaderConfig,
+  LetterNumberConfig,
+  TemplateData,
+  TemplatePage,
+  VariableGroup,
+} from "./types";
+
+function createEmptyTemplate(): TemplateData {
+  return {
+    name: "",
+    description: "",
+    category: "Keterangan",
+    is_multi_page: false,
+    header: DEFAULT_HEADER_CONFIG,
+    letterNumber: DEFAULT_LETTER_NUMBER_CONFIG,
+    blocks: [],
+    footer: DEFAULT_FOOTER_CONFIG,
+    variables: [],
+    is_active: true,
+    pages: [
+      {
+        id: "page_1",
+        page_number: 1,
+        title: "Halaman 1",
+        blocks: [],
+      },
+    ],
+    variable_groups: [],
+    shared_header: DEFAULT_HEADER_CONFIG,
+    shared_footer: DEFAULT_FOOTER_CONFIG,
+  };
+}
 
 interface MultiPageTemplateBuilderProps {
   open: boolean;
@@ -69,155 +102,244 @@ export function MultiPageTemplateBuilder({
 
   // Template mode
   const [isMultiPage, setIsMultiPage] = useState(
-    editTemplate?.is_multi_page || false
+    editTemplate?.is_multi_page || false,
   );
 
   // Current page being edited (for multi-page mode)
   const [currentPageId, setCurrentPageId] = useState<string>("page_1");
 
   const [templateData, setTemplateData] = useState<TemplateData>(
-    editTemplate || {
-      name: "",
-      description: "",
-      category: "Keterangan",
-      is_multi_page: false,
-      header: DEFAULT_HEADER_CONFIG,
-      letterNumber: DEFAULT_LETTER_NUMBER_CONFIG,
-      blocks: [],
-      footer: DEFAULT_FOOTER_CONFIG,
-      variables: [],
-      is_active: true,
-      pages: [
-        {
-          id: "page_1",
-          page_number: 1,
-          title: "Halaman 1",
-          blocks: [],
-        },
-      ],
-      variable_groups: [],
-      shared_header: DEFAULT_HEADER_CONFIG,
-      shared_footer: DEFAULT_FOOTER_CONFIG,
-    }
+    editTemplate || createEmptyTemplate(),
   );
 
-  // Toggle multi-page mode
-  const toggleMultiPageMode = (enabled: boolean) => {
+  const toggleMultiPageMode = useCallback((enabled: boolean) => {
     setIsMultiPage(enabled);
+    setTemplateData((prev) => {
+      if (enabled) {
+        const firstPage: TemplatePage = {
+          id: "page_1",
+          page_number: 1,
+          title: prev.name || "Halaman 1",
+          blocks: prev.blocks,
+          show_header: true,
+          show_footer: true,
+          header: {
+            show_letterhead: true,
+            show_title: true,
+          },
+          letterNumber: prev.letterNumber,
+          footer: {
+            show_signatures: true,
+            footer_config: prev.footer,
+          },
+        };
 
-    if (enabled) {
-      // Convert single page to multi-page
-      const firstPage: TemplatePage = {
-        id: "page_1",
-        page_number: 1,
-        title: templateData.name || "Halaman 1",
-        blocks: templateData.blocks,
+        return {
+          ...prev,
+          is_multi_page: true,
+          pages: [firstPage],
+          shared_header: prev.header,
+          shared_footer: prev.footer,
+          variable_groups: [],
+        };
+      }
+
+      const firstPage = prev.pages?.[0];
+      return {
+        ...prev,
+        is_multi_page: false,
+        blocks: firstPage?.blocks || [],
+        letterNumber:
+          firstPage?.letterNumber || DEFAULT_LETTER_NUMBER_CONFIG,
+      };
+    });
+  }, []);
+
+  const currentPage = useMemo((): TemplatePage | null => {
+    if (!isMultiPage) return null;
+    return (
+      templateData.pages?.find((p) => p.id === currentPageId) ||
+      templateData.pages?.[0] ||
+      null
+    );
+  }, [isMultiPage, templateData.pages, currentPageId]);
+
+  const updateTemplateData = useCallback((updates: Partial<TemplateData>) => {
+    setTemplateData((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const updateCurrentPage = useCallback(
+    (updates: Partial<TemplatePage>) => {
+      if (!isMultiPage) return;
+      setTemplateData((prev) => {
+        const pages = prev.pages || [];
+        const target = pages.find((p) => p.id === currentPageId);
+        if (!target) return prev;
+        const updatedPages = pages.map((p) =>
+          p.id === currentPageId ? { ...p, ...updates } : p,
+        );
+        return { ...prev, pages: updatedPages };
+      });
+    },
+    [isMultiPage, currentPageId],
+  );
+
+  const handleAddPage = useCallback(() => {
+    const newPageId = `page_${Date.now()}`;
+    setTemplateData((prev) => {
+      const pages = prev.pages || [];
+      const newPageNumber = pages.length + 1;
+      const newPage: TemplatePage = {
+        id: newPageId,
+        page_number: newPageNumber,
+        title: `Halaman ${newPageNumber}`,
+        blocks: [],
         show_header: true,
         show_footer: true,
         header: {
           show_letterhead: true,
           show_title: true,
         },
-        letterNumber: templateData.letterNumber,
         footer: {
           show_signatures: true,
-          footer_config: templateData.footer,
         },
       };
+      return { ...prev, pages: [...pages, newPage] };
+    });
+    setCurrentPageId(newPageId);
+  }, []);
 
-      setTemplateData({
-        ...templateData,
-        is_multi_page: true,
-        pages: [firstPage],
-        shared_header: templateData.header,
-        shared_footer: templateData.footer,
-        variable_groups: [],
-      });
-    } else {
-      // Convert multi-page to single page
-      const firstPage = templateData.pages?.[0];
-      setTemplateData({
-        ...templateData,
-        is_multi_page: false,
-        blocks: firstPage?.blocks || [],
-        letterNumber: firstPage?.letterNumber || DEFAULT_LETTER_NUMBER_CONFIG,
-      });
-    }
-  };
+  const handleDeletePage = useCallback(
+    (pageId: string) => {
+      const updatedPages =
+        templateData.pages?.filter((p) => p.id !== pageId) || [];
+      const renumberedPages = updatedPages.map((p, index) => ({
+        ...p,
+        page_number: index + 1,
+      }));
+      updateTemplateData({ pages: renumberedPages });
 
-  // Get current page for editing
-  const currentPage = isMultiPage
-    ? templateData.pages?.find((p) => p.id === currentPageId) ||
-      templateData.pages?.[0]
-    : null;
+      if (currentPageId === pageId && renumberedPages.length > 0) {
+        setCurrentPageId(renumberedPages[0].id);
+      }
+    },
+    [templateData.pages, currentPageId, updateTemplateData],
+  );
 
-  // Update template data
-  const updateTemplateData = (updates: Partial<TemplateData>) => {
-    setTemplateData((prev) => ({ ...prev, ...updates }));
-  };
+  const handleUpdatePage = useCallback(
+    (pageId: string, updates: Partial<TemplatePage>) => {
+      setTemplateData((prev) => ({
+        ...prev,
+        pages:
+          prev.pages?.map((p) =>
+            p.id === pageId ? { ...p, ...updates } : p,
+          ) || [],
+      }));
+    },
+    [],
+  );
 
-  // Update current page
-  const updateCurrentPage = (updates: Partial<TemplatePage>) => {
-    if (!isMultiPage || !currentPage) return;
+  const handleReorderPages = useCallback(
+    (pages: TemplatePage[]) => {
+      updateTemplateData({ pages });
+    },
+    [updateTemplateData],
+  );
 
-    const updatedPages =
-      templateData.pages?.map((p) =>
-        p.id === currentPageId ? { ...p, ...updates } : p
-      ) || [];
+  const handleHeaderConfigChange = useCallback(
+    (config: HeaderConfig) => {
+      if (isMultiPage) {
+        updateTemplateData({ shared_header: config });
+      } else {
+        updateTemplateData({ header: config });
+      }
+    },
+    [isMultiPage, updateTemplateData],
+  );
 
-    updateTemplateData({ pages: updatedPages });
-  };
+  const handleLetterNumberChange = useCallback(
+    (config: LetterNumberConfig) => {
+      if (isMultiPage) {
+        updateCurrentPage({ letterNumber: config });
+      } else {
+        updateTemplateData({ letterNumber: config });
+      }
+    },
+    [isMultiPage, updateCurrentPage, updateTemplateData],
+  );
 
-  // Page management
-  const handleAddPage = () => {
-    const newPageNumber = (templateData.pages?.length || 0) + 1;
-    const newPage: TemplatePage = {
-      id: `page_${Date.now()}`,
-      page_number: newPageNumber,
-      title: `Halaman ${newPageNumber}`,
-      blocks: [],
-      show_header: true,
-      show_footer: true,
-      header: {
-        show_letterhead: true,
-        show_title: true,
-      },
-      footer: {
-        show_signatures: true,
-      },
-    };
+  const handleFooterConfigChange = useCallback(
+    (config: FooterConfig) => {
+      if (isMultiPage) {
+        updateTemplateData({ shared_footer: config });
+      } else {
+        updateTemplateData({ footer: config });
+      }
+    },
+    [isMultiPage, updateTemplateData],
+  );
 
-    updateTemplateData({ pages: [...(templateData.pages || []), newPage] });
-    setCurrentPageId(newPage.id);
-  };
+  const handleContentBlocksChange = useCallback(
+    (blocks: ContentBlock[]) => {
+      if (isMultiPage) {
+        updateCurrentPage({ blocks });
+      } else {
+        updateTemplateData({ blocks });
+      }
+    },
+    [isMultiPage, updateCurrentPage, updateTemplateData],
+  );
 
-  const handleDeletePage = (pageId: string) => {
-    const updatedPages =
-      templateData.pages?.filter((p) => p.id !== pageId) || [];
-    // Renumber pages
-    const renumberedPages = updatedPages.map((p, index) => ({
-      ...p,
-      page_number: index + 1,
-    }));
-    updateTemplateData({ pages: renumberedPages });
+  const handleVariableGroupsUpdate = useCallback(
+    (groups: VariableGroup[]) => {
+      updateTemplateData({ variable_groups: groups });
+    },
+    [updateTemplateData],
+  );
 
-    if (currentPageId === pageId && renumberedPages.length > 0) {
-      setCurrentPageId(renumberedPages[0].id);
-    }
-  };
+  const handleInsertVariable = useCallback((_id: string) => {
+    void _id;
+  }, []);
 
-  const handleUpdatePage = (pageId: string, updates: Partial<TemplatePage>) => {
-    const updatedPages =
-      templateData.pages?.map((p) =>
-        p.id === pageId ? { ...p, ...updates } : p
-      ) || [];
-    updateTemplateData({ pages: updatedPages });
-  };
+  const openTemplateLibrary = useCallback(() => {
+    setShowTemplateLibrary(true);
+  }, []);
 
-  // Extract variables from all pages or single page
-  const extractVariablesFromBlocks = () => {
+  const openPreview = useCallback(() => {
+    setShowPreview(true);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setShowPreview(false);
+  }, []);
+
+  const handleLibrarySelect = useCallback((template: TemplateData) => {
+    setTemplateData(template);
+    setIsMultiPage(template.is_multi_page || false);
+  }, []);
+
+  const handleToggleShowHeader = useCallback(
+    (show: boolean) => updateTemplateData({ show_header: show }),
+    [updateTemplateData],
+  );
+
+  const handleToggleShowHeaderDefault = useCallback(
+    (show: boolean) => updateTemplateData({ show_header_default: show }),
+    [updateTemplateData],
+  );
+
+  const handleToggleShowFooter = useCallback(
+    (show: boolean) => updateTemplateData({ show_footer: show }),
+    [updateTemplateData],
+  );
+
+  const handleToggleShowFooterDefault = useCallback(
+    (show: boolean) => updateTemplateData({ show_footer_default: show }),
+    [updateTemplateData],
+  );
+
+  const handleSave = useCallback(() => {
     const variableSet = new Set<string>();
-
     const blocksToScan = isMultiPage
       ? templateData.pages?.flatMap((p) => p.blocks) || []
       : templateData.blocks;
@@ -237,25 +359,18 @@ export function MultiPageTemplateBuilder({
       }
     });
 
-    return Array.from(variableSet);
-  };
-
-  const handleSave = () => {
-    const extractedVariables = extractVariablesFromBlocks();
-    const finalTemplate = {
+    onSave({
       ...templateData,
-      variables: extractedVariables,
+      variables: Array.from(variableSet),
       is_multi_page: isMultiPage,
-    };
-
-    onSave(finalTemplate);
+    });
     onOpenChange(false);
-  };
+  }, [templateData, isMultiPage, onSave, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[96vw] w-full h-[92vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="flex items-center gap-2">
@@ -273,7 +388,7 @@ export function MultiPageTemplateBuilder({
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => setShowTemplateLibrary(true)}
+                onClick={openTemplateLibrary}
                 className="gap-2"
               >
                 <Sparkles className="h-4 w-4" />
@@ -281,7 +396,7 @@ export function MultiPageTemplateBuilder({
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowPreview(true)}
+                onClick={openPreview}
                 className="gap-2"
               >
                 <Eye className="h-4 w-4" />
@@ -310,7 +425,7 @@ export function MultiPageTemplateBuilder({
                 onAddPage={handleAddPage}
                 onDeletePage={handleDeletePage}
                 onUpdatePage={handleUpdatePage}
-                onReorderPages={(pages) => updateTemplateData({ pages })}
+                onReorderPages={handleReorderPages}
               />
             </div>
           )}
@@ -322,7 +437,7 @@ export function MultiPageTemplateBuilder({
               onValueChange={setActiveTab}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              <div className="border-b px-6 flex-shrink-0">
+              <div className="border-b px-6 shrink-0">
                 <TabsList
                   className={`grid w-full ${
                     isMultiPage ? "grid-cols-6" : "grid-cols-5"
@@ -465,25 +580,15 @@ export function MultiPageTemplateBuilder({
                         ? templateData.shared_header || DEFAULT_HEADER_CONFIG
                         : templateData.header
                     }
-                    onChange={(config) => {
-                      if (isMultiPage) {
-                        updateTemplateData({ shared_header: config });
-                      } else {
-                        updateTemplateData({ header: config });
-                      }
-                    }}
+                    onChange={handleHeaderConfigChange}
                     desaSettings={desaSettings}
                     isMultiPage={isMultiPage}
                     currentPage={currentPage || undefined}
                     onUpdatePage={updateCurrentPage}
                     showHeader={templateData.show_header}
-                    onToggleShowHeader={(show) =>
-                      updateTemplateData({ show_header: show })
-                    }
+                    onToggleShowHeader={handleToggleShowHeader}
                     showHeaderDefault={templateData.show_header_default}
-                    onToggleShowHeaderDefault={(show) =>
-                      updateTemplateData({ show_header_default: show })
-                    }
+                    onToggleShowHeaderDefault={handleToggleShowHeaderDefault}
                   />
                 </TabsContent>
 
@@ -497,13 +602,7 @@ export function MultiPageTemplateBuilder({
                         : templateData.letterNumber ||
                           DEFAULT_LETTER_NUMBER_CONFIG
                     }
-                    onChange={(config) => {
-                      if (isMultiPage) {
-                        updateCurrentPage({ letterNumber: config });
-                      } else {
-                        updateTemplateData({ letterNumber: config });
-                      }
-                    }}
+                    onChange={handleLetterNumberChange}
                     isMultiPage={isMultiPage}
                     currentPage={currentPage || undefined}
                     onUpdatePage={updateCurrentPage}
@@ -529,17 +628,8 @@ export function MultiPageTemplateBuilder({
                         ? currentPage?.blocks || []
                         : templateData.blocks
                     }
-                    onChange={(blocks) => {
-                      if (isMultiPage) {
-                        updateCurrentPage({ blocks });
-                      } else {
-                        updateTemplateData({ blocks });
-                      }
-                    }}
-                    onInsertVariable={(blockId) => {
-                      // Handle variable insertion if needed
-                      console.log("Insert variable for block:", blockId);
-                    }}
+                    onChange={handleContentBlocksChange}
+                    onInsertVariable={handleInsertVariable}
                   />
                 </TabsContent>
 
@@ -551,24 +641,14 @@ export function MultiPageTemplateBuilder({
                         ? templateData.shared_footer || DEFAULT_FOOTER_CONFIG
                         : templateData.footer
                     }
-                    onChange={(config) => {
-                      if (isMultiPage) {
-                        updateTemplateData({ shared_footer: config });
-                      } else {
-                        updateTemplateData({ footer: config });
-                      }
-                    }}
+                    onChange={handleFooterConfigChange}
                     isMultiPage={isMultiPage}
                     currentPage={currentPage || undefined}
                     onUpdatePage={updateCurrentPage}
                     showFooter={templateData.show_footer}
-                    onToggleShowFooter={(show) =>
-                      updateTemplateData({ show_footer: show })
-                    }
+                    onToggleShowFooter={handleToggleShowFooter}
                     showFooterDefault={templateData.show_footer_default}
-                    onToggleShowFooterDefault={(show) =>
-                      updateTemplateData({ show_footer_default: show })
-                    }
+                    onToggleShowFooterDefault={handleToggleShowFooterDefault}
                   />
                 </TabsContent>
 
@@ -577,9 +657,7 @@ export function MultiPageTemplateBuilder({
                   <TabsContent value="variables" className="p-6 mt-0">
                     <VariableGroupManager
                       variableGroups={templateData.variable_groups || []}
-                      onUpdateGroups={(groups) =>
-                        updateTemplateData({ variable_groups: groups })
-                      }
+                      onUpdateGroups={handleVariableGroupsUpdate}
                     />
                   </TabsContent>
                 )}
@@ -594,7 +672,7 @@ export function MultiPageTemplateBuilder({
         <MultiPagePreview
           template={templateData}
           desaSettings={desaSettings}
-          onClose={() => setShowPreview(false)}
+          onClose={closePreview}
         />
       )}
 
@@ -603,10 +681,7 @@ export function MultiPageTemplateBuilder({
         <TemplateLibraryModal
           open={showTemplateLibrary}
           onOpenChange={setShowTemplateLibrary}
-          onSelectTemplate={(template) => {
-            setTemplateData(template);
-            setIsMultiPage(template.is_multi_page || false);
-          }}
+          onSelectTemplate={handleLibrarySelect}
         />
       )}
     </Dialog>

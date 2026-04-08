@@ -15,6 +15,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Textarea } from "../ui/textarea";
 import { Switch } from "../ui/switch";
 import { Badge } from "../ui/badge";
+import { VariableTextFieldWithPicker } from "./VariableTextFieldWithPicker";
 
 interface FooterBuilderProps {
   config: FooterConfig;
@@ -467,31 +468,26 @@ export function FooterBuilder({
                           </p>
                         </div>
 
-                        {/* Name Variable */}
-                        <div className="space-y-2">
-                          <Label>Nama (Variabel)</Label>
-                          <Input
-                            value={signer.name}
-                            onChange={(e) =>
-                              updateSigner(index, { name: e.target.value })
-                            }
-                            placeholder="{KEPALA_DESA_NAMA}"
-                          />
-                        </div>
+                        <VariableTextFieldWithPicker
+                          fieldId={`footer-signer-${index}-name`}
+                          label="Nama (variabel)"
+                          value={signer.name}
+                          onChange={(v) => updateSigner(index, { name: v })}
+                          placeholder="{KEPALA_DESA_NAMA}"
+                        />
 
-                        {/* NIP */}
-                        <div className="space-y-2">
-                          <Label>NIP (Opsional)</Label>
-                          <Input
-                            value={signer.nip || ""}
-                            onChange={(e) =>
-                              updateSigner(index, {
-                                nip: e.target.value || null,
-                              })
-                            }
-                            placeholder="{KEPALA_DESA_NIP}"
-                          />
-                        </div>
+                        <VariableTextFieldWithPicker
+                          fieldId={`footer-signer-${index}-nip`}
+                          label="NIP (opsional)"
+                          value={signer.nip ?? ""}
+                          onChange={(v) =>
+                            updateSigner(index, {
+                              nip: v.trim() === "" ? null : v,
+                            })
+                          }
+                          placeholder="{KEPALA_DESA_NIP}"
+                          hint="Contoh: {KEPALA_DESA_NIP} atau ketik NIP tetap. Nilai diambil dari form / pengaturan desa saat surat dicetak."
+                        />
 
                         {/* Position */}
                         <div className="space-y-2">

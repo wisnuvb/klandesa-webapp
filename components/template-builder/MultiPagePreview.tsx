@@ -5,10 +5,22 @@ import { Badge } from '../ui/badge';
 import { ChevronLeft, ChevronRight, Download, Printer } from 'lucide-react';
 import { TemplateData, TemplatePage } from './types';
 import * as TemplateRenderer from '../../utils/templateRenderer';
+import {
+  isFooterBlockVisible,
+  isLetterheadVisible,
+} from '../../utils/letterheadVisibility';
 
 interface MultiPagePreviewProps {
   template: TemplateData;
-  desaSettings: any;
+  desaSettings: {
+    nama_desa: string;
+    kabupaten: string;
+    kecamatan: string;
+    alamat_desa: string;
+    kode_pos: string;
+    kepala_desa_nama: string;
+    kepala_desa_nip?: string | null;
+  };
   onClose: () => void;
 }
 
@@ -29,10 +41,10 @@ export function MultiPagePreview({ template, desaSettings, onClose }: MultiPageP
     NAMA_DESA: desaSettings.nama_desa,
     KABUPATEN: desaSettings.kabupaten,
     KECAMATAN: desaSettings.kecamatan,
-    ALAMAT_DESA: desaSettings.alamat,
+    ALAMAT_DESA: desaSettings.alamat_desa,
     KODE_POS: desaSettings.kode_pos,
-    KEPALA_DESA_NAMA: desaSettings.kepala_desa,
-    KEPALA_DESA_NIP: desaSettings.nip_kepala_desa || '19800101 200801 1 001',
+    KEPALA_DESA_NAMA: desaSettings.kepala_desa_nama,
+    KEPALA_DESA_NIP: desaSettings.kepala_desa_nip || "19800101 200801 1 001",
     NAMA: 'Ahmad Suryadi',
     NIK: '3201012801850001',
     TEMPAT_LAHIR: 'Bandung',
@@ -72,13 +84,13 @@ export function MultiPagePreview({ template, desaSettings, onClose }: MultiPageP
   };
   
   const renderPage = (page: TemplatePage, pageNumber: number) => {
-    const showHeader = page.show_header ?? true;
-    const showFooter = page.show_footer ?? true;
-    
+    const showHeader = isLetterheadVisible(template, page);
+    const showFooter = isFooterBlockVisible(template, page);
+
     return (
       <div key={page.id} className="bg-white p-12 shadow-lg mx-auto" style={{ width: '210mm', minHeight: '297mm' }}>
         {/* Header */}
-        {showHeader && TemplateRenderer.renderHeader(template.shared_header, dummyData, page.header)}
+        {showHeader && TemplateRenderer.renderHeader(template.shared_header || template.header, dummyData, page.header)}
         
         {/* Letter Number */}
         {TemplateRenderer.renderLetterNumber(page.letterNumber, dummyData, page.header)}
@@ -89,7 +101,7 @@ export function MultiPagePreview({ template, desaSettings, onClose }: MultiPageP
         </div>
         
         {/* Footer */}
-        {showFooter && TemplateRenderer.renderFooter(template.shared_footer, dummyData, page.footer)}
+        {showFooter && TemplateRenderer.renderFooter(template.shared_footer || template.footer, dummyData, page.footer)}
         
         {/* Page Number */}
         <div className="text-center text-xs text-muted-foreground mt-8">
@@ -100,10 +112,13 @@ export function MultiPagePreview({ template, desaSettings, onClose }: MultiPageP
   };
   
   const renderSinglePage = () => {
+    const showHeader = isLetterheadVisible(template);
+    const showFooter = isFooterBlockVisible(template);
+
     return (
       <div className="bg-white p-12 shadow-lg mx-auto" style={{ width: '210mm', minHeight: '297mm' }}>
         {/* Header */}
-        {TemplateRenderer.renderHeader(template.header, dummyData)}
+        {showHeader && TemplateRenderer.renderHeader(template.header, dummyData)}
         
         {/* Letter Number */}
         {TemplateRenderer.renderLetterNumber(template.letterNumber, dummyData)}
@@ -114,7 +129,7 @@ export function MultiPagePreview({ template, desaSettings, onClose }: MultiPageP
         </div>
         
         {/* Footer */}
-        {TemplateRenderer.renderFooter(template.footer, dummyData)}
+        {showFooter && TemplateRenderer.renderFooter(template.footer, dummyData)}
       </div>
     );
   };

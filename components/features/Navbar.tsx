@@ -137,7 +137,14 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
             >
               Masuk
             </button>
-            <button className="w-full bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-4 py-3 rounded-lg hover:shadow-lg transition-all cursor-pointer">
+            <button
+              type="button"
+              onClick={() => {
+                onRegisterClick();
+                setIsMenuOpen(false);
+              }}
+              className="w-full bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-4 py-3 rounded-lg hover:shadow-lg transition-all cursor-pointer"
+            >
               Daftar Sekarang
             </button>
           </div>

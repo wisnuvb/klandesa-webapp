@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import {
   Plus,
   Trash2,
@@ -9,12 +9,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import {
@@ -39,14 +34,11 @@ interface PageManagerProps {
   onPageChange: (pageId: string) => void;
   onAddPage: () => void;
   onDeletePage: (pageId: string) => void;
-  onUpdatePage: (
-    pageId: string,
-    updates: Partial<TemplatePage>,
-  ) => void;
+  onUpdatePage: (pageId: string, updates: Partial<TemplatePage>) => void;
   onReorderPages: (pages: TemplatePage[]) => void;
 }
 
-export function PageManager({
+function PageManagerComponent({
   pages,
   currentPageId,
   onPageChange,
@@ -55,9 +47,9 @@ export function PageManager({
   onUpdatePage,
   onReorderPages,
 }: PageManagerProps) {
-  const [expandedPages, setExpandedPages] = useState<
-    Set<string>
-  >(new Set([currentPageId]));
+  const [expandedPages, setExpandedPages] = useState<Set<string>>(
+    new Set([currentPageId]),
+  );
 
   const toggleExpanded = (pageId: string) => {
     const newExpanded = new Set(expandedPages);
@@ -77,14 +69,8 @@ export function PageManager({
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">
-              Halaman Surat
-            </CardTitle>
-            <Button
-              size="sm"
-              onClick={onAddPage}
-              className="gap-2"
-            >
+            <CardTitle className="text-base">Halaman Surat</CardTitle>
+            <Button size="sm" onClick={onAddPage} className="gap-2">
               <Plus className="h-4 w-4" />
               Tambah Halaman
             </Button>
@@ -108,11 +94,7 @@ export function PageManager({
                   <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
 
                   <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="p-0 h-auto"
-                    >
+                    <Button variant="ghost" size="sm" className="p-0 h-auto">
                       {expandedPages.has(page.id) ? (
                         <ChevronDown className="h-4 w-4" />
                       ) : (
@@ -136,10 +118,7 @@ export function PageManager({
                       )} */}
                     </div>
                     {page.layout_type && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs mt-1"
-                      >
+                      <Badge variant="outline" className="text-xs mt-1">
                         {page.layout_type}
                       </Badge>
                     )}
@@ -159,9 +138,7 @@ export function PageManager({
 
                 <CollapsibleContent className="pt-3 mt-3 border-t space-y-3">
                   <div className="space-y-2">
-                    <Label className="text-xs">
-                      Judul Halaman
-                    </Label>
+                    <Label className="text-xs">Judul Halaman</Label>
                     <Input
                       value={page.title}
                       onChange={(e) =>
@@ -175,30 +152,29 @@ export function PageManager({
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-xs">
-                      Tipe Layout
-                    </Label>
+                    <Label className="text-xs">Tipe Layout</Label>
                     <Select
                       value={page.layout_type || "standard"}
-                      onValueChange={(value: any) =>
+                      onValueChange={(value) => {
+                        const layout =
+                          value === "standard" ||
+                          value === "form" ||
+                          value === "table" ||
+                          value === "split-column"
+                            ? value
+                            : "standard";
                         onUpdatePage(page.id, {
-                          layout_type: value,
-                        })
-                      }
+                          layout_type: layout,
+                        });
+                      }}
                     >
                       <SelectTrigger className="h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="standard">
-                          Standard
-                        </SelectItem>
-                        <SelectItem value="form">
-                          Form
-                        </SelectItem>
-                        <SelectItem value="table">
-                          Table
-                        </SelectItem>
+                        <SelectItem value="standard">Standard</SelectItem>
+                        <SelectItem value="form">Form</SelectItem>
+                        <SelectItem value="table">Table</SelectItem>
                         <SelectItem value="split-column">
                           Split Column
                         </SelectItem>
@@ -223,37 +199,23 @@ export function PageManager({
           <CardContent>
             <div className="text-sm text-muted-foreground space-y-1">
               <p>Judul: {currentPage.title || "Tanpa judul"}</p>
-              <p>
-                Layout: {currentPage.layout_type || "standard"}
-              </p>
+              <p>Layout: {currentPage.layout_type || "standard"}</p>
               <p>Total Blocks: {currentPage.blocks.length}</p>
               <div className="pt-2 border-t mt-2">
-                <p className="text-xs font-medium mb-1">
-                  Status:
-                </p>
+                <p className="text-xs font-medium mb-1">Status:</p>
                 <div className="flex flex-wrap gap-1">
                   {(currentPage.show_header ?? true) && (
-                    <Badge
-                      variant="outline"
-                      className="text-xs"
-                    >
+                    <Badge variant="outline" className="text-xs">
                       Header
                     </Badge>
                   )}
-                  {(currentPage.letterNumber?.enabled ??
-                    false) && (
-                    <Badge
-                      variant="outline"
-                      className="text-xs"
-                    >
+                  {(currentPage.letterNumber?.enabled ?? false) && (
+                    <Badge variant="outline" className="text-xs">
                       Nomor
                     </Badge>
                   )}
                   {(currentPage.show_footer ?? true) && (
-                    <Badge
-                      variant="outline"
-                      className="text-xs"
-                    >
+                    <Badge variant="outline" className="text-xs">
                       Footer
                     </Badge>
                   )}
@@ -266,3 +228,5 @@ export function PageManager({
     </div>
   );
 }
+
+export const PageManager = memo(PageManagerComponent);

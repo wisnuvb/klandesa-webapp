@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import NextAuth from "next-auth";
 import type { NextAuthOptions, DefaultSession } from "next-auth";
 import { getServerSession } from "next-auth/next";
 import GitHub from "next-auth/providers/github";
@@ -26,6 +25,7 @@ declare module "next-auth" {
   interface Session {
     user: DefaultSession["user"] & {
       id: string;
+      role?: string;
       villageId?: number;
       villageCode?: string;
       village?: Village;
@@ -36,6 +36,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
+    role?: string;
     accessToken?: string;
     refreshToken?: string;
     villageId?: number;
@@ -95,6 +96,7 @@ providers.push(
             name: data.user.name,
             email: data.user.email,
             image: null,
+            role: data.user.role,
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
             villageId: data.user.village?.id,
@@ -127,8 +129,36 @@ providers.push(
   })
 );
 
+/**
+ * Wajib konsisten untuk enkripsi cookie sesi JWE. NextAuth juga membaca NEXTAUTH_SECRET;
+ * jangan biarkan keduanya beda atau kosong (bisa memicu JWT_SESSION_ERROR / hash "volatile").
+ */
+export const authSecret =
+  process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
+
+/** Domain cookie: hanya jika NEXTAUTH_URL bukan localhost (cookie `Domain=` tidak cocok dengan host localhost). */
+const sessionCookieDomain: string | undefined = (() => {
+  const base = (process.env.NEXTAUTH_URL || "").toLowerCase();
+  if (base.includes("localhost") || base.includes("127.0.0.1")) {
+    return undefined;
+  }
+  return process.env.COOKIE_DOMAIN || undefined;
+})();
+
+const resolvedAuthSecret =
+  authSecret ||
+  (process.env.NODE_ENV !== "production"
+    ? "__dev_only_nextauth_secret_min_32_chars_static__"
+    : "");
+
+if (process.env.NODE_ENV === "production" && !resolvedAuthSecret) {
+  throw new Error(
+    "AUTH_SECRET atau NEXTAUTH_SECRET harus di-set di environment (production).",
+  );
+}
+
 export const authOptions: NextAuthOptions = {
-  secret: process.env.AUTH_SECRET,
+  secret: resolvedAuthSecret,
   providers,
   pages: {
     signIn: "/auth/signin",
@@ -136,6 +166,17 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  logger: {
+    error(code, metadata) {
+      if (code === "JWT_SESSION_ERROR") {
+        console.warn(
+          "[next-auth] Sesi tidak bisa didekripsi (cookie basi atau AUTH_SECRET/NEXTAUTH_SECRET berubah). Hapus cookie `next-auth.session-token` lalu login ulang. Pastikan NEXTAUTH_URL sama dengan URL di browser.",
+        );
+        return;
+      }
+      console.error(`[next-auth][${code}]`, metadata);
+    },
   },
   cookies: {
     sessionToken: {
@@ -145,12 +186,7 @@ export const authOptions: NextAuthOptions = {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        // Set domain untuk support subdomain
-        // Development: .localhost untuk subdomain localhost
-        // Production: .yourdomain.com
-        domain:
-          process.env.COOKIE_DOMAIN ||
-          (process.env.NODE_ENV === "development" ? ".localhost" : undefined),
+        ...(sessionCookieDomain ? { domain: sessionCookieDomain } : {}),
       },
     },
   },
@@ -160,6 +196,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
+        token.role = (user as { role?: string }).role;
         token.accessToken = (user as any).accessToken;
         token.refreshToken = (user as any).refreshToken;
         token.villageId = (user as any).villageId;
@@ -173,6 +210,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
+        session.user.role = token.role as string | undefined;
         session.user.villageId = token.villageId as number | undefined;
         session.user.villageCode = token.villageCode as string | undefined;
         session.user.village = token.village as Village | undefined;
@@ -183,9 +221,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
-
-const handler = NextAuth(authOptions);
-export const { handlers, signIn, signOut } = handler;
 
 export async function auth() {
   return getServerSession(authOptions);

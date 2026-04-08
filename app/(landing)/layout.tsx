@@ -31,7 +31,6 @@ export default function LandingLayout({
   const [showLogin, setShowLogin] = React.useState(false);
   const [showRegistration, setShowRegistration] = React.useState(false);
   const [showContact, setShowContact] = React.useState(false);
-  console.log(showRegistration);
 
   return (
     <ModalContext.Provider

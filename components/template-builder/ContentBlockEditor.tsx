@@ -1,16 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import {
   ContentBlock,
   BlockType,
   TableRow,
   ListItem,
-  AVAILABLE_VARIABLES,
   FontFamily,
 } from "./types";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import {
   Select,
@@ -43,6 +41,9 @@ import {
   Bold,
   Underline,
 } from "lucide-react";
+import { cn } from "../ui/utils";
+import { SmartVariableInput } from "./SmartVariableInput";
+import { VariablePickerContent } from "./VariablePickerContent";
 
 // Template Kalimat untuk Quick Insert
 const SENTENCE_TEMPLATES = {
@@ -78,24 +79,121 @@ interface ContentBlockEditorProps {
   onInsertVariable: (blockId: string) => void;
 }
 
-export function ContentBlockEditor({
+function ContentBlockEditorComponent({
   blocks,
   onChange,
-  onInsertVariable,
 }: ContentBlockEditorProps) {
   const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(
-    new Set(blocks.map((b) => b.id))
+    new Set(blocks.map((b) => b.id)),
   );
   const [focusedInput, setFocusedInput] = useState<{
     blockId: string;
-    rowIndex: number;
+    rowIndex?: number;
+    fieldName?: "content" | "value" | "label";
   } | null>(null);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const inputRefs = useRef<{ [key: string]: HTMLInputElement }>({});
+  const [_, setIsMentionTriggered] = useState(false);
+  const inputRefs = useRef<{
+    [key: string]: HTMLInputElement | HTMLTextAreaElement;
+  }>({});
+
+  const handleInsertVariable = (variable: string) => {
+    if (!focusedInput) return;
+
+    const { blockId, rowIndex, fieldName = "content" } = focusedInput;
+    const block = blocks.find((b) => b.id === blockId);
+    if (!block) return;
+
+    const inputKey =
+      block.type === "table" && rowIndex !== undefined
+        ? `${blockId}-${rowIndex}-${fieldName}`
+        : `${blockId}-${fieldName}`;
+
+    const inputElement = inputRefs.current[inputKey];
+
+    let currentText = "";
+    if (
+      block.type === "table" &&
+      rowIndex !== undefined &&
+      Array.isArray(block.content)
+    ) {
+      const row = (block.content as TableRow[])[rowIndex];
+      currentText = (fieldName === "label" ? row?.label : row?.value) || "";
+    } else {
+      currentText = (block.content as string) || "";
+    }
+
+    if (inputElement) {
+      let cursorPos =
+        inputElement.selectionStart !== null
+          ? inputElement.selectionStart
+          : currentText.length;
+
+      let beforeCursor = currentText.substring(0, cursorPos);
+      const afterCursor = currentText.substring(cursorPos);
+
+      // Lebih teliti saat menghapus '@': cek jika karakter di kursor atau sebelumnya adalah '@'
+      if (beforeCursor.endsWith("@")) {
+        beforeCursor = beforeCursor.slice(0, -1);
+        cursorPos -= 1;
+      } else if (afterCursor.startsWith("@")) {
+        // Jika kursor berada tepat sebelum '@'
+        // case ini jarang tapi mungkin
+      }
+
+      const newValue = beforeCursor + `{${variable}}` + afterCursor;
+
+      if (block.type === "table" && rowIndex !== undefined) {
+        updateTableRow(blockId, rowIndex, { [fieldName]: newValue });
+      } else {
+        updateBlock(blockId, { [fieldName]: newValue });
+      }
+
+      // Close popover after inserting
+      setOpenPopoverId(null);
+      setIsMentionTriggered(false);
+
+      // Set cursor position after variable
+      setTimeout(() => {
+        const newCursorPos = cursorPos + variable.length + 2;
+        inputElement.focus();
+        inputElement.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    }
+  };
+
+  const handleTextChange = (
+    blockId: string,
+    value: string,
+    fieldName: "content" | "value" | "label" = "content",
+    rowIndex?: number,
+  ) => {
+    // Update state based on type
+    if (rowIndex !== undefined) {
+      updateTableRow(blockId, rowIndex, { [fieldName]: value });
+    } else {
+      updateBlock(blockId, { [fieldName]: value });
+    }
+
+    // Cek trigger '@'
+    const lastChar = value.slice(-1);
+    if (lastChar === "@") {
+      const popoverId =
+        rowIndex !== undefined
+          ? `${blockId}-${rowIndex}`
+          : `${blockId}-${fieldName}`;
+
+      setOpenPopoverId(popoverId);
+      setIsMentionTriggered(true);
+    }
+  };
+
+  const blockIdCounter = useRef(0);
 
   const addBlock = (type: BlockType) => {
+    blockIdCounter.current += 1;
     const newBlock: ContentBlock = {
-      id: `block-${Date.now()}`,
+      id: `block-${crypto.randomUUID()}-${blockIdCounter.current}`,
       type,
       content: type === "table" ? [] : type === "list" ? [] : "",
       style: {
@@ -112,8 +210,8 @@ export function ContentBlockEditor({
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
     onChange(
       blocks.map((block) =>
-        block.id === id ? { ...block, ...updates } : block
-      )
+        block.id === id ? { ...block, ...updates } : block,
+      ),
     );
   };
 
@@ -162,7 +260,7 @@ export function ContentBlockEditor({
   const updateTableRow = (
     blockId: string,
     rowIndex: number,
-    updates: Partial<TableRow>
+    updates: Partial<TableRow>,
   ) => {
     const block = blocks.find((b) => b.id === blockId);
     if (block && Array.isArray(block.content)) {
@@ -176,7 +274,7 @@ export function ContentBlockEditor({
     const block = blocks.find((b) => b.id === blockId);
     if (block && Array.isArray(block.content)) {
       const newContent = (block.content as TableRow[]).filter(
-        (_, i) => i !== rowIndex
+        (_, i) => i !== rowIndex,
       );
       updateBlock(blockId, { content: newContent });
     }
@@ -195,7 +293,7 @@ export function ContentBlockEditor({
   const updateListItem = (
     blockId: string,
     itemIndex: number,
-    updates: Partial<ListItem>
+    updates: Partial<ListItem>,
   ) => {
     const block = blocks.find((b) => b.id === blockId);
     if (block && Array.isArray(block.content)) {
@@ -209,41 +307,9 @@ export function ContentBlockEditor({
     const block = blocks.find((b) => b.id === blockId);
     if (block && Array.isArray(block.content)) {
       const newContent = (block.content as ListItem[]).filter(
-        (_, i) => i !== itemIndex
+        (_, i) => i !== itemIndex,
       );
       updateBlock(blockId, { content: newContent });
-    }
-  };
-
-  const handleInsertVariable = (variable: string) => {
-    if (!focusedInput) return;
-
-    const { blockId, rowIndex } = focusedInput;
-    const block = blocks.find((b) => b.id === blockId);
-
-    if (block && block.type === "table" && Array.isArray(block.content)) {
-      const row = (block.content as TableRow[])[rowIndex];
-      const inputKey = `${blockId}-${rowIndex}-value`;
-      const inputElement = inputRefs.current[inputKey];
-
-      if (inputElement && row) {
-        const cursorPos = inputElement.selectionStart || row.value.length;
-        const beforeCursor = row.value.substring(0, cursorPos);
-        const afterCursor = row.value.substring(cursorPos);
-        const newValue = beforeCursor + `{${variable}}` + afterCursor;
-
-        updateTableRow(blockId, rowIndex, { value: newValue });
-
-        // Close popover after inserting
-        setOpenPopoverId(null);
-
-        // Set cursor position after variable
-        setTimeout(() => {
-          const newCursorPos = cursorPos + variable.length + 2;
-          inputElement.setSelectionRange(newCursorPos, newCursorPos);
-          inputElement.focus();
-        }, 0);
-      }
     }
   };
 
@@ -296,70 +362,85 @@ export function ContentBlockEditor({
   return (
     <div className="space-y-4">
       {/* Add Block Buttons */}
-      <div className="flex flex-wrap gap-2 p-4 bg-muted/30 rounded-lg border-2 border-dashed">
-        <span className="text-sm font-medium text-muted-foreground w-full mb-1">
-          Tambah Block:
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => addBlock("heading")}
-          className="gap-2"
-        >
-          <Heading1 className="h-4 w-4" />
-          Heading
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => addBlock("text")}
-          className="gap-2"
-        >
-          <Type className="h-4 w-4" />
-          Paragraf
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => addBlock("table")}
-          className="gap-2"
-        >
-          <Table className="h-4 w-4" />
-          Tabel
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => addBlock("list")}
-          className="gap-2"
-        >
-          <List className="h-4 w-4" />
-          List
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => addBlock("separator")}
-          className="gap-2"
-        >
-          <Minus className="h-4 w-4" />
-          Garis
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => addBlock("spacer")}
-          className="gap-2"
-        >
-          <Space className="h-4 w-4" />
-          Jarak
-        </Button>
+      <div className="space-y-4 p-6 bg-muted/30 rounded-xl border-2 border-dashed border-muted-foreground/20">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold flex items-center gap-2">
+              <Plus className="h-4 w-4 text-primary" />
+              Tambah Konten Baru
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Pilih jenis block untuk ditambahkan ke dalam surat
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+          {[
+            {
+              type: "heading",
+              label: "Heading",
+              icon: Heading1,
+              desc: "Judul seksi",
+              color: "bg-blue-500/10 text-blue-600",
+            },
+            {
+              type: "text",
+              label: "Paragraf",
+              icon: Type,
+              desc: "Teks standar",
+              color: "bg-indigo-500/10 text-indigo-600",
+            },
+            {
+              type: "table",
+              label: "Tabel",
+              icon: Table,
+              desc: "Data kolom",
+              color: "bg-emerald-500/10 text-emerald-600",
+            },
+            {
+              type: "list",
+              label: "List",
+              icon: List,
+              desc: "Daftar poin",
+              color: "bg-orange-500/10 text-orange-600",
+            },
+            {
+              type: "separator",
+              label: "Garis",
+              icon: Minus,
+              desc: "Pemisah",
+              color: "bg-slate-500/10 text-slate-600",
+            },
+            {
+              type: "spacer",
+              label: "Jarak",
+              icon: Space,
+              desc: "Ruang kosong",
+              color: "bg-purple-500/10 text-purple-600",
+            },
+          ].map((item) => (
+            <button
+              key={item.type}
+              type="button"
+              onClick={() => addBlock(item.type as BlockType)}
+              className="flex flex-col items-center justify-center p-3 rounded-lg border bg-background hover:border-primary hover:shadow-md hover:-translate-y-0.5 transition-all group"
+            >
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform",
+                  item.color,
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-bold">{item.label}</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">
+                {item.desc}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Blocks List */}
@@ -441,12 +522,47 @@ export function ContentBlockEditor({
                   {block.type === "heading" && (
                     <>
                       <div className="space-y-2">
-                        <Label>Teks Heading</Label>
-                        <Input
+                        <div className="flex items-center justify-between">
+                          <Label>Teks Heading</Label>
+                          <Popover
+                            open={openPopoverId === `${block.id}-heading`}
+                            onOpenChange={(open) =>
+                              setOpenPopoverId(
+                                open ? `${block.id}-heading` : null,
+                              )
+                            }
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                              >
+                                <Variable className="h-4 w-4" />
+                                Variabel
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-125 p-0" align="end">
+                              <VariablePickerContent
+                                onSelect={handleInsertVariable}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <SmartVariableInput
                           value={block.content as string}
-                          onChange={(e) =>
-                            updateBlock(block.id, { content: e.target.value })
+                          onChange={(val) => handleTextChange(block.id, val)}
+                          onFocus={() =>
+                            setFocusedInput({
+                              blockId: block.id,
+                              fieldName: "content",
+                            })
                           }
+                          inputRef={(el) => {
+                            if (el)
+                              inputRefs.current[`${block.id}-content`] = el;
+                          }}
                           placeholder="Masukkan judul..."
                         />
                       </div>
@@ -586,6 +702,79 @@ export function ContentBlockEditor({
                               />
                             </div>
                           </div>
+
+                          {/* Italic Switch */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Italic</Label>
+                            <div className="flex items-center gap-2 h-8">
+                              <Switch
+                                checked={block.style?.italic || false}
+                                onCheckedChange={(checked) =>
+                                  updateBlock(block.id, {
+                                    style: { ...block.style, italic: checked },
+                                  })
+                                }
+                              />
+                              <span
+                                className={`font-serif italic text-sm ${
+                                  block.style?.italic
+                                    ? "text-primary"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                I
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Underline Switch */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Underline</Label>
+                            <div className="flex items-center gap-2 h-8">
+                              <Switch
+                                checked={block.style?.underline || false}
+                                onCheckedChange={(checked) =>
+                                  updateBlock(block.id, {
+                                    style: {
+                                      ...block.style,
+                                      underline: checked,
+                                    },
+                                  })
+                                }
+                              />
+                              <Underline
+                                className={`h-4 w-4 ${
+                                  block.style?.underline
+                                    ? "text-primary"
+                                    : "text-muted-foreground"
+                                }`}
+                              />
+                            </div>
+                          </div>
+                          {/* Underline Switch */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Underline</Label>
+                            <div className="flex items-center gap-2 h-8">
+                              <Switch
+                                checked={block.style?.underline || false}
+                                onCheckedChange={(checked) =>
+                                  updateBlock(block.id, {
+                                    style: {
+                                      ...block.style,
+                                      underline: checked,
+                                    },
+                                  })
+                                }
+                              />
+                              <Underline
+                                className={`h-4 w-4 ${
+                                  block.style?.underline
+                                    ? "text-primary"
+                                    : "text-muted-foreground"
+                                }`}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </>
@@ -611,7 +800,7 @@ export function ContentBlockEditor({
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent
-                                className="w-[550px] p-0"
+                                className="w-137.5 p-0"
                                 align="end"
                                 side="bottom"
                                 sideOffset={8}
@@ -626,7 +815,7 @@ export function ContentBlockEditor({
                                   </p>
                                 </div>
 
-                                <div className="max-h-[400px] overflow-y-auto">
+                                <div className="max-h-100 overflow-y-auto">
                                   {Object.entries(SENTENCE_TEMPLATES).map(
                                     ([category, sentences]) => (
                                       <div
@@ -661,31 +850,55 @@ export function ContentBlockEditor({
                                           ))}
                                         </div>
                                       </div>
-                                    )
+                                    ),
                                   )}
                                 </div>
                               </PopoverContent>
                             </Popover>
 
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onInsertVariable(block.id)}
-                              className="gap-2"
+                            <Popover
+                              open={openPopoverId === `${block.id}-text`}
+                              onOpenChange={(open) =>
+                                setOpenPopoverId(
+                                  open ? `${block.id}-text` : null,
+                                )
+                              }
                             >
-                              <Variable className="h-4 w-4" />
-                              Insert Variabel
-                            </Button>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2"
+                                >
+                                  <Variable className="h-4 w-4" />
+                                  Insert Variabel
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-125 p-0" align="end">
+                                <VariablePickerContent
+                                  onSelect={handleInsertVariable}
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </div>
-                        <Textarea
+                        <SmartVariableInput
+                          textarea
                           value={block.content as string}
-                          onChange={(e) =>
-                            updateBlock(block.id, { content: e.target.value })
+                          onChange={(val) => handleTextChange(block.id, val)}
+                          onFocus={() =>
+                            setFocusedInput({
+                              blockId: block.id,
+                              fieldName: "content",
+                            })
                           }
+                          inputRef={(el) => {
+                            if (el)
+                              inputRefs.current[`${block.id}-content`] = el;
+                          }}
                           placeholder="Masukkan teks... Gunakan {VARIABEL} untuk data dinamis"
-                          rows={4}
+                          className="min-h-30"
                         />
                       </div>
 
@@ -873,165 +1086,8 @@ export function ContentBlockEditor({
 
                   {/* Table Block */}
                   {block.type === "table" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label>Baris Tabel</Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addTableRow(block.id)}
-                          className="gap-2"
-                        >
-                          <Plus className="h-4 w-4" />
-                          Tambah Baris
-                        </Button>
-                      </div>
-
-                      {Array.isArray(block.content) &&
-                        (block.content as TableRow[]).map((row, rowIndex) => {
-                          const popoverId = `${block.id}-${rowIndex}`;
-                          const isPopoverOpen = openPopoverId === popoverId;
-
-                          return (
-                            <div
-                              key={rowIndex}
-                              className="flex gap-2 items-start"
-                            >
-                              <Input
-                                value={row.label}
-                                onChange={(e) =>
-                                  updateTableRow(block.id, rowIndex, {
-                                    label: e.target.value,
-                                  })
-                                }
-                                placeholder="Label (Nama, NIK, dll)"
-                                className="flex-1"
-                              />
-                              <div className="flex-1 flex gap-2">
-                                <Input
-                                  value={row.value}
-                                  onChange={(e) =>
-                                    updateTableRow(block.id, rowIndex, {
-                                      value: e.target.value,
-                                    })
-                                  }
-                                  placeholder="Value (gunakan {VARIABEL})"
-                                  className="flex-1"
-                                  ref={(el) => {
-                                    if (el) {
-                                      inputRefs.current[
-                                        `${block.id}-${rowIndex}-value`
-                                      ] = el;
-                                    }
-                                  }}
-                                  onFocus={() =>
-                                    setFocusedInput({
-                                      blockId: block.id,
-                                      rowIndex,
-                                    })
-                                  }
-                                />
-                                <Popover
-                                  open={isPopoverOpen}
-                                  onOpenChange={(open) => {
-                                    if (open) {
-                                      setFocusedInput({
-                                        blockId: block.id,
-                                        rowIndex,
-                                      });
-                                      setOpenPopoverId(popoverId);
-                                    } else {
-                                      setOpenPopoverId(null);
-                                    }
-                                  }}
-                                >
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-10 px-3 gap-2"
-                                    >
-                                      <Variable className="h-4 w-4" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent
-                                    className="w-[500px] p-0"
-                                    align="end"
-                                  >
-                                    <div className="max-h-[400px] overflow-y-auto">
-                                      <div className="p-3 border-b bg-muted/30">
-                                        <h4 className="font-semibold text-sm">
-                                          Pilih Variabel
-                                        </h4>
-                                        <p className="text-xs text-muted-foreground">
-                                          Klik variabel untuk insert ke input
-                                          value
-                                        </p>
-                                      </div>
-                                      {Object.entries(
-                                        AVAILABLE_VARIABLES.reduce((acc, v) => {
-                                          if (!acc[v.category])
-                                            acc[v.category] = [];
-                                          acc[v.category].push(v);
-                                          return acc;
-                                        }, {} as Record<string, typeof AVAILABLE_VARIABLES>)
-                                      ).map(([category, vars]) => (
-                                        <div
-                                          key={category}
-                                          className="p-3 border-b last:border-b-0"
-                                        >
-                                          <h5 className="font-medium text-xs text-muted-foreground mb-2">
-                                            {category}
-                                          </h5>
-                                          <div className="flex flex-wrap gap-1.5">
-                                            {vars.map((v) => (
-                                              <Button
-                                                key={v.key}
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                  handleInsertVariable(v.key)
-                                                }
-                                                className="h-7 text-xs gap-1.5 hover:bg-primary hover:text-primary-foreground"
-                                              >
-                                                <Variable className="h-3 w-3" />
-                                                {v.label}
-                                              </Button>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  removeTableRow(block.id, rowIndex)
-                                }
-                                className="h-10 w-10 p-0 text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          );
-                        })}
-
-                      {Array.isArray(block.content) &&
-                        block.content.length === 0 && (
-                          <p className="text-sm text-muted-foreground text-center py-4">
-                            Belum ada baris. Klik &quot;Tambah Baris&quot; untuk
-                            mulai.
-                          </p>
-                        )}
-
-                      {/* Styling Controls for Table */}
+                    <div className="space-y-4">
+                      {/* Styling Controls */}
                       <div className="space-y-3 p-3 bg-muted/30 rounded-lg border">
                         <div className="grid grid-cols-2 gap-3">
                           {/* Font Family */}
@@ -1088,8 +1144,8 @@ export function ContentBlockEditor({
 
                         <div className="flex items-center justify-between gap-4">
                           {/* Alignment Icons */}
-                          <div className="space-y-2 flex-1">
-                            <Label className="text-xs">Alignment</Label>
+                          <div className="space-y-2">
+                            <Label className="text-xs">Alignment Label</Label>
                             <div className="flex gap-1 border rounded-md p-1 bg-background">
                               <Button
                                 type="button"
@@ -1125,26 +1181,268 @@ export function ContentBlockEditor({
                               >
                                 <AlignCenter className="h-4 w-4" />
                               </Button>
-                              <Button
-                                type="button"
-                                variant={
-                                  block.style?.align === "right"
-                                    ? "default"
-                                    : "ghost"
-                                }
-                                size="sm"
-                                onClick={() =>
-                                  updateBlock(block.id, {
-                                    style: { ...block.style, align: "right" },
-                                  })
-                                }
-                                className="h-8 w-8 p-0"
-                              >
-                                <AlignRight className="h-4 w-4" />
-                              </Button>
                             </div>
                           </div>
 
+                          {/* Border Switch */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Border</Label>
+                            <div className="flex items-center gap-2 h-8">
+                              <Switch
+                                checked={block.style?.border || false}
+                                onCheckedChange={(checked) =>
+                                  updateBlock(block.id, {
+                                    style: { ...block.style, border: checked },
+                                  })
+                                }
+                              />
+                              <Table
+                                className={`h-4 w-4 ${
+                                  block.style?.border
+                                    ? "text-primary"
+                                    : "text-muted-foreground"
+                                }`}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Bold Switch */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Bold Label</Label>
+                            <div className="flex items-center gap-2 h-8">
+                              <Switch
+                                checked={block.style?.bold || false}
+                                onCheckedChange={(checked) =>
+                                  updateBlock(block.id, {
+                                    style: { ...block.style, bold: checked },
+                                  })
+                                }
+                              />
+                              <Bold
+                                className={`h-4 w-4 ${
+                                  block.style?.bold
+                                    ? "text-primary"
+                                    : "text-muted-foreground"
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between bg-muted/20 p-2 rounded-md border border-dashed">
+                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                          Konfigurasi Baris Tabel
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => addTableRow(block.id)}
+                          className="gap-2 h-8"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Tambah Baris
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2 border rounded-lg p-2 bg-muted/5">
+                        {Array.isArray(block.content) &&
+                        (block.content as TableRow[]).length > 0 ? (
+                          (block.content as TableRow[]).map((row, rowIndex) => {
+                            const popoverId = `${block.id}-${rowIndex}`;
+
+                            return (
+                              <div
+                                key={rowIndex}
+                                className="group flex gap-3 items-center p-2 rounded-md hover:bg-background hover:shadow-sm border border-transparent hover:border-border transition-all"
+                              >
+                                <div className="flex-[0.4] min-w-0">
+                                  <Label className="text-[10px] text-muted-foreground mb-1 block px-1">
+                                    Label
+                                  </Label>
+                                  <SmartVariableInput
+                                    value={row.label}
+                                    onChange={(val) =>
+                                      handleTextChange(
+                                        block.id,
+                                        val,
+                                        "label",
+                                        rowIndex,
+                                      )
+                                    }
+                                    onFocus={() =>
+                                      setFocusedInput({
+                                        blockId: block.id,
+                                        rowIndex,
+                                        fieldName: "label",
+                                      })
+                                    }
+                                    inputRef={(el) => {
+                                      if (el)
+                                        inputRefs.current[
+                                          `${block.id}-${rowIndex}-label`
+                                        ] = el;
+                                    }}
+                                    placeholder="Nama, NIK, dll"
+                                    className="min-h-9"
+                                  />
+                                </div>
+
+                                <div className="flex-[0.6] min-w-0 flex gap-2 items-end">
+                                  <div className="flex-1">
+                                    <Label className="text-[10px] text-muted-foreground mb-1 block px-1">
+                                      Value / Variabel
+                                    </Label>
+                                    <SmartVariableInput
+                                      value={row.value}
+                                      onChange={(val) =>
+                                        handleTextChange(
+                                          block.id,
+                                          val,
+                                          "value",
+                                          rowIndex,
+                                        )
+                                      }
+                                      onFocus={() =>
+                                        setFocusedInput({
+                                          blockId: block.id,
+                                          rowIndex,
+                                          fieldName: "value",
+                                        })
+                                      }
+                                      inputRef={(el) => {
+                                        if (el)
+                                          inputRefs.current[
+                                            `${block.id}-${rowIndex}-value`
+                                          ] = el;
+                                      }}
+                                      placeholder="Isi teks atau @variabel"
+                                      className="min-h-9"
+                                    />
+                                  </div>
+
+                                  <div className="flex gap-1 mb-px">
+                                    <Popover
+                                      open={openPopoverId === popoverId}
+                                      onOpenChange={(open) => {
+                                        setOpenPopoverId(
+                                          open ? popoverId : null,
+                                        );
+                                        if (open) {
+                                          setFocusedInput({
+                                            blockId: block.id,
+                                            rowIndex,
+                                            fieldName: "value",
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="icon"
+                                          className="h-9 w-9 shrink-0 border-dashed hover:border-primary hover:text-primary transition-colors"
+                                        >
+                                          <Variable className="h-4 w-4" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent
+                                        className="w-125 p-0"
+                                        align="end"
+                                      >
+                                        <VariablePickerContent
+                                          onSelect={handleInsertVariable}
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        removeTableRow(block.id, rowIndex)
+                                      }
+                                      className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="py-8 text-center text-sm text-muted-foreground border border-dashed rounded-md bg-background">
+                            Belum ada baris tabel. Klik &quot;Tambah Baris&quot;
+                            untuk memulai.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* List Block */}
+                  {block.type === "list" && (
+                    <div className="space-y-4">
+                      {/* Styling Controls */}
+                      <div className="space-y-3 p-3 bg-muted/30 rounded-lg border">
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Font Family */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Jenis Font</Label>
+                            <Select
+                              value={block.style?.font || "Inter"}
+                              onValueChange={(value) =>
+                                updateBlock(block.id, {
+                                  style: {
+                                    ...block.style,
+                                    font: value as FontFamily,
+                                  },
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Inter">Inter</SelectItem>
+                                <SelectItem value="Literata">
+                                  Literata
+                                </SelectItem>
+                                <SelectItem value="Times New Roman">
+                                  Times New Roman
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Font Size */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Ukuran</Label>
+                            <Select
+                              value={block.style?.size || "medium"}
+                              onValueChange={(value) =>
+                                updateBlock(block.id, {
+                                  style: { ...block.style, size: value as any },
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="small">Kecil</SelectItem>
+                                <SelectItem value="medium">Sedang</SelectItem>
+                                <SelectItem value="large">Besar</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
                           {/* Bold Switch */}
                           <div className="space-y-2">
                             <Label className="text-xs">Bold</Label>
@@ -1166,37 +1464,33 @@ export function ContentBlockEditor({
                               />
                             </div>
                           </div>
-                        </div>
 
-                        {/* Border Switch */}
-                        <div className="flex items-center justify-between p-2 bg-background rounded border">
-                          <div className="flex items-center gap-2">
-                            <Table className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <Label className="text-xs font-medium">
-                                Border Tabel
-                              </Label>
-                              <p className="text-[10px] text-muted-foreground">
-                                Tampilkan garis pembatas
-                              </p>
+                          {/* Italic Switch */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Italic</Label>
+                            <div className="flex items-center gap-2 h-8">
+                              <Switch
+                                checked={block.style?.italic || false}
+                                onCheckedChange={(checked) =>
+                                  updateBlock(block.id, {
+                                    style: { ...block.style, italic: checked },
+                                  })
+                                }
+                              />
+                              <span
+                                className={`font-serif italic text-sm ${
+                                  block.style?.italic
+                                    ? "text-primary"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                I
+                              </span>
                             </div>
                           </div>
-                          <Switch
-                            checked={block.style?.border !== false}
-                            onCheckedChange={(checked) =>
-                              updateBlock(block.id, {
-                                style: { ...block.style, border: checked },
-                              })
-                            }
-                          />
                         </div>
                       </div>
-                    </div>
-                  )}
 
-                  {/* List Block */}
-                  {block.type === "list" && (
-                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <Label>Item List</Label>
                         <Button
@@ -1217,87 +1511,87 @@ export function ContentBlockEditor({
                             key={itemIndex}
                             className="flex gap-2 items-center"
                           >
-                            <Input
-                              value={item.text}
-                              onChange={(e) =>
-                                updateListItem(block.id, itemIndex, {
-                                  text: e.target.value,
-                                })
-                              }
-                              placeholder="Teks item..."
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  updateListItem(block.id, itemIndex, {
+                                    level: Math.max(0, (item.level || 0) - 1),
+                                  })
+                                }
+                                disabled={(item.level || 0) === 0}
+                                className="h-8 w-8 p-0"
+                              >
+                                <ChevronUp className="h-4 w-4 rotate-270" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  updateListItem(block.id, itemIndex, {
+                                    level: Math.min(3, (item.level || 0) + 1),
+                                  })
+                                }
+                                disabled={(item.level || 0) === 3}
+                                className="h-8 w-8 p-0"
+                              >
+                                <ChevronDown className="h-4 w-4 rotate-270" />
+                              </Button>
+                            </div>
+                            <div
                               className="flex-1"
-                            />
+                              style={{
+                                marginLeft: `${(item.level || 0) * 20}px`,
+                              }}
+                            >
+                              <Input
+                                value={item.text}
+                                onChange={(e) =>
+                                  updateListItem(block.id, itemIndex, {
+                                    text: e.target.value,
+                                  })
+                                }
+                                placeholder="Teks item..."
+                              />
+                            </div>
                             <Button
                               type="button"
                               variant="ghost"
-                              size="sm"
+                              size="icon"
                               onClick={() =>
                                 removeListItem(block.id, itemIndex)
                               }
-                              className="h-10 w-10 p-0 text-destructive"
+                              className="text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         ))}
-
-                      {Array.isArray(block.content) &&
-                        block.content.length === 0 && (
-                          <p className="text-sm text-muted-foreground text-center py-4">
-                            Belum ada item. Klik &quot;Tambah Item&quot; untuk
-                            mulai.
-                          </p>
-                        )}
                     </div>
                   )}
 
                   {/* Separator Block */}
                   {block.type === "separator" && (
-                    <div className="space-y-2">
-                      <Label>Style Garis</Label>
-                      <Select
-                        value={block.style?.size || "medium"}
-                        onValueChange={(value) =>
-                          updateBlock(block.id, {
-                            style: { ...block.style, size: value as any },
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="small">Tipis</SelectItem>
-                          <SelectItem value="medium">Sedang</SelectItem>
-                          <SelectItem value="large">Tebal</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="py-4 border-y border-dashed text-center text-xs text-muted-foreground bg-muted/20">
+                      Garis Pembatas Horizontal
                     </div>
                   )}
 
                   {/* Spacer Block */}
                   {block.type === "spacer" && (
                     <div className="space-y-2">
-                      <Label>Ukuran Jarak</Label>
-                      <Select
-                        value={block.style?.size || "medium"}
-                        onValueChange={(value) =>
-                          updateBlock(block.id, {
-                            style: { ...block.style, size: value as any },
-                          })
+                      <Label>Tinggi Jarak (px)</Label>
+                      <Input
+                        type="number"
+                        value={block.content as string}
+                        onChange={(e) =>
+                          updateBlock(block.id, { content: e.target.value })
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="small">Kecil (1 baris)</SelectItem>
-                          <SelectItem value="medium">
-                            Sedang (2 baris)
-                          </SelectItem>
-                          <SelectItem value="large">Besar (3 baris)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        placeholder="Misal: 20"
+                      />
                     </div>
                   )}
                 </div>
@@ -1309,3 +1603,5 @@ export function ContentBlockEditor({
     </div>
   );
 }
+
+export const ContentBlockEditor = memo(ContentBlockEditorComponent);

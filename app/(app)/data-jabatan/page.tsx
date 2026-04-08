@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FormDialog } from "@/components/app/data-jabatan";
 
 interface Jabatan {
@@ -89,6 +90,7 @@ export function DataJabatan() {
 
   useEffect(() => {
     loadJabatan();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
   const filteredData = jabatanList;
@@ -176,274 +178,197 @@ export function DataJabatan() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Jabatan</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {isLoading
-              ? "Memuat data..."
-              : `Menampilkan ${filteredData.length} jabatan`}
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-[50px]">#</TableHead>
-                  <TableHead>Nama Jabatan</TableHead>
-                  <TableHead>Deskripsi</TableHead>
-                  <TableHead>Level</TableHead>
-                  <TableHead>Gaji Pokok</TableHead>
-                  <TableHead>Tunjangan</TableHead>
-                  <TableHead>Jumlah Pegawai</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={9}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      Memuat data...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredData.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={9}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      Tidak ada data yang ditemukan
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredData.map((jabatan, index) => (
-                    <TableRow key={jabatan.id} className="hover:bg-muted/50">
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell className="font-medium">
-                        {jabatan.name}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-md">
-                        {jabatan.description || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getLevelBadgeVariant(jabatan.level)}>
-                          {getLevelName(jabatan.level)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {formatCurrency(jabatan.salary)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {formatCurrency(jabatan.allowance)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="gap-1">
-                          <Users className="h-3 w-3" />
-                          {jabatan.total_staff}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={jabatan.isActive ? "default" : "secondary"}
-                        >
-                          {jabatan.isActive ? "Aktif" : "Tidak Aktif"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-amber-600 hover:text-amber-600 hover:bg-amber-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+      <Tabs defaultValue="table" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 md:w-105">
+          <TabsTrigger value="table">Daftar Jabatan</TabsTrigger>
+          <TabsTrigger value="hierarchy">Bagan Hirarki</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="table">
+          <Card>
+            <CardHeader>
+              <CardTitle>Daftar Jabatan</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {isLoading
+                  ? "Memuat data..."
+                  : `Menampilkan ${filteredData.length} jabatan`}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-12.5">#</TableHead>
+                      <TableHead>Nama Jabatan</TableHead>
+                      <TableHead>Deskripsi</TableHead>
+                      <TableHead>Level</TableHead>
+                      <TableHead>Gaji Pokok</TableHead>
+                      <TableHead>Tunjangan</TableHead>
+                      <TableHead>Jumlah Pegawai</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-muted-foreground">Halaman 1 dari 1</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled>
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Structure Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Struktur Organisasi</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Hierarki jabatan perangkat desa
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Level 1 - Pimpinan */}
-            <div className="border-l-4 border-primary pl-4">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Badge variant="default">Level 1</Badge>
-                Pimpinan Desa
-              </h4>
-              <div className="space-y-2">
-                {jabatanList
-                  .filter((j) => j.level === 1)
-                  .map((jabatan) => (
-                    <div
-                      key={jabatan.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">{jabatan.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {jabatan.description}
-                        </p>
-                      </div>
-                      <Badge variant="outline">
-                        {jabatan.total_staff} Pegawai
-                      </Badge>
-                    </div>
-                  ))}
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={9}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          Memuat data...
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredData.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={9}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          Tidak ada data yang ditemukan
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredData.map((jabatan, index) => (
+                        <TableRow key={jabatan.id} className="hover:bg-muted/50">
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell className="font-medium">
+                            {jabatan.name}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-md">
+                            {jabatan.description || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getLevelBadgeVariant(jabatan.level)}>
+                              {getLevelName(jabatan.level)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatCurrency(jabatan.salary)}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatCurrency(jabatan.allowance)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="gap-1">
+                              <Users className="h-3 w-3" />
+                              {jabatan.total_staff}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={jabatan.isActive ? "default" : "secondary"}
+                            >
+                              {jabatan.isActive ? "Aktif" : "Tidak Aktif"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-amber-600 hover:text-amber-600 hover:bg-amber-50"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-            </div>
 
-            {/* Level 2 - Sekretariat */}
-            <div className="border-l-4 border-secondary pl-4">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Badge variant="secondary">Level 2</Badge>
-                Sekretariat
-              </h4>
-              <div className="space-y-2">
-                {jabatanList
-                  .filter((j) => j.level === 2)
-                  .map((jabatan) => (
-                    <div
-                      key={jabatan.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">{jabatan.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {jabatan.description}
-                        </p>
-                      </div>
-                      <Badge variant="outline">
-                        {jabatan.total_staff} Pegawai
-                      </Badge>
-                    </div>
-                  ))}
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">Halaman 1 dari 1</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled>
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" disabled>
+                    Next
+                  </Button>
+                </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            {/* Level 3 - Kaur/Kasi */}
-            <div className="border-l-4 border-muted-foreground pl-4">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Badge variant="outline">Level 3</Badge>
-                Kepala Urusan & Kepala Seksi
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {jabatanList
-                  .filter((j) => j.level === 3)
-                  .map((jabatan) => (
-                    <div
-                      key={jabatan.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium text-sm">{jabatan.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {jabatan.description}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {jabatan.total_staff}
-                      </Badge>
-                    </div>
-                  ))}
-              </div>
-            </div>
+        <TabsContent value="hierarchy">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bagan Hirarki Organisasi</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Visualisasi struktur jabatan berdasarkan level organisasi
+              </p>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground">Memuat data...</p>
+              ) : jabatanList.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Belum ada data jabatan untuk ditampilkan.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4, 5].map((level) => {
+                    const levelItems = jabatanList.filter((j) => j.level === level);
+                    if (levelItems.length === 0) return null;
 
-            {/* Level 4 - Kepala Dusun */}
-            <div className="border-l-4 border-muted-foreground pl-4">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Badge variant="outline">Level 4</Badge>
-                Kepala Dusun
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                {jabatanList
-                  .filter((j) => j.level === 4)
-                  .map((jabatan) => (
-                    <div
-                      key={jabatan.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium text-sm">{jabatan.name}</p>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {jabatan.total_staff}
-                      </Badge>
-                    </div>
-                  ))}
-              </div>
-            </div>
+                    return (
+                      <div key={level} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getLevelBadgeVariant(level)}>
+                            Level {level}
+                          </Badge>
+                          <p className="text-sm font-medium">{getLevelName(level)}</p>
+                          <div className="h-px flex-1 bg-border" />
+                        </div>
 
-            {/* Level 5 - Staf */}
-            <div className="border-l-4 border-muted-foreground pl-4">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Badge variant="outline">Level 5</Badge>
-                Staf Pendukung
-              </h4>
-              <div className="space-y-2">
-                {jabatanList
-                  .filter((j) => j.level === 5)
-                  .map((jabatan) => (
-                    <div
-                      key={jabatan.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">{jabatan.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {jabatan.description}
-                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                          {levelItems.map((jabatan) => (
+                            <div
+                              key={jabatan.id}
+                              className="rounded-lg border bg-muted/30 p-3"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-sm">{jabatan.name}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {jabatan.description || "Tanpa deskripsi"}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" className="text-xs whitespace-nowrap">
+                                  {jabatan.total_staff} Pegawai
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {level < 5 && (
+                          <div className="flex justify-center py-1">
+                            <div className="h-6 w-px bg-border" />
+                          </div>
+                        )}
                       </div>
-                      <Badge variant="outline">
-                        {jabatan.total_staff} Pegawai
-                      </Badge>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Form Dialog */}
       <FormDialog

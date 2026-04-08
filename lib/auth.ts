@@ -36,9 +36,9 @@ export function generateTokens(payload: {
   return { accessToken, refreshToken };
 }
 
-export function verifyToken(token: string): any {
+export function verifyToken(token: string): jwt.JwtPayload | string | null {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, JWT_SECRET) as jwt.JwtPayload | string;
   } catch (error) {
     return null;
   }

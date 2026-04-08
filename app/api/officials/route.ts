@@ -114,6 +114,8 @@ export async function GET(req: NextRequest) {
       id: o.id,
       name: o.name,
       nik: o.nik,
+      supervisorId: o.supervisorId,
+      photoUrl: o.photoUrl,
       email: o.email,
       phone: o.phone,
       gender: o.gender === "F" ? "F" : "M",
@@ -160,6 +162,8 @@ export async function POST(req: NextRequest) {
       name,
       id_number,
       nik,
+      supervisor_id,
+      supervisorId,
       email,
       phone_number,
       gender,
@@ -176,6 +180,14 @@ export async function POST(req: NextRequest) {
 
     // Handle both id_number and nik
     const nikValue = id_number || nik;
+    const supervisorInput =
+      supervisor_id !== undefined ? supervisor_id : supervisorId;
+    const parsedSupervisorId =
+      supervisorInput === null ||
+      supervisorInput === undefined ||
+      supervisorInput === ""
+        ? null
+        : Number(supervisorInput);
 
     // Validation
     if (
@@ -231,11 +243,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (parsedSupervisorId !== null && Number.isNaN(parsedSupervisorId)) {
+      return NextResponse.json(
+        { error: "Supervisor tidak valid" },
+        { status: 400 }
+      );
+    }
+
+    if (parsedSupervisorId !== null) {
+      const supervisor = await prisma.official.findUnique({
+        where: { id: parsedSupervisorId },
+        select: { id: true, villageId: true },
+      });
+
+      if (!supervisor || supervisor.villageId !== village.id) {
+        return NextResponse.json(
+          { error: "Supervisor tidak ditemukan" },
+          { status: 404 }
+        );
+      }
+    }
+
     // Create official
     const official = await prisma.official.create({
       data: {
         villageId: village.id,
         positionId: positionId,
+        supervisorId: parsedSupervisorId,
         nik: nikValue,
         name,
         birthplace,
@@ -257,6 +291,8 @@ export async function POST(req: NextRequest) {
       id: official.id,
       name: official.name,
       nik: official.nik,
+      supervisorId: official.supervisorId,
+      photoUrl: official.photoUrl,
       email: official.email,
       phone: official.phone,
       gender: official.gender === "F" ? "F" : "M",

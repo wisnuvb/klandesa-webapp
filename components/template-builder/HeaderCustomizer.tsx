@@ -82,13 +82,6 @@ export function HeaderCustomizer({
     });
   };
 
-  // Debug: Log the props to console
-  console.log("HeaderCustomizer props:", {
-    isMultiPage,
-    currentPage: !!currentPage,
-    onUpdatePage: !!onUpdatePage,
-  });
-
   return (
     <div className="space-y-6 p-6">
       {/* Multi-page Controls - Only show in multi-page mode */}

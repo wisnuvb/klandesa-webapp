@@ -234,7 +234,7 @@ export default function PricingPage() {
                   {/* Popular Badge */}
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <div className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-2 rounded-full text-sm shadow-lg flex items-center gap-2">
+                      <div className="bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-2 rounded-full text-sm shadow-lg flex items-center gap-2">
                         <Sparkles className="w-4 h-4" />
                         {plan.highlight}
                       </div>
@@ -246,7 +246,7 @@ export default function PricingPage() {
                     <div
                       className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 ${
                         plan.popular
-                          ? "bg-gradient-to-br from-[#0d9488] to-[#0f766e]"
+                          ? "bg-linear-to-br from-[#0d9488] to-[#0f766e]"
                           : "bg-gray-100"
                       }`}
                     >
@@ -258,14 +258,14 @@ export default function PricingPage() {
                     </div>
 
                     <h3 className="text-2xl text-gray-900 mb-2">{plan.name}</h3>
-                    <p className="text-sm text-gray-600 min-h-[40px]">
+                    <p className="text-sm text-gray-600 min-h-10">
                       {plan.description}
                     </p>
                   </div>
 
                   {/* Price - Replace with "Contact Us" */}
                   <div className="text-center mb-6 pb-6 border-b border-gray-200">
-                    <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200">
+                    <div className="bg-linear-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200">
                       <p className="text-gray-600 text-sm mb-2">
                         Harga disesuaikan dengan:
                       </p>
@@ -291,7 +291,7 @@ export default function PricingPage() {
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-3">
                         <div
-                          className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
+                          className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
                             feature.included ? "bg-[#0d9488]/10" : "bg-gray-100"
                           }`}
                         >
@@ -317,7 +317,7 @@ export default function PricingPage() {
                     onClick={() => setShowContact(true)}
                     className={`w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 group ${
                       plan.popular
-                        ? "bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white hover:shadow-xl hover:scale-[1.02]"
+                        ? "bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white hover:shadow-xl hover:scale-[1.02]"
                         : "bg-gray-100 text-gray-900 hover:bg-gray-200"
                     }`}
                   >
@@ -482,7 +482,7 @@ export default function PricingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-white">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-linear-to-br from-gray-50 to-white">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 bg-[#0d9488]/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6 border border-[#0d9488]/20">
@@ -511,7 +511,7 @@ export default function PricingPage() {
                 >
                   <span className="text-gray-900 pr-4">{faq.question}</span>
                   <ChevronDown
-                    className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform ${
+                    className={`w-5 h-5 text-gray-500 shrink-0 transition-transform ${
                       openFaq === index ? "rotate-180" : ""
                     }`}
                   />
@@ -532,7 +532,7 @@ export default function PricingPage() {
             <p className="text-gray-600 mb-4">Masih punya pertanyaan?</p>
             <button
               onClick={() => setShowContact(true)}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-3 rounded-xl hover:shadow-xl transition-all hover:scale-105 group"
+              className="inline-flex items-center gap-2 bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-3 rounded-xl hover:shadow-xl transition-all hover:scale-105 group"
             >
               <span>Hubungi Tim Kami</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -542,7 +542,7 @@ export default function PricingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] overflow-hidden">
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-linear-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] overflow-hidden">
         {/* Background Elements */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"></div>

@@ -24,16 +24,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { POSITION_OPTIONS } from "@/utils/constants/pegawai";
 import { EDUCATION_OPTIONS } from "@/utils/constants/user";
 
 interface FormDialogProps {
   showFormDialog: boolean;
   setShowFormDialog: (value: boolean) => void;
   positions: Position[];
+  officials: OfficialOption[];
   onSuccess?: () => void;
 }
 
@@ -41,6 +41,12 @@ interface Position {
   id: number;
   name: string;
   level: number;
+}
+
+interface OfficialOption {
+  id: number;
+  name: string;
+  position: Position | null;
 }
 
 type FormValues = {
@@ -53,6 +59,7 @@ type FormValues = {
   date_of_birth: string;
   address: string;
   village_staff_position_id: string;
+  supervisor_id: string;
   education_id: string;
   sk_number: string;
   sk_date: string;
@@ -65,6 +72,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   showFormDialog,
   setShowFormDialog,
   positions,
+  officials,
   onSuccess,
 }) => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -81,6 +89,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
       date_of_birth: "",
       address: "",
       village_staff_position_id: positions[0]?.id?.toString() ?? "",
+      supervisor_id: "none",
       education_id: "1",
       sk_number: "",
       sk_date: "",
@@ -95,6 +104,18 @@ export const FormDialog: React.FC<FormDialogProps> = ({
       form.setValue("village_staff_position_id", positions[0].id.toString());
     }
   }, [positions]);
+
+  const supervisorCandidates = useMemo(() => {
+    const selectedPositionId = form.watch("village_staff_position_id");
+    const selectedPosition = positions.find(
+      (position) => position.id.toString() === selectedPositionId
+    );
+    const selectedLevel = selectedPosition?.level ?? 5;
+
+    return officials
+      .filter((official) => (official.position?.level ?? 5) < selectedLevel)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [form, positions, officials]);
 
   const handlePhotoUpload = (file: File | null) => {
     if (file) {
@@ -122,6 +143,8 @@ export const FormDialog: React.FC<FormDialogProps> = ({
           date_of_birth: values.date_of_birth,
           address: values.address,
           village_staff_position_id: values.village_staff_position_id,
+          supervisor_id:
+            values.supervisor_id === "none" ? null : Number(values.supervisor_id),
           education_id: values.education_id,
           sk_number: values.sk_number,
           sk_date: values.sk_date,
@@ -147,6 +170,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
         date_of_birth: "",
         address: "",
         village_staff_position_id: positions[0]?.id?.toString() ?? "",
+        supervisor_id: "none",
         education_id: "1",
         sk_number: "",
         sk_date: "",
@@ -338,6 +362,44 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                           ) : (
                             <SelectItem value="no-positions" disabled>
                               Tidak ada jabatan tersedia
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="supervisor_id"
+                render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Atasan Langsung (Opsional)</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih Atasan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Tidak Ada</SelectItem>
+                          {supervisorCandidates.length > 0 ? (
+                            supervisorCandidates.map((official) => (
+                              <SelectItem
+                                key={official.id}
+                                value={official.id.toString()}
+                              >
+                                {`${official.name} - ${official.position?.name ?? "Tanpa Jabatan"}`}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-supervisor" disabled>
+                              Belum ada kandidat atasan
                             </SelectItem>
                           )}
                         </SelectContent>

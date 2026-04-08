@@ -4,7 +4,7 @@ import { devtools, persist } from "zustand/middleware";
 interface TemplateData {
   id: string;
   name: string;
-  content: any;
+  content: unknown;
 }
 
 interface TemplateState {

@@ -12,18 +12,122 @@ const exampleImage = "/vercel.svg";
  */
 
 /**
- * Replace template variables with actual data
+ * Samakan variabel template yang beda penamaan (legacy / bahasa) ke satu nilai.
+ * Contoh: `nama_kades`, `NAMA_KADES` ↔ `KEPALA_DESA_NAMA`
+ */
+export function expandTemplateVariableData(
+  data: Record<string, string>,
+): Record<string, string> {
+  const out: Record<string, string> = { ...data };
+
+  const pick = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = out[k];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+    return "";
+  };
+
+  const setIfEmpty = (key: string, val: string) => {
+    if (!val) return;
+    if (out[key] == null || String(out[key]).trim() === "") out[key] = val;
+  };
+
+  const kepala = pick("KEPALA_DESA_NAMA", "nama_kades", "NAMA_KADES");
+  const nip = pick("KEPALA_DESA_NIP", "nip_kades", "NIP_KADES", "NIP_KEPALA_DESA");
+
+  setIfEmpty("KEPALA_DESA_NAMA", kepala);
+  setIfEmpty("nama_kades", kepala);
+  setIfEmpty("NAMA_KADES", kepala);
+  setIfEmpty("KEPALA_DESA_NIP", nip);
+  setIfEmpty("nip_kades", nip);
+  setIfEmpty("NIP_KEPALA_DESA", nip);
+
+  const kab = pick("KABUPATEN", "kabupaten");
+  setIfEmpty("KABUPATEN", kab);
+  setIfEmpty("kabupaten", kab);
+
+  const kec = pick("KECAMATAN", "kecamatan");
+  setIfEmpty("KECAMATAN", kec);
+  setIfEmpty("kecamatan", kec);
+
+  const desa = pick("NAMA_DESA", "DESA", "nama_desa");
+  setIfEmpty("NAMA_DESA", desa);
+  setIfEmpty("DESA", desa);
+  setIfEmpty("nama_desa", desa);
+
+  /**
+   * Tanpa key ini, `Object.keys(expanded)` tidak memuat mis. `KEPALA_DESA_NAMA`
+   * dan `replaceVariables` tidak pernah mengganti `{KEPALA_DESA_NAMA}` (tampil mentah).
+   * Terjadi pada `form_data` surat lama / parsial yang tidak menyimpan snapshot lengkap.
+   */
+  const mustExistForReplace = [
+    "KEPALA_DESA_NAMA",
+    "KEPALA_DESA_NIP",
+    "NAMA_DESA",
+    "DESA",
+    "KABUPATEN",
+    "KECAMATAN",
+    "ALAMAT_DESA",
+    "KODE_POS",
+    "TANGGAL_SURAT",
+    "NOMOR_SURAT",
+    "PENANDA_TANGAN",
+    "SEKRETARIS_NAMA",
+    "CAMAT_NAMA",
+    "BULAN_ROMAWI",
+    "TAHUN",
+    "nama_kades",
+    "NAMA_KADES",
+    "nip_kades",
+    "NIP_KEPALA_DESA",
+  ];
+  for (const k of mustExistForReplace) {
+    if (!(k in out)) out[k] = "";
+  }
+
+  return out;
+}
+
+/**
+ * Ganti placeholder di teks: `{KEY}`, `{{KEY}}`, `{{ KEY }}` (spasi diabaikan).
  */
 export const replaceVariables = (
   text: string,
-  data: Record<string, string>
+  data: Record<string, string>,
 ): string => {
+  if (text == null || text === "") return "";
+  const expanded = expandTemplateVariableData(data);
   let result = text;
-  Object.entries(data).forEach(([key, value]) => {
-    result = result?.replaceAll(`{${key}}`, value);
+
+  const keys = Object.keys(expanded).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    const value = expanded[key] ?? "";
+    result = result.split(`{${key}}`).join(value);
+    result = result.split(`{{${key}}}`).join(value);
+    result = result.split(`{{ ${key} }}`).join(value);
+  }
+
+  result = result.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (full, inner: string) => {
+    const k = inner.trim();
+    if (expanded[k] !== undefined) return expanded[k]!;
+    return full;
   });
+
   return result;
 };
+
+/**
+ * Teks setelah semua variabel diganti; dipakai untuk menyembunyikan baris NIP
+ * bila template berisi `{KEPALA_DESA_NIP}` tetapi data kosong (bukan menyisakan label "NIP:").
+ */
+export function resolveTemplateText(
+  template: string | null | undefined,
+  data: Record<string, string>,
+): string {
+  if (template == null || String(template).trim() === "") return "";
+  return replaceVariables(String(template), data).trim();
+}
 
 /**
  * Render header/letterhead of the letter
@@ -134,23 +238,49 @@ export const renderLetterNumber = (
 };
 
 /**
+ * Helper to get font size in pixels from Size type
+ */
+const getFontSize = (size?: string) => {
+  switch (size) {
+    case "small":
+      return "12px";
+    case "large":
+      return "18px";
+    case "medium":
+    default:
+      return "14px";
+  }
+};
+
+/**
  * Render individual content block based on type
  */
 export const renderBlock = (block: any, data: Record<string, string>) => {
   const style = block.style || {};
-  const className = `${style.bold ? "font-bold" : ""} ${
-    style.italic ? "italic" : ""
-  } ${style.underline ? "underline" : ""}`;
+  const fontSize = getFontSize(style.size);
+  const fontFamily = style.font || "Literata";
+
+  const baseStyles = {
+    fontFamily,
+    fontSize,
+    textAlign: (style.align || "left") as any,
+    fontWeight: style.bold ? "bold" : "normal",
+    fontStyle: style.italic ? "italic" : "normal",
+    textDecoration: style.underline ? "underline" : "none",
+    lineHeight: "1.8",
+  };
 
   switch (block.type) {
     case "heading":
       return (
         <h2
           key={block.id}
-          className={`font-bold text-lg mb-2 ${className}`}
+          className="mb-2"
           style={{
+            ...baseStyles,
+            fontSize: style.size === "large" ? "24px" : style.size === "small" ? "16px" : "20px",
+            fontWeight: "bold", // Heading is always bold by default but respects style.bold if provided
             textAlign: style.align || "left",
-            fontFamily: style.font || "Literata",
           }}
         >
           {replaceVariables(block.content as string, data)}
@@ -161,11 +291,10 @@ export const renderBlock = (block: any, data: Record<string, string>) => {
       return (
         <p
           key={block.id}
-          className={`mb-3 ${className}`}
+          className="mb-3 whitespace-pre-wrap"
           style={{
+            ...baseStyles,
             textAlign: style.align || "justify",
-            fontFamily: style.font || "Literata",
-            lineHeight: "1.8",
           }}
         >
           {replaceVariables(block.content as string, data)}
@@ -173,19 +302,32 @@ export const renderBlock = (block: any, data: Record<string, string>) => {
       );
 
     case "table":
-      const tableContent = block.content as TableRow[];
+      const tableContent = (block.content as TableRow[]) || [];
       return (
         <table
           key={block.id}
           className={`w-full mb-4 ${style.border ? "border border-black" : ""}`}
+          style={{
+            fontFamily,
+            fontSize,
+            lineHeight: "1.6",
+          }}
         >
           <tbody>
             {tableContent.map((row, idx) => (
               <tr
                 key={idx}
-                className={style.border ? "border-b border-black" : ""}
+                className={style.border ? "border-b border-black last:border-b-0" : ""}
               >
-                <td className="py-1 px-2 w-1/3 font-medium">
+                <td
+                  className={`py-1 px-2 w-1/3 ${style.border ? "border-r border-black" : ""}`}
+                  style={{
+                    textAlign: style.align || "left",
+                    fontWeight: style.bold ? "bold" : "normal",
+                    fontStyle: style.italic ? "italic" : "normal",
+                    textDecoration: style.underline ? "underline" : "none",
+                  }}
+                >
                   {replaceVariables(row.label, data)}
                 </td>
                 <td className="py-1 px-2">
@@ -198,14 +340,23 @@ export const renderBlock = (block: any, data: Record<string, string>) => {
       );
 
     case "list":
-      const listContent = block.content as ListItem[];
+      const listContent = (block.content as ListItem[]) || [];
       return (
-        <ol key={block.id} className="mb-3 list-decimal ml-6">
+        <ol
+          key={block.id}
+          className="mb-3 list-decimal ml-6"
+          style={{
+            ...baseStyles,
+            textAlign: "left", // List is usually left-aligned
+          }}
+        >
           {listContent.map((item, idx) => (
             <li
               key={idx}
               className="mb-1"
-              style={{ fontFamily: style.font || "Literata" }}
+              style={{
+                marginLeft: `${(item.level || 0) * 20}px`,
+              }}
             >
               {replaceVariables(item.text, data)}
             </li>
@@ -238,6 +389,10 @@ export const renderFooter = (
   const footer = pageFooter?.footer_config || footerConfig;
   const location = data.NAMA_DESA || "";
   const date = data.TANGGAL_SURAT || "";
+  const firstSigner = footer.signers?.[0];
+  const nipLine = firstSigner
+    ? resolveTemplateText(firstSigner.nip, data)
+    : "";
 
   return (
     <div className="mt-8 pt-4">
@@ -245,22 +400,18 @@ export const renderFooter = (
         <p>
           {location}, {date}
         </p>
-        {footer.signers?.length > 0 && (
-          <p className="font-semibold">{footer.signers[0].role}</p>
-        )}
+        {firstSigner && <p className="font-semibold">{firstSigner.role}</p>}
       </div>
 
       <div className="mt-20 text-right">
-        {footer.signers?.length > 0 && (
+        {firstSigner && (
           <>
             <p className="font-semibold underline">
-              {replaceVariables(footer.signers[0].name, data)}
+              {replaceVariables(firstSigner.name, data)}
             </p>
-            {footer.signers[0].nip && (
-              <p className="text-sm">
-                NIP: {replaceVariables(footer.signers[0].nip, data)}
-              </p>
-            )}
+            {nipLine ? (
+              <p className="text-sm">NIP: {nipLine}</p>
+            ) : null}
           </>
         )}
       </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   ArrowRight,
   Building2,
@@ -10,9 +10,9 @@ import {
   Phone,
   Users,
   X,
-} from 'lucide-react';
+} from "lucide-react";
 
-import { KlandesaLogo } from './KlandesaLogo';
+import { KlandesaLogo } from "./KlandesaLogo";
 
 interface RegistrationModalProps {
   onClose: () => void;
@@ -22,39 +22,68 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
   const [step, setStep] = React.useState(1);
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   // Form data
   const [formData, setFormData] = React.useState({
     // Step 1: Informasi Desa
-    namaKabupaten: '',
-    namaKecamatan: '',
-    namaDesa: '',
-    provinsi: '',
+    namaKabupaten: "",
+    namaKecamatan: "",
+    namaDesa: "",
+    provinsi: "",
 
     // Step 2: Kontak & Penanggung Jawab
-    namaKepala: '',
-    nomorTelepon: '',
-    emailDesa: '',
+    namaKepala: "",
+    nomorTelepon: "",
+    emailDesa: "",
 
     // Step 3: Akun & Keamanan
-    username: '',
-    password: '',
-    confirmPassword: '',
+    username: "",
+    password: "",
+    confirmPassword: "",
 
     // Agreements
     agreeTerms: false,
     agreePrivacy: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step < 3) {
       setStep(step + 1);
     } else {
-      // Handle final submission
-      console.log('Form submitted:', formData);
-      alert('Pendaftaran berhasil! Silakan login.');
-      onClose();
+      try {
+        setIsSubmitting(true);
+        setSubmitError(null);
+
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error("Konfirmasi password tidak sama");
+        }
+
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        if (!res.ok) {
+          throw new Error(data?.error || "Pendaftaran gagal");
+        }
+
+        alert(
+          "Pendaftaran berhasil! Silakan login, lalu aktifkan paket di halaman Billing.",
+        );
+        onClose();
+      } catch (err) {
+        setSubmitError(
+          err instanceof Error ? err.message : "Pendaftaran gagal",
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -69,44 +98,44 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
   const progress = (step / totalSteps) * 100;
 
   const provinces = [
-    'Aceh',
-    'Sumatera Utara',
-    'Sumatera Barat',
-    'Riau',
-    'Jambi',
-    'Sumatera Selatan',
-    'Bengkulu',
-    'Lampung',
-    'Kepulauan Bangka Belitung',
-    'Kepulauan Riau',
-    'DKI Jakarta',
-    'Jawa Barat',
-    'Jawa Tengah',
-    'DI Yogyakarta',
-    'Jawa Timur',
-    'Banten',
-    'Bali',
-    'Nusa Tenggara Barat',
-    'Nusa Tenggara Timur',
-    'Kalimantan Barat',
-    'Kalimantan Tengah',
-    'Kalimantan Selatan',
-    'Kalimantan Timur',
-    'Kalimantan Utara',
-    'Sulawesi Utara',
-    'Sulawesi Tengah',
-    'Sulawesi Selatan',
-    'Sulawesi Tenggara',
-    'Gorontalo',
-    'Sulawesi Barat',
-    'Maluku',
-    'Maluku Utara',
-    'Papua',
-    'Papua Barat',
+    "Aceh",
+    "Sumatera Utara",
+    "Sumatera Barat",
+    "Riau",
+    "Jambi",
+    "Sumatera Selatan",
+    "Bengkulu",
+    "Lampung",
+    "Kepulauan Bangka Belitung",
+    "Kepulauan Riau",
+    "DKI Jakarta",
+    "Jawa Barat",
+    "Jawa Tengah",
+    "DI Yogyakarta",
+    "Jawa Timur",
+    "Banten",
+    "Bali",
+    "Nusa Tenggara Barat",
+    "Nusa Tenggara Timur",
+    "Kalimantan Barat",
+    "Kalimantan Tengah",
+    "Kalimantan Selatan",
+    "Kalimantan Timur",
+    "Kalimantan Utara",
+    "Sulawesi Utara",
+    "Sulawesi Tengah",
+    "Sulawesi Selatan",
+    "Sulawesi Tenggara",
+    "Gorontalo",
+    "Sulawesi Barat",
+    "Maluku",
+    "Maluku Utara",
+    "Papua",
+    "Papua Barat",
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300 overflow-y-auto">
+    <div className="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300 overflow-y-auto">
       <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 my-8 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
@@ -118,15 +147,15 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
         </button>
 
         {/* Header */}
-        <div className="relative bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] px-8 py-8 overflow-hidden">
+        <div className="relative bg-linear-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] px-8 py-8 overflow-hidden">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div
               className="absolute inset-0"
               style={{
                 backgroundImage:
-                  'radial-gradient(circle, white 1px, transparent 1px)',
-                backgroundSize: '30px 30px',
+                  "radial-gradient(circle, white 1px, transparent 1px)",
+                backgroundSize: "30px 30px",
               }}
             ></div>
           </div>
@@ -168,12 +197,12 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
             {/* Steps Indicator */}
             <div className="mt-6 flex items-center justify-between">
               <div
-                className={`flex items-center gap-2 ${step >= 1 ? 'opacity-100' : 'opacity-50'}`}
+                className={`flex items-center gap-2 ${step >= 1 ? "opacity-100" : "opacity-50"}`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-white text-[#0d9488]' : 'bg-white/20 text-white'}`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? "bg-white text-[#0d9488]" : "bg-white/20 text-white"}`}
                 >
-                  {step > 1 ? <CheckCircle2 className="w-5 h-5" /> : '1'}
+                  {step > 1 ? <CheckCircle2 className="w-5 h-5" /> : "1"}
                 </div>
                 <span className="text-sm text-white hidden sm:inline">
                   Info Desa
@@ -181,12 +210,12 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
               </div>
               <div className="flex-1 h-0.5 bg-white/20 mx-2"></div>
               <div
-                className={`flex items-center gap-2 ${step >= 2 ? 'opacity-100' : 'opacity-50'}`}
+                className={`flex items-center gap-2 ${step >= 2 ? "opacity-100" : "opacity-50"}`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-white text-[#0d9488]' : 'bg-white/20 text-white'}`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? "bg-white text-[#0d9488]" : "bg-white/20 text-white"}`}
                 >
-                  {step > 2 ? <CheckCircle2 className="w-5 h-5" /> : '2'}
+                  {step > 2 ? <CheckCircle2 className="w-5 h-5" /> : "2"}
                 </div>
                 <span className="text-sm text-white hidden sm:inline">
                   Kontak
@@ -194,10 +223,10 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
               </div>
               <div className="flex-1 h-0.5 bg-white/20 mx-2"></div>
               <div
-                className={`flex items-center gap-2 ${step >= 3 ? 'opacity-100' : 'opacity-50'}`}
+                className={`flex items-center gap-2 ${step >= 3 ? "opacity-100" : "opacity-50"}`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-white text-[#0d9488]' : 'bg-white/20 text-white'}`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? "bg-white text-[#0d9488]" : "bg-white/20 text-white"}`}
                 >
                   3
                 </div>
@@ -237,7 +266,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       id="provinsi"
                       value={formData.provinsi}
                       onChange={(e) =>
-                        handleInputChange('provinsi', e.target.value)
+                        handleInputChange("provinsi", e.target.value)
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none appearance-none bg-white"
                       required
@@ -263,7 +292,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       id="namaKabupaten"
                       value={formData.namaKabupaten}
                       onChange={(e) =>
-                        handleInputChange('namaKabupaten', e.target.value)
+                        handleInputChange("namaKabupaten", e.target.value)
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                       placeholder="Contoh: Bandung"
@@ -283,7 +312,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       id="namaKecamatan"
                       value={formData.namaKecamatan}
                       onChange={(e) =>
-                        handleInputChange('namaKecamatan', e.target.value)
+                        handleInputChange("namaKecamatan", e.target.value)
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                       placeholder="Contoh: Cicalengka"
@@ -303,7 +332,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       id="namaDesa"
                       value={formData.namaDesa}
                       onChange={(e) =>
-                        handleInputChange('namaDesa', e.target.value)
+                        handleInputChange("namaDesa", e.target.value)
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                       placeholder="Contoh: Cikalong"
@@ -339,7 +368,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     id="namaKepala"
                     value={formData.namaKepala}
                     onChange={(e) =>
-                      handleInputChange('namaKepala', e.target.value)
+                      handleInputChange("namaKepala", e.target.value)
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                     placeholder="Nama lengkap Kepala Desa"
@@ -363,7 +392,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       id="emailDesa"
                       value={formData.emailDesa}
                       onChange={(e) =>
-                        handleInputChange('emailDesa', e.target.value)
+                        handleInputChange("emailDesa", e.target.value)
                       }
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                       placeholder="email@desa.id"
@@ -377,7 +406,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     htmlFor="nomorTelepon"
                     className="block text-sm text-gray-700 mb-2"
                   >
-                    Nomor Telepon Kantor Desa{' '}
+                    Nomor Telepon Kantor Desa{" "}
                     <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -389,7 +418,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       id="nomorTelepon"
                       value={formData.nomorTelepon}
                       onChange={(e) =>
-                        handleInputChange('nomorTelepon', e.target.value)
+                        handleInputChange("nomorTelepon", e.target.value)
                       }
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                       placeholder="08xxxxxxxxxx"
@@ -425,7 +454,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     id="username"
                     value={formData.username}
                     onChange={(e) =>
-                      handleInputChange('username', e.target.value)
+                      handleInputChange("username", e.target.value)
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                     placeholder="username"
@@ -445,11 +474,11 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       <Lock className="w-5 h-5 text-gray-400" />
                     </div>
                     <input
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"}
                       id="password"
                       value={formData.password}
                       onChange={(e) =>
-                        handleInputChange('password', e.target.value)
+                        handleInputChange("password", e.target.value)
                       }
                       className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                       placeholder="••••••••"
@@ -484,11 +513,11 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       <Lock className="w-5 h-5 text-gray-400" />
                     </div>
                     <input
-                      type={showConfirmPassword ? 'text' : 'password'}
+                      type={showConfirmPassword ? "text" : "password"}
                       id="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={(e) =>
-                        handleInputChange('confirmPassword', e.target.value)
+                        handleInputChange("confirmPassword", e.target.value)
                       }
                       className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
                       placeholder="••••••••"
@@ -517,13 +546,13 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       type="checkbox"
                       checked={formData.agreeTerms}
                       onChange={(e) =>
-                        handleInputChange('agreeTerms', e.target.checked)
+                        handleInputChange("agreeTerms", e.target.checked)
                       }
                       className="mt-1 w-4 h-4 border-gray-300 rounded text-[#0d9488] focus:ring-[#0d9488]"
                       required
                     />
                     <span className="text-sm text-gray-600 group-hover:text-gray-900">
-                      Saya setuju dengan{' '}
+                      Saya setuju dengan{" "}
                       <a href="#" className="text-[#0d9488] hover:underline">
                         Syarat & Ketentuan
                       </a>
@@ -535,19 +564,25 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                       type="checkbox"
                       checked={formData.agreePrivacy}
                       onChange={(e) =>
-                        handleInputChange('agreePrivacy', e.target.checked)
+                        handleInputChange("agreePrivacy", e.target.checked)
                       }
                       className="mt-1 w-4 h-4 border-gray-300 rounded text-[#0d9488] focus:ring-[#0d9488]"
                       required
                     />
                     <span className="text-sm text-gray-600 group-hover:text-gray-900">
-                      Saya telah membaca dan memahami{' '}
+                      Saya telah membaca dan memahami{" "}
                       <a href="#" className="text-[#0d9488] hover:underline">
                         Kebijakan Privasi
                       </a>
                     </span>
                   </label>
                 </div>
+              </div>
+            )}
+
+            {submitError && step === totalSteps && (
+              <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl">
+                <p className="text-sm text-red-800">{submitError}</p>
               </div>
             )}
 
@@ -564,10 +599,15 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
               )}
               <button
                 type="submit"
-                className="flex-1 bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-3 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group"
+                disabled={isSubmitting}
+                className="flex-1 bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-3 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group"
               >
                 <span>
-                  {step === totalSteps ? 'Daftar Sekarang' : 'Lanjutkan'}
+                  {step === totalSteps
+                    ? isSubmitting
+                      ? "Memproses..."
+                      : "Daftar Sekarang"
+                    : "Lanjutkan"}
                 </span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
@@ -576,7 +616,7 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
 
           {/* Login Link */}
           <p className="mt-6 text-center text-sm text-gray-600">
-            Sudah punya akun?{' '}
+            Sudah punya akun?{" "}
             <a
               href="#"
               className="text-[#0d9488] hover:text-[#0f766e] transition-colors"

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Image from "next/image";
+import { replaceVariables } from "@/utils/templateRenderer";
 import { TemplateData, TableRow, ListItem } from "./types";
 
 interface TemplatePreviewProps {
@@ -68,23 +69,8 @@ export function TemplatePreview({
     }
   };
 
-  const replaceVariables = (text: string) => {
-    // Get current date for variables
+  const previewVariableData = (): Record<string, string> => {
     const now = new Date();
-    const months = [
-      "Januari",
-      "Februari",
-      "Maret",
-      "April",
-      "Mei",
-      "Juni",
-      "Juli",
-      "Agustus",
-      "September",
-      "Oktober",
-      "November",
-      "Desember",
-    ];
     const romanMonths = [
       "I",
       "II",
@@ -99,20 +85,34 @@ export function TemplatePreview({
       "XI",
       "XII",
     ];
-
-    return text
-      .replace(/{NAMA_DESA}/g, desaSettings.nama_desa)
-      .replace(/{KECAMATAN}/g, desaSettings.kecamatan)
-      .replace(/{KABUPATEN}/g, desaSettings.kabupaten)
-      .replace(/{ALAMAT_DESA}/g, desaSettings.alamat_desa)
-      .replace(/{KEPALA_DESA_NAMA}/g, desaSettings.kepala_desa_nama)
-      .replace(/{SEKRETARIS_NAMA}/g, desaSettings.sekretaris_nama)
-      .replace(/{CAMAT_NAMA}/g, desaSettings.camat_nama)
-      .replace(/{NOMOR_SURAT}/g, "001")
-      .replace(/{BULAN_ROMAWI}/g, romanMonths[now.getMonth()])
-      .replace(/{TAHUN}/g, now.getFullYear().toString())
-      .replace(/{([A-Z_]+)}/g, (match, p1) => `[${p1}]`);
+    return {
+      NAMA_DESA: desaSettings.nama_desa || "",
+      DESA: desaSettings.nama_desa || "",
+      KECAMATAN: desaSettings.kecamatan || "",
+      KABUPATEN: desaSettings.kabupaten || "",
+      ALAMAT_DESA: desaSettings.alamat_desa || "",
+      KODE_POS: desaSettings.kode_pos || "",
+      KEPALA_DESA_NAMA: desaSettings.kepala_desa_nama || "",
+      KEPALA_DESA_NIP: desaSettings.kepala_desa_nip || "",
+      SEKRETARIS_NAMA: desaSettings.sekretaris_nama || "",
+      CAMAT_NAMA: desaSettings.camat_nama || "",
+      NOMOR_SURAT: "001",
+      BULAN_ROMAWI: romanMonths[now.getMonth()] ?? "I",
+      TAHUN: String(now.getFullYear()),
+      TANGGAL_SURAT: now.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    };
   };
+
+  const applyTemplateVars = (text: string) =>
+    replaceVariables(text, previewVariableData());
+
+  /** Tampilkan baris NIP hanya jika nilai setelah variabel terisi (bukan placeholder kosong). */
+  const resolvedNipLine = (nip?: string | null) =>
+    nip ? applyTemplateVars(nip).trim() : "";
 
   return (
     <div className="bg-white text-black p-8 min-h-[297mm] shadow-lg font-['Literata']">
@@ -251,7 +251,7 @@ export function TemplatePreview({
                 fontSize: `${template.letterNumber.heading.size}px`,
               }}
             >
-              {replaceVariables(template.letterNumber.heading.text)}
+              {applyTemplateVars(template.letterNumber.heading.text)}
             </div>
           )}
 
@@ -268,7 +268,7 @@ export function TemplatePreview({
             }}
           >
             {template.letterNumber.number?.prefix}
-            {replaceVariables(template.letterNumber.number?.format || "")}
+            {applyTemplateVars(template.letterNumber.number?.format || "")}
           </div>
         </div>
       )}
@@ -292,7 +292,7 @@ export function TemplatePreview({
                       : undefined
                   }
                 >
-                  {replaceVariables(block.content as string)}
+                  {applyTemplateVars(block.content as string)}
                 </div>
               );
 
@@ -313,7 +313,7 @@ export function TemplatePreview({
                       : undefined
                   }
                 >
-                  {replaceVariables(block.content as string)}
+                  {applyTemplateVars(block.content as string)}
                 </div>
               );
 
@@ -348,7 +348,7 @@ export function TemplatePreview({
                               block.style?.bold ? "font-bold" : ""
                             }`}
                           >
-                            {replaceVariables(row.label)}
+                            {applyTemplateVars(row.label)}
                           </td>
                           <td
                             className={`py-2 px-2 align-top w-8 ${getFontSizeClass(
@@ -364,7 +364,7 @@ export function TemplatePreview({
                               block.style?.bold ? "font-bold" : ""
                             }`}
                           >
-                            {replaceVariables(row.value)}
+                            {applyTemplateVars(row.value)}
                           </td>
                         </tr>
                       ))}
@@ -377,7 +377,7 @@ export function TemplatePreview({
                 <ul key={block.id} className="list-disc list-inside space-y-1">
                   {Array.isArray(block.content) &&
                     (block.content as ListItem[]).map((item, idx) => (
-                      <li key={idx}>{replaceVariables(item.text)}</li>
+                      <li key={idx}>{applyTemplateVars(item.text)}</li>
                     ))}
                 </ul>
               );
@@ -417,44 +417,45 @@ export function TemplatePreview({
           {/* Multiple Signers Layout */}
           {(template.footer?.signers || []).length > 1 ? (
             <div className="grid grid-cols-2 gap-8">
-              {(template.footer?.signers || []).map((signer, idx) => (
-                <div
-                  key={idx}
-                  className={`${
-                    signer.position === "left"
-                      ? "text-left"
-                      : signer.position === "center"
-                      ? "text-center"
-                      : "text-right"
-                  }`}
-                >
-                  {signer.prefix_text && (
-                    <div className="mb-1">{signer.prefix_text}</div>
-                  )}
-                  {signer.on_behalf_of && (
-                    <div className="mb-1">a.n {signer.on_behalf_of}</div>
-                  )}
-                  <div className="mb-1">{signer.role}</div>
-                  {signer.show_stamp && (
-                    <div className="my-12 text-muted-foreground text-sm italic">
-                      (TTD & Stempel)
+              {(template.footer?.signers || []).map((signer, idx) => {
+                const nip = resolvedNipLine(signer.nip);
+                return (
+                  <div
+                    key={idx}
+                    className={`${
+                      signer.position === "left"
+                        ? "text-left"
+                        : signer.position === "center"
+                        ? "text-center"
+                        : "text-right"
+                    }`}
+                  >
+                    {signer.prefix_text && (
+                      <div className="mb-1">{signer.prefix_text}</div>
+                    )}
+                    {signer.on_behalf_of && (
+                      <div className="mb-1">a.n {signer.on_behalf_of}</div>
+                    )}
+                    <div className="mb-1">{signer.role}</div>
+                    {signer.show_stamp && (
+                      <div className="my-12 text-muted-foreground text-sm italic">
+                        (TTD & Stempel)
+                      </div>
+                    )}
+                    {!signer.show_stamp && (
+                      <div className="my-12 text-muted-foreground text-sm italic">
+                        (TTD)
+                      </div>
+                    )}
+                    <div className="font-bold underline">
+                      {applyTemplateVars(signer?.name || "")}
                     </div>
-                  )}
-                  {!signer.show_stamp && (
-                    <div className="my-12 text-muted-foreground text-sm italic">
-                      (TTD)
-                    </div>
-                  )}
-                  <div className="font-bold underline">
-                    {replaceVariables(signer?.name || "")}
+                    {nip ? (
+                      <div className="text-sm">NIP: {nip}</div>
+                    ) : null}
                   </div>
-                  {signer.nip && (
-                    <div className="text-sm">
-                      NIP: {replaceVariables(signer.nip)}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (template.footer?.signers || []).length === 1 ? (
             <div
@@ -467,7 +468,7 @@ export function TemplatePreview({
               }`}
             >
               <div className="mb-2">
-                {replaceVariables(template.footer?.location || "")},{" "}
+                {applyTemplateVars(template.footer?.location || "")},{" "}
                 {template.footer?.date_format === "auto"
                   ? "[TANGGAL_SURAT]"
                   : "[TANGGAL_CUSTOM]"}
@@ -496,18 +497,18 @@ export function TemplatePreview({
                 </div>
               )}
               <div className="font-bold underline">
-                {replaceVariables(
+                {applyTemplateVars(
                   (template.footer?.signers || [])[0]?.name || ""
                 )}
               </div>
-              {(template.footer?.signers || [])[0].nip && (
-                <div className="text-sm">
-                  NIP:{" "}
-                  {replaceVariables(
-                    (template.footer?.signers || [])[0]?.nip || ""
-                  )}
-                </div>
-              )}
+              {(() => {
+                const nip = resolvedNipLine(
+                  (template.footer?.signers || [])[0]?.nip,
+                );
+                return nip ? (
+                  <div className="text-sm">NIP: {nip}</div>
+                ) : null;
+              })()}
             </div>
           ) : null}
         </div>
