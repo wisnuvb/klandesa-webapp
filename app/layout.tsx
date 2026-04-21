@@ -6,7 +6,9 @@ import "./styles/theme.css";
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { auth } from "@/auth";
 import { AuthProvider } from "./components/AuthProvider";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,23 +20,76 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://klandesa.com";
+
 export const metadata: Metadata = {
-  title: "Klandesa - Aplikasi Desa Digital",
+  title: {
+    default: "Klandesa - Aplikasi Desa Digital Indonesia",
+    template: "%s | Klandesa",
+  },
   description:
-    "Klandesa adalah aplikasi desa digital yang membantu mengelola administrasi dan layanan masyarakat secara efisien dan transparan.",
+    "Klandesa adalah platform digital untuk desa di Indonesia. Kelola administrasi, layanan masyarakat, keuangan, dan website desa dalam satu sistem yang modern, efisien, dan transparan.",
+  keywords: [
+    "aplikasi desa",
+    "digitalisasi desa",
+    "sistem informasi desa",
+    "administrasi desa digital",
+    "layanan masyarakat desa",
+    "keuangan desa",
+    "website desa",
+    "klandesa",
+  ],
+  authors: [{ name: "Klandesa", url: siteUrl }],
+  creator: "Klandesa",
+  metadataBase: new URL(siteUrl),
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    url: siteUrl,
+    siteName: "Klandesa",
+    title: "Klandesa - Aplikasi Desa Digital Indonesia",
+    description:
+      "Platform digital lengkap untuk desa di Indonesia. Administrasi lebih mudah, layanan lebih cepat, masyarakat lebih terlayani.",
+    images: [
+      {
+        url: "/images/og-klandesa.png",
+        width: 1200,
+        height: 630,
+        alt: "Klandesa - Aplikasi Desa Digital Indonesia",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Klandesa - Aplikasi Desa Digital Indonesia",
+    description:
+      "Platform digital lengkap untuk desa di Indonesia. Administrasi lebih mudah, layanan lebih cepat, masyarakat lebih terlayani.",
+    images: ["/images/og-klandesa.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
-    <html lang="en">
+    <html lang="id">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider session={session}>{children}</AuthProvider>
+        <GoogleAnalytics />
       </body>
     </html>
   );

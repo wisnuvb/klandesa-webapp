@@ -1,9 +1,9 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import { getInitials } from "@/utils";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 interface Activity {
   id: string;
@@ -50,7 +50,7 @@ function formatTimeAgo(date: Date): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
@@ -68,6 +68,9 @@ export async function GET(req: NextRequest) {
         },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const villageId = village.id;

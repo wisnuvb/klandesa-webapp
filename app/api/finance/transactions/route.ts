@@ -1,12 +1,14 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/auth";
 import { getToken } from "next-auth/jwt";
 import { getSubdomain } from "@/lib/subdomain";
 import { toJSONSafe } from "@/utils/json";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
-type SessionType = Awaited<ReturnType<typeof getServerSession>>;
+type SessionType = Session | null;
 type TokenType = Awaited<ReturnType<typeof getToken>> | null;
 
 interface SessionUserLite {
@@ -84,7 +86,7 @@ function generateTransactionNumber(type: string, date: Date) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const token = await getToken({ req, secret: authOptions.secret });
 
     // Parse body early to read optional villageCode
@@ -107,6 +109,9 @@ export async function POST(req: NextRequest) {
         { error: "Tidak ada desa yang tersedia" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     if (!type || !category || !description || !amount || !transactionDate) {
@@ -154,7 +159,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const token = await getToken({ req, secret: authOptions.secret });
     // No hard auth check here; follow residents pattern
 
@@ -166,6 +171,9 @@ export async function PUT(req: NextRequest) {
         { error: "Tidak ada desa yang tersedia" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();
@@ -216,7 +224,7 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const token = await getToken({ req, secret: authOptions.secret });
     // No hard auth check here; follow residents pattern
 
@@ -229,6 +237,9 @@ export async function DELETE(req: NextRequest) {
         { error: "Tidak ada desa yang tersedia" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     if (!id) {

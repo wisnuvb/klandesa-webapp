@@ -1,10 +1,10 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 function normalizeImageUrls(input: unknown): string[] {
   if (!input) return [];
@@ -32,10 +32,22 @@ function toUkmProduct(row: any) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const village = await resolveVillage({ req, session });
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
+    if (!village) {
+      return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const searchParams = req.nextUrl.searchParams;
@@ -86,7 +98,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

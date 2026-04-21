@@ -1,9 +1,10 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/auth";
 import { getToken } from "next-auth/jwt";
 import { toJSONSafe } from "@/utils/json";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveVillage(session: any, token?: any) {
@@ -37,7 +38,7 @@ function generateBudgetCode(category: string, year: number) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const token = await getToken({ req, secret: authOptions.secret });
     const apiKeyHeader = req.headers.get("x-api-key");
     const validApiKey = process.env.FINANCE_API_KEY;
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
         { error: "Tidak ada desa yang tersedia" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();
@@ -100,7 +104,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const token = await getToken({ req, secret: authOptions.secret });
     if (!session?.user && !token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -125,6 +129,14 @@ export async function PUT(req: NextRequest) {
         { error: "Anggaran tidak ditemukan" },
         { status: 404 }
       );
+    }
+
+    const village = await prisma.village.findUnique({
+      where: { id: currentBudget.villageId },
+      select: { subscriptionStatus: true, subscriptionExpiry: true },
+    });
+    if (village && !isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const newBudgetAmount = budgetAmount

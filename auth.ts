@@ -1,5 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { NextAuthOptions, DefaultSession } from "next-auth";
+import type { NextAuthOptions, DefaultSession, Session } from "next-auth";
+import { cookies, headers } from "next/headers";
+import { getToken } from "next-auth/jwt";
+import { getResolvedAuthSecret } from "@/lib/auth-secret";
+import {
+  jwtPayloadToSession,
+  secureCookieForNextAuth,
+  type JwtPayload,
+} from "@/lib/session-from-token";
 import { getServerSession } from "next-auth/next";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -74,7 +82,12 @@ providers.push(
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials) {
-      const baseUrl = process.env.NEXTAUTH_URL || "http://app.localhost:3004";
+      // Panggilan server→server ke API login: pakai NEXTAUTH_URL_INTERNAL (mis. http://127.0.0.1:2042)
+      // agar stabil; NEXTAUTH_URL tetap untuk origin di browser (mis. http://my.localhost:2042).
+      const baseUrl =
+        process.env.NEXTAUTH_URL_INTERNAL ||
+        process.env.NEXTAUTH_URL ||
+        "http://127.0.0.1:2042";
 
       try {
         const res = await fetch(`${baseUrl}/api/auth/login`, {
@@ -136,20 +149,16 @@ providers.push(
 export const authSecret =
   process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
 
-/** Domain cookie: hanya jika NEXTAUTH_URL bukan localhost (cookie `Domain=` tidak cocok dengan host localhost). */
-const sessionCookieDomain: string | undefined = (() => {
-  const base = (process.env.NEXTAUTH_URL || "").toLowerCase();
-  if (base.includes("localhost") || base.includes("127.0.0.1")) {
-    return undefined;
-  }
-  return process.env.COOKIE_DOMAIN || undefined;
-})();
+/**
+ * Domain cookie sesi:
+ * - Jika COOKIE_DOMAIN di-set, selalu gunakan nilainya (termasuk .localhost untuk dev multi-subdomain).
+ * - Jika tidak di-set, fallback host-only cookie.
+ * - Untuk development localhost, gunakan undefined agar cookie bisa diakses dari localhost dan subdomains
+ */
+const sessionCookieDomain: string | undefined =
+  process.env.NODE_ENV === "production" ? process.env.COOKIE_DOMAIN : undefined;
 
-const resolvedAuthSecret =
-  authSecret ||
-  (process.env.NODE_ENV !== "production"
-    ? "__dev_only_nextauth_secret_min_32_chars_static__"
-    : "");
+const resolvedAuthSecret = getResolvedAuthSecret();
 
 if (process.env.NODE_ENV === "production" && !resolvedAuthSecret) {
   throw new Error(
@@ -222,6 +231,64 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-export async function auth() {
-  return getServerSession(authOptions);
+function sessionFromJwtToken(token: JwtPayload | null): Session | null {
+  const session = jwtPayloadToSession(token);
+  if (!session?.user?.id) return null;
+  if (token && typeof token === "object") {
+    (session as any).accessToken = (token as any).accessToken;
+    (session as any).refreshToken = (token as any).refreshToken;
+  }
+  return session;
+}
+
+/**
+ * Satu sumber kebenaran untuk membaca sesi (RSC + Route Handler).
+ * - Route Handler: getToken(req) dulu (cookie dari Request asli), lalu getServerSession.
+ * - RSC: getServerSession lalu getToken dari cookies()/headers().
+ */
+export async function readAppSession(
+  req?: import("next/server").NextRequest | null,
+): Promise<Session | null> {
+  const secret = getResolvedAuthSecret();
+
+  try {
+    if (req && secret) {
+      const token = (await getToken({
+        req,
+        secret,
+        secureCookie: secureCookieForNextAuth(),
+      })) as JwtPayload | null;
+      const fromReq = sessionFromJwtToken(token);
+      if (fromReq) return fromReq;
+    }
+
+    const session = await getServerSession(authOptions);
+    if (session?.user?.id) return session;
+
+    if (!secret) return null;
+
+    if (req) {
+      return null;
+    }
+
+    const cookieStore = await cookies();
+    const headersList = await headers();
+    const token = (await getToken({
+      req: {
+        headers: Object.fromEntries(headersList.entries()),
+        cookies: cookieStore,
+      } as unknown as import("next/server").NextRequest,
+      secret,
+      secureCookie: secureCookieForNextAuth(),
+    })) as JwtPayload | null;
+
+    return sessionFromJwtToken(token);
+  } catch (error) {
+    console.error("[readAppSession] Error:", error);
+    return null;
+  }
+}
+
+export async function auth(): Promise<Session | null> {
+  return readAppSession(null);
 }

@@ -1,7 +1,7 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 // GET /api/residents/[id] - Get single resident by ID
 export async function GET(
@@ -9,9 +9,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.villageId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const village = await prisma.village.findUnique({
+      where: { id: session.user.villageId },
+      select: { subscriptionStatus: true, subscriptionExpiry: true },
+    });
+    if (village && !isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const { id: idParam } = await params;
@@ -50,9 +57,16 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.villageId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const village = await prisma.village.findUnique({
+      where: { id: session.user.villageId },
+      select: { subscriptionStatus: true, subscriptionExpiry: true },
+    });
+    if (village && !isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const { id: idParam } = await params;
@@ -238,7 +252,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.villageId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -515,7 +529,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.villageId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

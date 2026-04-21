@@ -1,14 +1,17 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import * as XLSX from "xlsx";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = new URL(req.url);
     const format = url.searchParams.get("format") || "excel";
     const search = url.searchParams.get("search") ?? undefined;
@@ -31,6 +34,9 @@ export async function GET(req: NextRequest) {
         },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     // Build where clause (same logic as GET /api/residents)

@@ -1,9 +1,10 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/auth";
 import { getToken } from "next-auth/jwt";
 import { toJSONSafe } from "@/utils/json";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveVillage(session: any, token?: any) {
@@ -30,7 +31,7 @@ async function resolveVillage(session: any, token?: any) {
 // Approve or reject SPP (update transaction status)
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const token = await getToken({ req, secret: authOptions.secret });
     const apiKeyHeader = req.headers.get("x-api-key");
     const validApiKey = process.env.FINANCE_API_KEY;
@@ -46,6 +47,9 @@ export async function POST(req: NextRequest) {
         { error: "Tidak ada desa yang tersedia" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();

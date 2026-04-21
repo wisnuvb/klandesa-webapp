@@ -1,12 +1,9 @@
-import { auth } from "@/auth";
-import { AppShell } from "./AppShell";
+import { AppLayoutClient } from "./AppLayoutClient";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-export default async function AppLayout({ children }: AppLayoutProps) {
-  const session = await auth();
-
-  return <AppShell session={session}>{children}</AppShell>;
+export default function AppLayout({ children }: AppLayoutProps) {
+  return <AppLayoutClient>{children}</AppLayoutClient>;
 }

@@ -1,9 +1,9 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { resolveVillage } from "@/lib/village";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 function getOrigin(req: NextRequest) {
   const proto = req.headers.get("x-forwarded-proto") ?? "http";
@@ -15,7 +15,7 @@ function getOrigin(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
@@ -33,6 +33,9 @@ export async function GET(req: NextRequest) {
         },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const secret = process.env.AUTH_SECRET ?? "your-secret-key";
@@ -74,4 +77,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

@@ -1,17 +1,17 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import {
   buildLetterFormSnapshot,
   mergeMailFormDataForPersistence,
 } from "@/lib/mail/letterFormSnapshot";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
@@ -26,6 +26,9 @@ export async function GET(req: NextRequest) {
         { error: "Village not found" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const rows = await prisma.mailService.findMany({
@@ -77,7 +80,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const village = await resolveVillage({ req, session });
 
     if (!village) {
@@ -85,6 +88,9 @@ export async function POST(req: NextRequest) {
         { error: "Village not found" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();

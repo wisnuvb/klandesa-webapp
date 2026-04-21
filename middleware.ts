@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { INVOKE_PATHNAME_HEADER } from "@/lib/middleware-headers";
 import {
   getSubdomain,
   isMainDomain,
@@ -7,74 +8,81 @@ import {
   isTenantSubdomain,
 } from "@/lib/subdomain";
 
+function nextWithPathname(req: NextRequest): NextResponse {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set(INVOKE_PATHNAME_HEADER, req.nextUrl.pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
+function rewriteWithPathname(req: NextRequest, target: URL): NextResponse {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set(INVOKE_PATHNAME_HEADER, req.nextUrl.pathname);
+  return NextResponse.rewrite(target, { request: { headers: requestHeaders } });
+}
+
+/**
+ * Tidak memakai getToken/JWT di Edge — sering tidak kompatibel dengan JWE NextAuth.
+ * Proteksi rute app: app/(app)/layout.tsx memanggil auth() (Node) + redirect.
+ */
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl;
-  const hostname = req.headers.get("host") || "";
   const subdomain = getSubdomain(req);
 
-  console.log("Middleware:", { hostname, subdomain, pathname: url.pathname });
+  if (process.env.DEBUG_MIDDLEWARE === "1") {
+    console.log("Middleware:", {
+      hostname: req.headers.get("host"),
+      subdomain,
+      pathname: url.pathname,
+    });
+  }
 
-  // Handle main domain (landing page)
   if (isMainDomain(subdomain)) {
-    // Skip rewrite for Next.js internal routes and API routes
     if (url.pathname.startsWith("/_next") || url.pathname.startsWith("/api")) {
-      return NextResponse.next();
+      return nextWithPathname(req);
     }
 
     if (url.pathname === "/") {
       return NextResponse.next();
     }
 
-    // Rewrite to landing routes
-    // Note: Route groups like (landing) are not part of the URL
-    // Next.js will automatically find the route in the (landing) folder
-    return NextResponse.rewrite(new URL(url.pathname, req.url));
+    return rewriteWithPathname(req, new URL(url.pathname, req.url));
   }
 
-  // Handle app subdomain (dashboard)
   if (isAppSubdomain(subdomain)) {
-    // NOTE: Cannot call auth() in middleware (edge runtime)
-    // Just allow the request and let pages handle auth
-
-    // Allow auth routes
     if (url.pathname.startsWith("/api/auth")) {
-      return NextResponse.next();
+      return nextWithPathname(req);
     }
 
-    // Allow public routes
+    if (url.pathname.startsWith("/api")) {
+      return nextWithPathname(req);
+    }
+
     if (url.pathname.startsWith("/auth")) {
-      return NextResponse.next();
+      return nextWithPathname(req);
     }
 
-    // Rewrite to app routes
     if (
       !url.pathname.startsWith("/_next") &&
       !url.pathname.startsWith("/api")
     ) {
-      // Serve '/' from the internal (app)/dashboard page to avoid parallel root pages
       if (url.pathname === "/") {
-        // Route groups like (app) are not part of the URL; rewrite to the actual path
-        return NextResponse.rewrite(new URL(`/dashboard`, req.url));
+        return rewriteWithPathname(req, new URL(`/dashboard`, req.url));
       }
-      // Keep the same pathname; route groups are ignored by the router
-      return NextResponse.rewrite(new URL(`${url.pathname}`, req.url));
+      return rewriteWithPathname(req, new URL(`${url.pathname}`, req.url));
     }
   }
 
-  // Handle tenant subdomains (tenant websites)
   if (isTenantSubdomain(subdomain)) {
-    // Store subdomain in header for use in app
     const requestHeaders = new Headers(req.headers);
     if (subdomain) {
       requestHeaders.set("x-tenant-subdomain", subdomain);
     }
+    requestHeaders.set(INVOKE_PATHNAME_HEADER, req.nextUrl.pathname);
 
-    // Rewrite to website routes with tenant context
     if (
       !url.pathname.startsWith("/_next") &&
       !url.pathname.startsWith("/api")
     ) {
-      // Serve '/' from the internal (website)/site page to avoid parallel root pages
       if (url.pathname === "/") {
         return NextResponse.rewrite(new URL(`/(website)/site`, req.url), {
           request: { headers: requestHeaders },
@@ -82,7 +90,7 @@ export async function middleware(req: NextRequest) {
       }
       return NextResponse.rewrite(
         new URL(`/(website)${url.pathname}`, req.url),
-        { request: { headers: requestHeaders } }
+        { request: { headers: requestHeaders } },
       );
     }
   }
@@ -92,13 +100,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

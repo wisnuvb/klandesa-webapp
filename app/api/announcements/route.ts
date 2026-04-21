@@ -1,8 +1,8 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/auth";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 async function resolveVillage(
   req: NextRequest,
@@ -39,7 +39,10 @@ async function resolveVillage(
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") || undefined;
     const search = url.searchParams.get("search") || "";
@@ -51,6 +54,9 @@ export async function GET(req: NextRequest) {
         { error: "Village not found" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const where: any = {
@@ -96,7 +102,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await req.json();
 
     const village = await resolveVillage(req, body.villageCode, session);
@@ -105,6 +114,9 @@ export async function POST(req: NextRequest) {
         { error: "Village not found" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const announcement = await prisma.announcement.create({

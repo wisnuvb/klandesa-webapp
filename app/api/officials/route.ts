@@ -1,14 +1,17 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSubdomain } from "@/lib/subdomain";
+import {
+  isVillageSubscriptionActive,
+  subscriptionBlockedResponse,
+} from "@/lib/subscription";
 
 async function resolveVillage(
   req: NextRequest,
   queryVillageCode?: string,
-  session?: any
+  session?: any,
 ) {
   if (session?.user?.villageCode) {
     const village = await prisma.village.findUnique({
@@ -57,12 +60,15 @@ function normalizeStatus(status?: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = new URL(req.url);
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
     const pageSize = Math.max(
       1,
-      Number(url.searchParams.get("pageSize") ?? 50)
+      Number(url.searchParams.get("pageSize") ?? 50),
     );
     const search = url.searchParams.get("search") ?? undefined;
     const status = normalizeStatus(url.searchParams.get("status") ?? undefined);
@@ -76,8 +82,11 @@ export async function GET(req: NextRequest) {
           error:
             "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
         },
-        { status: 404 }
+        { status: 404 },
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const where: any = { villageId: village.id };
@@ -141,20 +150,24 @@ export async function GET(req: NextRequest) {
     console.error("GET /api/officials error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // Session is optional - allow both authenticated and unauthenticated requests
-    // This is useful for testing and development. In production, add proper API key/token auth if needed.
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const village = await resolveVillage(req, undefined, session);
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();
@@ -201,7 +214,7 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -222,7 +235,7 @@ export async function POST(req: NextRequest) {
         if (!positionByName) {
           return NextResponse.json(
             { error: `Position "${village_staff_position_id}" not found` },
-            { status: 404 }
+            { status: 404 },
           );
         }
         positionId = positionByName.id;
@@ -239,14 +252,14 @@ export async function POST(req: NextRequest) {
     if (!position || position.villageId !== village.id) {
       return NextResponse.json(
         { error: "Position not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (parsedSupervisorId !== null && Number.isNaN(parsedSupervisorId)) {
       return NextResponse.json(
         { error: "Supervisor tidak valid" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -259,7 +272,7 @@ export async function POST(req: NextRequest) {
       if (!supervisor || supervisor.villageId !== village.id) {
         return NextResponse.json(
           { error: "Supervisor tidak ditemukan" },
-          { status: 404 }
+          { status: 404 },
         );
       }
     }
@@ -315,7 +328,7 @@ export async function POST(req: NextRequest) {
     console.error("POST /api/officials error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

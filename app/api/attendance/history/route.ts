@@ -1,8 +1,8 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 type SubscriptionTier =
   | "FREE"
@@ -52,8 +52,8 @@ function parseDateParam(value: string | null) {
 function mapVillagePlanToTier(plan: string | null | undefined): SubscriptionTier {
   const value = (plan ?? "").toLowerCase();
   if (value === "enterprise") return "TIER_31_50";
-  if (value === "profesional") return "TIER_11_20";
-  if (value === "starter") return "FREE";
+  if (value === "profesional" || value === "professional") return "TIER_11_20";
+  if (value === "starter") return "TIER_6_10";
   return "FREE";
 }
 
@@ -91,7 +91,7 @@ function normalizeStatus(status?: string | null) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
@@ -118,11 +118,11 @@ export async function GET(req: NextRequest) {
         { status: 404 }
       );
     }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
 
-    const tier =
-      village.subscriptionStatus?.toLowerCase() === "active"
-        ? mapVillagePlanToTier(village.subscriptionPlan)
-        : "FREE";
+    const tier = mapVillagePlanToTier(village.subscriptionPlan);
     const maxDays = maxHistoryDaysForTier(tier);
 
     const now = new Date();
@@ -209,4 +209,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

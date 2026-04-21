@@ -1,11 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import { Package, Tag } from "lucide-react";
-import { toast } from "sonner";
-import type { UkmCategoryRow, UkmProduct } from "./_types";
-import { generateSlug } from "./_utils";
+import type { UkmProduct } from "./_types";
 import UkmCategoryModal from "./components/UkmCategoryModal";
 import UkmCategoryTable from "./components/UkmCategoryTable";
 import UkmImagePreviewModal from "./components/UkmImagePreviewModal";
@@ -13,27 +11,16 @@ import UkmProductModal, { UkmProductDraft } from "./components/UkmProductModal";
 import UkmProductsGrid from "./components/UkmProductsGrid";
 import UkmProductsToolbar from "./components/UkmProductsToolbar";
 import UkmStatsCards from "./components/UkmStatsCards";
+import { useCategories } from "../../../hooks/useCategories";
+import { useImagePreview } from "../../../hooks/useImagePreview";
+import { useProductModal } from "../../../hooks/useProductModal";
+import { useCategoryModal } from "../../../hooks/useCategoryModal";
+import { useProducts } from "../../../hooks/useProducts";
+import { useStats } from "../../../hooks/useStats";
 
 type Props = {
   initialProducts: UkmProduct[];
 };
-
-const emptyDraft: UkmProductDraft = {
-  name: "",
-  description: "",
-  price: 0,
-  category: "",
-  images: [],
-};
-
-async function readJsonError(res: Response): Promise<string> {
-  try {
-    const data = (await res.json()) as { error?: string };
-    return data?.error || "Request gagal";
-  } catch {
-    return "Request gagal";
-  }
-}
 
 export default function ProdukUKMClient(props: Props) {
   const { initialProducts } = props;
@@ -41,244 +28,93 @@ export default function ProdukUKMClient(props: Props) {
   const [activeTab, setActiveTab] = useState<"products" | "categories">(
     "products",
   );
-  const [products, setProducts] = useState<UkmProduct[]>(initialProducts);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterCategory, setFilterCategory] = useState<string | "ALL">("ALL");
 
-  const [productModalOpen, setProductModalOpen] = useState(false);
-  const [productModalKey, setProductModalKey] = useState(0);
-  const [productModalInitialDraft, setProductModalInitialDraft] =
-    useState<UkmProductDraft>(emptyDraft);
-  const [editingProductId, setEditingProductId] = useState<number | null>(null);
-  const [isSavingProduct, setIsSavingProduct] = useState(false);
-
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [categoryModalKey, setCategoryModalKey] = useState(0);
-  const [categoryModalInitialName, setCategoryModalInitialName] = useState("");
-  const [editingCategoryName, setEditingCategoryName] = useState<string | null>(
-    null,
-  );
-  const [isSavingCategory, setIsSavingCategory] = useState(false);
-
-  const [showImagePreview, setShowImagePreview] = useState(false);
-  const [previewImages, setPreviewImages] = useState<string[]>([]);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  const categoryRows: UkmCategoryRow[] = useMemo(() => {
-    const map = new Map<
-      string,
-      { productCount: number; createdAt: string | null }
-    >();
-
-    for (const p of products) {
-      const name = p.category?.trim() || "Tanpa Kategori";
-      const existing = map.get(name);
-      const createdAt = p.createdAt;
-      if (!existing) {
-        map.set(name, { productCount: 1, createdAt });
-        continue;
-      }
-      existing.productCount += 1;
-      if (existing.createdAt) {
-        existing.createdAt =
-          new Date(createdAt) < new Date(existing.createdAt)
-            ? createdAt
-            : existing.createdAt;
-      } else {
-        existing.createdAt = createdAt;
-      }
-    }
-
-    return Array.from(map.entries())
-      .map(([name, meta]) => ({
-        name,
-        slug: generateSlug(name),
-        productCount: meta.productCount,
-        createdAt: meta.createdAt,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [products]);
-
-  const categoryOptions: string[] = useMemo(() => {
-    return categoryRows
-      .map((c) => c.name)
-      .filter((name) => name !== "Tanpa Kategori");
-  }, [categoryRows]);
-
-  const filteredProducts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return products.filter((product) => {
-      const matchSearch =
-        !q ||
-        product.name.toLowerCase().includes(q) ||
-        product.description.toLowerCase().includes(q);
-
-      const categoryLabel = product.category?.trim() || "Tanpa Kategori";
-      const matchCategory =
-        filterCategory === "ALL" || categoryLabel === filterCategory;
-
-      return matchSearch && matchCategory;
-    });
-  }, [filterCategory, products, searchQuery]);
-
-  const stats = useMemo(() => {
-    const activeProducts = products.filter(
-      (p) => p.status.toLowerCase() === "active",
-    ).length;
-    const totalValue = products.reduce((acc, p) => acc + (p.price ?? 0), 0);
-    return {
-      totalProducts: products.length,
-      totalCategories: categoryRows.filter((c) => c.name !== "Tanpa Kategori")
-        .length,
-      activeProducts,
-      totalValue,
-    };
-  }, [categoryRows, products]);
+  const productsHook = useProducts(initialProducts);
+  const categoriesHook = useCategories(productsHook.products);
+  const productModalHook = useProductModal();
+  const categoryModalHook = useCategoryModal();
+  const imagePreviewHook = useImagePreview();
+  const stats = useStats(productsHook.products, categoriesHook.categoryRows);
 
   const handleAddProduct = () => {
-    setEditingProductId(null);
-    setProductModalInitialDraft(emptyDraft);
-    setProductModalKey((k) => k + 1);
-    setProductModalOpen(true);
+    productModalHook.openModal();
   };
 
   const handleEditProduct = (product: UkmProduct) => {
-    setEditingProductId(product.id);
-    setProductModalInitialDraft({
-      name: product.name,
-      description: product.description,
-      price: product.price ?? 0,
-      category: product.category ?? "",
-      images: product.images,
-    });
-    setProductModalKey((k) => k + 1);
-    setProductModalOpen(true);
+    productModalHook.openModal(product);
   };
 
-  const handleDeleteProduct = async (id: number) => {
-    if (!confirm("Hapus produk ini?")) return;
-
-    try {
-      const res = await fetch(`/api/ukm-products/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(await readJsonError(res));
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Produk berhasil dihapus");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal menghapus");
-    }
+  const handleDeleteProduct = (id: number) => {
+    productsHook.deleteProduct(id);
   };
 
   const handleSaveProduct = async (draft: UkmProductDraft) => {
-    setIsSavingProduct(true);
+    productModalHook.setIsSaving(true);
     try {
-      const payload = {
-        name: draft.name,
-        description: draft.description,
-        price: draft.price,
-        category: draft.category,
-        images: draft.images,
-      };
-
-      const res = await fetch(
-        editingProductId ? `/api/ukm-products/${editingProductId}` : "/api/ukm-products",
-        {
-          method: editingProductId ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (!res.ok) throw new Error(await readJsonError(res));
-      const saved = (await res.json()) as UkmProduct;
-
-      setProducts((prev) => {
-        const idx = prev.findIndex((p) => p.id === saved.id);
-        if (idx === -1) return [saved, ...prev];
-        return prev.map((p) => (p.id === saved.id ? saved : p));
-      });
-
-      setProductModalOpen(false);
-      toast.success("Produk berhasil disimpan");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal menyimpan");
+      if (productModalHook.editingId) {
+        await productsHook.editProduct(productModalHook.editingId, draft);
+      } else {
+        await productsHook.addProduct(draft);
+      }
+      productModalHook.closeModal();
     } finally {
-      setIsSavingProduct(false);
+      productModalHook.setIsSaving(false);
     }
   };
 
   const handlePreviewImages = (images: string[], index: number = 0) => {
-    setPreviewImages(images);
-    setCurrentImageIndex(index);
-    setShowImagePreview(true);
+    imagePreviewHook.openPreview(images, index);
   };
 
   const handleRenameCategory = (name: string) => {
-    setEditingCategoryName(name);
-    setCategoryModalInitialName(name);
-    setCategoryModalKey((k) => k + 1);
-    setCategoryModalOpen(true);
+    categoryModalHook.openModal(name);
+  };
+
+  const handleAddCategory = () => {
+    categoryModalHook.openModal();
   };
 
   const handleSaveCategoryRename = async (newName: string) => {
-    const from = editingCategoryName;
+    const from = categoryModalHook.editingName;
     const to = newName.trim();
-    if (!from) return;
-    if (from === "Tanpa Kategori") return;
     if (!to) return;
 
-    setIsSavingCategory(true);
+    categoryModalHook.setIsSaving(true);
     try {
-      const res = await fetch("/api/ukm-products/categories", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to }),
-      });
-      if (!res.ok) throw new Error(await readJsonError(res));
-
-      setProducts((prev) =>
-        prev.map((p) =>
-          (p.category?.trim() || "Tanpa Kategori") === from
-            ? { ...p, category: to }
-            : p,
-        ),
-      );
-      setCategoryModalOpen(false);
-      toast.success("Kategori berhasil diubah");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal menyimpan");
+      if (from) {
+        // Rename existing category
+        await categoriesHook.renameCategory(from, to);
+        // Update products state
+        productsHook.products.forEach((p) => {
+          if ((p.category?.trim() || "Tanpa Kategori") === from) {
+            p.category = to;
+          }
+        });
+        // Trigger re-render by updating products
+        productsHook.setSearchQuery(productsHook.searchQuery); // Hack to trigger re-render
+      } else {
+        // Add new category
+        const newProduct = await categoriesHook.addCategory(to);
+        productsHook.products.push(newProduct);
+        productsHook.setSearchQuery(productsHook.searchQuery); // Hack to trigger re-render
+      }
+      categoryModalHook.closeModal();
     } finally {
-      setIsSavingCategory(false);
+      categoryModalHook.setIsSaving(false);
     }
   };
 
   const handleDeleteCategory = async (name: string) => {
-    if (name === "Tanpa Kategori") return;
-    if (!confirm(`Hapus kategori "${name}"? Produk di kategori ini akan jadi tanpa kategori.`)) {
-      return;
-    }
-
-    setIsSavingCategory(true);
-    try {
-      const res = await fetch("/api/ukm-products/categories", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      if (!res.ok) throw new Error(await readJsonError(res));
-
-      setProducts((prev) =>
-        prev.map((p) =>
-          (p.category?.trim() || "Tanpa Kategori") === name
-            ? { ...p, category: null }
-            : p,
-        ),
-      );
-      toast.success("Kategori berhasil dihapus");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal menghapus");
-    } finally {
-      setIsSavingCategory(false);
-    }
+    await categoriesHook.deleteCategory(name, productsHook.products);
+    // Remove placeholder products
+    const updatedProducts = productsHook.products.filter((p) =>
+      !((p.category?.trim() || "Tanpa Kategori") === name &&
+        p.status.toLowerCase() === "inactive" &&
+        p.name.startsWith("Kategori: ")),
+    );
+    // Update products state
+    productsHook.products.splice(0, productsHook.products.length, ...updatedProducts);
+    productsHook.setSearchQuery(productsHook.searchQuery); // Hack to trigger re-render
   };
 
   return (
@@ -320,17 +156,17 @@ export default function ProdukUKMClient(props: Props) {
           {activeTab === "products" && (
             <div className="space-y-4">
               <UkmProductsToolbar
-                searchQuery={searchQuery}
-                onSearchQueryChange={setSearchQuery}
-                filterCategory={filterCategory}
-                categories={categoryRows.map((c) => c.name)}
-                onFilterCategoryChange={setFilterCategory}
+                searchQuery={productsHook.searchQuery}
+                onSearchQueryChange={productsHook.setSearchQuery}
+                filterCategory={productsHook.filterCategory}
+                categories={categoriesHook.categoryRows.map((c) => c.name)}
+                onFilterCategoryChange={productsHook.setFilterCategory}
                 onAddProduct={handleAddProduct}
               />
 
-              {filteredProducts.length > 0 ? (
+              {productsHook.filteredProducts.length > 0 ? (
                 <UkmProductsGrid
-                  products={filteredProducts}
+                  products={productsHook.filteredProducts}
                   onEdit={handleEditProduct}
                   onDelete={handleDeleteProduct}
                   onPreviewImages={handlePreviewImages}
@@ -353,6 +189,12 @@ export default function ProdukUKMClient(props: Props) {
                 <h3 className="font-medium text-gray-900">
                   Daftar Kategori Produk
                 </h3>
+                <button
+                  onClick={handleAddCategory}
+                  className="px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                >
+                  Tambah Kategori
+                </button>
               </div>
 
               <p className="text-sm text-gray-500">
@@ -360,10 +202,10 @@ export default function ProdukUKMClient(props: Props) {
                 DB).
               </p>
 
-              {categoryRows.filter((c) => c.name !== "Tanpa Kategori").length >
+              {categoriesHook.categoryRows.filter((c) => c.name !== "Tanpa Kategori").length >
               0 ? (
                 <UkmCategoryTable
-                  categories={categoryRows.filter(
+                  categories={categoriesHook.categoryRows.filter(
                     (c) => c.name !== "Tanpa Kategori",
                   )}
                   onRename={handleRenameCategory}
@@ -384,32 +226,32 @@ export default function ProdukUKMClient(props: Props) {
       </motion.div>
 
       <UkmProductModal
-        key={productModalKey}
-        open={productModalOpen}
-        title={editingProductId ? "Edit Produk" : "Tambah Produk Baru"}
-        initialDraft={productModalInitialDraft}
-        categoryOptions={categoryOptions}
-        isSaving={isSavingProduct}
-        onClose={() => setProductModalOpen(false)}
+        key={productModalHook.key}
+        open={productModalHook.open}
+        title={productModalHook.editingId ? "Edit Produk" : "Tambah Produk Baru"}
+        initialDraft={productModalHook.initialDraft}
+        categoryOptions={categoriesHook.categoryOptions}
+        isSaving={productModalHook.isSaving}
+        onClose={productModalHook.closeModal}
         onSave={handleSaveProduct}
       />
 
       <UkmCategoryModal
-        key={categoryModalKey}
-        open={categoryModalOpen}
-        title="Ubah Nama Kategori"
-        initialName={categoryModalInitialName}
-        isSaving={isSavingCategory}
-        onClose={() => setCategoryModalOpen(false)}
+        key={categoryModalHook.key}
+        open={categoryModalHook.open}
+        title={categoryModalHook.editingName ? "Ubah Nama Kategori" : "Tambah Kategori Baru"}
+        initialName={categoryModalHook.initialName}
+        isSaving={categoryModalHook.isSaving}
+        onClose={categoryModalHook.closeModal}
         onSave={handleSaveCategoryRename}
       />
 
       <UkmImagePreviewModal
-        open={showImagePreview}
-        images={previewImages}
-        currentIndex={currentImageIndex}
-        onClose={() => setShowImagePreview(false)}
-        onSelectIndex={setCurrentImageIndex}
+        open={imagePreviewHook.open}
+        images={imagePreviewHook.images}
+        currentIndex={imagePreviewHook.currentIndex}
+        onClose={imagePreviewHook.closePreview}
+        onSelectIndex={imagePreviewHook.setCurrentIndex}
       />
     </div>
   );

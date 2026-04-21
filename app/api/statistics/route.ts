@@ -1,8 +1,8 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/auth";
 import { calculateAge } from "@/utils";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 // Interface untuk response data
 interface StatisticsResponse {
@@ -123,7 +123,10 @@ function normalizeOccupation(occupation: string | null): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Resolve village
     const village = await resolveVillage(session);
@@ -132,6 +135,9 @@ export async function GET(req: NextRequest) {
         { error: "Tidak ada desa yang tersedia" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const { searchParams } = new URL(req.url);

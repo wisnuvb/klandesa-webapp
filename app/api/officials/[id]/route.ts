@@ -1,14 +1,17 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSubdomain } from "@/lib/subdomain";
+import {
+  isVillageSubscriptionActive,
+  subscriptionBlockedResponse,
+} from "@/lib/subscription";
 
 async function resolveVillage(
   req: NextRequest,
   queryVillageCode?: string,
-  session?: any
+  session?: any,
 ) {
   if (session?.user?.villageCode) {
     const village = await prisma.village.findUnique({
@@ -52,7 +55,7 @@ function normalizeStatus(status?: string) {
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await context.params;
@@ -62,10 +65,16 @@ export async function PATCH(
       return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
     }
 
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const village = await resolveVillage(req, undefined, session);
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const existing = await prisma.official.findUnique({
@@ -75,7 +84,7 @@ export async function PATCH(
     if (!existing || existing.villageId !== village.id) {
       return NextResponse.json(
         { error: "Perangkat tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -111,7 +120,7 @@ export async function PATCH(
       if (!normalized) {
         return NextResponse.json(
           { error: "Status tidak valid" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       data.status = normalized;
@@ -122,7 +131,7 @@ export async function PATCH(
       if (Number.isNaN(positionId)) {
         return NextResponse.json(
           { error: "Jabatan tidak valid" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -133,7 +142,7 @@ export async function PATCH(
       if (!position || position.villageId !== village.id) {
         return NextResponse.json(
           { error: "Jabatan tidak ditemukan" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -149,10 +158,13 @@ export async function PATCH(
           : Number(supervisorInput);
 
       if (parsedSupervisorId !== null) {
-        if (Number.isNaN(parsedSupervisorId) || parsedSupervisorId === officialId) {
+        if (
+          Number.isNaN(parsedSupervisorId) ||
+          parsedSupervisorId === officialId
+        ) {
           return NextResponse.json(
             { error: "Supervisor tidak valid" },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -164,7 +176,7 @@ export async function PATCH(
         if (!supervisor || supervisor.villageId !== village.id) {
           return NextResponse.json(
             { error: "Supervisor tidak ditemukan" },
-            { status: 404 }
+            { status: 404 },
           );
         }
       }
@@ -204,14 +216,14 @@ export async function PATCH(
     console.error("PATCH /api/officials/[id] error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await context.params;
@@ -221,10 +233,16 @@ export async function DELETE(
       return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
     }
 
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const village = await resolveVillage(req, undefined, session);
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const existing = await prisma.official.findUnique({
@@ -235,7 +253,7 @@ export async function DELETE(
     if (!existing || existing.villageId !== village.id) {
       return NextResponse.json(
         { error: "Perangkat tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -246,7 +264,7 @@ export async function DELETE(
     console.error("DELETE /api/officials/[id] error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

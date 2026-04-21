@@ -1,11 +1,11 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { resolveVillage } from "@/lib/village";
 import {
   buildLetterFormSnapshot,
   snapshotToDesaSettings,
 } from "@/lib/mail/letterFormSnapshot";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 /**
  * GET — pengaturan desa + snapshot variabel surat untuk UI Layanan Surat
@@ -13,11 +13,17 @@ import {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const village = await resolveVillage({ req, session });
 
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const snapshot = await buildLetterFormSnapshot(village.id);

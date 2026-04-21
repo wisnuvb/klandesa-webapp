@@ -1,15 +1,19 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/auth";
+import { resolveVillage } from "@/lib/village";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { id: idStr } = await params;
     const id = parseInt(idStr);
     const body = await req.json();
@@ -18,11 +22,24 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
-    // Optional: check if the announcement belongs to the same village as the user
-    // For now, keep it simple
+    const village = await resolveVillage({ req, session });
+    if (!village) {
+      return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
+
+    const existing = await prisma.announcement.findFirst({
+      where: { id, villageId: village.id },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
+    }
 
     const announcement = await prisma.announcement.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         title: body.title,
         content: body.content,
@@ -50,7 +67,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const _session = await getServerSession(authOptions);
+    const session = await getApiSession(_req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { id: idStr } = await params;
     const id = parseInt(idStr);
 
@@ -58,11 +78,23 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
-    // Perform soft delete or hard delete. The prompt said "hapus", so let's do hard delete.
-    // Or just set isActive = false. Let's do hard delete as it's common for announcements.
-    await prisma.announcement.delete({
-      where: { id },
+    const village = await resolveVillage({ req: _req, session });
+    if (!village) {
+      return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
+
+    const existing = await prisma.announcement.findFirst({
+      where: { id, villageId: village.id },
+      select: { id: true },
     });
+    if (!existing) {
+      return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
+    }
+
+    await prisma.announcement.delete({ where: { id: existing.id } });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

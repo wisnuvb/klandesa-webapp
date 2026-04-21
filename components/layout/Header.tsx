@@ -241,7 +241,11 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => signOut()}
+                onClick={() =>
+                  signOut({
+                    callbackUrl: "/auth/signin",
+                  })
+                }
               >
                 Keluar
               </DropdownMenuItem>

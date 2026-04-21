@@ -1,8 +1,7 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { authOptions } from "@/auth";
 import { resolveVillage } from "@/lib/village";
 import { prisma } from "@/lib/prisma";
 import {
@@ -11,6 +10,7 @@ import {
   getSpacesConfig,
 } from "@/lib/spaces";
 import { assertStorageForUpload } from "@/lib/digitalArchive/quota";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 function sanitizeFileName(name: string) {
   return name
@@ -28,7 +28,7 @@ function getExtension(name: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
     const village = await resolveVillage({ req, session });
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = (await req.json()) as {

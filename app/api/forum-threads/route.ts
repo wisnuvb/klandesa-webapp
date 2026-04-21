@@ -1,9 +1,12 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
+import {
+  isVillageSubscriptionActive,
+  subscriptionBlockedResponse,
+} from "@/lib/subscription";
 
 const ALLOWED_CATEGORIES = new Set([
   "UMUM",
@@ -21,12 +24,15 @@ function mapRoleLabel(role?: string | null): string {
     village_head: "Kepala Desa",
     secretary: "Sekretaris Desa",
   };
-  return role ? (mapping[role] || role) : "Warga";
+  return role ? mapping[role] || role : "Warga";
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
@@ -38,6 +44,9 @@ export async function GET(req: NextRequest) {
 
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const rows = await prisma.forumThread.findMany({
@@ -69,23 +78,34 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(mapped);
   } catch (error) {
     console.error("GET /api/forum-threads error:", error);
-    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const village = await resolveVillage({ req, session });
 
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
     }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
 
     const body = await req.json();
     const title = String(body.title || "").trim();
     const content = String(body.content || "").trim();
-    const category = String(body.category || "UMUM").trim().toUpperCase();
+    const category = String(body.category || "UMUM")
+      .trim()
+      .toUpperCase();
 
     if (!title || !content) {
       return NextResponse.json(
@@ -95,10 +115,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (!ALLOWED_CATEGORIES.has(category)) {
-      return NextResponse.json({ error: "Kategori tidak valid" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Kategori tidak valid" },
+        { status: 400 },
+      );
     }
 
-    const userId = session?.user?.id ? Number(session.user.id) : null;
+    const userId = Number(session.user.id);
     const user = userId
       ? await prisma.user.findUnique({
           where: { id: userId },

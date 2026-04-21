@@ -1,6 +1,6 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { getSubdomain } from "@/lib/subdomain";
 import {
@@ -10,7 +10,10 @@ import {
   getMaritalStatus,
 } from "@/utils";
 import bcrypt from "bcryptjs";
-import { authOptions } from "@/auth";
+import {
+  isVillageSubscriptionActive,
+  subscriptionBlockedResponse,
+} from "@/lib/subscription";
 
 function mapFamilyRole(id: string) {
   switch (id) {
@@ -40,7 +43,7 @@ function mapReligionId(id: string) {
 async function resolveVillage(
   req: NextRequest,
   queryVillageCode?: string,
-  session?: any
+  session?: any,
 ) {
   // Priority 1: Use villageCode from session (authenticated user)
   if (session?.user?.villageCode) {
@@ -85,7 +88,10 @@ async function resolveVillage(
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await req.json();
 
     // Resolve village from session (authenticated user) or provided code in body
@@ -96,8 +102,11 @@ export async function POST(req: NextRequest) {
           error:
             "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
         },
-        { status: 404 }
+        { status: 404 },
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     // Basic validation
@@ -113,7 +122,7 @@ export async function POST(req: NextRequest) {
     if (missing.length) {
       return NextResponse.json(
         { error: `Field wajib: ${missing.join(", ")}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -126,7 +135,7 @@ export async function POST(req: NextRequest) {
     if (existingResident) {
       return NextResponse.json(
         { error: "Resident dengan NIK ini sudah ada di desa" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -189,14 +198,17 @@ export async function POST(req: NextRequest) {
     console.error("POST /api/residents error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = new URL(req.url);
     const page = Number(url.searchParams.get("page") ?? 1);
     const pageSize = Number(url.searchParams.get("pageSize") ?? 10);
@@ -215,8 +227,11 @@ export async function GET(req: NextRequest) {
           error:
             "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
         },
-        { status: 404 }
+        { status: 404 },
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const where: any = { villageId: village.id };
@@ -270,7 +285,7 @@ export async function GET(req: NextRequest) {
     console.error("GET /api/residents error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

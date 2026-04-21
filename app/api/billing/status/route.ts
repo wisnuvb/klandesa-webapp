@@ -1,14 +1,13 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { resolveVillage } from "@/lib/village";
 import { prisma } from "@/lib/prisma";
 import { mapDesaTierToAddonTier, type DesaPackageTier } from "@/lib/billing/catalog";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -1,14 +1,14 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { getSubdomain } from "@/lib/subdomain";
-import { authOptions } from "@/auth";
 import {
   EDUCATION_OPTIONS,
   JOB_OPTIONS,
   RELIGION_OPTIONS,
 } from "@/utils/constants/user";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 async function resolveVillage(
   req: NextRequest,
@@ -59,7 +59,10 @@ export async function GET(
   ctx: { params: Promise<{ kk: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
     const { kk } = await ctx.params;
@@ -67,6 +70,9 @@ export async function GET(
     const village = await resolveVillage(req, villageCode, session);
     if (!village) {
       return NextResponse.json({ error: "Tidak ada desa." }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const members = await prisma.resident.findMany({

@@ -1,21 +1,106 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { resolveVillage } from "@/lib/village";
 import {
   createCheckout,
   type BillingPaymentMethod,
 } from "@/lib/billing/service";
 import type { BillingProductType } from "@/lib/billing/catalog";
+import {
+  isAllowedLinkquVaBankCode,
+  resolveLinkquBankCode,
+  validateLinkquCheckoutInput,
+} from "@/lib/payment/linkqu-channels";
+
+export async function GET(req: NextRequest) {
+  try {
+    console.log("[BILLING DEBUG] Debug session request");
+
+    const cookies = req.cookies.getAll();
+    console.log("[BILLING DEBUG] Cookies:", {
+      count: cookies.length,
+      names: cookies.map((c) => c.name),
+      sessionToken:
+        cookies
+          .find((c) => c.name.includes("next-auth.session-token"))
+          ?.value?.substring(0, 50) + "...",
+    });
+
+    const session = await getApiSession(req);
+    console.log("[BILLING DEBUG] Session:", {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      user: session?.user
+        ? {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name,
+            role: session.user.role,
+            villageId: session.user.villageId,
+            villageCode: session.user.villageCode,
+          }
+        : null,
+    });
+
+    const village = session?.user?.villageCode
+      ? await resolveVillage({ req, session })
+      : null;
+    console.log("[BILLING DEBUG] Village:", {
+      hasVillage: !!village,
+      village: village
+        ? {
+            id: village.id,
+            code: village.code,
+            name: village.name,
+          }
+        : null,
+    });
+
+    return NextResponse.json({
+      session: {
+        exists: !!session,
+        user: session?.user
+          ? {
+              id: session.user.id,
+              email: session.user.email,
+              villageCode: session.user.villageCode,
+            }
+          : null,
+      },
+      village: village
+        ? {
+            id: village.id,
+            code: village.code,
+            name: village.name,
+          }
+        : null,
+      cookies: {
+        count: cookies.length,
+        hasSessionToken: cookies.some((c) =>
+          c.name.includes("next-auth.session-token"),
+        ),
+      },
+    });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error("[BILLING DEBUG] Error:", error);
+    return NextResponse.json(
+      { error: "Debug failed", details: error.message },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const session = await getApiSession(req);
+
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const village = await resolveVillage({ req, session });
+
     if (!village) {
       return NextResponse.json(
         { error: "Village tidak ditemukan" },
@@ -28,6 +113,7 @@ export async function POST(req: NextRequest) {
       planCode?: string;
       paymentMethod?: string;
       bankCode?: string;
+      bankChannelId?: string;
       retailCode?: string;
       ewalletPhone?: string;
     } | null;
@@ -35,8 +121,18 @@ export async function POST(req: NextRequest) {
     const productType = String(body?.productType ?? "");
     const planCode = String(body?.planCode ?? "");
     const paymentMethod = String(
-      body?.paymentMethod ?? "qris",
+      body?.paymentMethod ?? "va",
     ) as BillingPaymentMethod;
+
+    let bankCode: string | undefined =
+      typeof body?.bankCode === "string" ? body.bankCode.trim() : undefined;
+    if (body?.bankChannelId) {
+      const resolved = resolveLinkquBankCode(String(body.bankChannelId));
+      if (!resolved) {
+        return NextResponse.json({ error: "Bank tidak valid" }, { status: 400 });
+      }
+      bankCode = resolved;
+    }
 
     if (!productType || !planCode) {
       return NextResponse.json(
@@ -54,6 +150,26 @@ export async function POST(req: NextRequest) {
     if (!allowedProducts.includes(productType as BillingProductType)) {
       return NextResponse.json(
         { error: "productType tidak valid" },
+        { status: 400 },
+      );
+    }
+
+    const checkoutValidation = validateLinkquCheckoutInput({
+      paymentMethod,
+      bankCode,
+      retailCode: body?.retailCode,
+      ewalletPhone: body?.ewalletPhone,
+    });
+    if (!checkoutValidation.ok) {
+      return NextResponse.json(
+        { error: checkoutValidation.error },
+        { status: 400 },
+      );
+    }
+
+    if (paymentMethod === "va" && bankCode && !isAllowedLinkquVaBankCode(bankCode)) {
+      return NextResponse.json(
+        { error: "Bank VA tidak didukung. Pilih bank dari daftar." },
         { status: 400 },
       );
     }
@@ -80,7 +196,7 @@ export async function POST(req: NextRequest) {
       productType: productType as BillingProductType,
       planCode,
       paymentMethod,
-      bankCode: body?.bankCode,
+      bankCode,
       retailCode,
       ewalletPhone: body?.ewalletPhone,
     });

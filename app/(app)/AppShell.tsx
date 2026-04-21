@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Toaster } from "sonner";
-import type { Session } from "next-auth";
 
 // Map route keys to page metadata
 const pageConfig = {
@@ -136,15 +136,10 @@ function derivePageKey(pathname: string): PageKey {
   return "dashboard";
 }
 
-export function AppShell({
-  children,
-  session,
-}: {
-  children: React.ReactNode;
-  session: Session | null;
-}) {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session } = useSession();
   const enforcedRef = useRef(false);
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
@@ -155,39 +150,34 @@ export function AppShell({
     setActivePage(derivePageKey(pathname));
   }, [pathname]);
 
-  useEffect(() => {
-    if (session === null) {
-      router.replace("/auth/signin");
-    }
-  }, [router, session]);
-
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    if (enforcedRef.current) return;
-
-    const current = pathname || "/";
-    if (current.startsWith("/billing") || current.startsWith("/profil")) return;
-    if (current.startsWith("/auth")) return;
-
-    const check = async () => {
-      try {
-        const res = await fetch("/api/billing/status", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json().catch(() => null)) as {
-          subscription?: { active?: boolean };
-        } | null;
-        const active = data?.subscription?.active === true;
-        if (!active) {
-          enforcedRef.current = true;
-          router.replace("/billing");
-        }
-      } catch {
-        return;
-      }
-    };
-
-    void check();
-  }, [pathname, router, session?.user?.id]);
+  // SEMUA REDIRECT AUTH DAN BILLING DIMATIKAN UNTUK DEBUGGING
+  // useEffect(() => {
+  //   if (!session?.user?.id) return;
+  //   if (enforcedRef.current) return;
+  //
+  //   const current = pathname || "/";
+  //   if (current.startsWith("/billing") || current.startsWith("/profil")) return;
+  //   if (current.startsWith("/auth")) return;
+  //
+  //   const check = async () => {
+  //     try {
+  //       const res = await fetch("/api/billing/status", { cache: "no-store" });
+  //       if (!res.ok) return;
+  //       const data = (await res.json().catch(() => null)) as {
+  //         subscription?: { active?: boolean };
+  //       } | null;
+  //       const active = data?.subscription?.active === true;
+  //       if (!active) {
+  //         enforcedRef.current = true;
+  //         router.replace("/billing");
+  //       }
+  //     } catch {
+  //       return;
+  //     }
+  //   };
+  //
+  //   void check();
+  // }, [pathname, router, session?.user?.id]);
 
   const { title, subtitle } = useMemo(
     () => pageConfig[activePage],

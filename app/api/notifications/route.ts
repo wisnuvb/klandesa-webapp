@@ -1,14 +1,14 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import { formatTimeAgo } from "@/lib/formatTimeAgo";
 import { syncAdminNotificationsForVillage } from "@/lib/notifications/syncAdminNotifications";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -21,6 +21,9 @@ export async function GET(req: NextRequest) {
     const village = await resolveVillage({ req, session });
     if (!village) {
       return NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     await syncAdminNotificationsForVillage(village.id);

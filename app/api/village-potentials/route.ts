@@ -1,14 +1,17 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSubdomain } from "@/lib/subdomain";
+import {
+  isVillageSubscriptionActive,
+  subscriptionBlockedResponse,
+} from "@/lib/subscription";
 
 async function resolveVillage(
   req: NextRequest,
   queryVillageCode?: string,
-  session?: any
+  session?: any,
 ) {
   if (session?.user?.villageCode) {
     const village = await prisma.village.findUnique({
@@ -45,11 +48,17 @@ async function resolveVillage(
 // GET - Fetch village potentials
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const village = await resolveVillage(req, undefined, session);
 
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const searchParams = req.nextUrl.searchParams;
@@ -99,7 +108,7 @@ export async function GET(req: NextRequest) {
     console.error("Error fetching village potentials:", error);
     return NextResponse.json(
       { error: "Failed to fetch village potentials" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -107,12 +116,18 @@ export async function GET(req: NextRequest) {
 // POST - Create village potential
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await req.json();
     const village = await resolveVillage(req, body.villageCode, session);
 
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     // Validate required fields
@@ -134,7 +149,7 @@ export async function POST(req: NextRequest) {
       ) {
         return NextResponse.json(
           { error: `Field ${field} is required` },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -152,7 +167,7 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json(
         { error: `Data for year ${body.year} already exists` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -180,7 +195,7 @@ export async function POST(req: NextRequest) {
     console.error("Error creating village potential:", error);
     return NextResponse.json(
       { error: "Failed to create village potential" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

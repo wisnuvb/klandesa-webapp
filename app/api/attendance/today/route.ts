@@ -1,8 +1,8 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 type SubscriptionTier =
   | "FREE"
@@ -63,7 +63,7 @@ function toDateString(date: Date) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
@@ -82,6 +82,9 @@ export async function GET(req: NextRequest) {
         { status: 404 },
       );
     }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
 
     const today = new Date();
     const todayStart = startOfDay(today);
@@ -93,10 +96,7 @@ export async function GET(req: NextRequest) {
       orderBy: [{ position: { level: "asc" } }, { name: "asc" }],
     });
 
-    const tier =
-      village.subscriptionStatus?.toLowerCase() === "active"
-        ? mapVillagePlanToTier(village.subscriptionPlan)
-        : "FREE";
+    const tier = mapVillagePlanToTier(village.subscriptionPlan);
     const staffLimit = staffLimitForTier(tier);
     const totalStaff = activeOfficials.length;
     const isOverLimit = totalStaff > staffLimit;

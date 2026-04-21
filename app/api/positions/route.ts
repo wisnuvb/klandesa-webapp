@@ -1,14 +1,17 @@
+import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSubdomain } from "@/lib/subdomain";
+import {
+  isVillageSubscriptionActive,
+  subscriptionBlockedResponse,
+} from "@/lib/subscription";
 
 async function resolveVillage(
   req: NextRequest,
   queryVillageCode?: string,
-  session?: any
+  session?: any,
 ) {
   if (session?.user?.villageCode) {
     const village = await prisma.village.findUnique({
@@ -48,12 +51,15 @@ async function resolveVillage(
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = new URL(req.url);
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
     const pageSize = Math.max(
       1,
-      Number(url.searchParams.get("pageSize") ?? 100)
+      Number(url.searchParams.get("pageSize") ?? 100),
     );
     const search = url.searchParams.get("search") ?? undefined;
     const isActive = url.searchParams.get("isActive");
@@ -66,8 +72,11 @@ export async function GET(req: NextRequest) {
           error:
             "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
         },
-        { status: 404 }
+        { status: 404 },
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const where: any = { villageId: village.id };
@@ -119,18 +128,24 @@ export async function GET(req: NextRequest) {
     console.error("GET /api/positions error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const village = await resolveVillage(req, undefined, session);
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();
@@ -140,7 +155,7 @@ export async function POST(req: NextRequest) {
     if (!name || !level) {
       return NextResponse.json(
         { error: "Name and level are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -180,7 +195,7 @@ export async function POST(req: NextRequest) {
     console.error("POST /api/positions error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

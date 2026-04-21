@@ -76,6 +76,106 @@ function parseCallbackStatus(
   return "pending";
 }
 
+type CheckoutLineItem = {
+  name: string;
+  description?: string;
+  quantity: number;
+  unitAmount: number;
+  totalAmount: number;
+  metadata?: Record<string, unknown>;
+};
+
+/** Hitung item tagihan dari state desa — tanpa menulis ke DB. */
+async function prepareCheckoutLineItems(
+  input: BillingCheckoutInput,
+): Promise<{ lineItems: CheckoutLineItem[]; amount: number }> {
+  const village = await prisma.village.findUnique({
+    where: { id: input.villageId },
+    select: {
+      id: true,
+      subscriptionPlan: true,
+      subscriptionStatus: true,
+      subscriptionExpiry: true,
+    },
+  });
+  if (!village) throw new Error("Village tidak ditemukan");
+
+  const lineItems: CheckoutLineItem[] = [];
+
+  if (input.productType === "desa_package") {
+    const tier = input.planCode as DesaPackageTier;
+    const tierInfo = BILLING_CATALOG.desa_package.tiers[tier];
+    if (!tierInfo) throw new Error("Paket desa tidak valid");
+    if (tier === "enterprise" || tierInfo.setupFee === null) {
+      throw new Error("Paket Enterprise harus dibuat via invoice manual");
+    }
+
+    const hasActive =
+      String(village.subscriptionStatus ?? "").toLowerCase() === "active" &&
+      village.subscriptionExpiry &&
+      village.subscriptionExpiry.getTime() > Date.now();
+
+    const isRenewal =
+      hasActive && String(village.subscriptionPlan ?? "").toLowerCase() === tier;
+
+    if (!isRenewal) {
+      lineItems.push({
+        name: `Paket Desa ${tierInfo.name} (Biaya Awal)`,
+        quantity: 1,
+        unitAmount: tierInfo.setupFee,
+        totalAmount: tierInfo.setupFee,
+        metadata: { kind: "setup_fee", tier },
+      });
+    }
+
+    lineItems.push({
+      name: `Langganan Tahunan Paket Desa (${tierInfo.name})`,
+      quantity: 1,
+      unitAmount: tierInfo.annualFee,
+      totalAmount: tierInfo.annualFee,
+      metadata: { kind: "annual_fee", tier },
+    });
+  } else if (input.productType === "absensi") {
+    const tier = input.planCode;
+    const tierInfo = (
+      BILLING_CATALOG.absensi.tiers as Record<
+        string,
+        { name: string; monthlyFee: number }
+      >
+    )[tier];
+    if (!tierInfo) throw new Error("Paket absensi tidak valid");
+    lineItems.push({
+      name: `Absensi Perangkat (${tierInfo.name})`,
+      quantity: 1,
+      unitAmount: tierInfo.monthlyFee,
+      totalAmount: tierInfo.monthlyFee,
+      metadata: { kind: "monthly_fee", tier },
+    });
+  } else if (input.productType === "arsip") {
+    const tier = input.planCode;
+    const tierInfo = (
+      BILLING_CATALOG.arsip.tiers as Record<
+        string,
+        { name: string; monthlyFee: number; storageGb: number }
+      >
+    )[tier];
+    if (!tierInfo) throw new Error("Paket arsip tidak valid");
+    lineItems.push({
+      name: `Arsip Digital (${tierInfo.name})`,
+      quantity: 1,
+      unitAmount: tierInfo.monthlyFee,
+      totalAmount: tierInfo.monthlyFee,
+      metadata: { kind: "monthly_fee", tier, storageGb: tierInfo.storageGb },
+    });
+  } else {
+    throw new Error("Produk belum didukung");
+  }
+
+  const total = lineItems.reduce((sum, li) => sum + li.totalAmount, 0);
+  const amount = normalizeMoney(total);
+  return { lineItems, amount };
+}
+
 export async function createCheckout(input: BillingCheckoutInput) {
   const invoiceNumber = buildInvoiceNumber(input.villageCode);
   const partnerReff = invoiceNumber;
@@ -83,132 +183,7 @@ export async function createCheckout(input: BillingCheckoutInput) {
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
   const expiredStr = getLinkquExpiredMinutesFromNow(30);
 
-  const { amount } = await prisma.$transaction(async (tx) => {
-    const village = await tx.village.findUnique({
-      where: { id: input.villageId },
-      select: {
-        id: true,
-        subscriptionPlan: true,
-        subscriptionStatus: true,
-        subscriptionExpiry: true,
-      },
-    });
-    if (!village) throw new Error("Village tidak ditemukan");
-
-    const lineItems: Array<{
-      name: string;
-      description?: string;
-      quantity: number;
-      unitAmount: number;
-      totalAmount: number;
-      metadata?: Record<string, unknown>;
-    }> = [];
-
-    if (input.productType === "desa_package") {
-      const tier = input.planCode as DesaPackageTier;
-      const tierInfo = BILLING_CATALOG.desa_package.tiers[tier];
-      if (!tierInfo) throw new Error("Paket desa tidak valid");
-      if (tier === "enterprise" || tierInfo.setupFee === null) {
-        throw new Error("Paket Enterprise harus dibuat via invoice manual");
-      }
-
-      const hasActive =
-        String(village.subscriptionStatus ?? "").toLowerCase() === "active" &&
-        village.subscriptionExpiry &&
-        village.subscriptionExpiry.getTime() > Date.now();
-
-      const isRenewal =
-        hasActive &&
-        String(village.subscriptionPlan ?? "").toLowerCase() === tier;
-
-      if (!isRenewal) {
-        lineItems.push({
-          name: `Paket Desa ${tierInfo.name} (Biaya Awal)`,
-          quantity: 1,
-          unitAmount: tierInfo.setupFee,
-          totalAmount: tierInfo.setupFee,
-          metadata: { kind: "setup_fee", tier },
-        });
-      }
-
-      lineItems.push({
-        name: `Langganan Tahunan Paket Desa (${tierInfo.name})`,
-        quantity: 1,
-        unitAmount: tierInfo.annualFee,
-        totalAmount: tierInfo.annualFee,
-        metadata: { kind: "annual_fee", tier },
-      });
-    } else if (input.productType === "absensi") {
-      const tier = input.planCode;
-      const tierInfo = (
-        BILLING_CATALOG.absensi.tiers as Record<
-          string,
-          { name: string; monthlyFee: number }
-        >
-      )[tier];
-      if (!tierInfo) throw new Error("Paket absensi tidak valid");
-      lineItems.push({
-        name: `Absensi Perangkat (${tierInfo.name})`,
-        quantity: 1,
-        unitAmount: tierInfo.monthlyFee,
-        totalAmount: tierInfo.monthlyFee,
-        metadata: { kind: "monthly_fee", tier },
-      });
-    } else if (input.productType === "arsip") {
-      const tier = input.planCode;
-      const tierInfo = (
-        BILLING_CATALOG.arsip.tiers as Record<
-          string,
-          { name: string; monthlyFee: number; storageGb: number }
-        >
-      )[tier];
-      if (!tierInfo) throw new Error("Paket arsip tidak valid");
-      lineItems.push({
-        name: `Arsip Digital (${tierInfo.name})`,
-        quantity: 1,
-        unitAmount: tierInfo.monthlyFee,
-        totalAmount: tierInfo.monthlyFee,
-        metadata: { kind: "monthly_fee", tier, storageGb: tierInfo.storageGb },
-      });
-    } else {
-      throw new Error("Produk belum didukung");
-    }
-
-    const total = lineItems.reduce((sum, li) => sum + li.totalAmount, 0);
-    const amountInt = normalizeMoney(total);
-
-    const invoice = await tx.billingInvoice.create({
-      data: {
-        villageId: input.villageId,
-        invoiceNumber,
-        partnerReff,
-        productType: input.productType,
-        planCode: input.planCode,
-        amount: amountInt,
-        status: "pending",
-        paymentMethod: input.paymentMethod,
-        bankCode: input.bankCode ?? null,
-        retailCode: input.retailCode ?? null,
-        expiresAt,
-        items: {
-          create: lineItems.map((li) => {
-            const base = {
-              name: li.name,
-              description: li.description ?? null,
-              quantity: li.quantity,
-              unitAmount: li.unitAmount,
-              totalAmount: li.totalAmount,
-            };
-            if (!li.metadata) return base;
-            return { ...base, metadata: li.metadata as Prisma.InputJsonValue };
-          }),
-        },
-      },
-      include: { items: true },
-    });
-
-    return { amount: amountInt };
-  });
+  const { lineItems, amount } = await prepareCheckoutLineItems(input);
 
   const linkqu = getLinkquClient();
 
@@ -264,21 +239,43 @@ export async function createCheckout(input: BillingCheckoutInput) {
 
   const fields = resolvePaymentFields(linkquResponse);
 
-  const updated = await prisma.billingInvoice.update({
-    where: { partnerReff },
+  const created = await prisma.billingInvoice.create({
     data: {
+      villageId: input.villageId,
+      invoiceNumber,
+      partnerReff,
+      productType: input.productType,
+      planCode: input.planCode,
+      amount,
+      status: "pending",
+      paymentMethod: input.paymentMethod,
+      bankCode: input.bankCode ?? fields.bankCode ?? null,
+      retailCode: input.retailCode ?? null,
+      expiresAt,
       paymentUrl: fields.paymentUrl,
       qrContent: fields.qrContent,
       qrImageUrl: fields.qrImageUrl,
       vaNumber: fields.vaNumber,
-      bankCode: input.bankCode ?? fields.bankCode ?? null,
       externalTransactionId: fields.transactionId,
       rawResponse: linkquResponse as unknown as object,
+      items: {
+        create: lineItems.map((li) => {
+          const base = {
+            name: li.name,
+            description: li.description ?? null,
+            quantity: li.quantity,
+            unitAmount: li.unitAmount,
+            totalAmount: li.totalAmount,
+          };
+          if (!li.metadata) return base;
+          return { ...base, metadata: li.metadata as Prisma.InputJsonValue };
+        }),
+      },
     },
     include: { items: true },
   });
 
-  return updated;
+  return created;
 }
 
 export async function handleLinkquCallback(payload: LinkquCallbackPayload) {

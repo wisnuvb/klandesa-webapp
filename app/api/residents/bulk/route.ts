@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { getApiSession } from "@/lib/api-session";
+ 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import {
   getMaritalStatus,
@@ -11,7 +11,7 @@ import {
   parseReligion,
 } from "@/utils";
 import bcrypt from "bcryptjs";
-import { authOptions } from "@/auth";
+import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 // Route config for large payloads
 export const maxDuration = 300; // 5 minutes
@@ -50,15 +50,20 @@ const TRANSACTION_TIMEOUT = 300000; // 5 minutes
 // }
 
 async function resolveVillage(session?: any) {
-  if (!session?.user?.villageCode) {
-    return null;
+  if (session?.user?.villageId != null) {
+    const byId = await prisma.village.findUnique({
+      where: { id: session.user.villageId },
+    });
+    if (byId) return byId;
   }
 
-  const village = await prisma.village.findUnique({
-    where: { code: session.user.villageCode },
-  });
+  if (session?.user?.villageCode) {
+    return prisma.village.findUnique({
+      where: { code: session.user.villageCode },
+    });
+  }
 
-  return village;
+  return null;
 }
 
 function validateResidentData(row: any): { valid: boolean; errors: string[] } {
@@ -110,7 +115,7 @@ function parseYN(val: any): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Anda harus login terlebih dahulu" },
@@ -124,6 +129,9 @@ export async function POST(req: NextRequest) {
         { error: "Desa tidak ditemukan" },
         { status: 404 }
       );
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();
@@ -312,6 +320,7 @@ export async function POST(req: NextRequest) {
                 Math.random().toString(36).slice(-10) + "!A1";
               const hashed = await bcrypt.hash(tempPassword, 10);
               return {
+                villageId: village.id,
                 email: user.email,
                 password: hashed,
                 name: user.name,

@@ -1,29 +1,50 @@
+import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
+import {
+  isVillageSubscriptionActive,
+  subscriptionBlockedResponse,
+} from "@/lib/subscription";
 
 const ALLOWED_TYPES = new Set(["PEMDES", "BPD", "KADUS", "RT", "RW", "WARGA"]);
-const ALLOWED_STATUSES = new Set(["ALL", "DRAFT", "PENDING", "PROCESS", "DONE", "REJECT"]);
+const ALLOWED_STATUSES = new Set([
+  "ALL",
+  "DRAFT",
+  "PENDING",
+  "PROCESS",
+  "DONE",
+  "REJECT",
+]);
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = new URL(req.url);
     const villageCode = url.searchParams.get("villageCode") ?? undefined;
     const status = url.searchParams.get("status") ?? "ALL";
     const reportType = url.searchParams.get("reportType") ?? "ALL";
     const isPublic = url.searchParams.get("isPublic") ?? "ALL";
 
-    const village = await resolveVillage({ req, queryVillageCode: villageCode, session });
+    const village = await resolveVillage({
+      req,
+      queryVillageCode: villageCode,
+      session,
+    });
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const where: Record<string, unknown> = { villageId: village.id };
     if (status !== "ALL" && ALLOWED_STATUSES.has(status)) where.status = status;
-    if (reportType !== "ALL" && ALLOWED_TYPES.has(reportType)) where.reportType = reportType;
+    if (reportType !== "ALL" && ALLOWED_TYPES.has(reportType))
+      where.reportType = reportType;
     if (isPublic === "Y") where.isPublic = true;
     if (isPublic === "N") where.isPublic = false;
 
@@ -55,29 +76,54 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(mapped);
   } catch (error) {
     console.error("GET /api/citizen-reports error:", error);
-    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const village = await resolveVillage({ req, session });
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
     }
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
 
     const body = await req.json();
-    const { report_type, title, content, is_public, reporter_name, reporter_nik } = body;
+    const {
+      report_type,
+      title,
+      content,
+      is_public,
+      reporter_name,
+      reporter_nik,
+    } = body;
 
     if (!report_type || !ALLOWED_TYPES.has(report_type)) {
-      return NextResponse.json({ error: "Tipe laporan tidak valid" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Tipe laporan tidak valid" },
+        { status: 400 },
+      );
     }
     if (!title?.trim() || !content?.trim()) {
-      return NextResponse.json({ error: "Judul dan isi laporan wajib diisi" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Judul dan isi laporan wajib diisi" },
+        { status: 400 },
+      );
     }
     if (!reporter_name?.trim()) {
-      return NextResponse.json({ error: "Nama pelapor wajib diisi" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Nama pelapor wajib diisi" },
+        { status: 400 },
+      );
     }
 
     const created = await prisma.citizenReport.create({
@@ -96,6 +142,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: Number(created.id) }, { status: 201 });
   } catch (error) {
     console.error("POST /api/citizen-reports error:", error);
-    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server" },
+      { status: 500 },
+    );
   }
 }

@@ -24,17 +24,17 @@ export const BILLING_CATALOG = {
     tiers: {
       starter: {
         name: "Starter",
-        setupFee: 10_000_000,
+        setupFee: 2_500_000,
         annualFee: 1_200_000,
       },
       profesional: {
         name: "Profesional",
-        setupFee: 45_000_000,
+        setupFee: 10_000_000,
         annualFee: 1_200_000,
       },
       enterprise: {
         name: "Enterprise",
-        setupFee: null,
+        setupFee: 45_000_000,
         annualFee: 1_200_000,
       },
     } satisfies Record<
@@ -76,6 +76,26 @@ export function mapDesaTierToAddonTier(tier: DesaPackageTier): Exclude<AddonTier
   if (tier === "starter") return "starter";
   if (tier === "profesional") return "professional";
   return "enterprise";
+}
+
+/** Ringkasan tagihan paket desa (sama logika dengan kartu di halaman billing). */
+export function getDesaPackageCharge(
+  tier: DesaPackageTier,
+  opts: { subscriptionActive: boolean; currentPlan: string | null },
+) {
+  const tierInfo = BILLING_CATALOG.desa_package.tiers[tier];
+  const isCurrentPlan = opts.currentPlan?.toLowerCase() === tier.toLowerCase();
+  const isUpgrade = opts.subscriptionActive && !isCurrentPlan;
+  const needsSetupFee = !opts.subscriptionActive || isUpgrade;
+  const totalAmount =
+    needsSetupFee && tierInfo.setupFee != null ? tierInfo.setupFee : tierInfo.annualFee;
+  return {
+    tierInfo,
+    isCurrentPlan,
+    isUpgrade,
+    needsSetupFee,
+    totalAmount,
+  };
 }
 
 export function arsipStorageLimitForDesaTierGb(tier: DesaPackageTier): number {
