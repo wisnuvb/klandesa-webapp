@@ -16,7 +16,8 @@ function normalizeImageUrls(input: unknown): string[] {
   return [];
 }
 
-function toUkmProduct(row: unknown) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toUkmProduct(row: any) {
   return {
     id: row.id,
     name: row.name,
