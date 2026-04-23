@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { UkmCategoryRow, UkmProduct } from "../_types";
+import type { UkmCategoryRow, UkmProduct } from "../app/(app)/ukm/_types";
 
 export function useStats(products: UkmProduct[], categoryRows: UkmCategoryRow[]) {
   return useMemo(() => {
