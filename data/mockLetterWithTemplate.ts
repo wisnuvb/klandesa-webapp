@@ -8,7 +8,7 @@ interface LetterHistory {
   template_category: string;
   applicant_name: string;
   applicant_nik: string;
-  signer_role: "kepala_desa" | "sekretaris" | "camat";
+  signer_role: string;
   status: "draft" | "completed" | "archived";
   created_at: string;
   created_by: string;

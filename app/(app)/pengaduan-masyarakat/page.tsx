@@ -22,6 +22,7 @@ import {
   ChevronDown,
   AlertCircle,
 } from "lucide-react";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
 // Types
 type ReportStatus = "DRAFT" | "PENDING" | "PROCESS" | "DONE" | "REJECT";
@@ -56,6 +57,7 @@ interface ReportResponse {
 
 
 export default function PengaduanMasyarakat() {
+  const { appAlert } = useAppDialogs();
   const [reports, setReports] = useState<CitizenReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -253,7 +255,7 @@ export default function PengaduanMasyarakat() {
       setConfirmAction(null);
       setRejectReason("");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Terjadi kesalahan");
+      void appAlert(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {
       setIsSubmitting(false);
     }
@@ -288,7 +290,7 @@ export default function PengaduanMasyarakat() {
       setResponseText("");
       setShowResponseModal(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Terjadi kesalahan");
+      void appAlert(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {
       setIsSubmitting(false);
     }

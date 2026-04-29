@@ -15,27 +15,42 @@ import { useDesaSettings } from "./_hooks/useDesaSettings";
 import { useLetterForm } from "./_hooks/useLetterForm";
 import { useLetterExport } from "./_hooks/useLetterExport";
 import { convertToTemplateData } from "./_utils/templateConverter";
+import { mapApiMailTemplateToBody } from "./_utils/mapMailTemplate";
 import { TemplateGrid } from "./_components/TemplateGrid";
 import { CreateLetterDialog } from "./_components/CreateLetterDialog";
 import { TemplatePreviewDialog } from "./_components/TemplatePreviewDialog";
 import { LetterHistoryTab } from "./_components/LetterHistoryTab";
+import {
+  parseSignerRoleFromForm,
+  signerDisplayName,
+} from "./_utils/signerPreset";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
 export function LayananSurat() {
+  const { appAlert, appConfirm } = useAppDialogs();
   const { templates, history, isLoading, refetch } = useLayananSuratData();
   const { desaSettings } = useDesaSettings();
   const {
     formData,
+    letterDate,
+    setLetterDate,
     selectedResident,
     selectedTemplate,
     showCreateDialog,
+    editingLetterId,
     activeTab,
     setActiveTab,
     setShowCreateDialog,
+    autoFillWilayahDesa,
+    setAutoFillWilayahDesa,
     handleCreateSurat,
     handleFormChange,
     handleResidentSelect,
     handleDuplicateLetter,
+    handleEditLetter,
     resetForm,
+    handleSignerSlotRoleChange,
+    refreshSignerPresetFromDesa,
   } = useLetterForm(desaSettings);
   const {
     createLetterPreviewRef,
@@ -52,6 +67,112 @@ export function LayananSurat() {
   const [templateBuilderSession, setTemplateBuilderSession] = useState(0);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateBody | null>(null);
+
+  const openTemplateEditor = useCallback((template: TemplateBody) => {
+    setEditingTemplate(template);
+    setTemplateBuilderSession((s) => s + 1);
+    setShowTemplateBuilder(true);
+  }, []);
+
+  const handleEditTemplateClick = useCallback(
+    async (template: TemplateBody) => {
+      if (template.is_catalog && template.catalog_key) {
+        const existingFork = templates.find(
+          (t) =>
+            !t.is_catalog &&
+            t.inherits_catalog_key === template.catalog_key,
+        );
+        if (existingFork) {
+          openTemplateEditor(existingFork);
+          return;
+        }
+      }
+      if (template.is_catalog) {
+        try {
+          const res = await fetch(`/api/mail-templates/${template.id}/duplicate`, {
+            method: "POST",
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || "Gagal menyalin template ke desa");
+          }
+          setEditingTemplate(mapApiMailTemplateToBody(data));
+          setTemplateBuilderSession((s) => s + 1);
+          setShowTemplateBuilder(true);
+          await refetch();
+        } catch (error) {
+          console.error(error);
+          void appAlert(
+            error instanceof Error
+              ? error.message
+              : "Gagal membuka template untuk diedit.",
+          );
+        }
+        return;
+      }
+      openTemplateEditor(template);
+    },
+    [templates, refetch, openTemplateEditor, appAlert],
+  );
+
+  const handleDeleteTemplate = useCallback(
+    async (template: TemplateBody) => {
+      if (template.is_catalog) return;
+
+      const suratWarning =
+        template.usage_count > 0
+          ? `\n\n${template.usage_count} surat di riwayat yang memakai template ini akan ikut dihapus.`
+          : "";
+
+      const okDelete = await appConfirm({
+        title: "Hapus template?",
+        description: `Hapus template "${template.name}"?${suratWarning}\n\nTindakan ini tidak dapat dibatalkan.`,
+        confirmLabel: "Hapus",
+        tone: "destructive",
+      });
+      if (!okDelete) return;
+
+      try {
+        const res = await fetch(`/api/mail-templates/${template.id}`, {
+          method: "DELETE",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Gagal menghapus template");
+        }
+
+        if (editingTemplate?.id === template.id) {
+          setShowTemplateBuilder(false);
+          setEditingTemplate(null);
+        }
+        if (previewTemplate?.id === template.id) {
+          setShowPreviewDialog(false);
+          setPreviewTemplate(null);
+        }
+        if (selectedTemplate?.id === template.id) {
+          setShowCreateDialog(false);
+          resetForm();
+        }
+
+        await refetch();
+      } catch (error) {
+        console.error(error);
+        void appAlert(
+          error instanceof Error ? error.message : "Gagal menghapus template.",
+        );
+      }
+    },
+    [
+      refetch,
+      editingTemplate,
+      previewTemplate,
+      selectedTemplate,
+      resetForm,
+      setShowCreateDialog,
+      appConfirm,
+      appAlert,
+    ],
+  );
 
   const builderEditTemplate = useMemo(
     () =>
@@ -74,38 +195,115 @@ export function LayananSurat() {
   const activeTemplates = templates.filter((template) => template.is_active).length;
   const totalUsage = templates.reduce((sum, template) => sum + template.usage_count, 0);
 
-  const handleSaveLetter = async (status: "draft" | "completed") => {
-    if (!selectedTemplate) return;
+  const editingLetter = useMemo(
+    () =>
+      editingLetterId != null
+        ? history.find((h) => h.id === editingLetterId) ?? null
+        : null,
+    [history, editingLetterId],
+  );
 
-    try {
-      const response = await fetch("/api/mail-services", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          templateId: selectedTemplate.id,
-          letterNumber: formData.NOMOR_SURAT,
-          letterDate: new Date().toISOString(),
-          applicantName: formData.NAMA || selectedResident?.name || "",
-          applicantNik: formData.NIK || selectedResident?.nik || "",
-          signerRole: "kepala_desa",
-          formData,
-          status,
-        }),
-      });
+  const persistLetterToServer = useCallback(
+    async (
+      status: "draft" | "completed" | "archived",
+    ): Promise<boolean> => {
+      if (!selectedTemplate) return false;
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Gagal menyimpan surat");
+      const role = parseSignerRoleFromForm(formData);
+      const signerName = signerDisplayName(role, desaSettings);
+      const letterDateIso = new Date(
+        letterDate.getFullYear(),
+        letterDate.getMonth(),
+        letterDate.getDate(),
+        12,
+        0,
+        0,
+      ).toISOString();
+
+      const payload = {
+        templateId: selectedTemplate.id,
+        letterNumber: formData.NOMOR_SURAT,
+        letterDate: letterDateIso,
+        applicantName:
+          formData.NAMA_LENGKAP ||
+          formData.NAMA ||
+          selectedResident?.name ||
+          "",
+        applicantNik: formData.NIK || selectedResident?.nik || "",
+        signerRole: role,
+        signerName: signerName || undefined,
+        formData,
+        status,
+      };
+
+      try {
+        const uri =
+          editingLetterId != null
+            ? `/api/mail-services/${editingLetterId}`
+            : "/api/mail-services";
+        const response = await fetch(uri, {
+          method: editingLetterId != null ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(
+            (errData as { error?: string }).error || "Gagal menyimpan surat",
+          );
+        }
+
+        await refetch();
+        return true;
+      } catch (error) {
+        console.error("Error saving letter:", error);
+        void appAlert(
+          error instanceof Error
+            ? error.message
+            : "Terjadi kesalahan saat menyimpan surat.",
+        );
+        return false;
       }
+    },
+    [
+      selectedTemplate,
+      formData,
+      letterDate,
+      selectedResident,
+      editingLetterId,
+      desaSettings,
+      refetch,
+      appAlert,
+    ],
+  );
 
+  const handleSaveLetter = async (
+    status: "draft" | "completed" | "archived",
+  ) => {
+    const ok = await persistLetterToServer(status);
+    if (ok) {
       setShowCreateDialog(false);
       resetForm();
-      await refetch();
-    } catch (error) {
-      console.error("Error saving letter:", error);
-      alert(error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan surat.");
     }
   };
+
+  const handleSaveAndPrint = useCallback(async () => {
+    const ok = await persistLetterToServer("completed");
+    if (!ok) return;
+    printPreview(
+      createLetterPreviewRef,
+      `Cetak Surat - ${selectedTemplate?.name || ""}`,
+    );
+    setShowCreateDialog(false);
+    resetForm();
+  }, [
+    persistLetterToServer,
+    printPreview,
+    createLetterPreviewRef,
+    selectedTemplate?.name,
+    resetForm,
+  ]);
 
   const handleSaveTemplate = useCallback(
     async (template: TemplateData) => {
@@ -130,7 +328,7 @@ export function LayananSurat() {
         const isEditMode = Boolean(template.id);
 
         const response = await fetch("/api/mail-templates", {
-          method: isEditMode ? "PUT" : "POST",
+          method: isEditMode ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...(isEditMode ? { id: Number(template.id) } : {}),
@@ -170,10 +368,14 @@ export function LayananSurat() {
         await refetch();
       } catch (error) {
         console.error("Error saving template:", error);
-        alert(error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan template.");
+        void appAlert(
+          error instanceof Error
+            ? error.message
+            : "Terjadi kesalahan saat menyimpan template.",
+        );
       }
     },
-    [refetch],
+    [refetch, appAlert],
   );
 
   return (
@@ -288,11 +490,8 @@ export function LayananSurat() {
                 setPreviewTemplate(template);
                 setShowPreviewDialog(true);
               }}
-              onEditTemplate={(template) => {
-                setEditingTemplate(template);
-                setTemplateBuilderSession((s) => s + 1);
-                setShowTemplateBuilder(true);
-              }}
+              onEditTemplate={handleEditTemplateClick}
+              onDeleteTemplate={handleDeleteTemplate}
             />
           )}
         </TabsContent>
@@ -304,6 +503,7 @@ export function LayananSurat() {
             historyLetterPreviewRef={historyLetterPreviewRef}
             downloadPreviewAsPdf={downloadPreviewAsPdf}
             printPreview={printPreview}
+            onEditLetter={(letter) => handleEditLetter(letter, templates)}
             onDuplicateLetter={(templateId, letterFormData, allTemplates) => {
               handleDuplicateLetter(templateId, letterFormData, allTemplates);
               setPageTab("templates");
@@ -314,15 +514,28 @@ export function LayananSurat() {
 
       <CreateLetterDialog
         open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+        onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          // Tutup mode edit tanpa menyimpan harus menghapus id surat yang diedit dari state agar penyimpanan berikutnya tidak PATCH surat lain.
+          if (!open && editingLetterId != null) {
+            resetForm();
+          }
+        }}
+        editingLetterId={editingLetterId}
+        editingLetterStatus={editingLetter?.status ?? null}
         template={selectedTemplate}
         formData={formData}
+        letterDate={letterDate}
+        onLetterDateChange={setLetterDate}
+        autoFillWilayahDesa={autoFillWilayahDesa}
+        onAutoFillWilayahDesaChange={setAutoFillWilayahDesa}
         selectedResident={selectedResident}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onFormChange={handleFormChange}
         onResidentSelect={handleResidentSelect}
         onSaveLetter={handleSaveLetter}
+        onSaveAndPrint={handleSaveAndPrint}
         previewRef={createLetterPreviewRef}
         onDownloadPDF={() =>
           downloadPreviewAsPdf(
@@ -330,10 +543,9 @@ export function LayananSurat() {
             `Surat_${selectedTemplate?.name || "Baru"}`,
           )
         }
-        onPrint={() =>
-          printPreview(createLetterPreviewRef, `Cetak Surat - ${selectedTemplate?.name || ""}`)
-        }
         desaSettings={desaSettings}
+        onSignerSlotRoleChange={handleSignerSlotRoleChange}
+        onRefreshSignerPresetFromDesa={refreshSignerPresetFromDesa}
       />
 
       <TemplatePreviewDialog

@@ -18,6 +18,7 @@ import {
   Lock,
   Globe,
 } from "lucide-react";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
 type ThreadCategory =
   | "UMUM"
@@ -55,6 +56,7 @@ interface Reply {
 }
 
 export function ForumDiskusi() {
+  const { appAlert } = useAppDialogs();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [replies, setReplies] = useState<Record<number, Reply[]>>({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -248,7 +250,7 @@ export function ForumDiskusi() {
       setFormData({ title: "", content: "", category: "UMUM" });
     } catch (error) {
       console.error("handleAddThread error:", error);
-      alert(error instanceof Error ? error.message : "Gagal membuat diskusi");
+      void appAlert(error instanceof Error ? error.message : "Gagal membuat diskusi");
     } finally {
       setIsSubmittingThread(false);
     }
@@ -290,7 +292,7 @@ export function ForumDiskusi() {
       setReplyText("");
     } catch (error) {
       console.error("handleAddReply error:", error);
-      alert(error instanceof Error ? error.message : "Gagal mengirim balasan");
+      void appAlert(error instanceof Error ? error.message : "Gagal mengirim balasan");
     } finally {
       setIsSubmittingReply(false);
     }

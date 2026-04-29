@@ -12,6 +12,7 @@ import {
   FileArchive,
   Grid3x3,
   List,
+  Pencil,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,7 @@ interface LetterHistoryTabProps {
     formData: Record<string, string>,
     templates: TemplateBody[],
   ) => void;
+  onEditLetter?: (letter: LetterHistory) => void;
 }
 
 function statusMeta(status: LetterHistory["status"]) {
@@ -81,6 +83,7 @@ export function LetterHistoryTab({
   downloadPreviewAsPdf,
   printPreview,
   onDuplicateLetter,
+  onEditLetter,
 }: LetterHistoryTabProps) {
   const { desaSettings } = useDesaSettings();
   const [searchQuery, setSearchQuery] = useState("");
@@ -276,7 +279,18 @@ export function LetterHistoryTab({
                     <Button size="sm" className="flex-1 gap-2" onClick={() => handlePreviewLetter(letter)}>
                       <Eye className="h-4 w-4" />Preview
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => onDuplicateLetter(letter.template_id, letter.form_data, templates)}>
+                    {onEditLetter && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="gap-2 shrink-0"
+                        onClick={() => onEditLetter(letter)}
+                        title="Edit surat"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => onDuplicateLetter(letter.template_id, letter.form_data, templates)} title="Buat dari surat ini">
                       <Copy className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => handlePreviewLetter(letter)}>
@@ -333,6 +347,9 @@ export function LetterHistoryTab({
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => handlePreviewLetter(letter)}><Eye className="h-4 w-4" /></Button>
+                          {onEditLetter && (
+                            <Button variant="ghost" size="sm" title="Edit" onClick={() => onEditLetter(letter)}><Pencil className="h-4 w-4" /></Button>
+                          )}
                           <Button variant="ghost" size="sm" onClick={() => onDuplicateLetter(letter.template_id, letter.form_data, templates)}><Copy className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => handlePreviewLetter(letter)}><Download className="h-4 w-4" /></Button>
                         </div>

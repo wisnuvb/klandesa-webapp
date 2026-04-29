@@ -1,9 +1,14 @@
+"use client";
+
 import { useMemo } from "react";
 import { toast } from "sonner";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import type { UkmCategoryRow, UkmProduct } from "../app/(app)/ukm/_types";
-import { generateSlug } from "../app/(app)/ukm/_utils";
+import { generateSlug, isUkmCategoryPlaceholder } from "../app/(app)/ukm/_utils";
 
 export function useCategories(products: UkmProduct[]) {
+  const { appConfirm } = useAppDialogs();
+
   const categoryRows: UkmCategoryRow[] = useMemo(() => {
     const map = new Map<
       string,
@@ -11,11 +16,15 @@ export function useCategories(products: UkmProduct[]) {
     >();
 
     for (const p of products) {
-      // Skip placeholder products
-      if (p.status.toLowerCase() === "inactive" && p.name.startsWith("Kategori: ")) {
+      const name = p.category?.trim() || "Tanpa Kategori";
+
+      if (isUkmCategoryPlaceholder(p)) {
+        if (!map.has(name)) {
+          map.set(name, { productCount: 0, createdAt: p.createdAt });
+        }
         continue;
       }
-      const name = p.category?.trim() || "Tanpa Kategori";
+
       const existing = map.get(name);
       const createdAt = p.createdAt;
       if (!existing) {
@@ -103,9 +112,13 @@ export function useCategories(products: UkmProduct[]) {
       return;
     }
 
-    if (!confirm(`Hapus kategori "${name}"?`)) {
-      return;
-    }
+    const ok = await appConfirm({
+      title: "Hapus kategori?",
+      description: `Hapus kategori "${name}"?`,
+      confirmLabel: "Hapus",
+      tone: "destructive",
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch("/api/ukm-products/categories", {

@@ -1,0 +1,93 @@
+import { prisma } from "@/lib/prisma";
+import { parseTemplateStructureManifest } from "@/lib/website-engine/manifest";
+import { resolveEffectiveStructure } from "@/lib/website-engine/normalize";
+import { renderSection } from "@/app/(website)/site/sections";
+import type { TenantContext } from "@/lib/tenant";
+import type { ResolvedEngineStructure } from "@/lib/website-engine/types";
+import { findPageBySlug } from "@/lib/website-engine/resolved-structure";
+
+export async function loadTenantPublicPageContext(
+  tenant: TenantContext,
+  slugForPage: string,
+): Promise<{
+  resolved: ResolvedEngineStructure;
+  templateKey: string;
+  page: NonNullable<ReturnType<typeof findPageBySlug>>;
+  announcements: Array<{ id: number; title: string; date: string }>;
+} | null> {
+  if (!tenant.template || !tenant.subscription) return null;
+
+  const resolved = resolveEffectiveStructure({
+    templateStructure: tenant.template.structure,
+    customization: tenant.subscription.customization,
+  });
+  const templateKey = parseTemplateStructureManifest(
+    tenant.template.structure,
+  ).templateKey;
+  const page = findPageBySlug(resolved, slugForPage);
+  if (!page) return null;
+
+  const newsSection = page.sections.find((s) => s.kind === "news");
+  const limit =
+    newsSection && typeof newsSection.limit === "number"
+      ? Math.min(30, Math.max(1, Math.floor(newsSection.limit)))
+      : 6;
+
+  const rows = await prisma.announcement.findMany({
+    where: { villageId: tenant.village.id, isActive: true },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, title: true, createdAt: true },
+  });
+
+  const announcements = rows.map((a) => ({
+    id: a.id,
+    title: a.title,
+    date: a.createdAt.toLocaleDateString("id-ID"),
+  }));
+
+  return { resolved, templateKey, page, announcements };
+}
+
+type VillageLite = TenantContext["village"];
+
+export function SitePageBody(props: {
+  pageSections: ResolvedEngineStructure["pages"][0]["sections"];
+  templateKey: string;
+  village: VillageLite;
+  announcements: Array<{ id: number; title: string; date: string }>;
+  /** Untuk tautan dari blok berita */
+  newsDetailBasePath?: string;
+  /** Kelas layout opsional dari CMS */
+  layoutPreset?: string;
+}) {
+  const { pageSections, layoutPreset } = props;
+  const wrapClass =
+    layoutPreset === "fullBleed"
+      ? "w-full"
+      : "container mx-auto px-4";
+
+  return (
+    <div className={wrapClass}>
+      <main>
+        {pageSections.map((section, idx) => (
+          <div key={`${section.kind}-${idx}`}>
+            {renderSection({
+              templateKey: props.templateKey,
+              section,
+              village: {
+                name: props.village.name,
+                address: props.village.address,
+                phone: props.village.phone,
+                email: props.village.email,
+                website: props.village.website,
+              },
+              news: props.announcements,
+              newsDetailBasePath: props.newsDetailBasePath,
+            })}
+          </div>
+        ))}
+      </main>
+    </div>
+  );
+}

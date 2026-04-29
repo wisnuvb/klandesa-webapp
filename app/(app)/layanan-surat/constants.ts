@@ -68,6 +68,9 @@ export const mockTemplates: TemplateBody[] = [
     is_active: true,
     created_at: "2024-01-15",
     usage_count: 45,
+    is_catalog: false,
+    catalog_key: null,
+    inherits_catalog_key: null,
   },
   {
     id: 2,
@@ -84,6 +87,9 @@ export const mockTemplates: TemplateBody[] = [
     is_active: true,
     created_at: "2024-01-15",
     usage_count: 78,
+    is_catalog: false,
+    catalog_key: null,
+    inherits_catalog_key: null,
   },
   {
     id: 3,
@@ -100,6 +106,9 @@ export const mockTemplates: TemplateBody[] = [
     is_active: true,
     created_at: "2024-02-01",
     usage_count: 25,
+    is_catalog: false,
+    catalog_key: null,
+    inherits_catalog_key: null,
   },
   {
     id: 4,
@@ -116,6 +125,9 @@ export const mockTemplates: TemplateBody[] = [
     is_active: true,
     created_at: "2024-01-20",
     usage_count: 32,
+    is_catalog: false,
+    catalog_key: null,
+    inherits_catalog_key: null,
   },
   {
     id: 5,
@@ -132,6 +144,9 @@ export const mockTemplates: TemplateBody[] = [
     is_active: true,
     created_at: "2024-12-20",
     usage_count: 8,
+    is_catalog: false,
+    catalog_key: null,
+    inherits_catalog_key: null,
   },
 ];
 

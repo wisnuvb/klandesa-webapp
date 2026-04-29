@@ -45,6 +45,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { calculateAge } from "@/utils";
 import { FormDialog } from "@/components/app/data-perangkat";
 import { toast } from "sonner";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
 interface Position {
   id: number;
@@ -221,6 +222,7 @@ function HierarchyTreeBranch({
 }
 
 export function DataPerangkat() {
+  const { appConfirm } = useAppDialogs();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPosition, setFilterPosition] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -306,10 +308,13 @@ export function DataPerangkat() {
   };
 
   const handleDelete = async (official: OfficialRow) => {
-    const confirmed = window.confirm(
-      `Hapus perangkat ${official.name}? Tindakan ini tidak bisa dibatalkan.`
-    );
-    if (!confirmed) return;
+    const ok = await appConfirm({
+      title: "Hapus perangkat?",
+      description: `Hapus perangkat ${official.name}? Tindakan ini tidak bisa dibatalkan.`,
+      confirmLabel: "Hapus",
+      tone: "destructive",
+    });
+    if (!ok) return;
 
     try {
       setIsSubmittingAction(true);

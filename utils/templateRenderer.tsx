@@ -1,9 +1,31 @@
 "use client";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import type { CSSProperties } from "react";
 import Image from "next/image";
-import { TableRow, ListItem } from "../components/template-builder/types";
-// Static placeholder logo; replace with actual logo path from settings if available
+import {
+  FooterSignatureBlock,
+  mergeFooterWithFormSignerOverrides,
+} from "../components/template-builder/FooterSignatureBlock";
+import {
+  DEFAULT_HEADER_CONFIG,
+  TableRow,
+  ListItem,
+} from "../components/template-builder/types";
+
+import {
+  expandTemplateVariableData,
+  replaceVariables,
+  resolveTemplateText,
+} from "./templateVariables";
+
+export {
+  expandTemplateVariableData,
+  replaceVariables,
+  resolveTemplateText,
+};
+
+/** Fallback bila pengaturan desa belum punya logo */
 const exampleImage = "/vercel.svg";
 
 /**
@@ -11,126 +33,107 @@ const exampleImage = "/vercel.svg";
  * This ensures all template previews use the same rendering logic.
  */
 
-/**
- * Samakan variabel template yang beda penamaan (legacy / bahasa) ke satu nilai.
- * Contoh: `nama_kades`, `NAMA_KADES` ↔ `KEPALA_DESA_NAMA`
- */
-export function expandTemplateVariableData(
-  data: Record<string, string>,
-): Record<string, string> {
-  const out: Record<string, string> = { ...data };
+/** Hindari "KECAMATAN KECAMATAN X" bila nilai field sudah berawalan kata level yang sama. */
+export function normalizeKopKecamatanValue(raw: string): string {
+  const t = String(raw ?? "").trim();
+  if (!t) return "";
+  return t.replace(/^kecamatan\s+/i, "").trim();
+}
 
-  const pick = (...keys: string[]): string => {
-    for (const k of keys) {
-      const v = out[k];
-      if (v != null && String(v).trim() !== "") return String(v);
-    }
-    return "";
-  };
+export function normalizeKopKabupatenValue(raw: string): string {
+  const t = String(raw ?? "").trim();
+  if (!t) return "";
+  return t.replace(/^kabupaten\s+/i, "").trim();
+}
 
-  const setIfEmpty = (key: string, val: string) => {
-    if (!val) return;
-    if (out[key] == null || String(out[key]).trim() === "") out[key] = val;
-  };
+/** Hindari "DESA DESA X" bila nama sudah berawalan "Desa ". */
+export function normalizeKopNamaDesaValue(raw: string): string {
+  const t = String(raw ?? "").trim();
+  if (!t) return "";
+  return t.replace(/^desa\s+/i, "").trim();
+}
 
-  const kepala = pick("KEPALA_DESA_NAMA", "nama_kades", "NAMA_KADES");
-  const nip = pick("KEPALA_DESA_NIP", "nip_kades", "NIP_KADES", "NIP_KEPALA_DESA");
-
-  setIfEmpty("KEPALA_DESA_NAMA", kepala);
-  setIfEmpty("nama_kades", kepala);
-  setIfEmpty("NAMA_KADES", kepala);
-  setIfEmpty("KEPALA_DESA_NIP", nip);
-  setIfEmpty("nip_kades", nip);
-  setIfEmpty("NIP_KEPALA_DESA", nip);
-
-  const kab = pick("KABUPATEN", "kabupaten");
-  setIfEmpty("KABUPATEN", kab);
-  setIfEmpty("kabupaten", kab);
-
-  const kec = pick("KECAMATAN", "kecamatan");
-  setIfEmpty("KECAMATAN", kec);
-  setIfEmpty("kecamatan", kec);
-
-  const desa = pick("NAMA_DESA", "DESA", "nama_desa");
-  setIfEmpty("NAMA_DESA", desa);
-  setIfEmpty("DESA", desa);
-  setIfEmpty("nama_desa", desa);
-
-  /**
-   * Tanpa key ini, `Object.keys(expanded)` tidak memuat mis. `KEPALA_DESA_NAMA`
-   * dan `replaceVariables` tidak pernah mengganti `{KEPALA_DESA_NAMA}` (tampil mentah).
-   * Terjadi pada `form_data` surat lama / parsial yang tidak menyimpan snapshot lengkap.
-   */
-  const mustExistForReplace = [
-    "KEPALA_DESA_NAMA",
-    "KEPALA_DESA_NIP",
-    "NAMA_DESA",
-    "DESA",
-    "KABUPATEN",
-    "KECAMATAN",
-    "ALAMAT_DESA",
-    "KODE_POS",
-    "TANGGAL_SURAT",
-    "NOMOR_SURAT",
-    "PENANDA_TANGAN",
-    "SEKRETARIS_NAMA",
-    "CAMAT_NAMA",
-    "BULAN_ROMAWI",
-    "TAHUN",
-    "nama_kades",
-    "NAMA_KADES",
-    "nip_kades",
-    "NIP_KEPALA_DESA",
-  ];
-  for (const k of mustExistForReplace) {
-    if (!(k in out)) out[k] = "";
+function headerAlignClass(align: string | undefined): string {
+  switch (align) {
+    case "center":
+      return "text-center";
+    case "right":
+      return "text-right";
+    case "justify":
+      return "text-justify";
+    default:
+      return "text-left";
   }
+}
 
-  return out;
+function headerSpacingClass(spacing: string | undefined): string {
+  switch (spacing) {
+    case "compact":
+      return "space-y-0.5";
+    case "relaxed":
+      return "space-y-2";
+    default:
+      return "space-y-1";
+  }
+}
+
+export const HEADER_LOGO_WIDTH_PX_MIN = 32;
+export const HEADER_LOGO_WIDTH_PX_MAX = 160;
+
+/** Pixel dari preset `logo_size` (fallback bila `logo_width_px` tidak diisi). */
+export function headerLogoPixelSizeFromPreset(size: string | undefined): number {
+  switch (size) {
+    case "small":
+      return 48;
+    case "large":
+      return 80;
+    default:
+      return 64;
+  }
 }
 
 /**
- * Ganti placeholder di teks: `{KEY}`, `{{KEY}}`, `{{ KEY }}` (spasi diabaikan).
+ * Ukuran logo untuk render: `logo_width_px` atau turunan dari `logo_size`.
  */
-export const replaceVariables = (
-  text: string,
-  data: Record<string, string>,
-): string => {
-  if (text == null || text === "") return "";
-  const expanded = expandTemplateVariableData(data);
-  let result = text;
-
-  const keys = Object.keys(expanded).sort((a, b) => b.length - a.length);
-  for (const key of keys) {
-    const value = expanded[key] ?? "";
-    result = result.split(`{${key}}`).join(value);
-    result = result.split(`{{${key}}}`).join(value);
-    result = result.split(`{{ ${key} }}`).join(value);
+export function resolveHeaderLogoWidthPx(header: {
+  logo_width_px?: number;
+  logo_size?: string;
+} | null | undefined): number {
+  const h = header ?? {};
+  if (typeof h.logo_width_px === "number" && Number.isFinite(h.logo_width_px)) {
+    return Math.min(
+      HEADER_LOGO_WIDTH_PX_MAX,
+      Math.max(HEADER_LOGO_WIDTH_PX_MIN, Math.round(h.logo_width_px)),
+    );
   }
+  return headerLogoPixelSizeFromPreset(h.logo_size);
+}
 
-  result = result.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (full, inner: string) => {
-    const k = inner.trim();
-    if (expanded[k] !== undefined) return expanded[k]!;
-    return full;
-  });
+function headerBorderWrapperClass(borderStyle: string | undefined): string {
+  switch (borderStyle) {
+    case "single":
+      return "pb-4 mb-4 border-b border-black";
+    case "double":
+      return "pb-4 mb-4 border-b-4 border-double border-black";
+    case "none":
+    default:
+      return "pb-4 mb-4";
+  }
+}
 
-  return result;
-};
-
-/**
- * Teks setelah semua variabel diganti; dipakai untuk menyembunyikan baris NIP
- * bila template berisi `{KEPALA_DESA_NIP}` tetapi data kosong (bukan menyisakan label "NIP:").
- */
-export function resolveTemplateText(
-  template: string | null | undefined,
-  data: Record<string, string>,
-): string {
-  if (template == null || String(template).trim() === "") return "";
-  return replaceVariables(String(template), data).trim();
+export function headerLogoTopRowFlexClass(pos: string | undefined): string {
+  switch (pos) {
+    case "left":
+      return "justify-start";
+    case "right":
+      return "justify-end";
+    default:
+      return "justify-center";
+  }
 }
 
 /**
- * Render header/letterhead of the letter
+ * Render header/letterhead of the letter (selaras TemplatePreview: layout, alignment, logo, border).
  */
 export const renderHeader = (
   headerConfig: any,
@@ -140,53 +143,128 @@ export const renderHeader = (
   const showLetterhead = pageHeader?.show_letterhead ?? true;
   if (!showLetterhead) return null;
 
-  const header = headerConfig;
-  const spacingClass =
-    header.spacing === "compact"
-      ? "space-y-0.5"
-      : header.spacing === "relaxed"
-      ? "space-y-2"
-      : "space-y-1";
+  const header = headerConfig || {};
+  const defaults = DEFAULT_HEADER_CONFIG;
+  const fontSize = {
+    ...defaults.font_size,
+    ...(header.font_size || {}),
+  };
+  const gov = fontSize.government_label ?? 14;
+  const vill = fontSize.village_name ?? 16;
+  const addr = fontSize.address ?? 12;
+
+  const layout = header.layout ?? defaults.layout ?? "logo_top";
+  const alignment = header.alignment ?? defaults.alignment ?? "center";
+  const logoPos = header.logo_position ?? defaults.logo_position ?? "center";
+  const spacing = header.spacing ?? defaults.spacing ?? "normal";
+  const borderStyle = header.border_style ?? defaults.border_style ?? "double";
+
+  const rawLogo = String(data.LOGO_URL || data.logo_url || "").trim();
+  const logoSrc = rawLogo || exampleImage;
+  const logoUnoptimized =
+    /^https?:\/\//i.test(logoSrc) ||
+    logoSrc.startsWith("blob:") ||
+    logoSrc.startsWith("data:");
+  const logoPx = resolveHeaderLogoWidthPx(header);
+  const logoRowJustify = headerLogoTopRowFlexClass(logoPos);
+
+  const kab = normalizeKopKabupatenValue(data.KABUPATEN || "");
+  const kec = normalizeKopKecamatanValue(data.KECAMATAN || "");
+  const namaDesa = normalizeKopNamaDesaValue(
+    data.NAMA_DESA || data.DESA || "",
+  );
+  const emailLine = String(data.EMAIL_DESA ?? "").trim();
+
+  const alignClass = headerAlignClass(alignment);
+  const spaceClass = headerSpacingClass(spacing);
+  const borderWrap = headerBorderWrapperClass(borderStyle);
+
+  const wrapperStyle: CSSProperties = {
+    fontFamily: header.font_family || defaults.font_family,
+    color: header.text_color || defaults.text_color,
+  };
+
+  const kopBlock = (
+    <>
+      <div
+        className="font-bold uppercase"
+        style={{ fontSize: `${gov}px` }}
+      >
+        PEMERINTAH KABUPATEN {kab}
+      </div>
+      <div
+        className="font-bold uppercase"
+        style={{ fontSize: `${gov}px` }}
+      >
+        KECAMATAN {kec}
+      </div>
+      <div
+        className="font-bold uppercase"
+        style={{ fontSize: `${vill}px` }}
+      >
+        DESA {namaDesa}
+      </div>
+      <div style={{ fontSize: `${addr}px` }}>
+        {data.ALAMAT_DESA || ""} Kode Pos {data.KODE_POS || ""}
+      </div>
+      {emailLine ? (
+        <div style={{ fontSize: `${addr}px` }}>Email: {emailLine}</div>
+      ) : null}
+    </>
+  );
+
+  const logoImage = (
+    <div
+      className="relative flex shrink-0 items-center justify-center overflow-hidden"
+      style={{ width: logoPx, height: logoPx }}
+    >
+      <Image
+        src={logoSrc}
+        alt="Logo"
+        className="max-h-full max-w-full object-contain"
+        width={logoPx}
+        height={logoPx}
+        unoptimized={logoUnoptimized}
+      />
+    </div>
+  );
+
+  /** Logo kiri + teks: jika alignment tengah/kata penuh, kolom kosong kanan (lebar = logo)
+   * menyamakan pusat optik teks dengan tengah halaman. */
+  const logoLeftBalanceCenter =
+    alignment === "center" || alignment === "justify";
 
   return (
-    <div
-      className={`${spacingClass} pb-3 mb-4 border-b-4 border-double border-black`}
-    >
-      <div className="flex gap-4 items-center justify-center">
-        <Image
-          src={exampleImage}
-          alt="Logo"
-          className="h-16 w-16"
-          width={64}
-          height={64}
-        />
-        <div className="text-center">
+    <div className={borderWrap} style={wrapperStyle}>
+      {layout === "logo_top" ? (
+        <div className={`${spaceClass} ${alignClass} leading-tight`}>
+          <div className={`mb-3 flex w-full ${logoRowJustify}`}>
+            {logoImage}
+          </div>
+          {kopBlock}
+        </div>
+      ) : logoLeftBalanceCenter ? (
+        <div className="flex w-full flex-row items-center">
+          <div className="flex shrink-0 justify-center">{logoImage}</div>
           <div
-            className="font-bold uppercase"
-            style={{ fontSize: `${header.font_size.government_label}px` }}
+            className={`min-w-0 flex-1 ${spaceClass} leading-tight ${headerAlignClass(alignment)}`}
           >
-            PEMERINTAH {data.KABUPATEN || ""}
+            {kopBlock}
           </div>
           <div
-            className="font-bold uppercase"
-            style={{ fontSize: `${header.font_size.government_label}px` }}
-          >
-            KECAMATAN {data.KECAMATAN || ""}
-          </div>
-          <div
-            className="font-bold uppercase"
-            style={{ fontSize: `${header.font_size.village_name}px` }}
-          >
-            KANTOR DESA {data.NAMA_DESA || ""}
-          </div>
-          <div style={{ fontSize: `${header.font_size.address}px` }}>
-            {data.ALAMAT_DESA || ""}
-          </div>
-          <div style={{ fontSize: `${header.font_size.address}px` }}>
-            Kode Pos: {data.KODE_POS || ""}
+            className="shrink-0"
+            style={{ width: logoPx }}
+            aria-hidden="true"
+          />
+        </div>
+      ) : (
+        <div className="flex w-full flex-row items-center gap-3">
+          {logoImage}
+          <div className={`min-w-0 flex-1 ${spaceClass} ${alignClass} leading-tight`}>
+            {kopBlock}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -205,12 +283,12 @@ export const renderLetterNumber = (
   const customTitle = pageHeader?.custom_title;
 
   return (
-    <div className="text-center mb-6 space-y-2">
+    <div className="mb-4 text-center">
       {showTitle && (
         <h1
-          className={`${config.heading.bold ? "font-bold" : ""} ${
-            config.heading.underline ? "underline" : ""
-          }`}
+          className={`m-0 leading-tight ${
+            config.heading.bold ? "font-bold" : ""
+          } ${config.heading.underline ? "underline" : ""}`}
           style={{
             fontSize: `${config.heading.size}px`,
             fontFamily: config.heading.font,
@@ -221,9 +299,9 @@ export const renderLetterNumber = (
       )}
       {config.number && (
         <p
-          className={`${config.number.bold ? "font-bold" : ""} ${
-            config.number.underline ? "underline" : ""
-          }`}
+          className={`m-0 mt-1 ${
+            config.number.bold ? "font-bold" : ""
+          } ${config.number.underline ? "underline" : ""}`}
           style={{
             fontSize: `${config.number.size}px`,
             fontFamily: config.number.font,
@@ -252,6 +330,24 @@ const getFontSize = (size?: string) => {
   }
 };
 
+/** `style.align`, `block.alignment` (library import), case-insensitive. */
+function resolveTextAlign(
+  block: { type?: string; alignment?: string },
+  style: { align?: string },
+  opts: { textDefaultJustify?: boolean },
+): CSSProperties["textAlign"] {
+  const raw = style?.align ?? block.alignment;
+  if (raw == null || raw === "") {
+    if (opts.textDefaultJustify && block.type === "text") return "justify";
+    return "left";
+  }
+  const lower = String(raw).toLowerCase();
+  if (lower === "center") return "center";
+  if (lower === "right") return "right";
+  if (lower === "justify") return "justify";
+  return "left";
+}
+
 /**
  * Render individual content block based on type
  */
@@ -260,14 +356,17 @@ export const renderBlock = (block: any, data: Record<string, string>) => {
   const fontSize = getFontSize(style.size);
   const fontFamily = style.font || "Literata";
 
+  const ta = resolveTextAlign(block, style, { textDefaultJustify: true });
+
   const baseStyles = {
     fontFamily,
     fontSize,
-    textAlign: (style.align || "left") as any,
+    textAlign: ta,
     fontWeight: style.bold ? "bold" : "normal",
     fontStyle: style.italic ? "italic" : "normal",
     textDecoration: style.underline ? "underline" : "none",
     lineHeight: "1.8",
+    width: "100%" as const,
   };
 
   switch (block.type) {
@@ -275,12 +374,12 @@ export const renderBlock = (block: any, data: Record<string, string>) => {
       return (
         <h2
           key={block.id}
-          className="mb-2"
+          className="mb-2 block w-full"
           style={{
             ...baseStyles,
             fontSize: style.size === "large" ? "24px" : style.size === "small" ? "16px" : "20px",
-            fontWeight: "bold", // Heading is always bold by default but respects style.bold if provided
-            textAlign: style.align || "left",
+            fontWeight: "bold",
+            textAlign: resolveTextAlign(block, style, {}),
           }}
         >
           {replaceVariables(block.content as string, data)}
@@ -291,10 +390,10 @@ export const renderBlock = (block: any, data: Record<string, string>) => {
       return (
         <p
           key={block.id}
-          className="mb-3 whitespace-pre-wrap"
+          className="mb-3 block w-full whitespace-pre-wrap"
           style={{
             ...baseStyles,
-            textAlign: style.align || "justify",
+            textAlign: ta,
           }}
         >
           {replaceVariables(block.content as string, data)}
@@ -322,7 +421,7 @@ export const renderBlock = (block: any, data: Record<string, string>) => {
                 <td
                   className={`py-1 px-2 w-1/3 ${style.border ? "border-r border-black" : ""}`}
                   style={{
-                    textAlign: style.align || "left",
+                    textAlign: resolveTextAlign(block, style, {}),
                     fontWeight: style.bold ? "bold" : "normal",
                     fontStyle: style.italic ? "italic" : "normal",
                     textDecoration: style.underline ? "underline" : "none",
@@ -387,35 +486,10 @@ export const renderFooter = (
   if (!showSignatures) return null;
 
   const footer = pageFooter?.footer_config || footerConfig;
-  const location = data.NAMA_DESA || "";
-  const date = data.TANGGAL_SURAT || "";
-  const firstSigner = footer.signers?.[0];
-  const nipLine = firstSigner
-    ? resolveTemplateText(firstSigner.nip, data)
-    : "";
+  const merged = mergeFooterWithFormSignerOverrides(footer, data);
 
   return (
-    <div className="mt-8 pt-4">
-      <div className="text-right mb-8">
-        <p>
-          {location}, {date}
-        </p>
-        {firstSigner && <p className="font-semibold">{firstSigner.role}</p>}
-      </div>
-
-      <div className="mt-20 text-right">
-        {firstSigner && (
-          <>
-            <p className="font-semibold underline">
-              {replaceVariables(firstSigner.name, data)}
-            </p>
-            {nipLine ? (
-              <p className="text-sm">NIP: {nipLine}</p>
-            ) : null}
-          </>
-        )}
-      </div>
-    </div>
+    <FooterSignatureBlock footer={merged} data={data} className="mt-8 pt-4" />
   );
 };
 

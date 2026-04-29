@@ -171,6 +171,10 @@ export interface MailTemplate {
   contentTemplate: string;
   isActive: boolean;
   isGlobal: boolean;
+  /** Kunci stabil template katalog seed; null untuk template ad-hoc per-desa */
+  catalogKey?: string | null;
+  /** Mengganti entri katalog dengan kunci sama di UI untuk desa ini */
+  inheritsCatalogKey?: string | null;
   usageCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -184,6 +188,7 @@ export interface MailService {
   templateCategory: string;
   letterNumber: string;
   letterDate: Date;
+  letterDateKey: string;
   applicantName: string;
   applicantNik: string;
   signerRole?: 'kepala_desa' | 'sekretaris' | 'camat';

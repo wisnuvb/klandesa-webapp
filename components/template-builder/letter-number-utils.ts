@@ -204,3 +204,30 @@ export function replaceLetterNumberVariables(
 
   return result;
 }
+
+/**
+ * Nilai dummy untuk preview format nomor di tab builder (mengikuti tanggal hari ini &
+ * pengaturan nomor urut otomatis bila aktif).
+ */
+export function buildLetterNumberPreviewVariableData(
+  config: LetterNumberConfig,
+): Record<string, string> {
+  const now = new Date();
+  const roman = getRomanMonth(now);
+  const tahun = String(now.getFullYear());
+
+  let nomorUrut: string;
+  if (config.auto_numbering?.enabled) {
+    nomorUrut = getNextAutoNumber(config).formatted;
+  } else {
+    const nf = config.auto_numbering?.number_format ?? "001";
+    nomorUrut = formatAutoNumber(1, nf);
+  }
+
+  return {
+    NOMOR_SURAT: "001",
+    NOMOR_URUT: nomorUrut,
+    BULAN_ROMAWI: roman,
+    TAHUN: tahun,
+  };
+}

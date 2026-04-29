@@ -9,6 +9,15 @@ import {
 } from "@/components/template-builder/types";
 import type { DesaSettings, TemplateBody } from "../types";
 import { TEMPLATE_DUMMY_DATA } from "../constants";
+import { parseIndonesianLetterDateString } from "./letterCreateUtils";
+import { getRomanMonth } from "@/components/template-builder/letter-number-utils";
+import {
+  footerRoleLabel,
+  parseSignerRoleFromForm,
+  parseSignerRoleOverrideForSlot,
+  signerSlotJabatanKey,
+} from "./signerPreset";
+import { getFooterSignerSlotsCount } from "./signFooterPlaceholders";
 
 type LegacyRenderableBlock = {
   id: string;
@@ -93,12 +102,29 @@ function parseLegacyRenderableBlocks(contentTemplate: string): LegacyRenderableB
 }
 
 /**
+ * Isi TAHUN & BULAN_ROMAWI untuk placeholder format nomor surat bila masih kosong.
+ * Precedence: nilai eksplisit di data > turunan dari TANGGAL_SURAT > hari ini.
+ */
+function appendSuratDateMetaForPreview(merged: Record<string, string>): void {
+  const hasTahun = String(merged.TAHUN ?? "").trim().length > 0;
+  const hasRom = String(merged.BULAN_ROMAWI ?? "").trim().length > 0;
+  if (hasTahun && hasRom) return;
+
+  const parsed = parseIndonesianLetterDateString(merged.TANGGAL_SURAT);
+  const d = parsed ?? new Date();
+
+  if (!hasTahun) merged.TAHUN = String(d.getFullYear());
+  if (!hasRom) merged.BULAN_ROMAWI = getRomanMonth(d);
+}
+
+/**
  * Merge raw data with default values from desaSettings.
  * Values from `data` always take precedence over defaults.
  */
 export function buildPreviewData(
   data: Record<string, string>,
   desaSettings: DesaSettings,
+  footerContext?: Pick<TemplateBody, "footer" | "shared_footer"> | null,
 ): Record<string, string> {
   const kepala =
     data.KEPALA_DESA_NAMA ||
@@ -112,14 +138,20 @@ export function buildPreviewData(
     desaSettings.kepala_desa_nip ||
     "";
 
-  return {
+  const merged: Record<string, string> = {
     ...data,
+    LOGO_URL: String(data.LOGO_URL || data.logo_url || desaSettings.logo_url || "").trim(),
     KABUPATEN: data.KABUPATEN || desaSettings.kabupaten,
     KECAMATAN: data.KECAMATAN || desaSettings.kecamatan,
     DESA: data.DESA || desaSettings.nama_desa,
     NAMA_DESA: data.NAMA_DESA || data.DESA || desaSettings.nama_desa,
+    NAMA_KABUPATEN:
+      data.NAMA_KABUPATEN || data.KABUPATEN || desaSettings.kabupaten,
+    NAMA_KECAMATAN:
+      data.NAMA_KECAMATAN || data.KECAMATAN || desaSettings.kecamatan,
     ALAMAT_DESA: data.ALAMAT_DESA || desaSettings.alamat_desa,
     KODE_POS: data.KODE_POS || desaSettings.kode_pos,
+    EMAIL_DESA: String(data.EMAIL_DESA || desaSettings.email_desa || "").trim(),
     TANGGAL_SURAT: data.TANGGAL_SURAT || "",
     KEPALA_DESA_NAMA: kepala,
     KEPALA_DESA_NIP: nip,
@@ -127,8 +159,33 @@ export function buildPreviewData(
     NAMA_KADES: data.NAMA_KADES || kepala,
     nip_kades: data.nip_kades || nip,
     NIP_KEPALA_DESA: data.NIP_KEPALA_DESA || nip,
-    PENANDA_TANGAN: data.PENANDA_TANGAN || "Kepala Desa " + desaSettings.nama_desa,
+    PENANDA_TANGAN:
+      data.PENANDA_TANGAN ??
+      "Kepala Desa " + desaSettings.nama_desa,
   };
+
+  appendSuratDateMetaForPreview(merged);
+
+  const footerSlotCount =
+    footerContext != null ? getFooterSignerSlotsCount(footerContext) : 1;
+  for (let i = 0; i < footerSlotCount; i++) {
+    const ov = parseSignerRoleOverrideForSlot(merged, i);
+    const jk = signerSlotJabatanKey(i);
+    if (ov) {
+      merged[jk] = footerRoleLabel(ov, desaSettings);
+    }
+  }
+  if (footerSlotCount <= 1) {
+    const j0 = signerSlotJabatanKey(0);
+    if (!String(merged[j0] ?? "").trim()) {
+      merged[j0] = footerRoleLabel(
+        parseSignerRoleFromForm(merged),
+        desaSettings,
+      );
+    }
+  }
+
+  return merged;
 }
 
 /**
@@ -140,7 +197,7 @@ export function renderTemplateContent(
   rawData: Record<string, string>,
   desaSettings: DesaSettings,
 ): React.ReactNode {
-  const previewData = buildPreviewData(rawData, desaSettings);
+  const previewData = buildPreviewData(rawData, desaSettings, template);
   const hasPages = template.is_multi_page && (template.pages?.length || 0) > 0;
   const hasBlocks = (template.blocks?.length || 0) > 0;
 

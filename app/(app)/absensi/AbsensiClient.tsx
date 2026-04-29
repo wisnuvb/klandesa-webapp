@@ -18,6 +18,7 @@ import {
   GpsAddonModal,
   UpgradeModal,
 } from "./_components/AbsensiModals";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { getRecommendedTierByTotalStaff, pricingTiers } from "./pricing";
 import type {
   AttendanceStatus,
@@ -27,6 +28,7 @@ import type {
 } from "./types";
 
 export default function AbsensiClient() {
+  const { appAlert } = useAppDialogs();
   const [activeTab, setActiveTab] = useState<"today" | "history" | "qrcode">(
     "today"
   );
@@ -153,9 +155,11 @@ export default function AbsensiClient() {
   };
 
   const handlePayment = () => {
-    alert(
-      `Membuat pembayaran via ${selectedPaymentMethod}...\n\nIntegrasi LinkQu:\n- QRIS\n- Virtual Account\n- E-Wallet\n\nDemo: Pembayaran berhasil!`
-    );
+    void appAlert({
+      title: "Demo pembayaran",
+      description:
+        `Membuat pembayaran via ${selectedPaymentMethod}...\n\nIntegrasi LinkQu:\n- QRIS\n- Virtual Account\n- E-Wallet\n\nDemo: Pembayaran berhasil!`,
+    });
     setShowCheckoutModal(false);
 
     if (selectedTier && selectedTier !== "FREE") {

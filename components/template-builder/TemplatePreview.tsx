@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Image from "next/image";
-import { replaceVariables } from "@/utils/templateRenderer";
+import {
+  replaceVariables,
+  resolveHeaderLogoWidthPx,
+  headerLogoTopRowFlexClass,
+} from "@/utils/templateRenderer";
 import { TemplateData, TableRow, ListItem } from "./types";
+import { FooterSignatureBlock } from "./FooterSignatureBlock";
 
 interface TemplatePreviewProps {
   template: TemplateData;
@@ -47,16 +52,14 @@ export function TemplatePreview({
     }
   };
 
-  const getLogoSize = (size: string) => {
-    switch (size) {
-      case "small":
-        return "h-12 w-12";
-      case "large":
-        return "h-20 w-20";
-      default:
-        return "h-16 w-16";
-    }
-  };
+  const headerPreviewLogoPx = (): number =>
+    resolveHeaderLogoWidthPx(template.header);
+
+  const hdrAlign = template.header?.alignment || "center";
+  /** Logo kiri + teks tengah/halaman lebar sama seperti renderHeader */
+  const isLogoLeftBalancedCenter =
+    template.header?.layout === "logo_left" &&
+    (hdrAlign === "center" || hdrAlign === "justify");
 
   const getBorderStyle = (style: string) => {
     switch (style) {
@@ -110,10 +113,6 @@ export function TemplatePreview({
   const applyTemplateVars = (text: string) =>
     replaceVariables(text, previewVariableData());
 
-  /** Tampilkan baris NIP hanya jika nilai setelah variabel terisi (bukan placeholder kosong). */
-  const resolvedNipLine = (nip?: string | null) =>
-    nip ? applyTemplateVars(nip).trim() : "";
-
   return (
     <div className="bg-white text-black p-8 min-h-[297mm] shadow-lg font-['Literata']">
       {/* Header */}
@@ -133,17 +132,25 @@ export function TemplatePreview({
             )} ${getAlignClass(template.header?.alignment || "center")}`}
           >
             <div
-              className={`mx-auto ${getLogoSize(
-                template.header.logo_size || "default"
-              )} mb-3`}
+              className={`mb-3 flex w-full ${headerLogoTopRowFlexClass(
+                template.header?.logo_position,
+              )}`}
             >
-              <Image
-                src={desaSettings.logo_url}
-                alt="Logo"
-                className="w-full h-full object-contain"
-                width={64}
-                height={64}
-              />
+              <div
+                className="relative flex shrink-0 items-center justify-center overflow-hidden"
+                style={{
+                  width: headerPreviewLogoPx(),
+                  height: headerPreviewLogoPx(),
+                }}
+              >
+                <Image
+                  src={desaSettings.logo_url}
+                  alt="Logo"
+                  className="max-h-full max-w-full object-contain"
+                  width={headerPreviewLogoPx()}
+                  height={headerPreviewLogoPx()}
+                />
+              </div>
             </div>
             <div
               style={{
@@ -178,25 +185,90 @@ export function TemplatePreview({
               Email: {desaSettings.email_desa}
             </div>
           </div>
-        ) : (
-          <div className="flex gap-4 items-center relative">
+        ) : isLogoLeftBalancedCenter ? (
+          <div className="flex w-full items-center">
+            <div className="flex shrink-0 justify-center">
+              <div
+                className="relative flex shrink-0 items-center justify-center overflow-hidden"
+                style={{
+                  width: headerPreviewLogoPx(),
+                  height: headerPreviewLogoPx(),
+                }}
+              >
+                <Image
+                  src={desaSettings.logo_url}
+                  alt="Logo"
+                  width={headerPreviewLogoPx()}
+                  height={headerPreviewLogoPx()}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            </div>
             <div
-              className={`${getLogoSize(
-                template.header?.logo_size || "default"
-              )} absolute left-0`}
+              className={`min-w-0 flex-1 ${getSpacingClass(
+                template.header.spacing || "default",
+              )} ${getAlignClass(hdrAlign)}`}
+            >
+              <div
+                style={{
+                  fontSize: `${template.header.font_size?.government_label}px`,
+                }}
+              >
+                PEMERINTAH KABUPATEN {desaSettings.kabupaten}
+              </div>
+              <div
+                style={{
+                  fontSize: `${template.header.font_size?.government_label}px`,
+                }}
+              >
+                KECAMATAN {desaSettings.kecamatan}
+              </div>
+              <div
+                style={{
+                  fontSize: `${template.header.font_size?.village_name}px`,
+                }}
+                className="font-bold"
+              >
+                DESA {desaSettings.nama_desa}
+              </div>
+              <div
+                style={{ fontSize: `${template.header.font_size?.address}px` }}
+              >
+                {desaSettings.alamat_desa} Kode Pos {desaSettings.kode_pos}
+              </div>
+              <div
+                style={{ fontSize: `${template.header.font_size?.address}px` }}
+              >
+                Email: {desaSettings.email_desa}
+              </div>
+            </div>
+            <div
+              className="shrink-0"
+              style={{ width: headerPreviewLogoPx() }}
+              aria-hidden
+            />
+          </div>
+        ) : (
+          <div className="flex w-full flex-row items-center gap-4">
+            <div
+              className="relative flex shrink-0 items-center justify-center overflow-hidden"
+              style={{
+                width: headerPreviewLogoPx(),
+                height: headerPreviewLogoPx(),
+              }}
             >
               <Image
                 src={desaSettings.logo_url}
                 alt="Logo"
-                width={250}
-                height={250}
-                className="w-full h-full object-contain"
+                width={headerPreviewLogoPx()}
+                height={headerPreviewLogoPx()}
+                className="max-h-full max-w-full object-contain"
               />
             </div>
             <div
-              className={`flex-1 ${getSpacingClass(
-                template.header.spacing || "default"
-              )} text-center`}
+              className={`min-w-0 flex-1 ${getSpacingClass(
+                template.header.spacing || "default",
+              )} ${getAlignClass(hdrAlign)}`}
             >
               <div
                 style={{
@@ -411,113 +483,11 @@ export function TemplatePreview({
         })}
       </div>
 
-      {/* Footer */}
-      {template.footer?.footer_type !== "no_signature" ? (
-        <div className="mt-12">
-          {/* Multiple Signers Layout */}
-          {(template.footer?.signers || []).length > 1 ? (
-            <div className="grid grid-cols-2 gap-8">
-              {(template.footer?.signers || []).map((signer, idx) => {
-                const nip = resolvedNipLine(signer.nip);
-                return (
-                  <div
-                    key={idx}
-                    className={`${
-                      signer.position === "left"
-                        ? "text-left"
-                        : signer.position === "center"
-                        ? "text-center"
-                        : "text-right"
-                    }`}
-                  >
-                    {signer.prefix_text && (
-                      <div className="mb-1">{signer.prefix_text}</div>
-                    )}
-                    {signer.on_behalf_of && (
-                      <div className="mb-1">a.n {signer.on_behalf_of}</div>
-                    )}
-                    <div className="mb-1">{signer.role}</div>
-                    {signer.show_stamp && (
-                      <div className="my-12 text-muted-foreground text-sm italic">
-                        (TTD & Stempel)
-                      </div>
-                    )}
-                    {!signer.show_stamp && (
-                      <div className="my-12 text-muted-foreground text-sm italic">
-                        (TTD)
-                      </div>
-                    )}
-                    <div className="font-bold underline">
-                      {applyTemplateVars(signer?.name || "")}
-                    </div>
-                    {nip ? (
-                      <div className="text-sm">NIP: {nip}</div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (template.footer?.signers || []).length === 1 ? (
-            <div
-              className={`${
-                (template.footer?.signers || [])[0].position === "left"
-                  ? "text-left"
-                  : (template.footer?.signers || [])[0].position === "center"
-                  ? "text-center"
-                  : "text-right"
-              }`}
-            >
-              <div className="mb-2">
-                {applyTemplateVars(template.footer?.location || "")},{" "}
-                {template.footer?.date_format === "auto"
-                  ? "[TANGGAL_SURAT]"
-                  : "[TANGGAL_CUSTOM]"}
-              </div>
-              {(template.footer?.signers || [])[0].prefix_text && (
-                <div className="mb-1">
-                  {(template.footer?.signers || [])[0].prefix_text}
-                </div>
-              )}
-              {(template.footer?.signers || [])[0].on_behalf_of && (
-                <div className="mb-1">
-                  a.n {(template.footer?.signers || [])[0].on_behalf_of}
-                </div>
-              )}
-              <div className="mb-1">
-                {(template.footer?.signers || [])[0].role}
-              </div>
-              {(template.footer?.signers || [])[0].show_stamp && (
-                <div className="my-12 text-muted-foreground text-sm italic">
-                  (TTD & Stempel)
-                </div>
-              )}
-              {!(template.footer?.signers || [])[0].show_stamp && (
-                <div className="my-12 text-muted-foreground text-sm italic">
-                  (TTD)
-                </div>
-              )}
-              <div className="font-bold underline">
-                {applyTemplateVars(
-                  (template.footer?.signers || [])[0]?.name || ""
-                )}
-              </div>
-              {(() => {
-                const nip = resolvedNipLine(
-                  (template.footer?.signers || [])[0]?.nip,
-                );
-                return nip ? (
-                  <div className="text-sm">NIP: {nip}</div>
-                ) : null;
-              })()}
-            </div>
-          ) : null}
-        </div>
-      ) : (
-        <div className="mt-12 text-center text-muted-foreground">
-          {template.footer?.custom_note ||
-            "Dokumen ini diterbitkan oleh Pemerintah Desa"}
-        </div>
-      )}
+      <FooterSignatureBlock
+        footer={template.footer}
+        data={previewVariableData()}
+        className="mt-12"
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { AppDialogProvider } from "@/components/providers/AppDialogProvider";
 import { Footer } from "@/components/features/Footer";
 import { LoginModal } from "@/components/features/LoginModal";
 import { Navbar } from "@/components/features/Navbar";
@@ -40,7 +41,8 @@ export default function LandingLayout({
         setShowContact,
       }}
     >
-      <div className="min-h-screen bg-white">
+      <AppDialogProvider>
+        <div className="min-h-screen bg-white">
         <Navbar
           onLoginClick={() => setShowLogin(true)}
           onRegisterClick={() => setShowRegistration(true)}
@@ -54,7 +56,8 @@ export default function LandingLayout({
           <RegistrationModal onClose={() => setShowRegistration(false)} />
         )}
         {showContact && <ContactModal onClose={() => setShowContact(false)} />}
-      </div>
+        </div>
+      </AppDialogProvider>
     </ModalContext.Provider>
   );
 }

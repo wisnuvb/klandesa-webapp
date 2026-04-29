@@ -1,5 +1,6 @@
 import { getApiSession } from "@/lib/api-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSubdomain } from "@/lib/subdomain";
@@ -47,12 +48,31 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(templates);
+    const forkKeys = new Set(
+      templates
+        .filter((t) => t.villageId === village.id && t.inheritsCatalogKey)
+        .map((t) => t.inheritsCatalogKey as string),
+    );
+
+    const filtered = templates.filter((t) => {
+      const isGlobalCatalog =
+        t.isGlobal && (t.villageId == null || t.villageId === undefined);
+      if (
+        isGlobalCatalog &&
+        t.catalogKey &&
+        forkKeys.has(t.catalogKey)
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    return NextResponse.json(filtered);
   } catch (err) {
     console.error("GET /api/mail-templates error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -73,12 +93,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, description, category, templateStructure, contentTemplate, isGlobal } = body;
+    const { name, description, category, templateStructure, contentTemplate } = body;
 
     if (!name?.trim() || !category?.trim() || templateStructure == null) {
       return NextResponse.json(
         { error: "Missing required fields: name, category, or templateStructure" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -90,7 +110,7 @@ export async function POST(req: NextRequest) {
         category,
         templateStructure,
         contentTemplate: contentTemplate ?? "",
-        isGlobal: isGlobal || false,
+        isGlobal: false,
       },
     });
 
@@ -99,12 +119,16 @@ export async function POST(req: NextRequest) {
     console.error("POST /api/mail-templates error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function PUT(req: NextRequest) {
+/**
+ * Update parsial — hanya template yang `villageId`-nya sama dengan desa sesi.
+ * Template katalog (global / tanpa village) tidak boleh diubah dari sini.
+ */
+export async function PATCH(req: NextRequest) {
   try {
     const session = await getApiSession(req);
     if (!session?.user?.id) {
@@ -120,55 +144,45 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const {
-      id,
-      name,
-      description,
-      category,
-      templateStructure,
-      contentTemplate,
-      isGlobal,
-      isActive,
-    } = body;
+    const id = Number(body.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return NextResponse.json({ error: "Field id wajib dan valid" }, { status: 400 });
+    }
 
-    if (!id || !name?.trim() || !category?.trim() || templateStructure == null) {
+    const owned = await prisma.mailTemplate.findFirst({
+      where: { id, villageId: village.id },
+    });
+
+    if (!owned) {
       return NextResponse.json(
-        { error: "Missing required fields: id, name, category, or templateStructure" },
-        { status: 400 }
+        {
+          error:
+            "Template tidak ditemukan atau Anda tidak dapat mengubah template katalog sistem. Salin ke desa Anda terlebih dahulu.",
+        },
+        { status: 403 },
       );
     }
 
-    const existing = await prisma.mailTemplate.findFirst({
-      where: {
-        id: Number(id),
-        OR: [{ villageId: village.id }, { isGlobal: true }],
-      },
-      select: { id: true },
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Template not found" }, { status: 404 });
-    }
+    const data: Prisma.MailTemplateUpdateInput = {};
+    if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim();
+    if (typeof body.description === "string") data.description = body.description;
+    if (typeof body.category === "string" && body.category.trim())
+      data.category = body.category.trim();
+    if (body.templateStructure !== undefined) data.templateStructure = body.templateStructure;
+    if (typeof body.contentTemplate === "string") data.contentTemplate = body.contentTemplate;
+    if (typeof body.isActive === "boolean") data.isActive = body.isActive;
 
     const updated = await prisma.mailTemplate.update({
-      where: { id: Number(id) },
-      data: {
-        name,
-        description: description || "",
-        category,
-        templateStructure,
-        contentTemplate: contentTemplate ?? "",
-        isGlobal: isGlobal ?? false,
-        ...(typeof isActive === "boolean" ? { isActive } : {}),
-      },
+      where: { id },
+      data,
     });
 
     return NextResponse.json(updated);
   } catch (err) {
-    console.error("PUT /api/mail-templates error:", err);
+    console.error("PATCH /api/mail-templates error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

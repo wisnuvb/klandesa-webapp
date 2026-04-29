@@ -7,6 +7,7 @@ import {
   ListItem,
   FontFamily,
 } from "./types";
+import { createDefaultTableRows } from "./tableBlockDefaults";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -195,7 +196,12 @@ function ContentBlockEditorComponent({
     const newBlock: ContentBlock = {
       id: `block-${crypto.randomUUID()}-${blockIdCounter.current}`,
       type,
-      content: type === "table" ? [] : type === "list" ? [] : "",
+      content:
+        type === "table"
+          ? createDefaultTableRows()
+          : type === "list"
+            ? []
+            : "",
       style: {
         align: "left",
         size: "medium",

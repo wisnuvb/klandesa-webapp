@@ -4,6 +4,19 @@ import { useRef } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+/** Sama dengan `@import` di app/styles/fonts.css — dipakai jendela cetak agar font pasti tersedia. */
+const LETTER_PRINT_GOOGLE_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;0,7..72,700;1,7..72,400&display=swap";
+
+async function waitForFontsReady(): Promise<void> {
+  if (typeof document === "undefined" || !document.fonts?.ready) return;
+  try {
+    await document.fonts.ready;
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Hook untuk mengurus export PDF dan cetak surat.
  * Mengembalikan refs untuk tiap dialog preview serta fungsi export.
@@ -24,6 +37,7 @@ export function useLetterExport() {
     const filename = `${sanitizedName || "Surat"}.pdf`;
 
     try {
+      await waitForFontsReady();
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -81,6 +95,7 @@ export function useLetterExport() {
       <html>
         <head>
           <title>${title}</title>
+          <link rel="stylesheet" href="${LETTER_PRINT_GOOGLE_FONTS_HREF}" />
           ${styles}
           <style>
             body { margin: 0; background: #fff; }
@@ -94,11 +109,19 @@ export function useLetterExport() {
         <body>
           <div class="print-container">${content}</div>
           <script>
-            window.onload = () => {
-              window.focus();
-              window.print();
-              window.onafterprint = () => window.close();
-            };
+            function runPrint() {
+              function go() {
+                window.focus();
+                window.print();
+                window.onafterprint = function () { window.close(); };
+              }
+              if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(go).catch(go);
+              } else {
+                setTimeout(go, 200);
+              }
+            }
+            window.onload = runPrint;
           <\/script>
         </body>
       </html>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { PageStatus, InlinePageStatus, FullPageStatus } from "./PageStatus";
 
 /**
@@ -208,7 +209,7 @@ export default function PageStatusExample() {
             message="Kami sedang bekerja keras untuk menghadirkan fitur terbaik untuk Anda."
             action={{
               label: "Kembali ke Dashboard",
-              onClick: () => alert("Navigasi ke dashboard"),
+              onClick: () => toast.message("Demo: navigasi ke dashboard"),
             }}
           >
             <div className="text-sm text-purple-800">

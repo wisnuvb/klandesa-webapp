@@ -1,3 +1,12 @@
+import type { UkmProduct } from "./_types";
+
+/** Baris DB untuk kategori tanpa produk nyata; tidak ditampilkan di grid produk. */
+export function isUkmCategoryPlaceholder(p: UkmProduct): boolean {
+  return (
+    p.status.toLowerCase() === "inactive" && p.name.startsWith("Kategori: ")
+  );
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",

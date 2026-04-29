@@ -29,6 +29,7 @@ export type BillingCheckoutInput = {
   bankCode?: string;
   retailCode?: "PAYDANA" | "PAYLINKAJA" | "PAYSHOPEEPAY";
   ewalletPhone?: string;
+  metadata?: Prisma.InputJsonValue;
 };
 
 function buildInvoiceNumber(villageCode: string): string {
@@ -84,6 +85,11 @@ type CheckoutLineItem = {
   totalAmount: number;
   metadata?: Record<string, unknown>;
 };
+
+function daysBetweenCeil(from: Date, to: Date): number {
+  const diff = to.getTime() - from.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
 
 /** Hitung item tagihan dari state desa — tanpa menulis ke DB. */
 async function prepareCheckoutLineItems(
@@ -167,6 +173,70 @@ async function prepareCheckoutLineItems(
       totalAmount: tierInfo.monthlyFee,
       metadata: { kind: "monthly_fee", tier, storageGb: tierInfo.storageGb },
     });
+  } else if (input.productType === "website") {
+    const templateId = Number(input.planCode);
+    if (!Number.isFinite(templateId) || templateId <= 0) {
+      throw new Error("Template website tidak valid");
+    }
+
+    const [nextTemplate, currentSub] = await Promise.all([
+      prisma.websiteTemplate.findUnique({ where: { id: templateId } }),
+      prisma.websiteSubscription.findUnique({
+        where: { villageId: input.villageId },
+        include: { template: true },
+      }),
+    ]);
+
+    if (!nextTemplate || !nextTemplate.isActive) {
+      throw new Error("Template website tidak tersedia");
+    }
+
+    const now = new Date();
+    const hasActiveSub =
+      Boolean(currentSub?.isActive) &&
+      Boolean(currentSub?.expiryDate) &&
+      currentSub!.expiryDate.getTime() > now.getTime();
+
+    const nextPrice = Number(nextTemplate.price);
+
+    if (!hasActiveSub) {
+      lineItems.push({
+        name: `Website Desa (${nextTemplate.name})`,
+        description: "Aktivasi website desa 1 tahun",
+        quantity: 1,
+        unitAmount: nextPrice,
+        totalAmount: nextPrice,
+        metadata: {
+          kind: "website_activation",
+          templateId,
+          mode: "new",
+        },
+      });
+    } else {
+      const currentTemplate = currentSub!.template;
+      const currentPrice = Number(currentTemplate.price);
+      const remainingDays = Math.max(0, daysBetweenCeil(now, currentSub!.expiryDate));
+      const credit = normalizeMoney((remainingDays / 365) * currentPrice);
+      const payable = Math.max(0, normalizeMoney(nextPrice - credit));
+
+      lineItems.push({
+        name: `Website Desa (${nextTemplate.name})`,
+        description: `Ganti template. Kredit sisa masa aktif: ${remainingDays} hari`,
+        quantity: 1,
+        unitAmount: payable,
+        totalAmount: payable,
+        metadata: {
+          kind: "website_change_template",
+          templateId,
+          mode: "change",
+          currentTemplateId: currentTemplate.id,
+          currentExpiry: currentSub!.expiryDate.toISOString(),
+          remainingDays,
+          credit,
+          nextPrice,
+        },
+      });
+    }
   } else {
     throw new Error("Produk belum didukung");
   }
@@ -258,6 +328,7 @@ export async function createCheckout(input: BillingCheckoutInput) {
       vaNumber: fields.vaNumber,
       externalTransactionId: fields.transactionId,
       rawResponse: linkquResponse as unknown as object,
+      metadata: input.metadata ?? undefined,
       items: {
         create: lineItems.map((li) => {
           const base = {
@@ -415,6 +486,64 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
           subscriptionPlan: mappedTier,
           subscriptionStatus: "active",
           subscriptionDate: now,
+        },
+      });
+    }
+
+    if (invoice.productType === "website") {
+      const templateId = Number(invoice.planCode);
+      if (!Number.isFinite(templateId) || templateId <= 0) return;
+
+      const template = await tx.websiteTemplate.findUnique({
+        where: { id: templateId },
+        select: { id: true, isActive: true },
+      });
+      if (!template?.isActive) return;
+
+      const expiry = new Date(now);
+      expiry.setFullYear(expiry.getFullYear() + 1);
+
+      const meta =
+        invoice.metadata && typeof invoice.metadata === "object"
+          ? (invoice.metadata as Record<string, unknown>)
+          : null;
+      const websiteMeta =
+        meta && typeof meta.website === "object" && meta.website
+          ? (meta.website as Record<string, unknown>)
+          : null;
+
+      const domainType = String(websiteMeta?.domainType ?? "");
+      const domainValue = String(websiteMeta?.domain ?? "").trim();
+
+      const isCustom = domainType === "custom" && domainValue.length > 0;
+      const isSubdomain = domainType === "subdomain" && domainValue.length > 0;
+
+      if (isSubdomain) {
+        await tx.village.update({
+          where: { id: invoice.villageId },
+          data: {
+            website: `${domainValue}.klandesa.id`,
+          },
+        });
+      }
+
+      await tx.websiteSubscription.upsert({
+        where: { villageId: invoice.villageId },
+        create: {
+          villageId: invoice.villageId,
+          templateId: templateId,
+          startDate: now,
+          expiryDate: expiry,
+          isActive: true,
+          customDomain: isCustom ? domainValue : null,
+        },
+        update: {
+          templateId: templateId,
+          startDate: now,
+          expiryDate: expiry,
+          isActive: true,
+          customDomain: isCustom ? domainValue : null,
+          customization: Prisma.DbNull,
         },
       });
     }

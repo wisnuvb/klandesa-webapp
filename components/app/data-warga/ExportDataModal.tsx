@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FileSpreadsheet, FileText, Download, Loader2 } from "lucide-react";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
 interface ExportDataModalProps {
   open: boolean;
@@ -39,6 +40,7 @@ export function ExportDataModal({
   onOpenChange,
   currentFilters,
 }: ExportDataModalProps) {
+  const { appAlert } = useAppDialogs();
   const [format, setFormat] = useState<ExportFormat>("excel");
   const [gender, setGender] = useState(currentFilters?.gender || "all");
   const [status, setStatus] = useState(currentFilters?.status || "all");
@@ -116,7 +118,7 @@ export function ExportDataModal({
       onOpenChange(false);
     } catch (error) {
       console.error("Export error:", error);
-      alert("Gagal mengekspor data. Silakan coba lagi.");
+      void appAlert("Gagal mengekspor data. Silakan coba lagi.");
     } finally {
       setIsExporting(false);
     }

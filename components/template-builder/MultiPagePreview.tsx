@@ -20,6 +20,8 @@ interface MultiPagePreviewProps {
     kode_pos: string;
     kepala_desa_nama: string;
     kepala_desa_nip?: string | null;
+    logo_url?: string | null;
+    email_desa?: string | null;
   };
   onClose: () => void;
 }
@@ -43,6 +45,8 @@ export function MultiPagePreview({ template, desaSettings, onClose }: MultiPageP
     KECAMATAN: desaSettings.kecamatan,
     ALAMAT_DESA: desaSettings.alamat_desa,
     KODE_POS: desaSettings.kode_pos,
+    LOGO_URL: (desaSettings.logo_url ?? "").trim(),
+    EMAIL_DESA: (desaSettings.email_desa ?? "").trim(),
     KEPALA_DESA_NAMA: desaSettings.kepala_desa_nama,
     KEPALA_DESA_NIP: desaSettings.kepala_desa_nip || "19800101 200801 1 001",
     NAMA: 'Ahmad Suryadi',

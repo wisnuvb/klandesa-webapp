@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import {
   Megaphone,
   Plus,
@@ -43,6 +44,7 @@ interface Announcement {
 }
 
 export function PengumumanDesa() {
+  const { appAlert, appConfirm } = useAppDialogs();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -224,7 +226,7 @@ export function PengumumanDesa() {
       fetchAnnouncements();
     } catch (error) {
       console.error("Save announcement error:", error);
-      alert("Gagal menyimpan pengumuman. Silakan coba lagi.");
+      void appAlert("Gagal menyimpan pengumuman. Silakan coba lagi.");
     } finally {
       setIsSaving(false);
     }
@@ -232,8 +234,15 @@ export function PengumumanDesa() {
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (confirm("Apakah Anda yakin ingin menghapus pengumuman ini?")) {
-      try {
+    const ok = await appConfirm({
+      title: "Hapus pengumuman?",
+      description: "Pengumuman akan dihapus permanen.",
+      confirmLabel: "Hapus",
+      tone: "destructive",
+    });
+    if (!ok) return;
+
+    try {
         const res = await fetch(`/api/announcements/${id}`, {
           method: "DELETE",
         });
@@ -242,9 +251,8 @@ export function PengumumanDesa() {
         setShowDetailModal(false);
       } catch (error) {
         console.error("Delete announcement error:", error);
-        alert("Gagal menghapus pengumuman.");
+        void appAlert("Gagal menghapus pengumuman.");
       }
-    }
   };
 
   // Toggle pin

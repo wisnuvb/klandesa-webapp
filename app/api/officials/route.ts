@@ -133,6 +133,7 @@ export async function GET(req: NextRequest) {
       address: o.address,
       status: o.status,
       education: o.education,
+      certification: o.certification,
       position: o.position
         ? { id: o.position.id, name: o.position.name, level: o.position.level }
         : null,

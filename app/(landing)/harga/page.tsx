@@ -58,7 +58,7 @@ export default function PricingPage() {
       popular: true,
       features: [
         { name: "Hingga 15 admin", included: true },
-        { name: "Storage 25 GB", included: true },
+        { name: "Storage 20 GB", included: true },
         { name: "Semua fitur Starter", included: true },
         { name: "Dashboard analytics lengkap", included: true },
         { name: "Laporan bulanan otomatis", included: true },
@@ -84,7 +84,7 @@ export default function PricingPage() {
       popular: false,
       features: [
         { name: "Admin unlimited", included: true },
-        { name: "Storage unlimited", included: true },
+        { name: "Storage 100 GB", included: true },
         { name: "Semua fitur Profesional", included: true },
         { name: "Custom branding & white-label", included: true },
         { name: "Multi-desa management dashboard", included: true },
@@ -388,7 +388,7 @@ export default function PricingPage() {
                     items: [
                       {
                         name: "Storage space",
-                        values: ["5 GB", "25 GB", "Unlimited"],
+                        values: ["1 GB", "20 GB", "100 GB"],
                       },
                       {
                         name: "Backup otomatis",

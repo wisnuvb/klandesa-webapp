@@ -31,11 +31,20 @@ export function SignInForm() {
       if (result?.ok) {
         const freshSession = await getSession();
         if (freshSession?.user) {
+          const u = freshSession.user as {
+            accountType?: string;
+          };
+          const defaultDest =
+            u.accountType === "regional" ? "/wilayah" : "/dashboard";
           const next =
             callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
               ? callbackUrl
-              : "/dashboard";
-          window.location.assign(next);
+              : defaultDest;
+          const safe =
+            u.accountType === "regional" && next.startsWith("/dashboard")
+              ? "/wilayah"
+              : next;
+          window.location.assign(safe);
         } else {
           setError("Sesi tidak terbaca. Coba refresh halaman.");
         }

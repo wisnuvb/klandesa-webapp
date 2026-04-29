@@ -23,6 +23,8 @@ import {
   Search,
   Loader2,
 } from "lucide-react";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -145,6 +147,7 @@ const formatRupiahShort = (angka: number) => {
 };
 
 export function Keuangan() {
+  const { appAlert } = useAppDialogs();
   const [selectedYear, setSelectedYear] = useState("2025");
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -383,15 +386,15 @@ export function Keuangan() {
   const handleSavePendapatan = async () => {
     // Validation
     if (!formPendapatan.kategori) {
-      alert("Kategori harus diisi");
+      void appAlert("Kategori harus diisi");
       return;
     }
     if (!formPendapatan.uraian) {
-      alert("Uraian harus diisi");
+      void appAlert("Uraian harus diisi");
       return;
     }
     if (!formPendapatan.jumlah || parseFloat(formPendapatan.jumlah) <= 0) {
-      alert("Jumlah harus lebih dari 0");
+      void appAlert("Jumlah harus lebih dari 0");
       return;
     }
 
@@ -429,10 +432,10 @@ export function Keuangan() {
         nomorBukti: "",
       });
       setShowPendapatanDialog(false);
-      alert("Pendapatan berhasil disimpan");
+      toast.success("Pendapatan berhasil disimpan");
     } catch (err) {
       console.error("Error saving pendapatan:", err);
-      alert(err instanceof Error ? err.message : "Gagal menyimpan pendapatan");
+      void appAlert(err instanceof Error ? err.message : "Gagal menyimpan pendapatan");
     } finally {
       setIsSubmitting(false);
     }
@@ -450,15 +453,15 @@ export function Keuangan() {
   const handleSaveBelanja = async () => {
     // Validation
     if (!formBelanja.bidang) {
-      alert("Bidang belanja harus diisi");
+      void appAlert("Bidang belanja harus diisi");
       return;
     }
     if (!formBelanja.keterangan) {
-      alert("Keterangan harus diisi");
+      void appAlert("Keterangan harus diisi");
       return;
     }
     if (!formBelanja.jumlah || parseFloat(formBelanja.jumlah) <= 0) {
-      alert("Jumlah harus lebih dari 0");
+      void appAlert("Jumlah harus lebih dari 0");
       return;
     }
 
@@ -496,10 +499,10 @@ export function Keuangan() {
         nomorBukti: "",
       });
       setShowBelanjaDialog(false);
-      alert("Belanja berhasil disimpan");
+      toast.success("Belanja berhasil disimpan");
     } catch (err) {
       console.error("Error saving belanja:", err);
-      alert(err instanceof Error ? err.message : "Gagal menyimpan belanja");
+      void appAlert(err instanceof Error ? err.message : "Gagal menyimpan belanja");
     } finally {
       setIsSubmitting(false);
     }
@@ -546,15 +549,15 @@ export function Keuangan() {
   const handleSaveTransaksi = async () => {
     // Validation
     if (!formTransaksi.kategori) {
-      alert("Kategori harus diisi");
+      void appAlert("Kategori harus diisi");
       return;
     }
     if (!formTransaksi.uraian) {
-      alert("Uraian harus diisi");
+      void appAlert("Uraian harus diisi");
       return;
     }
     if (!formTransaksi.jumlah || parseFloat(formTransaksi.jumlah) <= 0) {
-      alert("Jumlah harus lebih dari 0");
+      void appAlert("Jumlah harus lebih dari 0");
       return;
     }
 
@@ -607,14 +610,14 @@ export function Keuangan() {
         nomorBukti: "",
       });
       setShowTransaksiDialog(false);
-      alert(
+      toast.success(
         formTransaksi.id
           ? "Transaksi berhasil diupdate"
-          : "Transaksi berhasil disimpan"
+          : "Transaksi berhasil disimpan",
       );
     } catch (err) {
       console.error("Error saving transaksi:", err);
-      alert(err instanceof Error ? err.message : "Gagal menyimpan transaksi");
+      void appAlert(err instanceof Error ? err.message : "Gagal menyimpan transaksi");
     } finally {
       setIsSubmitting(false);
     }
@@ -667,19 +670,19 @@ export function Keuangan() {
   const handleSaveSPP = async () => {
     // Validation
     if (!formSPP.kegiatan) {
-      alert("Kegiatan harus diisi");
+      void appAlert("Kegiatan harus diisi");
       return;
     }
     if (!formSPP.uraian) {
-      alert("Uraian/Keperluan harus diisi");
+      void appAlert("Uraian/Keperluan harus diisi");
       return;
     }
     if (!formSPP.jumlah || parseFloat(formSPP.jumlah) <= 0) {
-      alert("Jumlah harus lebih dari 0");
+      void appAlert("Jumlah harus lebih dari 0");
       return;
     }
     if (!formSPP.nomorSPP) {
-      alert("Nomor SPP harus diisi");
+      void appAlert("Nomor SPP harus diisi");
       return;
     }
 
@@ -721,10 +724,10 @@ export function Keuangan() {
         keterangan: "",
       });
       setShowSPPDialog(false);
-      alert("SPP berhasil diajukan");
+      toast.success("SPP berhasil diajukan");
     } catch (err) {
       console.error("Error saving SPP:", err);
-      alert(err instanceof Error ? err.message : "Gagal menyimpan SPP");
+      void appAlert(err instanceof Error ? err.message : "Gagal menyimpan SPP");
     } finally {
       setIsSubmitting(false);
     }
@@ -745,7 +748,7 @@ export function Keuangan() {
     if (!selectedSPP) return;
 
     if (confirmMode === "reject" && !alasanReject.trim()) {
-      alert("Alasan penolakan harus diisi");
+      void appAlert("Alasan penolakan harus diisi");
       return;
     }
 
@@ -773,7 +776,7 @@ export function Keuangan() {
       setAlasanReject("");
     } catch (err) {
       console.error(`Error ${confirmMode} SPP:`, err);
-      alert(`Gagal ${confirmMode} SPP`);
+      void appAlert(`Gagal ${confirmMode} SPP`);
     }
   };
 

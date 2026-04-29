@@ -17,12 +17,24 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-export function generateTokens(payload: {
+export type JwtTokenPayloadVillage = {
   id: number;
   email: string;
   role: string;
   villageId: number;
-}) {
+  accountType?: "village";
+};
+
+export type JwtTokenPayloadRegional = {
+  id: number;
+  email: string;
+  role: string;
+  accountType: "regional";
+};
+
+export function generateTokens(
+  payload: JwtTokenPayloadVillage | JwtTokenPayloadRegional,
+) {
   const accessToken = jwt.sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRY,
   });
@@ -30,7 +42,7 @@ export function generateTokens(payload: {
   const refreshToken = jwt.sign(
     { id: payload.id, email: payload.email },
     JWT_SECRET,
-    { expiresIn: REFRESH_TOKEN_EXPIRY }
+    { expiresIn: REFRESH_TOKEN_EXPIRY },
   );
 
   return { accessToken, refreshToken };

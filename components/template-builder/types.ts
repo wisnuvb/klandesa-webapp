@@ -62,6 +62,8 @@ export interface HeaderConfig {
   layout?: HeaderLayout;
   alignment?: Alignment;
   logo_size?: Size;
+  /** Lebar/tinggi logo dalam px (kotak); jika diisi, dipakai di preview/cetak menggantikan preset `logo_size`. */
+  logo_width_px?: number;
   logo_position?: Alignment;
   font_family?: FontFamily;
   font_size?: {
@@ -260,7 +262,7 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   footer_type: "single",
   signers: [
     {
-      role: "Kepala Desa",
+      role: "{SIGNER_JABATAN_FOOTER}",
       name: "{KEPALA_DESA_NAMA}",
       on_behalf_of: null,
       position: "right",

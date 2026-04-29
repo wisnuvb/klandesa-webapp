@@ -1,7 +1,38 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
+import { catalogRowsForSeed } from "../lib/mail/catalogTemplates";
+import { mergeTemplateCapabilities } from "../lib/website-engine/feature-capabilities";
 
 const prisma = new PrismaClient();
+
+/** Tabel/kolom belum termigrasi — seed bagian ini boleh dilewati tanpa gagal total. */
+function isSkippableMissingSchemaError(e: unknown): boolean {
+  return (
+    e instanceof Prisma.PrismaClientKnownRequestError &&
+    (e.code === "P2021" || e.code === "P2022")
+  );
+}
+
+/** Jalankan blok seed; jika skema belum siap, log peringatan dan lanjut. */
+async function trySeedStep(
+  name: string,
+  fn: () => Promise<void>,
+): Promise<boolean> {
+  try {
+    await fn();
+    return true;
+  } catch (e) {
+    if (isSkippableMissingSchemaError(e)) {
+      const meta =
+        e instanceof Prisma.PrismaClientKnownRequestError ? e.meta : undefined;
+      console.warn(
+        `⚠ ${name}: dilewati — skema DB belum lengkap (${meta ? JSON.stringify(meta) : "P2021/P2022"}). Jalankan: npx prisma migrate deploy`,
+      );
+      return false;
+    }
+    throw e;
+  }
+}
 
 async function main() {
   console.log("Start seeding...");
@@ -54,6 +85,67 @@ async function main() {
   } else {
     console.log("✓ User already exists:", user.email);
   }
+
+  let village2 = await prisma.village.findUnique({
+    where: { code: "DESA002" },
+  });
+  if (!village2) {
+    village2 = await prisma.village.create({
+      data: {
+        code: "DESA002",
+        name: "Desa Ujicoba Dua",
+        district: village.district,
+        regency: village.regency,
+        province: village.province,
+        address: "Jalan Test No. 2",
+        phone: "0851234568",
+        email: "desa2@test.id",
+        isActive: true,
+      },
+    });
+    console.log("✓ Village 2 created:", village2.code, village2.name);
+  } else {
+    console.log("✓ Village 2 already exists:", village2.code, village2.name);
+  }
+
+  const regionalOk = await trySeedStep("Regional users", async () => {
+    await prisma.regionalUser.upsert({
+      where: { email: "kabupaten@test.id" },
+      create: {
+        email: "kabupaten@test.id",
+        password: hashedPassword,
+        name: "Admin Kabupaten Uji",
+        role: "regional_kabupaten",
+        scopeRegency: village.regency,
+      },
+      update: {
+        password: hashedPassword,
+        scopeRegency: village.regency,
+        role: "regional_kabupaten",
+        scopeDistrict: null,
+      },
+    });
+    console.log("✓ Regional user (kabupaten): kabupaten@test.id");
+
+    await prisma.regionalUser.upsert({
+      where: { email: "kecamatan@test.id" },
+      create: {
+        email: "kecamatan@test.id",
+        password: hashedPassword,
+        name: "Admin Kecamatan Uji",
+        role: "regional_kecamatan",
+        scopeRegency: village.regency,
+        scopeDistrict: village.district,
+      },
+      update: {
+        password: hashedPassword,
+        scopeRegency: village.regency,
+        scopeDistrict: village.district,
+        role: "regional_kecamatan",
+      },
+    });
+    console.log("✓ Regional user (kecamatan): kecamatan@test.id");
+  });
 
   // Create or update positions (Jabatan)
   const positionNames = [
@@ -118,12 +210,12 @@ async function main() {
           isActive: true,
         },
       });
-    })
+    }),
   );
 
   console.log(
     `✓ ${positions.length} positions ready:`,
-    positions.map((p) => ({ id: p.id, name: p.name, level: p.level }))
+    positions.map((p) => ({ id: p.id, name: p.name, level: p.level })),
   );
 
   // Create or update officials (Perangkat Desa)
@@ -198,12 +290,12 @@ async function main() {
           status: "active",
         },
       });
-    })
+    }),
   );
 
   console.log(
     `✓ ${officials.length} officials ready:`,
-    officials.map((o) => ({ id: o.id, name: o.name, position: o.positionId }))
+    officials.map((o) => ({ id: o.id, name: o.name, position: o.positionId })),
   );
 
   // Create or update village potentials (Potensi Desa)
@@ -284,7 +376,7 @@ async function main() {
           economicPotential: pot.economicPotential,
         },
       });
-    })
+    }),
   );
 
   console.log(
@@ -293,16 +385,368 @@ async function main() {
       id: vp.id,
       year: vp.year,
       population: vp.population,
-    }))
+    })),
+  );
+
+  const catalogTemplates = catalogRowsForSeed();
+  const catalogOk = await trySeedStep("Katalog mail template", async () => {
+    for (const row of catalogTemplates) {
+      await prisma.mailTemplate.upsert({
+        where: { catalogKey: row.catalogKey },
+        create: {
+          catalogKey: row.catalogKey,
+          villageId: null,
+          isGlobal: true,
+          name: row.name,
+          description: row.description,
+          category: row.category,
+          templateStructure: row.templateStructure as Prisma.InputJsonValue,
+          contentTemplate: row.contentTemplate,
+          isActive: true,
+        },
+        update: {
+          name: row.name,
+          description: row.description,
+          category: row.category,
+          templateStructure: row.templateStructure as Prisma.InputJsonValue,
+          contentTemplate: row.contentTemplate,
+        },
+      });
+    }
+    console.log(`✓ Katalog mail template: ${catalogTemplates.length}`);
+  });
+
+  const websiteOk = await trySeedStep(
+    "Website templates & subscription",
+    async () => {
+      function websiteThemeDefaultsForSlug(slug: string): {
+        primary?: string;
+        accent?: string;
+      } {
+        switch (slug) {
+          case "modern-village":
+            return { primary: "#0f766e", accent: "#134e4a" };
+          case "classic-heritage":
+            return { primary: "#7c2d12", accent: "#431407" };
+          case "professional-gov":
+            return { primary: "#1e3a8a", accent: "#172554" };
+          case "tourism-village":
+            return { primary: "#be185d", accent: "#831843" };
+          case "green-agriculture":
+            return { primary: "#166534", accent: "#14532d" };
+          case "smart-village":
+            return { primary: "#4f46e5", accent: "#312e81" };
+          default:
+            return { primary: "#0f766e", accent: "#0f172a" };
+        }
+      }
+
+      const websiteTemplates: Array<{
+        name: string;
+        slug: string;
+        description: string;
+        category: string;
+        price: number;
+        previewImage: string;
+        thumbnailUrl: string;
+        demoUrl?: string;
+        badge?: "Popular" | "Recommended" | "Best Seller";
+        isPremium?: boolean;
+        isFeatured?: boolean;
+        features: string[];
+      }> = [
+        {
+          name: "Modern Village",
+          slug: "modern-village",
+          description:
+            "Template modern dengan desain minimalis dan clean. Cocok untuk desa yang ingin tampil profesional.",
+          category: "village",
+          price: 1200000,
+          previewImage:
+            "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=800&h=600&fit=crop",
+          thumbnailUrl:
+            "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&h=600&fit=crop",
+          demoUrl: "https://demo.modern-village.com",
+          badge: "Popular",
+          isFeatured: true,
+          features: [
+            "Responsive Design",
+            "SEO Optimized",
+            "Berita & Artikel",
+            "Galeri Foto",
+            "Profil Desa",
+            "Layanan Online",
+            "Kontak & Maps",
+          ],
+        },
+        {
+          name: "Classic Heritage",
+          slug: "classic-heritage",
+          description:
+            "Desain klasik dengan nuansa tradisional yang elegan. Mempertahankan nilai budaya lokal.",
+          category: "village",
+          price: 1800000,
+          previewImage:
+            "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=600&fit=crop",
+          thumbnailUrl:
+            "https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&h=600&fit=crop",
+          badge: "Recommended",
+          features: [
+            "Responsive Design",
+            "SEO Optimized",
+            "Portal Berita",
+            "Struktur Organisasi",
+            "Data Kependudukan",
+            "Potensi Desa",
+            "Kontak Form",
+          ],
+        },
+        {
+          name: "Professional Gov",
+          slug: "professional-gov",
+          description:
+            "Template profesional dengan tampilan formal untuk pemerintahan. Dilengkapi dashboard admin.",
+          category: "village",
+          price: 2000000,
+          previewImage:
+            "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop",
+          thumbnailUrl:
+            "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&h=600&fit=crop",
+          badge: "Best Seller",
+          isPremium: true,
+          features: [
+            "Responsive Design",
+            "SEO Optimized",
+            "Advanced Dashboard",
+            "Multi User Role",
+            "E-Document",
+            "Live Chat Support",
+            "Analytics Dashboard",
+            "Custom Domain",
+          ],
+        },
+        {
+          name: "Tourism Village",
+          slug: "tourism-village",
+          description:
+            "Khusus untuk desa wisata dengan galeri interaktif dan sistem booking. Tampilan menarik dan colorful.",
+          category: "village",
+          price: 1500000,
+          previewImage:
+            "https://images.unsplash.com/photo-1508780709619-79562169bc64?w=800&h=600&fit=crop",
+          thumbnailUrl:
+            "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&h=600&fit=crop",
+          features: [
+            "Responsive Design",
+            "SEO Optimized",
+            "Booking System",
+            "Virtual Tour 360°",
+            "Galeri Premium",
+            "Trip Advisor Integration",
+            "Payment Gateway",
+          ],
+        },
+        {
+          name: "Green Agriculture",
+          slug: "green-agriculture",
+          description:
+            "Template hijau natural untuk desa pertanian. Showcase produk dan hasil panen dengan elegan.",
+          category: "village",
+          price: 1200000,
+          previewImage:
+            "https://images.unsplash.com/photo-1560264280-88b68371db39?w=800&h=600&fit=crop",
+          thumbnailUrl:
+            "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=600&fit=crop",
+          features: [
+            "Responsive Design",
+            "SEO Optimized",
+            "Product Catalog",
+            "E-Commerce Ready",
+            "Blog & Tips",
+            "Weather Widget",
+            "Harvest Calendar",
+          ],
+        },
+        {
+          name: "Smart Village",
+          slug: "smart-village",
+          description:
+            "Template futuristik dengan integrasi IoT dan smart features. Untuk desa yang menuju digitalisasi penuh.",
+          category: "village",
+          price: 2500000,
+          previewImage:
+            "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&h=600&fit=crop",
+          thumbnailUrl:
+            "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=800&h=600&fit=crop",
+          isPremium: true,
+          features: [
+            "Responsive Design",
+            "SEO Optimized",
+            "IoT Integration",
+            "Real-time Monitoring",
+            "Smart Dashboard",
+            "Automation Features",
+            "Advanced Security",
+          ],
+        },
+      ];
+
+      const storedTemplates = await Promise.all(
+        websiteTemplates.map(async (row) => {
+          const existing = await prisma.websiteTemplate.findFirst({
+            where: { name: row.name },
+          });
+
+          const structure: Prisma.InputJsonValue = {
+            version: 1,
+            templateKey: row.slug,
+            slug: row.slug,
+            capabilities: mergeTemplateCapabilities(row.features),
+            features: row.features,
+            badge: row.badge,
+            isPremium: Boolean(row.isPremium),
+            defaults: {
+              theme: websiteThemeDefaultsForSlug(row.slug),
+            },
+            presets:
+              row.slug === "tourism-village"
+                ? [
+                    {
+                      key: "wisata_highlight",
+                      name: "Sorot Wisata",
+                      structure: {
+                        version: 1,
+                        pages: {
+                          home: {
+                            sections: [
+                              {
+                                kind: "hero",
+                                subtitle: "Selamat datang di desa wisata kami",
+                              },
+                              {
+                                kind: "news",
+                                limit: 4,
+                                title: "Kegiatan & Berita",
+                              },
+                              { kind: "contact", show_map: true },
+                            ],
+                          },
+                        },
+                      },
+                    },
+                  ]
+                : [],
+            pages: {
+              home: {
+                sections: [
+                  { kind: "hero" },
+                  { kind: "news", limit: row.isPremium ? 10 : 6 },
+                  { kind: "contact" },
+                ],
+              },
+            },
+          };
+
+          if (existing) {
+            return prisma.websiteTemplate.update({
+              where: { id: existing.id },
+              data: {
+                description: row.description,
+                category: row.category,
+                price: row.price,
+                subscriptionType: "yearly",
+                previewImage: row.previewImage,
+                thumbnailUrl: row.thumbnailUrl,
+                demoUrl: row.demoUrl ?? null,
+                structure,
+                isActive: true,
+                isFeatured: Boolean(row.isFeatured),
+              },
+            });
+          }
+
+          return prisma.websiteTemplate.create({
+            data: {
+              name: row.name,
+              description: row.description,
+              category: row.category,
+              previewImage: row.previewImage,
+              thumbnailUrl: row.thumbnailUrl,
+              demoUrl: row.demoUrl ?? null,
+              structure,
+              price: row.price,
+              subscriptionType: "yearly",
+              isFeatured: Boolean(row.isFeatured),
+              isActive: true,
+            },
+          });
+        }),
+      );
+
+      const defaultTemplate =
+        storedTemplates.find((t) => t.name === "Modern Village") ??
+        storedTemplates[0];
+      if (!defaultTemplate) return;
+
+      const startDate = new Date();
+      const expiryDate = new Date(startDate);
+      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+      const existingSubscription = await prisma.websiteSubscription.findUnique({
+        where: { villageId: village.id },
+      });
+      if (existingSubscription) {
+        await prisma.websiteSubscription.update({
+          where: { id: existingSubscription.id },
+          data: {
+            templateId: defaultTemplate.id,
+            startDate,
+            expiryDate,
+            isActive: true,
+            customDomain: null,
+            customization: Prisma.DbNull,
+          },
+        });
+      } else {
+        await prisma.websiteSubscription.create({
+          data: {
+            villageId: village.id,
+            templateId: defaultTemplate.id,
+            startDate,
+            expiryDate,
+            isActive: true,
+          },
+        });
+      }
+
+      console.log(`✓ Website templates: ${storedTemplates.length}`);
+      console.log(`✓ Website subscription active for village: ${village.code}`);
+    },
   );
 
   console.log("\n✅ Seeding completed successfully!\n");
   console.log("📊 Summary:");
   console.log(`  • Village: ${village.code} - ${village.name}`);
+  console.log(`  • Village 2: ${village2.code} - ${village2.name}`);
   console.log(`  • User: ${user.email} (Password: password123)`);
+  console.log(
+    regionalOk
+      ? `  • Regional kabupaten: kabupaten@test.id | kecamatan: kecamatan@test.id (Password: 123456)`
+      : `  • Regional users: dilewati (skema tidak lengkap — lihat peringatan di atas)`,
+  );
   console.log(`  • Positions: ${positions.length}`);
   console.log(`  • Officials: ${officials.length}`);
   console.log(`  • Village Potentials: ${villagePotentials.length}`);
+  console.log(
+    catalogOk
+      ? `  • Catalog mail templates: ${catalogTemplates.length}`
+      : `  • Catalog mail templates: dilewati (skema tidak lengkap — lihat peringatan di atas)`,
+  );
+  console.log(
+    websiteOk
+      ? `  • Website templates: siap + subscription aktif`
+      : `  • Website templates: dilewati (skema tidak lengkap — lihat peringatan di atas)`,
+  );
 }
 
 main()

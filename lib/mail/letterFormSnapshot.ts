@@ -101,6 +101,8 @@ export async function buildLetterFormSnapshot(
     KECAMATAN: village.district,
     DESA: village.name,
     NAMA_DESA: village.name,
+    NAMA_KABUPATEN: village.regency,
+    NAMA_KECAMATAN: village.district,
     ALAMAT_DESA: village.address,
     KODE_POS: village.postalCode ?? "",
     KEPALA_DESA_NAMA: kepalaNama,

@@ -37,6 +37,7 @@ import {
   DEFAULT_FOOTER_CONFIG,
   DEFAULT_LETTER_NUMBER_CONFIG,
 } from "./types";
+import { coerceTableRowsFromLibrary } from "./tableBlockDefaults";
 
 interface TemplateLibraryModalProps {
   open: boolean;
@@ -1404,17 +1405,9 @@ export function TemplateLibraryModal({
         newType = "table";
       }
 
-      // Convert content structure for tables
-      let newContent = block.content;
-      if (
-        newType === "table" &&
-        typeof block.content === "object" &&
-        "items" in block.content
-      ) {
-        // Convert from { items: [{ label, value }] } to [{ text: "label: value" }]
-        newContent = (block.content as any).items.map((item: any) => ({
-          text: `${item.label}: ${item.value}`,
-        }));
+      let newContent: unknown = block.content;
+      if (newType === "table") {
+        newContent = coerceTableRowsFromLibrary(block.content);
       }
 
       // Convert alignment property to style object

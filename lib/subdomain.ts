@@ -1,10 +1,16 @@
 import { NextRequest } from "next/server";
 
-export function getSubdomain(req: NextRequest): string | null {
-  const hostname = req.headers.get("host") || "";
+export function normalizeHostname(hostHeader: string | null): string {
+  const hostname = String(hostHeader ?? "");
+  return hostname.split(":")[0].trim().toLowerCase();
+}
 
-  // Remove port if present
-  const host = hostname.split(":")[0];
+export function isIpAddress(hostname: string): boolean {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+}
+
+export function getSubdomain(req: NextRequest): string | null {
+  const host = normalizeHostname(req.headers.get("host"));
 
   // Split by dots
   const parts = host.split(".");
@@ -19,7 +25,7 @@ export function getSubdomain(req: NextRequest): string | null {
   }
 
   // If IP address, no subdomain
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+  if (isIpAddress(host)) {
     return null;
   }
 
@@ -47,4 +53,26 @@ export function isTenantSubdomain(subdomain: string | null): boolean {
     subdomain !== "app" &&
     subdomain !== "my"
   );
+}
+
+export function isAllowedMainHostname(hostname: string): boolean {
+  if (!hostname) return true;
+  if (hostname.includes("localhost")) return true;
+  if (isIpAddress(hostname)) return true;
+  const allow =
+    process.env.MAIN_DOMAIN_ALLOWLIST ??
+    "klandesa.id,www.klandesa.id,klandesa.com,www.klandesa.com";
+  const allowed = allow
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.includes(hostname);
+}
+
+export function isCustomDomainCandidateHost(hostname: string): boolean {
+  if (!hostname) return false;
+  if (hostname.includes("localhost")) return false;
+  if (isIpAddress(hostname)) return false;
+  if (isAllowedMainHostname(hostname)) return false;
+  return true;
 }

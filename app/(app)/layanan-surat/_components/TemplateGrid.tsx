@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Eye, FileEdit } from "lucide-react";
+import { Edit, Eye, FileEdit, Trash } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ interface TemplateGridProps {
   onCreateSurat: (template: TemplateBody) => void;
   onPreviewTemplate: (template: TemplateBody) => void;
   onEditTemplate: (template: TemplateBody) => void;
+  onDeleteTemplate: (template: TemplateBody) => void;
 }
 
 export function TemplateGrid({
@@ -18,6 +19,7 @@ export function TemplateGrid({
   onCreateSurat,
   onPreviewTemplate,
   onEditTemplate,
+  onDeleteTemplate,
 }: TemplateGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -37,9 +39,16 @@ export function TemplateGrid({
                     {template.description}
                   </p>
                 </div>
-                <Badge variant={template.is_active ? "default" : "secondary"}>
-                  {template.is_active ? "Aktif" : "Nonaktif"}
-                </Badge>
+                <div className="flex flex-wrap gap-1 justify-end shrink-0 max-w-[140px]">
+                  <Badge variant={template.is_active ? "default" : "secondary"}>
+                    {template.is_active ? "Aktif" : "Nonaktif"}
+                  </Badge>
+                  <Badge
+                    variant={template.is_catalog ? "secondary" : "outline"}
+                  >
+                    {template.is_catalog ? "Katalog bawaan" : "Desa"}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
 
@@ -61,7 +70,9 @@ export function TemplateGrid({
 
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Field Input:</span>
-                <span className="font-medium">{template.variables.length} field</span>
+                <span className="font-medium">
+                  {template.variables.length} field
+                </span>
               </div>
 
               <div className="flex gap-2 pt-2 border-t">
@@ -81,13 +92,38 @@ export function TemplateGrid({
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
+                {!template.is_catalog && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 shrink-0 text-destructive hover:text-destructive"
+                    title={
+                      template.is_catalog
+                        ? "Template katalog bawaan tidak dapat dihapus"
+                        : "Hapus template milik desa"
+                    }
+                    disabled={template.is_catalog}
+                    onClick={() => onDeleteTemplate(template)}
+                  >
+                    <Trash className="h-4 w-4" />
+                    <span className="hidden sm:inline text-xs">Hapus</span>
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-1"
+                  title={
+                    template.is_catalog
+                      ? "Edit menjadi template desa (katalog disembunyikan setelah disimpan)"
+                      : "Ubah template"
+                  }
                   onClick={() => onEditTemplate(template)}
                 >
                   <Edit className="h-4 w-4" />
+                  <span className="hidden sm:inline text-xs">
+                    {template.is_catalog ? "Edit" : "Ubah"}
+                  </span>
                 </Button>
               </div>
             </CardContent>

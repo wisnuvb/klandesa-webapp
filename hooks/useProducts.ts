@@ -1,6 +1,10 @@
+"use client";
+
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import type { UkmProduct } from "../app/(app)/ukm/_types";
+import { isUkmCategoryPlaceholder } from "../app/(app)/ukm/_utils";
 
 export type UkmProductDraft = {
   name: string;
@@ -11,6 +15,7 @@ export type UkmProductDraft = {
 };
 
 export function useProducts(initialProducts: UkmProduct[]) {
+  const { appConfirm } = useAppDialogs();
   const [products, setProducts] = useState<UkmProduct[]>(initialProducts);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<string | "ALL">("ALL");
@@ -18,6 +23,8 @@ export function useProducts(initialProducts: UkmProduct[]) {
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return products.filter((product) => {
+      if (isUkmCategoryPlaceholder(product)) return false;
+
       const matchSearch =
         !q ||
         product.name.toLowerCase().includes(q) ||
@@ -92,7 +99,13 @@ export function useProducts(initialProducts: UkmProduct[]) {
   };
 
   const deleteProduct = async (id: number) => {
-    if (!confirm("Hapus produk ini?")) return;
+    const ok = await appConfirm({
+      title: "Hapus produk?",
+      description: "Produk akan dihapus dari katalog.",
+      confirmLabel: "Hapus",
+      tone: "destructive",
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/ukm-products/${id}`, { method: "DELETE" });

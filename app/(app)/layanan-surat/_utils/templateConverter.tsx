@@ -172,7 +172,10 @@ export function renderHistoryLetterContent(
 
   const { templateData, form_data } = letter;
   const previewData = desaSettings
-    ? buildPreviewData(form_data, desaSettings)
+    ? buildPreviewData(form_data, desaSettings, {
+        footer: templateData.footer || undefined,
+        shared_footer: templateData.shared_footer || undefined,
+      })
     : form_data;
 
   const showHead = isLetterheadVisible(templateData);

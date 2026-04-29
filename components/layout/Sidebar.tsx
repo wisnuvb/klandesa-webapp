@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Image,
   Settings2,
+  Monitor,
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
@@ -103,6 +104,12 @@ const menuItems: MenuItem[] = [
         path: "/permohonan-warga",
       },
       {
+        id: "layanan-mandiri",
+        label: "Layanan Mandiri",
+        icon: Monitor,
+        path: "/layanan-mandiri",
+      },
+      {
         id: "layanan-surat",
         label: "Layanan Surat",
         icon: FileText,
@@ -177,12 +184,12 @@ const menuItems: MenuItem[] = [
     icon: ShoppingBag,
     path: "/ukm",
   },
-  {
-    id: "website",
-    label: "Website Desa",
-    icon: Globe,
-    path: "/website",
-  },
+  // {
+  //   id: "website",
+  //   label: "Website Desa",
+  //   icon: Globe,
+  //   path: "/website",
+  // },
 ];
 
 interface SidebarProps {

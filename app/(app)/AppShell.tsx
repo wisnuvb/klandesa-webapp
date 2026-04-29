@@ -61,6 +61,10 @@ const pageConfig = {
     title: "Permohonan Warga",
     subtitle: "Kelola permohonan surat dari warga",
   },
+  "layanan-mandiri": {
+    title: "Layanan Mandiri",
+    subtitle: "Konfigurasi kiosk layanan mandiri untuk warga",
+  },
   "layanan-surat": {
     title: "Layanan Surat",
     subtitle: "Buat dan kelola template surat desa",

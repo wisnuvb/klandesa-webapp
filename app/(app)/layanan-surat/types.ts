@@ -39,7 +39,7 @@ export interface TemplateFooter {
   id: number;
   name: string;
   template: string;
-  signer_role: "kepala_desa" | "sekretaris" | "camat";
+  signer_role: string;
 }
 
 export interface TemplateBody {
@@ -69,6 +69,14 @@ export interface TemplateBody {
   is_active: boolean;
   created_at: string;
   usage_count: number;
+  /** Template katalog bawaan (read-only sampai disalin ke desa). */
+  is_catalog: boolean;
+  /** Nilai untuk template katalog; null untuk template ad-hoc per-desa */
+  catalog_key: string | null;
+  /**
+   * Jika ada, template ini menggantikan entri katalog dengan `catalog_key` yang sama untuk desa ini.
+   */
+  inherits_catalog_key: string | null;
 }
 
 export interface LetterHistory {
@@ -79,7 +87,7 @@ export interface LetterHistory {
   template_category: string;
   applicant_name: string;
   applicant_nik: string;
-  signer_role: "kepala_desa" | "sekretaris" | "camat";
+  signer_role: string;
   status: "draft" | "completed" | "archived";
   created_at: string;
   created_by: string;

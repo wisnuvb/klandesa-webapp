@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FileSpreadsheet, Download, Loader2 } from "lucide-react";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
 interface ExportPermohonanModalProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function ExportPermohonanModal({
   onOpenChange,
   currentFilters,
 }: ExportPermohonanModalProps) {
+  const { appAlert } = useAppDialogs();
   const [status, setStatus] = useState(currentFilters?.status || "all");
   const [search, setSearch] = useState(currentFilters?.search || "");
   const [isExporting, setIsExporting] = useState(false);
@@ -105,7 +107,7 @@ export function ExportPermohonanModal({
       onOpenChange(false);
     } catch (error) {
       console.error("Export error:", error);
-      alert("Gagal mengekspor data. Silakan coba lagi.");
+      void appAlert("Gagal mengekspor data. Silakan coba lagi.");
     } finally {
       setIsExporting(false);
     }

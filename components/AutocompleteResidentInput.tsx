@@ -1,15 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
-import { Input } from './ui/input';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Check, Search, User } from 'lucide-react';
-import { cn } from './ui/utils';
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Input } from "./ui/input";
+import { Search, User } from "lucide-react";
+import { cn } from "./ui/utils";
 
-interface Resident {
+export interface ResidentOption {
   id: number;
   nik: string;
   name: string;
   birthplace: string;
+  /** YYYY-MM-DD */
   date_of_birth: string;
   gender: string;
   occupation: string;
@@ -19,119 +18,128 @@ interface Resident {
   religion?: string;
 }
 
+interface ApiResidentRow {
+  id: number;
+  nik: string;
+  name: string;
+  birthplace: string;
+  birthDate: string | Date;
+  gender: string;
+  occupation?: string | null;
+  address: string;
+  maritalStatus: string;
+  nationality?: string | null;
+  religion: string;
+}
+
+/** Mengonversi baris dari GET /api/residents → bentuk pemilih form surat */
+export function mapApiResidentToSelectable(row: ApiResidentRow): ResidentOption {
+  let isoDay: string;
+  const bd = row.birthDate;
+  if (typeof bd === "string") {
+    isoDay = bd.includes("T") ? bd.slice(0, 10) : bd.slice(0, 10);
+  } else {
+    isoDay = new Date(bd).toISOString().slice(0, 10);
+  }
+
+  return {
+    id: row.id,
+    nik: row.nik,
+    name: row.name,
+    birthplace: row.birthplace,
+    date_of_birth: isoDay,
+    gender: row.gender,
+    occupation: row.occupation ?? "",
+    address: row.address,
+    marital_status: row.maritalStatus,
+    nationality: row.nationality ?? "Indonesia",
+    religion: row.religion,
+  };
+}
+
 interface AutocompleteResidentInputProps {
   value: string;
   onChange: (value: string) => void;
-  onResidentSelect: (resident: Resident | null) => void;
+  onResidentSelect: (resident: ResidentOption | null) => void;
   placeholder?: string;
   className?: string;
 }
 
-// Mock data warga - in production, this would come from API
-const mockResidents: Resident[] = [
-  {
-    id: 1,
-    nik: '3201010101850001',
-    name: 'Ahmad Lutfi Akbar',
-    birthplace: 'Pasuruan',
-    date_of_birth: '1985-01-01',
-    gender: 'Laki-laki',
-    occupation: 'Wiraswasta',
-    address: 'Jl. Merdeka No. 123, RT 001/RW 002, Desa Brambang',
-    marital_status: 'Kawin',
-    nationality: 'Indonesia',
-    religion: 'Islam'
-  },
-  {
-    id: 2,
-    nik: '3201014505900002',
-    name: 'Siti Aminah',
-    birthplace: 'Pasuruan',
-    date_of_birth: '1990-05-05',
-    gender: 'Perempuan',
-    occupation: 'Ibu Rumah Tangga',
-    address: 'Jl. Raya Desa No. 78, RT 003/RW 002, Desa Brambang',
-    marital_status: 'Kawin',
-    nationality: 'Indonesia',
-    religion: 'Islam'
-  },
-  {
-    id: 3,
-    nik: '3201011212880003',
-    name: 'Budi Santoso',
-    birthplace: 'Surabaya',
-    date_of_birth: '1988-12-12',
-    gender: 'Laki-laki',
-    occupation: 'Buruh Harian',
-    address: 'Jl. Kenanga No. 23, RT 001/RW 003, Desa Brambang',
-    marital_status: 'Kawin',
-    nationality: 'Indonesia',
-    religion: 'Islam'
-  },
-  {
-    id: 4,
-    nik: '3201012203920004',
-    name: 'Rina Wulandari',
-    birthplace: 'Malang',
-    date_of_birth: '1992-03-22',
-    gender: 'Perempuan',
-    occupation: 'Karyawan Swasta',
-    address: 'Jl. Melati No. 56, RT 004/RW 001, Desa Brambang',
-    marital_status: 'Belum Kawin',
-    nationality: 'Indonesia',
-    religion: 'Islam'
-  },
-  {
-    id: 5,
-    nik: '3201013108950005',
-    name: 'Wahyudi Ismail',
-    birthplace: 'Pasuruan',
-    date_of_birth: '1995-08-31',
-    gender: 'Laki-laki',
-    occupation: 'Pegawai Negeri Sipil',
-    address: 'Jl. Anggrek No. 12, RT 002/RW 001, Desa Brambang',
-    marital_status: 'Kawin',
-    nationality: 'Indonesia',
-    religion: 'Islam'
-  }
-];
+const DEBOUNCE_MS = 320;
 
 export function AutocompleteResidentInput({
   value,
   onChange,
   onResidentSelect,
-  placeholder = 'Ketik nama atau NIK...',
-  className
+  placeholder = "Ketik nama atau NIK...",
+  className,
 }: AutocompleteResidentInputProps) {
   const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [rows, setRows] = useState<ResidentOption[]>([]);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Filter residents based on search query
-  const filteredResidents = mockResidents.filter(resident => {
-    const query = searchQuery.toLowerCase();
-    return (
-      resident.name.toLowerCase().includes(query) ||
-      resident.nik.includes(query)
-    );
-  });
+  const fetchResidents = useCallback(async (q: string) => {
+    abortRef.current?.abort();
+    if (q.trim().length < 2) {
+      setRows([]);
+      return;
+    }
+    const ac = new AbortController();
+    abortRef.current = ac;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: "1",
+        pageSize: "15",
+        search: q.trim(),
+      });
+      const res = await fetch(`/api/residents?${params}`, {
+        signal: ac.signal,
+      });
+      if (!res.ok) throw new Error("Fetch failed");
+      const data = await res.json();
+      const list = Array.isArray(data.rows)
+        ? (data.rows as ApiResidentRow[]).map(mapApiResidentToSelectable)
+        : [];
+      setRows(list);
+    } catch (e: unknown) {
+      if ((e as { name?: string }).name === "AbortError") return;
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setRows([]);
+      return undefined;
+    }
+    const t = window.setTimeout(() => {
+      void fetchResidents(q);
+    }, DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [searchQuery, fetchResidents]);
 
   const handleInputChange = (newValue: string) => {
     onChange(newValue);
     setSearchQuery(newValue);
-    
-    // Open dropdown when user types
-    if (newValue.length > 0) {
+
+    if (newValue.trim().length > 0) {
       setOpen(true);
     }
-    
-    // Clear selection if input is cleared
-    if (newValue === '') {
+
+    if (newValue === "") {
       onResidentSelect(null);
+      setRows([]);
     }
   };
 
-  const handleSelectResident = (resident: Resident) => {
+  const handleSelectResident = (resident: ResidentOption) => {
     onChange(resident.name);
     onResidentSelect(resident);
     setOpen(false);
@@ -147,7 +155,7 @@ export function AutocompleteResidentInput({
           value={value}
           onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => {
-            if (value.length > 0) {
+            if (searchQuery.trim().length >= 2 || value.length > 0) {
               setOpen(true);
             }
           }}
@@ -157,57 +165,99 @@ export function AutocompleteResidentInput({
         />
       </div>
 
-      {/* Dropdown suggestions */}
-      {open && filteredResidents.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-80 overflow-y-auto">
-          <div className="p-2">
-            {filteredResidents.map((resident) => (
-              <button
-                key={resident.id}
-                onClick={() => handleSelectResident(resident)}
-                className="w-full flex items-start gap-3 p-3 hover:bg-accent rounded-md text-left transition-colors"
-              >
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <User className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium">{resident.name}</div>
-                  <div className="text-sm text-muted-foreground">NIK: {resident.nik}</div>
-                  <div className="text-xs text-muted-foreground mt-1 truncate">
-                    {resident.address}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
+      {open && searchQuery.trim().length >= 2 && loading && (
+        <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-md">
+          Mencari warga…
         </div>
       )}
 
-      {/* No results */}
-      {open && searchQuery.length > 0 && filteredResidents.length === 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md p-4 text-center text-sm text-muted-foreground">
-          <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>Tidak ada warga ditemukan</p>
-          <p className="text-xs mt-1">Data akan diisi manual</p>
+      {open &&
+        !loading &&
+        searchQuery.trim().length >= 2 &&
+        rows.length > 0 && (
+          <div className="absolute z-50 mt-1 max-h-80 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
+            <div className="p-2">
+              {rows.map((resident) => (
+                <button
+                  key={resident.id}
+                  type="button"
+                  onClick={() => handleSelectResident(resident)}
+                  className="flex w-full items-start gap-3 rounded-md p-3 text-left transition-colors hover:bg-accent"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">{resident.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      NIK: {resident.nik}
+                    </div>
+                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                      {resident.address}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+      {open &&
+        !loading &&
+        searchQuery.trim().length >= 2 &&
+        rows.length === 0 && (
+          <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover p-4 text-center text-sm text-muted-foreground shadow-md">
+            <User className="mx-auto mb-2 h-8 w-8 opacity-50" />
+            <p>Tidak ada warga ditemukan</p>
+            <p className="mt-1 text-xs">Isi manual jika perlu</p>
+          </div>
+        )}
+
+      {open && searchQuery.trim().length > 0 && searchQuery.trim().length < 2 && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover px-3 py-2 text-xs text-muted-foreground shadow-md">
+          Ketik minimal 2 karakter untuk mencari warga di database desa.
         </div>
       )}
     </div>
   );
 }
 
-// Helper function to format date for display
+/** Format YYYY-MM-DD ke tampilan tanggal Indonesia (tanggal lengkap). */
 export function formatDateForDisplay(dateString: string): string {
-  const date = new Date(dateString);
+  const [y, m, d] = dateString.split("-").map(Number);
+  if (
+    Number.isNaN(y) ||
+    Number.isNaN(m) ||
+    Number.isNaN(d) ||
+    m < 1 ||
+    m > 12
+  ) {
+    return "";
+  }
   const months = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
   ];
-  return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  const date = new Date(y, m - 1, d);
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-// Helper function to auto-fill form data from resident
-export function mapResidentToFormData(resident: Resident): Record<string, string> {
+/** Isi variabel template umum dari data warga terpilih */
+export function mapResidentToFormData(
+  resident: ResidentOption,
+): Record<string, string> {
   return {
+    NAMA_LENGKAP: resident.name,
     NAMA: resident.name,
     NIK: resident.nik,
     TEMPAT_LAHIR: resident.birthplace,
@@ -215,8 +265,9 @@ export function mapResidentToFormData(resident: Resident): Record<string, string
     JENIS_KELAMIN: resident.gender,
     PEKERJAAN: resident.occupation,
     ALAMAT: resident.address,
-    STATUS_PERKAWINAN: resident.marital_status || '',
-    KEWARGANEGARAAN: resident.nationality || '',
-    AGAMA: resident.religion || ''
+    ALAMAT_LENGKAP: resident.address,
+    STATUS_PERKAWINAN: resident.marital_status ?? "",
+    KEWARGANEGARAAN: resident.nationality ?? "",
+    AGAMA: resident.religion ?? "",
   };
 }

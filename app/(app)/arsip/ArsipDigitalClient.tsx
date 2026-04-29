@@ -27,6 +27,7 @@ import {
   UpgradeModal,
   UploadModal,
 } from "./_components/modals";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
 interface Props {
   initialEntries: ArchiveEntry[];
@@ -36,6 +37,7 @@ interface Props {
 
 export function ArsipDigitalClient(props: Props) {
   const { initialEntries, initialFolders, villageStorage } = props;
+  const { appAlert, appConfirm } = useAppDialogs();
 
   const [entries, setEntries] = useState<ArchiveEntry[]>(initialEntries);
   const [folders, setFolders] = useState<ArchiveFolderEntry[]>(initialFolders);
@@ -178,13 +180,13 @@ export function ArsipDigitalClient(props: Props) {
 
   const handleDeleteSelected = async () => {
     if (selectedKeys.length === 0) return;
-    if (
-      !confirm(
-        `Hapus ${selectedKeys.length} item terpilih? Folder hanya bisa dihapus jika kosong.`,
-      )
-    ) {
-      return;
-    }
+    const okConfirm = await appConfirm({
+      title: "Hapus item terpilih?",
+      description: `Hapus ${selectedKeys.length} item terpilih? Folder hanya bisa dihapus jika kosong.`,
+      confirmLabel: "Hapus",
+      tone: "destructive",
+    });
+    if (!okConfirm) return;
 
     const archiveIds = selectedKeys
       .filter((k) => k.startsWith("a:"))
@@ -220,7 +222,7 @@ export function ArsipDigitalClient(props: Props) {
       setFolders((prev) => prev.filter((f) => !folderIds.includes(f.id)));
       setSelectedKeys([]);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Penghapusan gagal.");
+      void appAlert(e instanceof Error ? e.message : "Penghapusan gagal.");
     }
   };
 
@@ -258,7 +260,7 @@ export function ArsipDigitalClient(props: Props) {
       setNewFolderName("");
       setShowNewFolderModal(false);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Gagal membuat folder");
+      void appAlert(e instanceof Error ? e.message : "Gagal membuat folder");
     } finally {
       setFolderCreating(false);
     }
@@ -275,7 +277,10 @@ export function ArsipDigitalClient(props: Props) {
     setCurrentPlan(selectedPlan);
     setShowPaymentModal(false);
     setSelectedPlan(null);
-    alert("Pembayaran berhasil! Paket storage Anda telah diupgrade.");
+    void appAlert({
+      title: "Pembayaran berhasil",
+      description: "Paket storage Anda telah di-upgrade.",
+    });
   };
 
   const uploadArchive = useCallback(

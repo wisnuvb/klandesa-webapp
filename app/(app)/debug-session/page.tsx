@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function DebugSessionPage() {
   const { data: session, status } = useSession();
@@ -16,8 +16,11 @@ export default function DebugSessionPage() {
       .catch((e) => setApiError(e.message));
   }, []);
 
-  useLayoutEffect(() => {
-    setCookies(document.cookie);
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setCookies(document.cookie);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   return (

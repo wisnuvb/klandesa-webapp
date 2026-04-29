@@ -12,13 +12,28 @@ function getExtension(name: string) {
   return name.slice(idx + 1).toLowerCase();
 }
 
-function isImageFileTypeString(fileType: string) {
-  const v = (fileType || "").toLowerCase();
-  const ext = v.replace(/^\./, "");
-  if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext)) {
-    return true;
-  }
-  return v.startsWith("image/");
+const IMAGE_FILE_TYPE_EXTS = [
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "bmp",
+  "svg",
+  "ico",
+] as const;
+
+function digitalArchiveImageTypeFilter():
+  | { OR: Array<{ fileType: { in: string[] } } | { fileType: { startsWith: string } }> }
+  | undefined {
+  const lower = [...IMAGE_FILE_TYPE_EXTS];
+  const upper = lower.map((x) => x.toUpperCase());
+  return {
+    OR: [
+      { fileType: { in: [...lower, ...upper] } },
+      { fileType: { startsWith: "image/" } },
+    ],
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -42,25 +57,39 @@ export async function GET(req: NextRequest) {
     const search = (sp.get("search") || "").trim();
     const type = (sp.get("type") || "").trim().toLowerCase();
     const excludeCategory = (sp.get("excludeCategory") || "").trim();
+    const categoryFilter = (sp.get("category") || "").trim();
 
-    const where: {
-      villageId: number;
-      category?: { not: string };
-      OR?: Array<Record<string, unknown>>;
-    } = {
-      villageId: village.id,
-    };
+    const imageOnly = type === "image" || type === "images";
 
-    if (excludeCategory) {
-      where.category = { not: excludeCategory };
+    type WhereAnd = {
+      category?: string | { not: string };
+      OR?: Array<{ title?: { contains: string }; fileName?: { contains: string } }>;
+    } & Record<string, unknown>;
+
+    const andParts: WhereAnd[] = [];
+
+    if (categoryFilter) {
+      andParts.push({ category: categoryFilter });
+    } else if (excludeCategory) {
+      andParts.push({ category: { not: excludeCategory } });
     }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { fileName: { contains: search } },
-      ];
+      andParts.push({
+        OR: [{ title: { contains: search } }, { fileName: { contains: search } }],
+      });
     }
+
+    if (imageOnly) {
+      andParts.push(digitalArchiveImageTypeFilter() as WhereAnd);
+    }
+
+    const where = {
+      villageId: village.id,
+      ...(andParts.length ? { AND: andParts } : {}),
+    };
+
+    const total = await prisma.digitalArchive.count({ where });
 
     const rows = await prisma.digitalArchive.findMany({
       where,
@@ -85,12 +114,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const imageOnly = type === "image" || type === "images";
-    const filtered = imageOnly
-      ? rows.filter((r) => isImageFileTypeString(r.fileType))
-      : rows;
-
-    const uploaderIds = Array.from(new Set(filtered.map((r) => r.uploadedBy)));
+    const uploaderIds = Array.from(new Set(rows.map((r) => r.uploadedBy)));
     const uploaders = await prisma.user.findMany({
       where: { villageId: village.id, id: { in: uploaderIds } },
       select: { id: true, name: true },
@@ -100,7 +124,7 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({
-      rows: filtered.map((r) => ({
+      rows: rows.map((r) => ({
         id: Number(r.id),
         folderId: r.folderId ? Number(r.folderId) : null,
         fileName: r.fileName,
@@ -119,6 +143,7 @@ export async function GET(req: NextRequest) {
       })),
       take,
       skip,
+      total,
     });
   } catch (error) {
     console.error("GET /api/digital-archives error:", error);

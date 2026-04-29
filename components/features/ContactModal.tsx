@@ -72,13 +72,13 @@ export function ContactModal({ onClose }: ContactModalProps) {
     {
       icon: Phone,
       title: "Telepon",
-      info: "+62 812-3456-7890",
+      info: "+62 823-2033-7777",
       description: "Senin - Jumat, 08:00 - 17:00 WIB",
     },
     {
       icon: Mail,
       title: "Email",
-      info: "info@klandesa.com",
+      info: "wisnuvb@gmail.com",
       description: "Respon dalam 24 jam",
     },
     {

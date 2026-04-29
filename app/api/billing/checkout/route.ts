@@ -116,6 +116,7 @@ export async function POST(req: NextRequest) {
       bankChannelId?: string;
       retailCode?: string;
       ewalletPhone?: string;
+      metadata?: unknown;
     } | null;
 
     const productType = String(body?.productType ?? "");
@@ -199,6 +200,10 @@ export async function POST(req: NextRequest) {
       bankCode,
       retailCode,
       ewalletPhone: body?.ewalletPhone,
+      metadata:
+        body?.metadata && typeof body.metadata === "object"
+          ? (body.metadata as object)
+          : undefined,
     });
 
     return NextResponse.json({

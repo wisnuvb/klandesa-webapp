@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
   ArrowRight,
@@ -13,12 +15,14 @@ import {
 } from "lucide-react";
 
 import { KlandesaLogo } from "./KlandesaLogo";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
 interface RegistrationModalProps {
   onClose: () => void;
 }
 
 export function RegistrationModal({ onClose }: RegistrationModalProps) {
+  const { appAlert } = useAppDialogs();
   const [step, setStep] = React.useState(1);
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
@@ -73,9 +77,11 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
           throw new Error(data?.error || "Pendaftaran gagal");
         }
 
-        alert(
-          "Pendaftaran berhasil! Silakan login, lalu aktifkan paket di halaman Billing.",
-        );
+        void appAlert({
+          title: "Pendaftaran berhasil",
+          description:
+            "Silakan login, lalu aktifkan paket di halaman Billing.",
+        });
         onClose();
       } catch (err) {
         setSubmitError(

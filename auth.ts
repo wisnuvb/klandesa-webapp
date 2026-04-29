@@ -12,6 +12,8 @@ import { getServerSession } from "next-auth/next";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
+import type { RegionalScope } from "@/lib/regional-session";
+import { regionalSessionUserId } from "@/lib/regional-session";
 
 // Village type untuk session
 interface Village {
@@ -37,6 +39,8 @@ declare module "next-auth" {
       villageId?: number;
       villageCode?: string;
       village?: Village;
+      accountType?: "village" | "regional";
+      regionalScope?: RegionalScope;
     };
   }
 }
@@ -50,6 +54,8 @@ declare module "next-auth/jwt" {
     villageId?: number;
     villageCode?: string;
     village?: Village;
+    accountType?: "village" | "regional";
+    regionalScope?: RegionalScope;
   }
 }
 
@@ -103,15 +109,30 @@ providers.push(
 
         const data = await res.json();
 
-        if (res.ok && data.user) {
+        if (res.ok && data.accountType === "regional" && data.user) {
           return {
-            id: data.user.id.toString(),
+            id: regionalSessionUserId(data.user.regionalUserId as number),
             name: data.user.name,
             email: data.user.email,
             image: null,
             role: data.user.role,
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
+            accountType: "regional" as const,
+            regionalScope: data.user.regionalScope as RegionalScope,
+          };
+        }
+
+        if (res.ok && data.user) {
+          return {
+            id: String(data.user.id),
+            name: data.user.name,
+            email: data.user.email,
+            image: null,
+            role: data.user.role,
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken,
+            accountType: "village" as const,
             villageId: data.user.village?.id,
             villageCode: data.user.village?.code,
             village: data.user.village
@@ -208,9 +229,19 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as { role?: string }).role;
         token.accessToken = (user as any).accessToken;
         token.refreshToken = (user as any).refreshToken;
-        token.villageId = (user as any).villageId;
-        token.villageCode = (user as any).villageCode;
-        token.village = (user as any).village;
+        const at = (user as any).accountType as "village" | "regional" | undefined;
+        token.accountType = at ?? "village";
+        if (token.accountType === "regional") {
+          token.regionalScope = (user as any).regionalScope;
+          token.villageId = undefined;
+          token.villageCode = undefined;
+          token.village = undefined;
+        } else {
+          token.villageId = (user as any).villageId;
+          token.villageCode = (user as any).villageCode;
+          token.village = (user as any).village;
+          token.regionalScope = undefined;
+        }
       }
       return token;
     },
@@ -220,6 +251,11 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name as string;
         session.user.email = token.email as string;
         session.user.role = token.role as string | undefined;
+        session.user.accountType =
+          (token.accountType as "village" | "regional" | undefined) ?? "village";
+        session.user.regionalScope = token.regionalScope as
+          | RegionalScope
+          | undefined;
         session.user.villageId = token.villageId as number | undefined;
         session.user.villageCode = token.villageCode as string | undefined;
         session.user.village = token.village as Village | undefined;

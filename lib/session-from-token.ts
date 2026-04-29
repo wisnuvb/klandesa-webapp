@@ -1,4 +1,5 @@
 import type { Session } from "next-auth";
+import type { RegionalScope } from "@/lib/regional-session";
 
 export type JwtPayload = Record<string, unknown> & {
   name?: string | null;
@@ -11,6 +12,8 @@ export type JwtPayload = Record<string, unknown> & {
   villageId?: number;
   villageCode?: string;
   village?: unknown;
+  accountType?: "village" | "regional";
+  regionalScope?: RegionalScope;
 };
 
 /** Selaras dengan NEXTAUTH_URL (nama cookie __Secure- vs biasa). */
@@ -36,6 +39,8 @@ export function jwtPayloadToSession(token: JwtPayload | null): Session | null {
       email: token.email ?? null,
       image: (token.picture as string | undefined) ?? null,
       role: token.role as string | undefined,
+      accountType: (token.accountType as "village" | "regional" | undefined) ?? "village",
+      regionalScope: token.regionalScope as RegionalScope | undefined,
       villageId: token.villageId as number | undefined,
       villageCode: token.villageCode as string | undefined,
       village: token.village as Session["user"] extends { village?: infer V }

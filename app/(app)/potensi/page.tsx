@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import {
   Select,
   SelectContent,
@@ -77,6 +78,7 @@ interface VillagePotential {
 }
 
 export function PotensiDesa() {
+  const { appConfirm } = useAppDialogs();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterYear, setFilterYear] = useState<string>("all");
   const [showFormDialog, setShowFormDialog] = useState(false);
@@ -120,8 +122,14 @@ export function PotensiDesa() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data potensi ini?")) {
-      try {
+    const ok = await appConfirm({
+      title: "Hapus data potensi?",
+      description: "Data potensi desa akan dihapus.",
+      confirmLabel: "Hapus",
+      tone: "destructive",
+    });
+    if (!ok) return;
+    try {
         const res = await fetch(`/api/village-potentials/${id}`, {
           method: "DELETE",
         });
@@ -134,7 +142,6 @@ export function PotensiDesa() {
         console.error("Error deleting potential:", error);
         toast.error("Gagal menghapus data potensi desa");
       }
-    }
   };
 
   const uniqueYears = Array.from(

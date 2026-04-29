@@ -60,9 +60,16 @@ export async function resolveVillage(
   // Priority 4: Subdomain (for multi-tenant routing)
   if (req) {
     const sub = getSubdomain(req);
-    if (sub && sub !== "app") {
-      const village = await prisma.village.findUnique({
-        where: { code: sub },
+    if (sub && sub !== "app" && sub !== "my") {
+      const codes = [
+        ...new Set([
+          sub.trim(),
+          sub.trim().toLowerCase(),
+          sub.trim().toUpperCase(),
+        ]),
+      ];
+      const village = await prisma.village.findFirst({
+        where: { code: { in: codes } },
       });
       if (village) return village;
     }

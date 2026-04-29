@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { LetterNumberConfig, Alignment, FontFamily } from "./types";
+import { replaceVariables } from "@/utils/templateRenderer";
+import {
+  buildLetterNumberPreviewVariableData,
+} from "./letter-number-utils";
 import { StyleControls } from "./StyleControls";
 import { Type, Hash, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import { Switch } from "../ui/switch";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
+import { cn } from "../ui/utils";
 
 interface LetterNumberBuilderProps {
   config: LetterNumberConfig;
@@ -132,6 +137,11 @@ export function LetterNumberBuilder({
       },
     });
   };
+
+  const numberFormatPreview = replaceVariables(
+    safeConfig.number?.format ?? "",
+    buildLetterNumberPreviewVariableData(safeConfig as LetterNumberConfig),
+  );
 
   return (
     <div className="space-y-6">
@@ -497,18 +507,16 @@ export function LetterNumberBuilder({
           {/* Preview Example */}
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-sm font-medium text-blue-900 mb-2">Preview:</p>
-            <div className="bg-white p-4 rounded border border-blue-300 space-y-2">
+            <div className="bg-white p-4 rounded border border-blue-300 space-y-0">
               {safeConfig.heading?.text && (
                 <div
-                  className={`${
-                    safeConfig.heading.align === "center"
-                      ? "text-center"
-                      : safeConfig.heading.align === "right"
-                      ? "text-right"
-                      : "text-left"
-                  } ${safeConfig.heading.bold ? "font-bold" : ""} ${
-                    safeConfig.heading.underline ? "underline" : ""
-                  }`}
+                  className={cn(
+                    "text-center",
+                    safeConfig.heading?.align === "right" && "text-right",
+                    safeConfig.heading?.align === "left" && "text-left",
+                    safeConfig.heading?.bold && "font-bold",
+                    safeConfig.heading?.underline && "underline",
+                  )}
                   style={{
                     fontFamily: safeConfig.heading.font,
                     fontSize: `${safeConfig.heading.size}px`,
@@ -518,21 +526,20 @@ export function LetterNumberBuilder({
                 </div>
               )}
               <div
-                className={`${
-                  safeConfig.number?.align === "center"
-                    ? "text-center"
-                    : safeConfig.number?.align === "right"
-                    ? "text-right"
-                    : "text-left"
-                } ${safeConfig.number?.bold ? "font-bold" : ""} ${
-                  safeConfig.number?.underline ? "underline" : ""
-                }`}
+                className={cn(
+                  "text-center",
+                  safeConfig.number?.align === "right" && "text-right",
+                  safeConfig.number?.align === "left" && "text-left",
+                  safeConfig.number?.bold && "font-bold",
+                  safeConfig.number?.underline && "underline",
+                )}
                 style={{
                   fontFamily: safeConfig.number?.font,
                   fontSize: `${safeConfig.number?.size}px`,
                 }}
               >
                 {safeConfig.number?.prefix}
+                {numberFormatPreview}
               </div>
             </div>
           </div>

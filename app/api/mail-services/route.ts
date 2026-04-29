@@ -7,6 +7,7 @@ import {
   buildLetterFormSnapshot,
   mergeMailFormDataForPersistence,
 } from "@/lib/mail/letterFormSnapshot";
+import { letterDateKeyFromInput } from "@/lib/mail/letterDateKey";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 export async function GET(req: NextRequest) {
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
       template_category: row.templateCategory || row.template?.category || "Lainnya",
       applicant_name: row.applicantName,
       applicant_nik: row.applicantNik,
-      signer_role: (row.signerRole || "kepala_desa") as "kepala_desa" | "sekretaris" | "camat",
+      signer_role: row.signerRole || "kepala_desa",
       status: row.status as "draft" | "completed" | "archived",
       created_at: row.createdAt.toISOString(),
       created_by: row.createdUser?.name || "Admin Desa",
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest) {
       applicantName,
       applicantNik,
       signerRole,
+      signerName,
       formData,
       status,
       contentHtml,
@@ -151,6 +153,9 @@ export async function POST(req: NextRequest) {
       finalLetterNumber,
     );
 
+    const resolvedLetterDate = letterDate ? new Date(letterDate) : new Date();
+    const letterDateKeyVal = letterDateKeyFromInput(resolvedLetterDate);
+
     const mail = await prisma.$transaction(async (tx) => {
       const created = await tx.mailService.create({
         data: {
@@ -159,10 +164,15 @@ export async function POST(req: NextRequest) {
           templateName: template.name,
           templateCategory: template.category,
           letterNumber: finalLetterNumber,
-          letterDate: letterDate ? new Date(letterDate) : new Date(),
+          letterDate: resolvedLetterDate,
+          letterDateKey: letterDateKeyVal,
           applicantName,
           applicantNik,
           signerRole: signerRole || "kepala_desa",
+          signerName:
+            typeof signerName === "string" && signerName.trim().length > 0
+              ? signerName.trim().slice(0, 255)
+              : null,
           formData: persistedFormData,
           contentHtml: contentHtml || null,
           status: status || "draft",
@@ -204,8 +214,11 @@ export async function POST(req: NextRequest) {
 
     if (err?.code === "P2002") {
       return NextResponse.json(
-        { error: "Nomor surat sudah digunakan" },
-        { status: 409 }
+        {
+          error:
+            "Nomor surat ini sudah dipakai untuk surat dengan jenis dan tanggal yang sama",
+        },
+        { status: 409 },
       );
     }
 

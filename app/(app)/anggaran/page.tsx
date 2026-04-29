@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { Progress } from "@/components/ui/progress";
 
 interface VillageBudget {
@@ -147,6 +148,7 @@ const mockData: VillageBudget[] = [
 ];
 
 export function Anggaran() {
+  const { appConfirm } = useAppDialogs();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterYear, setFilterYear] = useState<string>("all");
   const [showFormDialog, setShowFormDialog] = useState(false);
@@ -256,11 +258,16 @@ export function Anggaran() {
     });
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data anggaran ini?")) {
-      console.log("Delete:", id);
-      toast.success("Data anggaran berhasil dihapus");
-    }
+  const handleDelete = async (id: number) => {
+    const ok = await appConfirm({
+      title: "Hapus data anggaran?",
+      description: "Data anggaran akan dihapus dari daftar.",
+      confirmLabel: "Hapus",
+      tone: "destructive",
+    });
+    if (!ok) return;
+    console.log("Delete:", id);
+    toast.success("Data anggaran berhasil dihapus");
   };
 
   const filteredData = mockData.filter((budget) => {

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -10,6 +12,7 @@ import {
   Calendar,
   HardDrive
 } from 'lucide-react';
+import { useAppDialogs } from '@/components/providers/AppDialogProvider';
 
 interface ImageAsset {
   id: string;
@@ -95,6 +98,7 @@ const mockImageAssets: ImageAsset[] = [
 ];
 
 export function ImageAssetModal({ isOpen, onClose, onSelectImage }: ImageAssetModalProps) {
+  const { appAlert } = useAppDialogs();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -128,7 +132,10 @@ export function ImageAssetModal({ isOpen, onClose, onSelectImage }: ImageAssetMo
   const handleUpload = () => {
     if (uploadFile) {
       // TODO: Implement actual upload to Supabase Storage
-      alert(`Upload "${uploadFile.name}" berhasil!\n(Fitur ini akan terhubung ke Supabase Storage)`);
+      void appAlert({
+        title: 'Upload berhasil (demo)',
+        description: `Berkas "${uploadFile.name}" terunggah.\n(Fitur ini akan terhubung ke Supabase Storage)`,
+      });
       setShowUploadForm(false);
       setUploadFile(null);
     }

@@ -6,6 +6,8 @@ import {
   isMainDomain,
   isAppSubdomain,
   isTenantSubdomain,
+  isCustomDomainCandidateHost,
+  normalizeHostname,
 } from "@/lib/subdomain";
 
 function nextWithPathname(req: NextRequest): NextResponse {
@@ -27,6 +29,7 @@ function rewriteWithPathname(req: NextRequest, target: URL): NextResponse {
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl;
   const subdomain = getSubdomain(req);
+  const hostname = normalizeHostname(req.headers.get("host"));
 
   if (process.env.DEBUG_MIDDLEWARE === "1") {
     console.log("Middleware:", {
@@ -37,6 +40,27 @@ export async function middleware(req: NextRequest) {
   }
 
   if (isMainDomain(subdomain)) {
+    if (isCustomDomainCandidateHost(hostname)) {
+      const requestHeaders = new Headers(req.headers);
+      requestHeaders.set("x-tenant-hostname", hostname);
+      requestHeaders.set(INVOKE_PATHNAME_HEADER, req.nextUrl.pathname);
+
+      if (
+        !url.pathname.startsWith("/_next") &&
+        !url.pathname.startsWith("/api")
+      ) {
+        if (url.pathname === "/") {
+          return NextResponse.rewrite(new URL(`/site`, req.url), {
+            request: { headers: requestHeaders },
+          });
+        }
+        return NextResponse.rewrite(
+          new URL(`${url.pathname}`, req.url),
+          { request: { headers: requestHeaders } },
+        );
+      }
+    }
+
     if (url.pathname.startsWith("/_next") || url.pathname.startsWith("/api")) {
       return nextWithPathname(req);
     }
@@ -77,6 +101,9 @@ export async function middleware(req: NextRequest) {
     if (subdomain) {
       requestHeaders.set("x-tenant-subdomain", subdomain);
     }
+    if (hostname) {
+      requestHeaders.set("x-tenant-hostname", hostname);
+    }
     requestHeaders.set(INVOKE_PATHNAME_HEADER, req.nextUrl.pathname);
 
     if (
@@ -84,12 +111,12 @@ export async function middleware(req: NextRequest) {
       !url.pathname.startsWith("/api")
     ) {
       if (url.pathname === "/") {
-        return NextResponse.rewrite(new URL(`/(website)/site`, req.url), {
+        return NextResponse.rewrite(new URL(`/site`, req.url), {
           request: { headers: requestHeaders },
         });
       }
       return NextResponse.rewrite(
-        new URL(`/(website)${url.pathname}`, req.url),
+        new URL(`${url.pathname}`, req.url),
         { request: { headers: requestHeaders } },
       );
     }
