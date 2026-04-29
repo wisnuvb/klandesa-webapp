@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateAge } from "@/utils";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { normalizeOccupation } from "@/lib/statistics/occupation";
+import { normalizeEducation } from "@/lib/statistics/education";
+import { getAgeRange } from "@/lib/statistics/age-range";
 
 // Interface untuk response data
 interface StatisticsResponse {
@@ -58,67 +61,6 @@ async function resolveVillage(session: any) {
     orderBy: { id: "asc" },
   });
   return firstVillage;
-}
-
-// Helper function untuk kategorisasi rentang usia
-function getAgeRange(age: number): string {
-  if (age < 5) return "0-4";
-  if (age < 10) return "5-9";
-  if (age < 15) return "10-14";
-  if (age < 20) return "15-19";
-  if (age < 25) return "20-24";
-  if (age < 30) return "25-29";
-  if (age < 35) return "30-34";
-  if (age < 40) return "35-39";
-  if (age < 45) return "40-44";
-  if (age < 50) return "45-49";
-  if (age < 55) return "50-54";
-  if (age < 60) return "55-59";
-  return "60+";
-}
-
-// Normalisasi pendidikan
-function normalizeEducation(education: string | null): string {
-  if (!education) return "Tidak Diketahui";
-  const edu = education.toLowerCase();
-
-  if (edu.includes("tidak") && edu.includes("sekolah")) return "Tidak Sekolah";
-  if (edu.includes("sd") || edu.includes("sekolah dasar")) return "SD";
-  if (edu.includes("smp") || edu.includes("sltp")) return "SMP";
-  if (edu.includes("sma") || edu.includes("smk") || edu.includes("slta"))
-    return "SMA/SMK";
-  if (edu.includes("d3") || edu.includes("diploma")) return "D3";
-  if (edu.includes("s1") || edu.includes("sarjana")) return "S1";
-  if (edu.includes("s2") || edu.includes("magister") || edu.includes("master"))
-    return "S2";
-  if (edu.includes("s3") || edu.includes("doktor")) return "S3";
-
-  return education;
-}
-
-// Normalisasi pekerjaan
-function normalizeOccupation(occupation: string | null): string {
-  if (!occupation) return "Tidak Bekerja";
-  const occ = occupation.toLowerCase();
-
-  if (occ.includes("petani") || occ.includes("bertani")) return "Petani";
-  if (occ.includes("dagang") || occ.includes("pedagang")) return "Pedagang";
-  if (occ.includes("pns") || occ.includes("pegawai negeri")) return "PNS";
-  if (occ.includes("wiraswasta") || occ.includes("wirausaha"))
-    return "Wiraswasta";
-  if (occ.includes("buruh")) return "Buruh";
-  if (
-    occ.includes("pelajar") ||
-    occ.includes("mahasiswa") ||
-    occ.includes("siswa")
-  )
-    return "Pelajar/Mahasiswa";
-  if (occ.includes("ibu rumah tangga") || occ.includes("irt"))
-    return "Ibu Rumah Tangga";
-  if (occ.includes("tidak bekerja") || occ.includes("belum bekerja"))
-    return "Tidak Bekerja";
-
-  return occupation;
 }
 
 export async function GET(req: NextRequest) {

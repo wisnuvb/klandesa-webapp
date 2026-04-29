@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import {
+  FINANCE_SUMMARY_CACHE_MS,
+  financeSummaryCache,
+} from "@/lib/finance/summary-cache";
 
 interface ApbdesData {
   tahun: number;
@@ -73,9 +77,6 @@ interface FinanceResponse {
   trend: TrendItem[];
 }
 
-const CACHE_DURATION = 5 * 60 * 1000;
-const cache = new Map<string, { data: FinanceResponse; timestamp: number }>();
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveVillage(session: any) {
   if (session?.user?.villageCode) {
@@ -134,8 +135,8 @@ export async function GET(req: NextRequest) {
     );
 
     const cacheKey = `finance-${village.id}-${year}`;
-    const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    const cached = financeSummaryCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < FINANCE_SUMMARY_CACHE_MS) {
       return NextResponse.json({
         success: true,
         data: toJSONSafe(cached.data),
@@ -244,6 +245,33 @@ export async function GET(req: NextRequest) {
         anggaran: subPrev.anggaran + Number(b.budgetAmount ?? 0),
         realisasi: subPrev.realisasi + Number(b.realizedAmount ?? 0),
       });
+    }
+
+    // Saat ada anggaran pendapatan, samakan realisasi dengan total transaksi pendapatan per kategori (kas)
+    if (pendapatanBudgets.length > 0) {
+      const incomeSumByCategory = new Map<string, number>();
+      for (const t of allTransactions) {
+        if (t.type !== "income") continue;
+        const cat = (t.category || "Pendapatan Lainnya").trim();
+        incomeSumByCategory.set(
+          cat,
+          (incomeSumByCategory.get(cat) || 0) + Number(t.amount ?? 0),
+        );
+      }
+      for (const [cat, sum] of incomeSumByCategory) {
+        if (!pendapatanMap.has(cat)) {
+          pendapatanMap.set(cat, {
+            anggaran: sum,
+            realisasi: sum,
+            subs: new Map([
+              ["Realisasi Kas", { anggaran: sum, realisasi: sum }],
+            ]),
+          });
+        } else {
+          const entry = pendapatanMap.get(cat)!;
+          entry.realisasi = Math.max(entry.realisasi, sum);
+        }
+      }
     }
 
     // If no budgets, create from transactions
@@ -473,7 +501,7 @@ export async function GET(req: NextRequest) {
       spp,
       trend,
     };
-    cache.set(cacheKey, { data, timestamp: Date.now() });
+    financeSummaryCache.set(cacheKey, { data, timestamp: Date.now() });
 
     return NextResponse.json({
       success: true,

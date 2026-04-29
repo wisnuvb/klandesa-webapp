@@ -23,6 +23,7 @@ import {
   Calendar,
   Search,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { toast } from "sonner";
@@ -46,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   BarChart,
   Bar,
@@ -239,6 +241,9 @@ export function Keuangan() {
   );
   const [alasanReject, setAlasanReject] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendapatanFormError, setPendapatanFormError] = useState<string | null>(
+    null,
+  );
 
   const fetchFinance = async () => {
     try {
@@ -388,6 +393,7 @@ export function Keuangan() {
   ];
 
   const handlePendapatanChange = (field: string, value: string) => {
+    setPendapatanFormError(null);
     setFormPendapatan((prev) => ({
       ...prev,
       [field]: value,
@@ -397,19 +403,47 @@ export function Keuangan() {
   };
 
   const handleSavePendapatan = async () => {
-    // Validation
+    setPendapatanFormError(null);
+
+    const uraianTrim = formPendapatan.uraian.trim();
+    const subsForKat =
+      subKategoriOptions[formPendapatan.kategori]?.length ?? 0;
+
+    if (!formPendapatan.tanggal) {
+      setPendapatanFormError("Tanggal harus diisi.");
+      return;
+    }
+    const tanggalParsed = new Date(formPendapatan.tanggal);
+    if (Number.isNaN(tanggalParsed.getTime())) {
+      setPendapatanFormError("Format tanggal tidak valid.");
+      return;
+    }
+
     if (!formPendapatan.kategori) {
-      void appAlert("Kategori harus diisi");
+      setPendapatanFormError("Kategori harus dipilih.");
       return;
     }
-    if (!formPendapatan.uraian) {
-      void appAlert("Uraian harus diisi");
+    if (subsForKat > 0 && !formPendapatan.subKategori.trim()) {
+      setPendapatanFormError("Sub kategori harus dipilih.");
       return;
     }
-    if (!formPendapatan.jumlah || parseFloat(formPendapatan.jumlah) <= 0) {
-      void appAlert("Jumlah harus lebih dari 0");
+    if (!uraianTrim) {
+      setPendapatanFormError("Uraian harus diisi.");
       return;
     }
+
+    const jumlahParsed = parseFloat(
+      String(formPendapatan.jumlah).replace(",", "."),
+    );
+    if (!Number.isFinite(jumlahParsed) || jumlahParsed <= 0) {
+      setPendapatanFormError("Jumlah harus berupa angka lebih dari 0.");
+      return;
+    }
+
+    const descriptionPayload =
+      formPendapatan.subKategori.trim().length > 0
+        ? `${uraianTrim} (${formPendapatan.subKategori.trim()})`
+        : uraianTrim;
 
     try {
       setIsSubmitting(true);
@@ -419,23 +453,35 @@ export function Keuangan() {
         body: JSON.stringify({
           type: "income",
           category: formPendapatan.kategori,
-          description: formPendapatan.uraian,
-          amount: parseFloat(formPendapatan.jumlah),
+          description: descriptionPayload,
+          amount: jumlahParsed,
           transactionDate: formPendapatan.tanggal,
-          referenceNumber: formPendapatan.nomorBukti || undefined,
+          referenceNumber: formPendapatan.nomorBukti.trim() || undefined,
         }),
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Gagal menyimpan pendapatan");
+      const raw = await response.text();
+      let parsed: { error?: string } = {};
+      try {
+        parsed = raw ? (JSON.parse(raw) as { error?: string }) : {};
+      } catch {
+        parsed = {
+          error:
+            raw?.slice(0, 200) ||
+            response.statusText ||
+            "Respons server tidak valid",
+        };
       }
 
-      // Refetch data
+      if (!response.ok) {
+        throw new Error(
+          parsed.error ||
+            `Gagal menyimpan (${response.status}).`,
+        );
+      }
+
       await fetchFinance();
 
-      // Reset form
       setFormPendapatan({
         tanggal: new Date().toISOString().split("T")[0],
         kategori: "",
@@ -444,11 +490,14 @@ export function Keuangan() {
         jumlah: "",
         nomorBukti: "",
       });
+      setPendapatanFormError(null);
       setShowPendapatanDialog(false);
       toast.success("Pendapatan berhasil disimpan");
     } catch (err) {
       console.error("Error saving pendapatan:", err);
-      void appAlert(err instanceof Error ? err.message : "Gagal menyimpan pendapatan");
+      const msg =
+        err instanceof Error ? err.message : "Gagal menyimpan pendapatan";
+      setPendapatanFormError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -2384,7 +2433,10 @@ export function Keuangan() {
       {/* Pendapatan Dialog */}
       <Dialog
         open={showPendapatanDialog}
-        onOpenChange={setShowPendapatanDialog}
+        onOpenChange={(open) => {
+          setShowPendapatanDialog(open);
+          if (!open) setPendapatanFormError(null);
+        }}
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -2393,6 +2445,14 @@ export function Keuangan() {
               Formulir untuk mencatat pendapatan baru
             </DialogDescription>
           </DialogHeader>
+
+          {pendapatanFormError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Tidak dapat menyimpan</AlertTitle>
+              <AlertDescription>{pendapatanFormError}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -2438,7 +2498,7 @@ export function Keuangan() {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue placeholder="Pilih sub kategori" />
                   </SelectTrigger>
                   <SelectContent>
                     {subKategoriOptions[formPendapatan.kategori]?.map((sub) => (
@@ -2487,9 +2547,13 @@ export function Keuangan() {
                 onClick={handleSavePendapatan}
                 disabled={
                   isSubmitting ||
-                  !formPendapatan.kategori ||
-                  !formPendapatan.uraian ||
-                  !formPendapatan.jumlah
+                  !formPendapatan.tanggal ||
+                  !formPendapatan.kategori.trim() ||
+                  ((subKategoriOptions[formPendapatan.kategori]?.length ?? 0) >
+                    0 &&
+                    !formPendapatan.subKategori.trim()) ||
+                  !formPendapatan.uraian.trim() ||
+                  !formPendapatan.jumlah.trim()
                 }
               >
                 {isSubmitting ? (

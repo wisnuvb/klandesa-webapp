@@ -12,7 +12,12 @@ import {
   Heart,
   MapPin,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
+import {
+  StatisticResidentsModal,
+  type StatisticListDimension,
+} from "./_components/StatisticResidentsModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -96,6 +101,12 @@ export function Statistik() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<StatisticsData | null>(null);
+  const [statisticListModalOpen, setStatisticListModalOpen] = useState(false);
+  const [statisticListDimension, setStatisticListDimension] =
+    useState<StatisticListDimension | null>(null);
+  const [statisticListCategory, setStatisticListCategory] = useState<
+    string | null
+  >(null);
 
   const fetchStatistics = async () => {
     try {
@@ -168,6 +179,15 @@ export function Statistik() {
     pertumbuhanBulanIni,
     persentasePertumbuhan,
   } = summary;
+
+  const openResidentList = (
+    dimension: StatisticListDimension,
+    category: string,
+  ) => {
+    setStatisticListDimension(dimension);
+    setStatisticListCategory(category);
+    setStatisticListModalOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -465,7 +485,18 @@ export function Statistik() {
                         {usia.map((row, index) => (
                           <tr
                             key={index}
-                            className="border-t hover:bg-muted/50 transition-colors"
+                            role="button"
+                            tabIndex={0}
+                            className="border-t hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() =>
+                              openResidentList("age_range", row.range)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                openResidentList("age_range", row.range);
+                              }
+                            }}
                           >
                             <td className="p-3">{row.range} tahun</td>
                             <td className="p-3 text-right">{row.lakilaki}</td>
@@ -531,10 +562,23 @@ export function Statistik() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {jenisKelamin.map((item, index) => (
-                      <div key={index} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{item.name}</span>
-                          <span className="text-2xl font-semibold">
+                      <button
+                        key={index}
+                        type="button"
+                        className="group w-full space-y-2 rounded-lg border border-transparent p-3 text-left transition-colors hover:border-border hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() =>
+                          openResidentList("gender", item.name)
+                        }
+                        aria-label={`Lihat penduduk berjenis kelamin ${item.name}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="font-medium text-primary underline-offset-4 group-hover:underline">
+                              {item.name}
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          </div>
+                          <span className="text-2xl font-semibold shrink-0">
                             {item.value}
                           </span>
                         </div>
@@ -553,7 +597,7 @@ export function Statistik() {
                         <p className="text-sm text-muted-foreground">
                           {item.percentage}% dari total penduduk
                         </p>
-                      </div>
+                      </button>
                     ))}
                   </CardContent>
                 </Card>
@@ -610,20 +654,25 @@ export function Statistik() {
                   {/* Summary Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                     {pendidikan.map((item, index) => (
-                      <div
+                      <button
                         key={index}
-                        className="p-4 border rounded-lg hover:shadow-md transition-shadow"
+                        type="button"
+                        className="group rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() =>
+                          openResidentList("education", item.tingkat)
+                        }
+                        aria-label={`Lihat penduduk berdasarkan pendidikan ${item.tingkat}`}
                       >
                         <p className="text-sm text-muted-foreground">
                           {item.tingkat}
                         </p>
-                        <p className="text-2xl font-semibold mt-1">
+                        <p className="text-2xl font-semibold mt-1 text-primary underline-offset-4 group-hover:underline">
                           {item.jumlah}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {((item.jumlah / totalPenduduk) * 100).toFixed(1)}%
                         </p>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </CardContent>
@@ -681,20 +730,26 @@ export function Statistik() {
                   {/* Detailed List */}
                   <div className="mt-6 space-y-3">
                     {pekerjaan.map((item, index) => (
-                      <div
+                      <button
                         key={index}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                        type="button"
+                        className="group flex w-full items-center justify-between gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => openResidentList("occupation", item.pekerjaan)}
+                        aria-label={`Lihat daftar penduduk berdasarkan pekerjaan ${item.pekerjaan}`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
                           <div
-                            className="w-3 h-3 rounded-full"
+                            className="h-3 w-3 shrink-0 rounded-full"
                             style={{
                               backgroundColor: COLORS[index % COLORS.length],
                             }}
                           />
-                          <span className="font-medium">{item.pekerjaan}</span>
+                          <span className="font-medium text-primary underline-offset-4 group-hover:underline">
+                            {item.pekerjaan}
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex shrink-0 items-center gap-4">
                           <div className="text-right">
                             <p className="text-xl font-semibold">
                               {item.jumlah}
@@ -705,7 +760,7 @@ export function Statistik() {
                             </p>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </CardContent>
@@ -753,18 +808,26 @@ export function Statistik() {
 
                     <div className="space-y-3">
                       {perkawinan.map((item, index) => (
-                        <div
+                        <button
                           key={index}
-                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          type="button"
+                          className="group flex w-full items-center justify-between gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() =>
+                            openResidentList("marital_status", item.status)
+                          }
+                          aria-label={`Lihat penduduk berdasarkan status ${item.status}`}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
                             <div
-                              className="w-3 h-3 rounded-full"
+                              className="h-3 w-3 shrink-0 rounded-full"
                               style={{
                                 backgroundColor: COLORS[index % COLORS.length],
                               }}
                             />
-                            <span className="font-medium">{item.status}</span>
+                            <span className="font-medium text-primary underline-offset-4 group-hover:underline">
+                              {item.status}
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                           </div>
                           <div className="text-right">
                             <p className="text-xl font-semibold">
@@ -775,7 +838,7 @@ export function Statistik() {
                               %
                             </p>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -826,18 +889,26 @@ export function Statistik() {
 
                     <div className="space-y-3">
                       {agama.map((item, index) => (
-                        <div
+                        <button
                           key={index}
-                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          type="button"
+                          className="group flex w-full items-center justify-between gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() =>
+                            openResidentList("religion", item.agama)
+                          }
+                          aria-label={`Lihat penduduk berdasarkan agama ${item.agama}`}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
                             <div
-                              className="w-3 h-3 rounded-full"
+                              className="h-3 w-3 shrink-0 rounded-full"
                               style={{
                                 backgroundColor: COLORS[index % COLORS.length],
                               }}
                             />
-                            <span className="font-medium">{item.agama}</span>
+                            <span className="font-medium text-primary underline-offset-4 group-hover:underline">
+                              {item.agama}
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                           </div>
                           <div className="text-right">
                             <p className="text-xl font-semibold">
@@ -848,7 +919,7 @@ export function Statistik() {
                               %
                             </p>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -893,6 +964,38 @@ export function Statistik() {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
+                  <div className="mt-6 space-y-3">
+                    {wilayah.map((item, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="group flex w-full items-center justify-between gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() =>
+                          openResidentList("hamlet", item.wilayah)
+                        }
+                        aria-label={`Lihat penduduk di wilayah ${item.wilayah}`}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <div
+                            className="h-3 w-3 shrink-0 rounded-full"
+                            style={{
+                              backgroundColor: COLORS[index % COLORS.length],
+                            }}
+                          />
+                          <span className="font-medium text-primary underline-offset-4 group-hover:underline">
+                            {item.wilayah}
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-semibold">{item.jumlah}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {((item.jumlah / totalPenduduk) * 100).toFixed(1)}%
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -905,22 +1008,30 @@ export function Statistik() {
                   <CardContent>
                     <div className="space-y-3">
                       {golonganDarah.map((item, index) => (
-                        <div
+                        <button
                           key={index}
-                          className="flex items-center justify-between p-3 border rounded-lg"
+                          type="button"
+                          className="group flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() =>
+                            openResidentList("blood_type", item.golongan)
+                          }
+                          aria-label={`Lihat penduduk golongan darah ${item.golongan}`}
                         >
-                          <span className="font-medium">{item.golongan}</span>
-                          <div className="text-right">
+                          <span className="font-medium text-primary underline-offset-4 group-hover:underline">
+                            {item.golongan}
+                          </span>
+                          <div className="text-right flex items-center gap-2 shrink-0">
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             <span className="text-lg font-semibold">
                               {item.jumlah}
                             </span>
-                            <span className="text-xs text-muted-foreground ml-2">
+                            <span className="text-xs text-muted-foreground">
                               (
                               {((item.jumlah / totalPenduduk) * 100).toFixed(1)}
                               %)
                             </span>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </CardContent>
@@ -936,24 +1047,30 @@ export function Statistik() {
                   <CardContent>
                     <div className="space-y-3">
                       {kesehatan.map((item, index) => (
-                        <div
+                        <button
                           key={index}
-                          className="flex items-center justify-between p-3 border rounded-lg"
+                          type="button"
+                          className="group flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() =>
+                            openResidentList("health", item.kategori)
+                          }
+                          aria-label={`Lihat penduduk kategori ${item.kategori}`}
                         >
-                          <span className="font-medium text-sm">
+                          <span className="font-medium text-sm text-primary underline-offset-4 group-hover:underline">
                             {item.kategori}
                           </span>
-                          <div className="text-right">
+                          <div className="text-right flex items-center gap-2 shrink-0">
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             <span className="text-lg font-semibold">
                               {item.jumlah}
                             </span>
-                            <span className="text-xs text-muted-foreground ml-2">
+                            <span className="text-xs text-muted-foreground">
                               (
                               {((item.jumlah / totalPenduduk) * 100).toFixed(1)}
                               %)
                             </span>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </CardContent>
@@ -963,6 +1080,13 @@ export function Statistik() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <StatisticResidentsModal
+        open={statisticListModalOpen}
+        onOpenChange={setStatisticListModalOpen}
+        dimension={statisticListDimension}
+        categoryLabel={statisticListCategory}
+      />
     </div>
   );
 }

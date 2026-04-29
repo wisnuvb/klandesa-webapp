@@ -7,6 +7,7 @@ import { getToken } from "next-auth/jwt";
 import { getSubdomain } from "@/lib/subdomain";
 import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { invalidateFinanceSummaryCache } from "@/lib/finance/summary-cache";
 
 type SessionType = Session | null;
 type TokenType = Awaited<ReturnType<typeof getToken>> | null;
@@ -114,14 +115,47 @@ export async function POST(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    if (!type || !category || !description || !amount || !transactionDate) {
+    const categoryStr =
+      typeof category === "string"
+        ? category.trim()
+        : String(category ?? "").trim();
+    const descriptionStr =
+      typeof description === "string"
+        ? description.trim()
+        : String(description ?? "").trim();
+
+    if (
+      !type ||
+      !categoryStr ||
+      !descriptionStr ||
+      transactionDate === undefined ||
+      transactionDate === null ||
+      transactionDate === ""
+    ) {
       return NextResponse.json(
         { error: "Field yang diperlukan tidak lengkap" },
         { status: 400 }
       );
     }
 
+    const amt =
+      typeof amount === "number"
+        ? amount
+        : parseFloat(String(amount ?? "").replace(",", "."));
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return NextResponse.json(
+        { error: "Jumlah harus berupa angka lebih dari 0" },
+        { status: 400 }
+      );
+    }
+
     const date = new Date(transactionDate);
+    if (Number.isNaN(date.getTime())) {
+      return NextResponse.json(
+        { error: "Tanggal transaksi tidak valid" },
+        { status: 400 }
+      );
+    }
     const transactionNumber = generateTransactionNumber(type, date);
 
     const transaction = await prisma.transaction.create({
@@ -130,9 +164,9 @@ export async function POST(req: NextRequest) {
         transactionNumber,
         transactionDate: date,
         type,
-        category,
-        description,
-        amount: parseFloat(amount),
+        category: categoryStr,
+        description: descriptionStr,
+        amount: amt,
         paymentMethod: paymentMethod || "cash",
         referenceNumber: referenceNumber || transactionNumber,
         status: status || "verified", // Allow custom status (e.g., pending for SPP)
@@ -142,6 +176,8 @@ export async function POST(req: NextRequest) {
         }),
       },
     });
+
+    invalidateFinanceSummaryCache(village.id);
 
     return NextResponse.json({
       success: true,
@@ -208,6 +244,8 @@ export async function PUT(req: NextRequest) {
       },
     });
 
+    invalidateFinanceSummaryCache(village.id);
+
     return NextResponse.json({
       success: true,
       data: toJSONSafe(transaction),
@@ -252,6 +290,8 @@ export async function DELETE(req: NextRequest) {
     await prisma.transaction.delete({
       where: { id: BigInt(id) },
     });
+
+    invalidateFinanceSummaryCache(village.id);
 
     return NextResponse.json({
       success: true,
