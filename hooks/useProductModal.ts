@@ -1,6 +1,5 @@
 import { useState } from "react";
-import type { UkmProduct } from "../app/(app)/ukm/_types";
-import type { UkmProductDraft } from "./useProducts";
+import type { UkmProduct, UkmProductDraft } from "@/app/(app)/ukm/_types";
 
 const emptyDraft: UkmProductDraft = {
   name: "",
@@ -8,6 +7,9 @@ const emptyDraft: UkmProductDraft = {
   price: 0,
   category: "",
   images: [],
+  unit: "",
+  stockQuantity: null,
+  notes: "",
 };
 
 export function useProductModal() {
@@ -27,6 +29,9 @@ export function useProductModal() {
             price: product.price ?? 0,
             category: product.category ?? "",
             images: product.images,
+            unit: product.unit ?? "",
+            stockQuantity: product.stockQuantity ?? null,
+            notes: product.notes ?? "",
           }
         : emptyDraft
     );

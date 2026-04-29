@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import { buildFolderPath, slugFolderSegment } from "@/lib/digitalArchive/folderPath";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { canManageArchiveFolders } from "@/lib/digitalArchive/access";
 
 export async function PATCH(
   req: NextRequest,
@@ -154,6 +155,13 @@ export async function DELETE(
     }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
+    }
+
+    if (!canManageArchiveFolders(session.user.role)) {
+      return NextResponse.json(
+        { error: "Anda tidak berhak menghapus folder arsip" },
+        { status: 403 },
+      );
     }
 
     const { id: rawId } = await params;

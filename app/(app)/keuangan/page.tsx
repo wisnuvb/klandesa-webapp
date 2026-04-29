@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 import { motion } from "motion/react";
 import {
   Wallet,
@@ -146,10 +147,22 @@ const formatRupiahShort = (angka: number) => {
   return formatRupiah(angka);
 };
 
+const KEUANGAN_TABS = [
+  "overview",
+  "pendapatan",
+  "belanja",
+  "kas",
+  "spp",
+] as const;
+
 export function Keuangan() {
   const { appAlert } = useAppDialogs();
   const [selectedYear, setSelectedYear] = useState("2025");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = usePersistedTab(
+    "keuangan",
+    "overview",
+    KEUANGAN_TABS
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [apbdesData, setApbdesData] = useState<ApbdesData>({

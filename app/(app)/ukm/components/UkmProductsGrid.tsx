@@ -76,6 +76,22 @@ export default function UkmProductsGrid(props: Props) {
                   <span className="text-sm text-gray-500">Harga belum diisi</span>
                 )}
               </div>
+              {(product.stockQuantity !== null && product.stockQuantity !== undefined) ||
+              (product.unit && product.unit.trim()) ? (
+                <p className="text-sm text-gray-600 mb-2">
+                  Stok:{" "}
+                  {product.stockQuantity !== null &&
+                  product.stockQuantity !== undefined
+                    ? product.stockQuantity
+                    : "—"}
+                  {product.unit?.trim() ? ` ${product.unit.trim()}` : ""}
+                </p>
+              ) : null}
+              {product.notes?.trim() ? (
+                <p className="text-xs text-gray-500 mb-3 line-clamp-2">
+                  {product.notes.trim()}
+                </p>
+              ) : null}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onEdit(product)}

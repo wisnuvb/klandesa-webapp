@@ -5,30 +5,12 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-
-function normalizeImageUrls(input: unknown): string[] {
-  if (!input) return [];
-  if (Array.isArray(input)) {
-    return input
-      .map((v) => (typeof v === "string" ? v.trim() : ""))
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function toUkmProduct(row: any) {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    category: row.subCategory ?? null,
-    price: row.productionValue ? Number(row.productionValue) : null,
-    images: normalizeImageUrls(row.images),
-    status: row.status,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
+import { normalizeImageUrls } from "@/app/(app)/ukm/_utils";
+import {
+  parseStockQuantity,
+  toUkmProduct,
+  ukmProductSelect,
+} from "./_serialize";
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,12 +19,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
-    if (!isVillageSubscriptionActive(village)) {
-      return subscriptionBlockedResponse(village);
-    }
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
     }
@@ -73,17 +49,7 @@ export async function GET(req: NextRequest) {
     const rows = await prisma.potential.findMany({
       where,
       orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        subCategory: true,
-        productionValue: true,
-        images: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: ukmProductSelect,
     });
 
     return NextResponse.json({ rows: rows.map(toUkmProduct) });
@@ -109,6 +75,9 @@ export async function POST(req: NextRequest) {
       price?: unknown;
       category?: unknown;
       images?: unknown;
+      unit?: unknown;
+      stockQuantity?: unknown;
+      notes?: unknown;
     };
 
     const village = await resolveVillage({ req, session });
@@ -136,6 +105,9 @@ export async function POST(req: NextRequest) {
     const category =
       typeof body.category === "string" ? body.category.trim() : "";
     const images = normalizeImageUrls(body.images);
+    const unit = typeof body.unit === "string" ? body.unit.trim() : "";
+    const notesRaw = typeof body.notes === "string" ? body.notes.trim() : "";
+    const stockQuantity = parseStockQuantity(body.stockQuantity);
 
     const priceNum =
       typeof body.price === "number"
@@ -156,20 +128,13 @@ export async function POST(req: NextRequest) {
         name,
         description,
         productionValue: price,
+        productionUnit: unit || null,
+        stockQuantity,
+        productNotes: notesRaw || null,
         images,
         status: "active",
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        subCategory: true,
-        productionValue: true,
-        images: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: ukmProductSelect,
     });
 
     return NextResponse.json(toUkmProduct(created), { status: 201 });

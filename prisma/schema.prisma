@@ -790,6 +790,11 @@ model Potential {
   // Images
   images Json? // Array of image URLs
 
+  /// Stok produk (UKM); null = tidak dilacak
+  stockQuantity Int?
+  /// Catatan tambahan penjual (SKU, supplier, keterangan internal, dll.)
+  productNotes String? @db.Text
+
   // Status
   status String @default("active") @db.VarChar(50) // active, inactive, potential
 

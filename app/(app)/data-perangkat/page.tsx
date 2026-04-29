@@ -46,6 +46,7 @@ import { calculateAge } from "@/utils";
 import { FormDialog } from "@/components/app/data-perangkat";
 import { toast } from "sonner";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 
 interface Position {
   id: number;
@@ -221,8 +222,15 @@ function HierarchyTreeBranch({
   );
 }
 
+const DATA_PERANGKAT_VIEW_TABS = ["table", "hierarchy"] as const;
+
 export function DataPerangkat() {
   const { appConfirm } = useAppDialogs();
+  const [viewTab, setViewTab] = usePersistedTab(
+    "data-perangkat",
+    "table",
+    DATA_PERANGKAT_VIEW_TABS
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPosition, setFilterPosition] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -517,7 +525,7 @@ export function DataPerangkat() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="table" className="space-y-4">
+      <Tabs value={viewTab} onValueChange={setViewTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 md:w-105">
           <TabsTrigger value="table">Daftar Perangkat</TabsTrigger>
           <TabsTrigger value="hierarchy">Bagan Hirarki</TabsTrigger>

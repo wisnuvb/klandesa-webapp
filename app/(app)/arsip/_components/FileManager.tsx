@@ -1,11 +1,12 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useSession } from "next-auth/react";
 import {
   Check,
   ChevronDown,
   ChevronRight,
-  Download,
+  Copy,
   Eye,
   FileText,
   Filter,
@@ -22,12 +23,232 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  canAccessArchiveBinary,
+  canDeleteArchiveRecord,
+  canManageArchiveFolders,
+} from "@/lib/digitalArchive/access";
+import { toast } from "sonner";
 import type { FileItem, FileType, ViewMode } from "../_types";
 import {
+  archiveThumbnailNeedsUnoptimized,
   formatFileSize,
   getFileIcon,
   getQuotaTextColor,
 } from "../_utils/fileUtils";
+
+function folderDisplayPath(file: FileItem): string {
+  if (file.kind === "folderDb" && file.folderPath) {
+    const p = file.folderPath.trim();
+    return p.startsWith("/") ? p : `/${p}`;
+  }
+  const base = file.parent_folder.replace(/\/+$/, "");
+  const name = file.name.replace(/^\/+|\/+$/g, "");
+  if (!base) return `/${name}`;
+  return `${base}/${name}`;
+}
+
+function fileShareUrl(file: FileItem, origin: string): string | null {
+  if (
+    file.type !== "file" ||
+    file.archiveId == null ||
+    file.uploadedByUserId == null ||
+    file.isPublic == null
+  ) {
+    return null;
+  }
+  if (file.isPublic && file.filePath && /^https?:\/\//i.test(file.filePath)) {
+    return file.filePath;
+  }
+  return `${origin}/api/digital-archives/${file.archiveId}/file`;
+}
+
+interface ArchiveItemActionMenuProps {
+  file: FileItem;
+  variant: "grid" | "list";
+  userId: number;
+  role: string | undefined;
+  origin: string;
+  onPreview: (f: FileItem) => void;
+  onFileClick: (f: FileItem) => void;
+  onDeleteItem: (f: FileItem) => void | Promise<void>;
+}
+
+function ArchiveItemActionMenu(props: ArchiveItemActionMenuProps) {
+  const {
+    file,
+    variant,
+    userId,
+    role,
+    origin,
+    onPreview,
+    onFileClick,
+    onDeleteItem,
+  } = props;
+
+  const isFile = file.type === "file";
+  const sessionReady = Number.isFinite(userId) && userId > 0;
+
+  const canViewBinary =
+    isFile &&
+    sessionReady &&
+    file.uploadedByUserId != null &&
+    file.isPublic != null &&
+    canAccessArchiveBinary({
+      role,
+      userId,
+      isPublic: file.isPublic,
+      uploadedByUserId: file.uploadedByUserId,
+    });
+
+  const folderPathText = !isFile ? folderDisplayPath(file) : null;
+
+  const copyDisabled =
+    isFile
+      ? !sessionReady || !canViewBinary || !origin
+      : !folderPathText;
+
+  const canDeleteFile =
+    isFile &&
+    sessionReady &&
+    file.uploadedByUserId != null &&
+    canDeleteArchiveRecord({
+      role,
+      userId,
+      uploadedByUserId: file.uploadedByUserId,
+    });
+
+  const canDeleteFolderDb =
+    !isFile &&
+    file.kind === "folderDb" &&
+    file.folderDbId != null &&
+    canManageArchiveFolders(role);
+
+  const showDelete = Boolean(canDeleteFile || canDeleteFolderDb);
+
+  const triggerClass =
+    variant === "grid"
+      ? "p-1.5 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 outline-none"
+      : "p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg outline-none";
+
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={triggerClass}
+            title="Lainnya"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <MoreVertical
+              className={variant === "grid" ? "w-3 h-3 text-gray-600" : "w-4 h-4"}
+            />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuItem
+            disabled={Boolean(isFile && !canViewBinary)}
+            onSelect={() => {
+              if (isFile) {
+                if (!canViewBinary) {
+                  toast.error("Akses ditolak", {
+                    description:
+                      "Anda tidak memiliki akses ke berkas ini (arsip privat milik pengguna lain, atau sesi belum siap).",
+                  });
+                  return;
+                }
+                onPreview(file);
+                return;
+              }
+              onFileClick(file);
+            }}
+          >
+            <Eye className="w-4 h-4" />
+            {isFile ? "Lihat / pratinjau" : "Buka folder"}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={copyDisabled}
+            onSelect={() => {
+              void (async () => {
+                if (isFile) {
+                  const url = fileShareUrl(file, origin);
+                  if (!url || !canViewBinary) {
+                    toast.error("Perhatian", {
+                      description:
+                        "Tidak ada tautan yang dapat disalin untuk item ini.",
+                    });
+                    return;
+                  }
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    toast.success("Disalin", {
+                      description: file.isPublic
+                        ? "Tautan publik disalin ke papan klip."
+                        : "Tautan disalin. Berkas privat hanya dapat dibuka oleh Anda dan admin desa saat masuk.",
+                    });
+                  } catch {
+                    toast.error("Gagal", {
+                      description: "Gagal menyalin ke papan klip.",
+                    });
+                  }
+                  return;
+                }
+                if (folderPathText) {
+                  try {
+                    await navigator.clipboard.writeText(folderPathText);
+                    toast.success("Disalin", {
+                      description: "Path folder disalin ke papan klip.",
+                    });
+                  } catch {
+                    toast.error("Gagal", {
+                      description: "Gagal menyalin ke papan klip.",
+                    });
+                  }
+                }
+              })();
+            }}
+          >
+            <Copy className="w-4 h-4" />
+            {isFile ? "Salin tautan" : "Salin path folder"}
+          </DropdownMenuItem>
+          {showDelete ? (
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => {
+                void (async () => {
+                  if (!showDelete) {
+                    toast.error("Tidak dapat dihapus", {
+                      description: "Anda tidak dapat menghapus item ini.",
+                    });
+                    return;
+                  }
+                  if (!isFile && file.kind !== "folderDb") {
+                    toast.error("Tidak dapat dihapus", {
+                      description:
+                        "Folder kategori ini tidak dapat dihapus dari sini.",
+                    });
+                    return;
+                  }
+                  await onDeleteItem(file);
+                })();
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+              Hapus
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
 
 interface Props {
   viewMode: ViewMode;
@@ -53,6 +274,8 @@ interface Props {
   onClickNewFolder: () => void;
   onClickUpload: () => void;
   onPreview: (file: FileItem) => void;
+  /** Hapus satu file/folder DB; ACL dicek di API */
+  onDeleteItem: (file: FileItem) => void | Promise<void>;
 }
 
 export function FileManager(props: Props) {
@@ -80,7 +303,16 @@ export function FileManager(props: Props) {
     onClickNewFolder,
     onClickUpload,
     onPreview,
+    onDeleteItem,
   } = props;
+
+  const { data: session } = useSession();
+
+  const userId = session?.user?.id ? Number(session.user.id) : NaN;
+  const role = session?.user?.role;
+
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "";
 
   const selectableIds = filteredFiles
     .filter((f) => f.selectable)
@@ -351,6 +583,9 @@ export function FileManager(props: Props) {
                         className="w-full h-24 object-cover rounded-lg mb-2"
                         width={175}
                         height={175}
+                        unoptimized={archiveThumbnailNeedsUnoptimized(
+                          file.thumbnail_url,
+                        )}
                       />
                     ) : (
                       <div className="w-full h-24 flex items-center justify-center">
@@ -371,15 +606,17 @@ export function FileManager(props: Props) {
                     </p>
                   </div>
 
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                      className="p-1.5 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
-                    >
-                      <MoreVertical className="w-3 h-3 text-gray-600" />
-                    </button>
+                  <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ArchiveItemActionMenu
+                      file={file}
+                      variant="grid"
+                      userId={userId}
+                      role={role}
+                      origin={origin}
+                      onPreview={onPreview}
+                      onFileClick={onFileClick}
+                      onDeleteItem={onDeleteItem}
+                    />
                   </div>
                 </motion.div>
               ))}
@@ -456,6 +693,9 @@ export function FileManager(props: Props) {
                                 src={file.thumbnail_url}
                                 alt={file.name}
                                 className="w-10 h-10 object-cover rounded"
+                                unoptimized={archiveThumbnailNeedsUnoptimized(
+                                  file.thumbnail_url,
+                                )}
                                 width={40}
                                 height={40}
                               />
@@ -491,36 +731,21 @@ export function FileManager(props: Props) {
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {file.uploaded_by}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {file.type === "file" && (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onPreview(file);
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
-                                title="Preview"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                title="Download"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                      <td
+                        className="px-4 py-3 text-right align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="inline-flex justify-end">
+                          <ArchiveItemActionMenu
+                            file={file}
+                            variant="list"
+                            userId={userId}
+                            role={role}
+                            origin={origin}
+                            onPreview={onPreview}
+                            onFileClick={onFileClick}
+                            onDeleteItem={onDeleteItem}
+                          />
                         </div>
                       </td>
                     </motion.tr>

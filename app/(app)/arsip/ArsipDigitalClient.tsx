@@ -2,7 +2,9 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence } from "motion/react";
+import { useSession } from "next-auth/react";
 import { browsePathFromFolderPath } from "@/lib/digitalArchive/folderPath";
+import { canAccessArchiveBinary } from "@/lib/digitalArchive/access";
 import type {
   ArchiveEntry,
   ArchiveFolderEntry,
@@ -17,7 +19,11 @@ import {
   getCurrentPlanFromVillage,
   getPlanDetailById,
 } from "./_data/storagePlans";
-import { buildVirtualFsItems, calculateFileStats } from "./_utils/fileUtils";
+import {
+  buildVirtualFsItems,
+  calculateFileStats,
+  collectUploadFolderPathSuggestions,
+} from "./_utils/fileUtils";
 import { StorageSidebar } from "./_components/StorageSidebar";
 import { FileManager } from "./_components/FileManager";
 import {
@@ -28,6 +34,7 @@ import {
   UploadModal,
 } from "./_components/modals";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { toast } from "sonner";
 
 interface Props {
   initialEntries: ArchiveEntry[];
@@ -37,7 +44,8 @@ interface Props {
 
 export function ArsipDigitalClient(props: Props) {
   const { initialEntries, initialFolders, villageStorage } = props;
-  const { appAlert, appConfirm } = useAppDialogs();
+  const { appConfirm } = useAppDialogs();
+  const { data: session } = useSession();
 
   const [entries, setEntries] = useState<ArchiveEntry[]>(initialEntries);
   const [folders, setFolders] = useState<ArchiveFolderEntry[]>(initialFolders);
@@ -68,6 +76,11 @@ export function ArsipDigitalClient(props: Props) {
   const files = useMemo(() => {
     return buildVirtualFsItems(entries, folders);
   }, [entries, folders]);
+
+  const uploadFolderPaths = useMemo(
+    () => collectUploadFolderPathSuggestions(entries, folders),
+    [entries, folders],
+  );
 
   const stats = useMemo(() => calculateFileStats(files), [files]);
 
@@ -156,6 +169,26 @@ export function ArsipDigitalClient(props: Props) {
       return;
     }
 
+    const userId = session?.user?.id ? Number(session.user.id) : NaN;
+    const role = session?.user?.role;
+    if (
+      file.uploadedByUserId != null &&
+      file.isPublic != null &&
+      Number.isFinite(userId) &&
+      !canAccessArchiveBinary({
+        role,
+        userId,
+        isPublic: file.isPublic,
+        uploadedByUserId: file.uploadedByUserId,
+      })
+    ) {
+      toast.error("Akses ditolak", {
+        description:
+          "Anda tidak memiliki akses ke berkas ini (arsip privat milik pengguna lain).",
+      });
+      return;
+    }
+
     setPreviewFile(file);
     setShowPreviewModal(true);
   };
@@ -194,6 +227,7 @@ export function ArsipDigitalClient(props: Props) {
     const folderIds = selectedKeys
       .filter((k) => k.startsWith("f:"))
       .map((k) => Number(k.slice(2)));
+    const removedCount = selectedKeys.length;
 
     try {
       for (const fid of folderIds) {
@@ -221,8 +255,83 @@ export function ArsipDigitalClient(props: Props) {
       setEntries((prev) => prev.filter((e) => !archiveIds.includes(e.id)));
       setFolders((prev) => prev.filter((f) => !folderIds.includes(f.id)));
       setSelectedKeys([]);
+      toast.success("Penghapusan berhasil", {
+        description: `${removedCount} item telah dihapus.`,
+      });
     } catch (e) {
-      void appAlert(e instanceof Error ? e.message : "Penghapusan gagal.");
+      toast.error(
+        e instanceof Error ? e.message : "Penghapusan gagal.",
+      );
+    }
+  };
+
+  const handleDeleteItem = async (file: FileItem) => {
+    if (file.type === "folder") {
+      if (file.kind !== "folderDb" || !file.folderDbId) {
+        toast.error("Tidak dapat dihapus", {
+          description:
+            "Folder kategori virtual tidak dapat dihapus dari menu ini.",
+        });
+        return;
+      }
+      const ok = await appConfirm({
+        title: "Hapus folder?",
+        description: `Hapus folder "${file.name}"? Folder harus kosong.`,
+        confirmLabel: "Hapus",
+        tone: "destructive",
+      });
+      if (!ok) return;
+      try {
+        const res = await fetch(
+          `/api/digital-archives/folders/${file.folderDbId}`,
+          { method: "DELETE" },
+        );
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        if (!res.ok) {
+          throw new Error(data.error || "Gagal menghapus folder");
+        }
+        setFolders((prev) => prev.filter((f) => f.id !== file.folderDbId));
+        setSelectedKeys((prev) => prev.filter((k) => k !== file.selectionKey));
+        toast.success("Folder dihapus", {
+          description: `"${file.name}" telah dihapus.`,
+        });
+      } catch (e) {
+        toast.error(
+          e instanceof Error ? e.message : "Gagal menghapus folder",
+        );
+      }
+      return;
+    }
+
+    if (!file.archiveId) return;
+    const ok = await appConfirm({
+      title: "Hapus arsip?",
+      description: `Hapus berkas "${file.name}"?`,
+      confirmLabel: "Hapus",
+      tone: "destructive",
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/digital-archives/${file.archiveId}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal menghapus arsip");
+      }
+      setEntries((prev) => prev.filter((e) => e.id !== file.archiveId));
+      setSelectedKeys((prev) =>
+        prev.filter((k) => k !== `a:${file.archiveId}`),
+      );
+      toast.success("Arsip dihapus", {
+        description: `"${file.name}" telah dihapus.`,
+      });
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Gagal menghapus arsip",
+      );
     }
   };
 
@@ -259,8 +368,13 @@ export function ArsipDigitalClient(props: Props) {
       );
       setNewFolderName("");
       setShowNewFolderModal(false);
+      toast.success("Folder dibuat", {
+        description: `Folder "${trimmed}" siap dipakai.`,
+      });
     } catch (e) {
-      void appAlert(e instanceof Error ? e.message : "Gagal membuat folder");
+      toast.error(
+        e instanceof Error ? e.message : "Gagal membuat folder",
+      );
     } finally {
       setFolderCreating(false);
     }
@@ -277,8 +391,7 @@ export function ArsipDigitalClient(props: Props) {
     setCurrentPlan(selectedPlan);
     setShowPaymentModal(false);
     setSelectedPlan(null);
-    void appAlert({
-      title: "Pembayaran berhasil",
+    toast.success("Pembayaran berhasil", {
       description: "Paket storage Anda telah di-upgrade.",
     });
   };
@@ -304,6 +417,8 @@ export function ArsipDigitalClient(props: Props) {
           category: meta.category,
           subCategory: meta.subCategory,
           folderId: uploadDefaults.folderId,
+          isPublic: meta.isPublic,
+          accessLevel: meta.accessLevel,
         }),
       });
 
@@ -321,16 +436,25 @@ export function ArsipDigitalClient(props: Props) {
         uploadHeaders?: Record<string, string>;
       };
 
+      const putHeaders: Record<string, string> = {
+        ...(presigned.uploadHeaders || {}),
+      };
+      const putContentType = file.type || "application/octet-stream";
+      if (!putHeaders["Content-Type"] && !putHeaders["content-type"]) {
+        putHeaders["Content-Type"] = putContentType;
+      }
+
       const putRes = await fetch(presigned.uploadUrl, {
         method: "PUT",
-        headers: {
-          ...(presigned.uploadHeaders || {}),
-        },
+        headers: putHeaders,
         body: file,
       });
 
       if (!putRes.ok) {
-        throw new Error("upload_failed");
+        const hint = await putRes.text().catch(() => "");
+        throw new Error(
+          `upload_failed ${putRes.status}${hint ? `: ${hint.slice(0, 200)}` : ""}`,
+        );
       }
 
       const createRes = await fetch("/api/digital-archives", {
@@ -410,6 +534,7 @@ export function ArsipDigitalClient(props: Props) {
           setPreviewFile(file);
           setShowPreviewModal(true);
         }}
+        onDeleteItem={handleDeleteItem}
       />
 
       <AnimatePresence>
@@ -441,6 +566,7 @@ export function ArsipDigitalClient(props: Props) {
           onClose={() => setShowUploadModal(false)}
           defaultCategory={uploadDefaults.category}
           defaultSubCategory={uploadDefaults.subCategory}
+          folderPaths={uploadFolderPaths}
           onUpload={uploadArchive}
           onUploaded={(entry) => {
             setEntries((prev) => [entry, ...prev]);

@@ -1,6 +1,6 @@
 import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, type PutObjectCommandInput } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { resolveVillage } from "@/lib/village";
 import { prisma } from "@/lib/prisma";
@@ -26,6 +26,11 @@ function getExtension(name: string) {
   return name.slice(idx + 1).toLowerCase();
 }
 
+/** Bila false, jangan set ACL pada PutObject (bucket Spaces tanpa ACL / policy-only). */
+function objectAclEnabled(): boolean {
+  return process.env.SPACES_USE_OBJECT_ACL !== "false";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getApiSession(req);
@@ -48,6 +53,8 @@ export async function POST(req: NextRequest) {
       category?: string;
       subCategory?: string | null;
       folderId?: number | null;
+      isPublic?: boolean;
+      accessLevel?: string;
     };
 
     const fileNameRaw = body.fileName?.toString() || "";
@@ -59,6 +66,10 @@ export async function POST(req: NextRequest) {
       ? body.subCategory.toString().trim()
       : null;
     const folderIdRaw = body.folderId;
+
+    const aclPublic =
+      Boolean(body.isPublic) ||
+      (body.accessLevel || "").toString() === "public";
 
     if (!fileNameRaw) {
       return NextResponse.json(
@@ -147,29 +158,43 @@ export async function POST(req: NextRequest) {
     const s3 = getSpacesClient();
     const cfg = getSpacesConfig();
 
-    const cmd = new PutObjectCommand({
+    const objectAcl = aclPublic
+      ? ((cfg.uploadAcl || "public-read") as "private" | "public-read")
+      : "private";
+
+    const baseInput: PutObjectCommandInput = {
       Bucket: cfg.bucket,
       Key: key,
       ContentType: contentType,
-      ACL: cfg.uploadAcl as "private" | "public-read",
       Metadata: {
         original_filename: safeName,
         ext: ext || "",
         village_code: village.code,
       },
-    });
+    };
+
+    if (objectAclEnabled()) {
+      baseInput.ACL = objectAcl;
+    }
+
+    const cmd = new PutObjectCommand(baseInput);
 
     const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 60 });
     const fileUrl = buildSpacesPublicUrl(key);
+
+    const uploadHeaders: Record<string, string> = {
+      "Content-Type": contentType,
+    };
+    if (objectAclEnabled()) {
+      uploadHeaders["x-amz-acl"] = objectAcl;
+    }
 
     return NextResponse.json({
       uploadUrl,
       fileUrl,
       key,
-      uploadHeaders: {
-        "Content-Type": contentType,
-        "x-amz-acl": cfg.uploadAcl,
-      },
+      uploadHeaders,
+      acl: objectAclEnabled() ? objectAcl : null,
     });
   } catch (error) {
     console.error("POST /api/digital-archives/presign error:", error);

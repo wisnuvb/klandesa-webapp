@@ -216,7 +216,7 @@ export function generateHeader(nomor_surat: string, jenis_surat: string): string
         <img src="${desaSettings.logo_url}" alt="Logo" style="width: 80px; height: auto;" />
       </td>
       <td style="text-align: center; vertical-align: middle;">
-        <div style="font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">PEMERINTAH KABUPATEN ${desaSettings.kabupaten}</div>
+        <div style="font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">PEMERINTAH ${desaSettings.kabupaten}</div>
         <div style="font-weight: 700; font-size: 14px; margin-top: 2px;">KECAMATAN ${desaSettings.kecamatan}</div>
         <div style="font-weight: 800; font-size: 20px; margin-top: 4px; letter-spacing: 1px;">KANTOR DESA ${desaSettings.nama_desa}</div>
         <div style="font-size: 12px; margin-top: 4px;">

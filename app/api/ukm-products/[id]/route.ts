@@ -1,34 +1,15 @@
 import { getApiSession } from "@/lib/api-session";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-
-function normalizeImageUrls(input: unknown): string[] {
-  if (!input) return [];
-  if (Array.isArray(input)) {
-    return input
-      .map((v) => (typeof v === "string" ? v.trim() : ""))
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function toUkmProduct(row: any) {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    category: row.subCategory ?? null,
-    price: row.productionValue ? Number(row.productionValue) : null,
-    images: normalizeImageUrls(row.images),
-    status: row.status,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
+import { normalizeImageUrls } from "@/app/(app)/ukm/_utils";
+import {
+  parseStockQuantity,
+  toUkmProduct,
+  ukmProductSelect,
+} from "../_serialize";
 
 export async function GET(
   req: NextRequest,
@@ -40,18 +21,6 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
-    if (!isVillageSubscriptionActive(village)) {
-      return subscriptionBlockedResponse(village);
-    }
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
-    if (!isVillageSubscriptionActive(village)) {
-      return subscriptionBlockedResponse(village);
-    }
     if (!village) {
       return NextResponse.json({ error: "Village not found" }, { status: 404 });
     }
@@ -71,17 +40,7 @@ export async function GET(
         villageId: village.id,
         category: { in: ["UMKM", "UKM"] },
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        subCategory: true,
-        productionValue: true,
-        images: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: ukmProductSelect,
     });
 
     if (!row) {
@@ -144,6 +103,9 @@ export async function PUT(
       price?: unknown;
       category?: unknown;
       images?: unknown;
+      unit?: unknown;
+      stockQuantity?: unknown;
+      notes?: unknown;
     };
 
     const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -166,6 +128,9 @@ export async function PUT(
     const category =
       typeof body.category === "string" ? body.category.trim() : "";
     const images = normalizeImageUrls(body.images);
+    const unit = typeof body.unit === "string" ? body.unit.trim() : "";
+    const notesRaw = typeof body.notes === "string" ? body.notes.trim() : "";
+    const stockQuantity = parseStockQuantity(body.stockQuantity);
 
     const priceNum =
       typeof body.price === "number"
@@ -185,19 +150,12 @@ export async function PUT(
         description,
         subCategory: category || null,
         productionValue: price,
+        productionUnit: unit || null,
+        stockQuantity,
+        productNotes: notesRaw || null,
         images,
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        subCategory: true,
-        productionValue: true,
-        images: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: ukmProductSelect,
     });
 
     return NextResponse.json(toUkmProduct(updated));

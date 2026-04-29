@@ -1,17 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { ChevronLeft, ChevronRight, Search, XIcon } from "lucide-react";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogPortal,
+  DialogOverlay,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/components/ui/utils";
 
 type ArchiveRow = {
   id: number;
@@ -21,6 +20,7 @@ type ArchiveRow = {
   title: string;
   category: string;
   subCategory: string | null;
+  isPublic?: boolean;
 };
 
 async function readJsonError(res: Response): Promise<string> {
@@ -35,11 +35,16 @@ async function readJsonError(res: Response): Promise<string> {
 export type DigitalArchivePickerModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPick: (publicFileUrl: string) => void;
+  /** Mode tunggal: satu gambar terpilih */
+  onPick?: (publicFileUrl: string) => void;
+  /** Mode banyak: pilih beberapa lalu konfirmasi */
+  onPickMany?: (publicFileUrls: string[]) => void;
   title?: string;
   description?: string;
   /** default: hanya tipe gambar (cocok untuk favikon) */
   imageOnly?: boolean;
+  /** Pilih banyak gambar sekaligus (toggle kategori kartu) */
+  multiple?: boolean;
 };
 
 const PAGE_SIZE = 24;
@@ -49,10 +54,18 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     open,
     onOpenChange,
     onPick,
+    onPickMany,
     title = "Pilih dari arsip digital",
-    description = "Cari teks, saring kategori, lalu pilih satu berkas.",
+    description: descriptionProp,
     imageOnly = true,
+    multiple = false,
   } = props;
+
+  const description =
+    descriptionProp ??
+    (multiple
+      ? "Ketuk gambar untuk memilih banyak berkas sekaligus, lalu konfirmasi."
+      : "Cari teks, saring kategori, lalu pilih satu berkas.");
 
   const [searchInput, setSearchInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
@@ -64,6 +77,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ArchiveRow | null>(null);
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(() => new Set());
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -108,6 +122,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     setCategory("");
     setPage(1);
     setSelected(null);
+    setSelectedPaths(new Set());
     setError(null);
   }, [open]);
 
@@ -117,19 +132,52 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     setPage(1);
   };
 
+  const togglePath = (path: string) => {
+    const p = path.trim();
+    if (!p) return;
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  };
+
   const handlePick = () => {
-    if (!selected?.filePath) return;
+    if (multiple) {
+      const paths = Array.from(selectedPaths).filter(Boolean);
+      if (paths.length === 0 || !onPickMany) return;
+      onPickMany(paths);
+      onOpenChange(false);
+      return;
+    }
+    if (!selected?.filePath || !onPick) return;
     onPick(selected.filePath.trim());
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 p-0">
-        <DialogHeader className="px-6 pb-2 pt-6">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+      <DialogPortal>
+        <DialogOverlay className="z-[100]" />
+        <DialogPrimitive.Content
+          className={cn(
+            "fixed left-[50%] top-[50%] z-[100] flex max-h-[90vh] w-full max-w-3xl translate-x-[-50%] translate-y-[-50%] flex-col gap-0 overflow-hidden rounded-lg border bg-background p-0 shadow-lg duration-200",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          )}
+        >
+          <DialogPrimitive.Close className="absolute right-4 top-4 z-10 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+            <XIcon className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+          <div className="flex max-h-[90vh] flex-col gap-0 overflow-hidden">
+        <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+        <p className="sr-only">{description}</p>
+
+        <div className="px-6 pb-2 pt-6">
+          <h2 className="text-lg font-semibold leading-none tracking-tight">{title}</h2>
+          <p className="text-sm text-muted-foreground pt-2">{description}</p>
+        </div>
 
         <div className="flex flex-col gap-3 border-b px-6 pb-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -166,13 +214,19 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
             <p className="text-sm text-muted-foreground">Tidak ada berkas yang cocok.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {rows.map((r) => (
+              {rows.map((r) => {
+                const path = r.filePath.trim();
+                const isMultiOn = multiple && path && selectedPaths.has(path);
+                const isSingleOn = !multiple && selected?.id === r.id;
+                return (
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => setSelected(r)}
+                  onClick={() =>
+                    multiple ? togglePath(r.filePath) : setSelected(r)
+                  }
                   className={`overflow-hidden rounded-lg border text-left transition-shadow hover:shadow-md ${
-                    selected?.id === r.id
+                    isMultiOn || isSingleOn
                       ? "border-primary ring-2 ring-primary"
                       : "border-border"
                   }`}
@@ -181,7 +235,11 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
                     {/* URL publik dari arsip — hindari next/image domain config */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={r.filePath}
+                      src={
+                        imageOnly && r.isPublic === false
+                          ? `/api/digital-archives/${r.id}/file`
+                          : r.filePath
+                      }
                       alt=""
                       className="absolute inset-0 size-full object-cover"
                     />
@@ -194,7 +252,8 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
                     </div>
                   </div>
                 </button>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>
@@ -231,15 +290,25 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
           </div>
         </div>
 
-        <DialogFooter className="border-t px-6 py-4">
+        <div className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Batal
           </Button>
-          <Button type="button" onClick={handlePick} disabled={!selected}>
-            Gunakan berkas ini
+          <Button
+            type="button"
+            onClick={handlePick}
+            disabled={
+              multiple ? selectedPaths.size === 0 || !onPickMany : !selected || !onPick
+            }
+          >
+            {multiple
+              ? `Tambah ${selectedPaths.size} gambar`
+              : "Gunakan berkas ini"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </div>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPortal>
     </Dialog>
   );
 }

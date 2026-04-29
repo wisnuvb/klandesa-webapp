@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import { getSpacesClient, getSpacesConfig, publicUrlToStorageKey } from "@/lib/spaces";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { canDeleteArchiveRecord } from "@/lib/digitalArchive/access";
 
 export async function PATCH(
   req: NextRequest,
@@ -163,6 +164,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
+    const userId = Number(session.user.id);
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const existing = await prisma.digitalArchive.findFirst({
       where: { id: BigInt(id), villageId: village.id },
       select: {
@@ -170,11 +176,25 @@ export async function DELETE(
         filePath: true,
         storageKey: true,
         fileSize: true,
+        uploadedBy: true,
       },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (
+      !canDeleteArchiveRecord({
+        role: session.user.role,
+        userId,
+        uploadedByUserId: existing.uploadedBy,
+      })
+    ) {
+      return NextResponse.json(
+        { error: "Anda tidak berhak menghapus arsip ini" },
+        { status: 403 },
+      );
     }
 
     const key =
@@ -189,6 +209,13 @@ export async function DELETE(
         );
       } catch (e) {
         console.error("DELETE Spaces object error:", e);
+        return NextResponse.json(
+          {
+            error:
+              "Gagal menghapus berkas di penyimpanan. Data arsip tidak dihapus; coba lagi.",
+          },
+          { status: 502 },
+        );
       }
     }
 

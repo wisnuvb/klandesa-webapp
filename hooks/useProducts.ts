@@ -3,16 +3,10 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
-import type { UkmProduct } from "../app/(app)/ukm/_types";
-import { isUkmCategoryPlaceholder } from "../app/(app)/ukm/_utils";
+import type { UkmProduct, UkmProductDraft } from "@/app/(app)/ukm/_types";
+import { isUkmCategoryPlaceholder } from "@/app/(app)/ukm/_utils";
 
-export type UkmProductDraft = {
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  images: string[];
-};
+export type { UkmProductDraft };
 
 export function useProducts(initialProducts: UkmProduct[]) {
   const { appConfirm } = useAppDialogs();
@@ -46,6 +40,9 @@ export function useProducts(initialProducts: UkmProduct[]) {
         price: draft.price,
         category: draft.category,
         images: draft.images,
+        unit: draft.unit,
+        stockQuantity: draft.stockQuantity,
+        notes: draft.notes,
       };
 
       const res = await fetch("/api/ukm-products", {
@@ -75,6 +72,9 @@ export function useProducts(initialProducts: UkmProduct[]) {
         price: draft.price,
         category: draft.category,
         images: draft.images,
+        unit: draft.unit,
+        stockQuantity: draft.stockQuantity,
+        notes: draft.notes,
       };
 
       const res = await fetch(`/api/ukm-products/${id}`, {

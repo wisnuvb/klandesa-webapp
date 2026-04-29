@@ -26,11 +26,16 @@ import type {
   PaymentMethod,
   SubscriptionTier,
 } from "./types";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
+
+const ABSENSI_TABS = ["today", "history", "qrcode"] as const;
 
 export default function AbsensiClient() {
   const { appAlert } = useAppDialogs();
-  const [activeTab, setActiveTab] = useState<"today" | "history" | "qrcode">(
-    "today"
+  const [activeTab, setActiveTab] = usePersistedTab(
+    "absensi",
+    "today",
+    ABSENSI_TABS
   );
   const [rows, setRows] = useState<AttendanceTodayResponse["rows"]>([]);
   const [stats, setStats] = useState<AttendanceTodayResponse["stats"]>({

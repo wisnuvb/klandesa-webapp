@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DigitalArchivePickerModal } from "@/components/digital-archive/DigitalArchivePickerModal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,6 +59,7 @@ export default function PengaturanDesaPage() {
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [logoPickerOpen, setLogoPickerOpen] = useState(false);
   const [mail, setMail] = useState<VillageMailSettingsFields>(emptyMail);
 
   const load = useCallback(async () => {
@@ -270,13 +272,27 @@ export default function PengaturanDesaPage() {
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="logoUrl">URL logo desa</Label>
-                <Input
-                  id="logoUrl"
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://… (untuk kop surat)"
-                />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    id="logoUrl"
+                    type="url"
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="https://… atau pilih dari arsip digital"
+                    className="min-w-0 flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => setLogoPickerOpen(true)}
+                  >
+                    Jelajahi arsip
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Pilih gambar logo dari arsip (hanya tampil berkas gambar publik di daftar).
+                </p>
               </div>
             </div>
           </CardContent>
@@ -395,6 +411,15 @@ export default function PengaturanDesaPage() {
           </Button>
         </div>
       </form>
+
+      <DigitalArchivePickerModal
+        open={logoPickerOpen}
+        onOpenChange={setLogoPickerOpen}
+        onPick={(url) => setLogoUrl(url)}
+        title="Pilih logo desa dari arsip digital"
+        description="Cari berkas gambar di arsip, lalu konfirmasi. URL akan diisi ke kolom logo untuk kop surat."
+        imageOnly
+      />
     </div>
   );
 }

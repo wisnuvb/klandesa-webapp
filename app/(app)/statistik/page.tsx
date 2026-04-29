@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 import { motion } from "motion/react";
 import {
   Users,
@@ -74,9 +75,24 @@ interface StatisticsData {
   trend: Array<{ bulan: string; jumlah: number }>;
 }
 
+const STATISTIK_TABS = [
+  "overview",
+  "usia",
+  "gender",
+  "pendidikan",
+  "pekerjaan",
+  "perkawinan",
+  "agama",
+  "lainnya",
+] as const;
+
 export function Statistik() {
   const [selectedPeriod, setSelectedPeriod] = useState("2024");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = usePersistedTab(
+    "statistik",
+    "overview",
+    STATISTIK_TABS
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<StatisticsData | null>(null);

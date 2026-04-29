@@ -242,14 +242,15 @@ export const DEFAULT_LETTER_NUMBER_CONFIG: LetterNumberConfig = {
 };
 
 export const DEFAULT_HEADER_CONFIG: HeaderConfig = {
-  layout: "logo_top",
+  layout: "logo_left",
   alignment: "center",
   logo_size: "medium",
-  logo_position: "center",
+  logo_width_px: 110,
+  logo_position: "left",
   font_family: "Inter",
   font_size: {
-    village_name: 16,
-    government_label: 14,
+    village_name: 30,
+    government_label: 22,
     address: 12,
   },
   border_style: "double",

@@ -52,6 +52,11 @@ export function getExtensionFromFileName(fileName: string): string | undefined {
   return fileName.slice(idx + 1).toLowerCase();
 }
 
+/** Arsip privat memakai URL /api/... yang butuh cookie sesi; next/image mem-fetch dari server tanpa cookie. */
+export function archiveThumbnailNeedsUnoptimized(thumbnailUrl: string): boolean {
+  return thumbnailUrl.startsWith("/api/digital-archives/");
+}
+
 export function getFileIcon(file: FileItem) {
   if (file.type === "folder") {
     return <FolderOpen className="w-8 h-8 text-yellow-500" />;
@@ -87,6 +92,37 @@ function normSegPath(p: string): string {
   return p.replace(/\/+/g, "/").replace(/\/+$/, "") || "";
 }
 
+/**
+ * Path untuk combobox upload: folder DB + path unik dari arsip legacy
+ * (category/subCategory saat folderId null)—sama konsepnya dengan folder virtual di file manager.
+ */
+export function collectUploadFolderPathSuggestions(
+  entries: ArchiveEntry[],
+  dbFolders: ArchiveFolderEntry[],
+): string[] {
+  const paths = new Set<string>();
+
+  for (const fd of dbFolders) {
+    const p = fd.path.trim();
+    if (p) {
+      paths.add(normSegPath(p) || p);
+    }
+  }
+
+  for (const e of entries) {
+    if (e.folderId != null) continue;
+    const cat = (e.category || "").trim();
+    if (!cat) continue;
+    const sub = (e.subCategory || "").trim();
+    const joined = sub
+      ? normSegPath(`/${cat}/${sub}`)
+      : normSegPath(`/${cat}`);
+    if (joined) paths.add(joined);
+  }
+
+  return [...paths].sort((a, b) => a.localeCompare(b, "id"));
+}
+
 export function buildVirtualFsItems(
   entries: ArchiveEntry[],
   dbFolders: ArchiveFolderEntry[],
@@ -118,8 +154,10 @@ export function buildVirtualFsItems(
     }
 
     const thumbnailUrl =
-      fileType === "IMAGE" && /^https?:\/\//.test(entry.filePath)
-        ? entry.filePath
+      fileType === "IMAGE"
+        ? entry.isPublic && /^https?:\/\//.test(entry.filePath)
+          ? entry.filePath
+          : `/api/digital-archives/${entry.id}/file`
         : undefined;
 
     return {
@@ -138,6 +176,9 @@ export function buildVirtualFsItems(
       thumbnail_url: thumbnailUrl,
       uploaded_by: entry.uploadedByName,
       archiveId: entry.id,
+      uploadedByUserId: entry.uploadedBy,
+      isPublic: entry.isPublic,
+      filePath: entry.filePath,
     };
   });
 

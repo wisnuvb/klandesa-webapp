@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 import Link from "next/link";
 import { Search, Plus, FileText, Clock, FileEdit, Settings2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +34,8 @@ import {
   signerDisplayName,
 } from "./_utils/signerPreset";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+
+const LAYANAN_SURAT_PAGE_TABS = ["templates", "history"] as const;
 
 export function LayananSurat() {
   const { appAlert, appConfirm } = useAppDialogs();
@@ -61,12 +72,18 @@ export function LayananSurat() {
   } = useLetterExport();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [pageTab, setPageTab] = useState<"templates" | "history">("templates");
+  const [pageTab, setPageTab] = usePersistedTab(
+    "layanan-surat",
+    "templates",
+    LAYANAN_SURAT_PAGE_TABS
+  );
   const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateBody | null>(null);
   const [templateBuilderSession, setTemplateBuilderSession] = useState(0);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateBody | null>(null);
+  const [catalogCustomizeTarget, setCatalogCustomizeTarget] =
+    useState<TemplateBody | null>(null);
 
   const openTemplateEditor = useCallback((template: TemplateBody) => {
     setEditingTemplate(template);
@@ -74,45 +91,64 @@ export function LayananSurat() {
     setShowTemplateBuilder(true);
   }, []);
 
+  const catalogForkForCustomize = useMemo(() => {
+    if (!catalogCustomizeTarget?.is_catalog || !catalogCustomizeTarget.catalog_key) {
+      return null;
+    }
+    return (
+      templates.find(
+        (t) =>
+          !t.is_catalog &&
+          t.inherits_catalog_key === catalogCustomizeTarget.catalog_key,
+      ) ?? null
+    );
+  }, [catalogCustomizeTarget, templates]);
+
+  const handleConfirmCatalogCustomize = useCallback(async () => {
+    if (!catalogCustomizeTarget?.is_catalog) return;
+
+    if (catalogForkForCustomize) {
+      openTemplateEditor(catalogForkForCustomize);
+      setCatalogCustomizeTarget(null);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/mail-templates/${catalogCustomizeTarget.id}/duplicate`,
+        { method: "POST" },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal menyalin template ke desa");
+      }
+      setEditingTemplate(mapApiMailTemplateToBody(data));
+      setTemplateBuilderSession((s) => s + 1);
+      setShowTemplateBuilder(true);
+      setCatalogCustomizeTarget(null);
+      await refetch();
+    } catch (error) {
+      console.error(error);
+      void appAlert(
+        error instanceof Error
+          ? error.message
+          : "Gagal membuka template untuk diedit.",
+      );
+    }
+  }, [
+    catalogCustomizeTarget,
+    catalogForkForCustomize,
+    openTemplateEditor,
+    refetch,
+    appAlert,
+  ]);
+
   const handleEditTemplateClick = useCallback(
-    async (template: TemplateBody) => {
-      if (template.is_catalog && template.catalog_key) {
-        const existingFork = templates.find(
-          (t) =>
-            !t.is_catalog &&
-            t.inherits_catalog_key === template.catalog_key,
-        );
-        if (existingFork) {
-          openTemplateEditor(existingFork);
-          return;
-        }
-      }
-      if (template.is_catalog) {
-        try {
-          const res = await fetch(`/api/mail-templates/${template.id}/duplicate`, {
-            method: "POST",
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            throw new Error(data.error || "Gagal menyalin template ke desa");
-          }
-          setEditingTemplate(mapApiMailTemplateToBody(data));
-          setTemplateBuilderSession((s) => s + 1);
-          setShowTemplateBuilder(true);
-          await refetch();
-        } catch (error) {
-          console.error(error);
-          void appAlert(
-            error instanceof Error
-              ? error.message
-              : "Gagal membuka template untuk diedit.",
-          );
-        }
-        return;
-      }
+    (template: TemplateBody) => {
+      if (template.is_catalog) return;
       openTemplateEditor(template);
     },
-    [templates, refetch, openTemplateEditor, appAlert],
+    [openTemplateEditor],
   );
 
   const handleDeleteTemplate = useCallback(
@@ -394,7 +430,7 @@ export function LayananSurat() {
         </Button>
       </div>
 
-      <Tabs value={pageTab} onValueChange={(value) => setPageTab(value as "templates" | "history")}>
+      <Tabs value={pageTab} onValueChange={setPageTab}>
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="templates" className="gap-2">
             <FileEdit className="h-4 w-4" />
@@ -492,6 +528,9 @@ export function LayananSurat() {
               }}
               onEditTemplate={handleEditTemplateClick}
               onDeleteTemplate={handleDeleteTemplate}
+              onCustomizeCatalogTemplate={(template) =>
+                setCatalogCustomizeTarget(template)
+              }
             />
           )}
         </TabsContent>
@@ -586,6 +625,45 @@ export function LayananSurat() {
         desaSettings={desaSettings}
         editTemplate={builderEditTemplate}
       />
+
+      <Dialog
+        open={catalogCustomizeTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setCatalogCustomizeTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sesuaikan template surat desa</DialogTitle>
+            <DialogDescription>
+              Template bertanda <strong>Katalog bawaan</strong> tidak dapat diubah langsung.
+              Perubahan dilakukan pada salinan template milik desa Anda.
+            </DialogDescription>
+          </DialogHeader>
+          {catalogForkForCustomize ? (
+            <p className="text-sm text-muted-foreground">
+              Salinan desa untuk template ini sudah ada. Lanjutkan untuk membuka editor.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Belum ada salinan. Sistem akan menyalin dari katalog ke template desa lalu
+              membuka editor — Anda bisa menyimpan penyesuaian seperti biasa.
+            </p>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCatalogCustomizeTarget(null)}
+            >
+              Batal
+            </Button>
+            <Button type="button" onClick={() => void handleConfirmCatalogCustomize()}>
+              {catalogForkForCustomize ? "Buka editor" : "Salin ke desa & buka editor"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

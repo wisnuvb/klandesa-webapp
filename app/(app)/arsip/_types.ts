@@ -43,6 +43,11 @@ export interface FileItem {
   folderDbId?: number;
   /** Path folder DB, mis. `/Surat/2024` — untuk navigasi */
   folderPath?: string;
+  /** Untuk ACL UI — pengunggah di DB */
+  uploadedByUserId?: number;
+  isPublic?: boolean;
+  /** URL CDN bila publik; untuk salin tautan */
+  filePath?: string;
 }
 
 export interface ArchiveEntry {
@@ -55,6 +60,9 @@ export interface ArchiveEntry {
   category: string;
   subCategory: string | null;
   title: string;
+  /** false = objek privat di storage; pratinjau lewat /api/digital-archives/[id]/file */
+  isPublic: boolean;
+  uploadedBy: number;
   uploadedByName: string;
   uploadedAt: string;
   createdAt: string;

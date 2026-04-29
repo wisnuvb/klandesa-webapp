@@ -90,7 +90,7 @@ export default function PricingPage() {
         { name: "Multi-desa management dashboard", included: true },
         { name: "Custom mobile app development", included: true },
         { name: "API access unlimited", included: true },
-        { name: "Dedicated account manager", included: true },
+        // { name: "Dedicated account manager", included: true },
         { name: "Priority support 24/7 (phone, chat, email)", included: true },
         { name: "On-site training & implementasi", included: true },
         { name: "Custom development sesuai kebutuhan", included: true },
@@ -438,10 +438,10 @@ export default function PricingPage() {
                       },
                       { name: "Online training", values: ["✓", "✓", "✓"] },
                       { name: "On-site training", values: ["—", "—", "✓"] },
-                      {
-                        name: "Dedicated account manager",
-                        values: ["—", "—", "✓"],
-                      },
+                      // {
+                      //   name: "Dedicated account manager",
+                      //   values: ["—", "—", "✓"],
+                      // },
                     ],
                   },
                 ].map((section, sectionIdx) => (

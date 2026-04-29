@@ -169,8 +169,8 @@ export function HeaderCustomizer({
   const safeConfig: HeaderConfig = {
     ...config,
     font_size: {
-      village_name: 16,
-      government_label: 12,
+      village_name: 30,
+      government_label: 22,
       subdistrict_label: 14,
       district_label: 14,
       custom_title: 16,

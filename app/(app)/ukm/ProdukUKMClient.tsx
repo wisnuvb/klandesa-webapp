@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "motion/react";
 import { Package, Tag } from "lucide-react";
-import type { UkmProduct } from "./_types";
+import type { UkmProduct, UkmProductDraft } from "./_types";
 import UkmCategoryModal from "./components/UkmCategoryModal";
 import UkmCategoryTable from "./components/UkmCategoryTable";
 import UkmImagePreviewModal from "./components/UkmImagePreviewModal";
-import UkmProductModal, { UkmProductDraft } from "./components/UkmProductModal";
+import UkmProductModal from "./components/UkmProductModal";
 import UkmProductsGrid from "./components/UkmProductsGrid";
 import UkmProductsToolbar from "./components/UkmProductsToolbar";
 import UkmStatsCards from "./components/UkmStatsCards";
@@ -17,16 +16,21 @@ import { useProductModal } from "../../../hooks/useProductModal";
 import { useCategoryModal } from "../../../hooks/useCategoryModal";
 import { useProducts } from "../../../hooks/useProducts";
 import { useStats } from "../../../hooks/useStats";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 
 type Props = {
   initialProducts: UkmProduct[];
 };
 
+const UKM_PRODUK_TABS = ["products", "categories"] as const;
+
 export default function ProdukUKMClient(props: Props) {
   const { initialProducts } = props;
 
-  const [activeTab, setActiveTab] = useState<"products" | "categories">(
+  const [activeTab, setActiveTab] = usePersistedTab(
+    "ukm-produk",
     "products",
+    UKM_PRODUK_TABS
   );
 
   const productsHook = useProducts(initialProducts);

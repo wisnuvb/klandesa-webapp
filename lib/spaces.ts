@@ -1,14 +1,27 @@
 import { S3Client } from "@aws-sdk/client-s3";
 
+/** Hostname atau URL penuh → origin dengan https (wajib untuk S3Client / presigner). */
+function normalizeSpacesOrigin(raw: string): string {
+  const trimmed = raw.trim().replace(/\/+$/, "");
+  if (!trimmed) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 /**
  * Upload browser ke Spaces memakai presigned PUT. Pastikan CORS bucket mengizinkan
- * origin aplikasi, method PUT, header Content-Type & x-amz-acl (jika dipakai).
+ * origin aplikasi, method PUT, header Content-Type (dan x-amz-acl jika ACL dipakai).
+ *
+ * SPACES_USE_OBJECT_ACL=false — matikan ACL per objek (wajib jika bucket Spaces
+ * menonaktifkan ACL; objek mengikuti policy bucket, biasanya privat).
  */
 export function getSpacesConfig() {
   const region = process.env.SPACES_REGION;
   const bucket = process.env.SPACES_BUCKET;
-  const endpoint =
-    process.env.SPACES_ENDPOINT || (region ? `https://${region}.digitaloceanspaces.com` : undefined);
+  const endpointRaw =
+    process.env.SPACES_ENDPOINT?.trim() ||
+    (region ? `https://${region}.digitaloceanspaces.com` : "");
+  const endpoint = endpointRaw ? normalizeSpacesOrigin(endpointRaw) : "";
 
   const accessKeyId = process.env.SPACES_ACCESS_KEY_ID;
   const secretAccessKey = process.env.SPACES_SECRET_ACCESS_KEY;
@@ -19,8 +32,10 @@ export function getSpacesConfig() {
   if (!accessKeyId) throw new Error("SPACES_ACCESS_KEY_ID is not set");
   if (!secretAccessKey) throw new Error("SPACES_SECRET_ACCESS_KEY is not set");
 
-  const cdnBaseUrl =
-    process.env.SPACES_CDN_BASE_URL || `https://${bucket}.${region}.digitaloceanspaces.com`;
+  const cdnBaseUrl = normalizeSpacesOrigin(
+    process.env.SPACES_CDN_BASE_URL?.trim() ||
+      `https://${bucket}.${region}.digitaloceanspaces.com`,
+  );
 
   return {
     region,
@@ -29,6 +44,7 @@ export function getSpacesConfig() {
     accessKeyId,
     secretAccessKey,
     cdnBaseUrl,
+    /** ACL untuk objek publik (presign). Privat memakai `private`. */
     uploadAcl: process.env.SPACES_UPLOAD_ACL || "public-read",
   };
 }

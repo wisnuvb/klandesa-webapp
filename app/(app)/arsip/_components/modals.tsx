@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
   Download,
   Sparkles,
   Star,
@@ -12,6 +13,14 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+import { toast } from "sonner";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { categorySubFromFolderPath } from "@/lib/digitalArchive/folderPath";
 import type {
   ArchiveEntry,
   FileItem,
@@ -19,7 +28,11 @@ import type {
   StoragePlan,
 } from "../_types";
 import { STORAGE_PLANS } from "../_data/storagePlans";
-import { formatFileSize, getFileIcon } from "../_utils/fileUtils";
+import {
+  archiveThumbnailNeedsUnoptimized,
+  formatFileSize,
+  getFileIcon,
+} from "../_utils/fileUtils";
 
 interface UpgradeModalProps {
   open: boolean;
@@ -249,9 +262,9 @@ export function PaymentModal(props: PaymentModalProps) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl max-w-2xl w-full"
+        className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-lg font-bold text-gray-900">
               Pembayaran Upgrade Storage
@@ -268,7 +281,7 @@ export function PaymentModal(props: PaymentModalProps) {
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 flex-1 min-h-0 overflow-y-auto">
           <div className="bg-linear-to-br from-teal-50 to-teal-100 rounded-xl p-6 mb-6">
             <h4 className="font-semibold text-gray-900 mb-4">
               Ringkasan Pesanan
@@ -392,6 +405,11 @@ interface UploadModalProps {
   onClose: () => void;
   defaultCategory?: string;
   defaultSubCategory?: string | null;
+  /**
+   * Path folder untuk combobox (folder DB + kategori legacy dari arsip tanpa folderId),
+   * selaras folder yang tampil di file manager.
+   */
+  folderPaths?: string[];
   onUpload: (
     file: File,
     meta: {
@@ -411,6 +429,7 @@ export function UploadModal(props: UploadModalProps) {
     onClose,
     defaultCategory,
     defaultSubCategory,
+    folderPaths = [],
     onUpload,
     onUploaded,
   } = props;
@@ -419,6 +438,7 @@ export function UploadModal(props: UploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
+  const [categoryFolderOpen, setCategoryFolderOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [accessLevel, setAccessLevel] = useState<"admin" | "staff" | "public">(
     "admin",
@@ -427,17 +447,30 @@ export function UploadModal(props: UploadModalProps) {
 
   const [compressEnabled, setCompressEnabled] = useState(false);
   const [compressQuality, setCompressQuality] = useState(0.8);
-  const [maxDimension, setMaxDimension] = useState(1920);
+  const [maxDimension, setMaxDimension] = useState(960);
   const [preparedFile, setPreparedFile] = useState<File | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const canCompress = useMemo(() => {
     if (!selectedFile) return false;
     const t = selectedFile.type;
     return t === "image/jpeg" || t === "image/png" || t === "image/webp";
   }, [selectedFile]);
+
+  const sortedFolderPaths = useMemo(() => {
+    const paths = folderPaths.map((p) => p.trim()).filter(Boolean);
+    return [...new Set(paths)].sort((a, b) => a.localeCompare(b, "id"));
+  }, [folderPaths]);
+
+  const filteredFolderPaths = useMemo(() => {
+    const q = category.trim().toLowerCase();
+    if (!q) return sortedFolderPaths;
+    return sortedFolderPaths.filter((p) => {
+      const tail = p.replace(/^\/+/, "").toLowerCase();
+      return tail.includes(q) || p.toLowerCase().includes(q);
+    });
+  }, [sortedFolderPaths, category]);
 
   useEffect(() => {
     setCategory(defaultCategory || "");
@@ -452,7 +485,7 @@ export function UploadModal(props: UploadModalProps) {
     setMaxDimension(1920);
     setIsPreparing(false);
     setIsUploading(false);
-    setError(null);
+    setCategoryFolderOpen(false);
   }, [defaultCategory, defaultSubCategory, open]);
 
   async function compressImageToWebp(
@@ -496,7 +529,6 @@ export function UploadModal(props: UploadModalProps) {
         return;
       }
       setIsPreparing(true);
-      setError(null);
       try {
         const out = await compressImageToWebp(
           selectedFile,
@@ -504,10 +536,12 @@ export function UploadModal(props: UploadModalProps) {
           maxDimension,
         );
         if (!cancelled) setPreparedFile(out);
-      } catch (e) {
+      } catch {
         if (!cancelled) {
           setPreparedFile(selectedFile);
-          setError("Gagal kompres gambar. Akan upload versi original.");
+          toast.warning("Kompresi gagal", {
+            description: "Akan memakai gambar asli untuk upload.",
+          });
         }
       } finally {
         if (!cancelled) setIsPreparing(false);
@@ -563,9 +597,9 @@ export function UploadModal(props: UploadModalProps) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl max-w-lg w-full"
+        className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">Upload File</h3>
           <button
             onClick={() => {
@@ -577,7 +611,7 @@ export function UploadModal(props: UploadModalProps) {
           </button>
         </div>
 
-        <div className="px-6 py-6 space-y-4">
+        <div className="px-6 py-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
           <input
             ref={inputRef}
             type="file"
@@ -585,7 +619,6 @@ export function UploadModal(props: UploadModalProps) {
             onChange={(e) => {
               const f = e.target.files?.[0] || null;
               setSelectedFile(f);
-              setError(null);
               if (f) setTitle(f.name);
             }}
           />
@@ -600,7 +633,6 @@ export function UploadModal(props: UploadModalProps) {
               e.preventDefault();
               const f = e.dataTransfer.files?.[0] || null;
               setSelectedFile(f);
-              setError(null);
               if (f) setTitle(f.name);
             }}
           >
@@ -671,12 +703,83 @@ export function UploadModal(props: UploadModalProps) {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Kategori
                     </label>
-                    <input
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                      placeholder="Contoh: Surat, Laporan, SK"
-                    />
+                    <Popover
+                      modal={false}
+                      open={categoryFolderOpen}
+                      onOpenChange={setCategoryFolderOpen}
+                    >
+                      <PopoverAnchor asChild>
+                        <div className="flex rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-transparent overflow-hidden bg-white">
+                          <input
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value)}
+                            onFocus={() => setCategoryFolderOpen(true)}
+                            className="min-w-0 flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-0 text-sm"
+                            placeholder="Pilih folder atau ketik baru…"
+                            autoComplete="off"
+                          />
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="shrink-0 px-2.5 border-l border-gray-200 text-gray-500 hover:bg-gray-50 outline-none"
+                              aria-label="Buka daftar folder"
+                            >
+                              <ChevronDown
+                                className={`w-4 h-4 transition-transform ${categoryFolderOpen ? "rotate-180" : ""}`}
+                              />
+                            </button>
+                          </PopoverTrigger>
+                        </div>
+                      </PopoverAnchor>
+                      <PopoverContent
+                        align="start"
+                        sideOffset={6}
+                        collisionPadding={12}
+                        className="z-[100] w-[var(--radix-popover-anchor-width)] min-w-[200px] max-w-[90vw] p-0 shadow-lg"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                      >
+                        <ul className="max-h-48 overflow-auto py-1 text-sm">
+                          {sortedFolderPaths.length === 0 ? (
+                            <li className="px-3 py-2 text-gray-500">
+                              Belum ada path folder terdaftar. Buat folder di
+                              file manager atau ketik nama kategori baru.
+                            </li>
+                          ) : filteredFolderPaths.length === 0 ? (
+                            <li className="px-3 py-2 text-gray-500">
+                              Tidak ada folder yang cocok
+                            </li>
+                          ) : (
+                            filteredFolderPaths.map((path) => {
+                              const label = path.replace(/^\/+/, "") || path;
+                              return (
+                                <li key={path}>
+                                  <button
+                                    type="button"
+                                    className="w-full px-3 py-2 text-left hover:bg-teal-50 text-gray-900"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      const parsed =
+                                        categorySubFromFolderPath(path);
+                                      setCategory(parsed.category);
+                                      setSubCategory(
+                                        parsed.subCategory || "",
+                                      );
+                                      setCategoryFolderOpen(false);
+                                    }}
+                                  >
+                                    {label}
+                                  </button>
+                                </li>
+                              );
+                            })
+                          )}
+                        </ul>
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      Pilih path folder untuk mengisi kategori dan sub
+                      sekaligus, atau ketik nama kategori baru.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -722,6 +825,12 @@ export function UploadModal(props: UploadModalProps) {
                     </label>
                   </div>
                 </div>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Tanpa centang: berkas di-set <strong>privat</strong> di
+                  storage; pratinjau dan unduh hanya untuk akun{" "}
+                  <strong>Anda sebagai pengunggah</strong>. Centang jika boleh
+                  diakses publik via tautan CDN.
+                </p>
 
                 {canCompress && (
                   <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
@@ -773,6 +882,12 @@ export function UploadModal(props: UploadModalProps) {
                             }
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
                           >
+                            <option value={256}>256 px</option>
+                            <option value={384}>384 px</option>
+                            <option value={512}>512 px</option>
+                            <option value={768}>768 px</option>
+                            <option value={960}>960 px</option>
+                            <option value={1024}>1024 px</option>
                             <option value={1280}>1280 px</option>
                             <option value={1920}>1920 px</option>
                             <option value={2560}>2560 px</option>
@@ -793,14 +908,9 @@ export function UploadModal(props: UploadModalProps) {
             </div>
           )}
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 shrink-0">
           <button
             onClick={() => {
               if (!isUploading) onClose();
@@ -814,7 +924,6 @@ export function UploadModal(props: UploadModalProps) {
             onClick={async () => {
               if (!preparedFile) return;
               setIsUploading(true);
-              setError(null);
               try {
                 const entry = await onUpload(preparedFile, {
                   category: category.trim(),
@@ -824,9 +933,16 @@ export function UploadModal(props: UploadModalProps) {
                   accessLevel,
                 });
                 onUploaded(entry);
+                toast.success("Upload berhasil", {
+                  description: entry.title || entry.fileName,
+                });
                 onClose();
               } catch (e) {
-                setError("Upload gagal. Silakan coba lagi.");
+                const msg =
+                  e instanceof Error
+                    ? e.message
+                    : "Upload gagal. Silakan coba lagi.";
+                toast.error("Upload gagal", { description: msg });
               } finally {
                 setIsUploading(false);
               }
@@ -864,9 +980,9 @@ export function PreviewModal(props: PreviewModalProps) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+        className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{file.name}</h3>
             <p className="text-sm text-gray-500 mt-1">
@@ -881,7 +997,7 @@ export function PreviewModal(props: PreviewModalProps) {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className="p-6 flex-1 min-h-0 overflow-y-auto">
           {file.file_type === "IMAGE" && file.thumbnail_url ? (
             <Image
               src={file.thumbnail_url}
@@ -889,6 +1005,7 @@ export function PreviewModal(props: PreviewModalProps) {
               className="w-full rounded-lg"
               width={800}
               height={600}
+              unoptimized={archiveThumbnailNeedsUnoptimized(file.thumbnail_url)}
             />
           ) : (
             <div className="text-center py-12">
@@ -898,10 +1015,24 @@ export function PreviewModal(props: PreviewModalProps) {
               <p className="text-gray-500 mt-4">
                 Preview tidak tersedia untuk tipe file ini
               </p>
-              <button className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
-                <Download className="w-4 h-4" />
-                Download File
-              </button>
+              {file.archiveId ? (
+                <a
+                  href={`/api/digital-archives/${file.archiveId}/file?download=1`}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Unduh File
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <Download className="w-4 h-4" />
+                  Download File
+                </button>
+              )}
             </div>
           )}
         </div>

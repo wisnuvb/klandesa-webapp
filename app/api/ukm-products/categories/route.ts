@@ -1,35 +1,10 @@
 import { getApiSession } from "@/lib/api-session";
- 
+
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-
-function normalizeImageUrls(input: unknown): string[] {
-  if (!input) return [];
-  if (Array.isArray(input)) {
-    return input
-      .map((v) => (typeof v === "string" ? v.trim() : ""))
-      .filter(Boolean);
-  }
-  return [];
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toUkmProduct(row: any) {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    category: row.subCategory ?? null,
-    price: row.productionValue ? Number(row.productionValue) : null,
-    images: normalizeImageUrls(row.images),
-    status: row.status,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
+import { toUkmProduct, ukmProductSelect } from "../_serialize";
 
 export async function GET(req: NextRequest) {
   try {
@@ -123,17 +98,7 @@ export async function POST(req: NextRequest) {
         images: [],
         status: "inactive",
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        subCategory: true,
-        productionValue: true,
-        images: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: ukmProductSelect,
     });
 
     return NextResponse.json(toUkmProduct(created), { status: 201 });

@@ -12,6 +12,8 @@ interface TemplateGridProps {
   onPreviewTemplate: (template: TemplateBody) => void;
   onEditTemplate: (template: TemplateBody) => void;
   onDeleteTemplate: (template: TemplateBody) => void;
+  /** Buka modal salin / editor untuk template katalog bawaan. */
+  onCustomizeCatalogTemplate?: (template: TemplateBody) => void;
 }
 
 export function TemplateGrid({
@@ -20,6 +22,7 @@ export function TemplateGrid({
   onPreviewTemplate,
   onEditTemplate,
   onDeleteTemplate,
+  onCustomizeCatalogTemplate,
 }: TemplateGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -75,56 +78,69 @@ export function TemplateGrid({
                 </span>
               </div>
 
-              <div className="flex gap-2 pt-2 border-t">
-                <Button
-                  size="sm"
-                  className="flex-1 gap-2"
-                  onClick={() => onCreateSurat(template)}
-                >
-                  <FileEdit className="h-4 w-4" />
-                  Buat Surat
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => onPreviewTemplate(template)}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                {!template.is_catalog && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 shrink-0 text-destructive hover:text-destructive"
-                    title={
-                      template.is_catalog
-                        ? "Template katalog bawaan tidak dapat dihapus"
-                        : "Hapus template milik desa"
-                    }
-                    disabled={template.is_catalog}
-                    onClick={() => onDeleteTemplate(template)}
-                  >
-                    <Trash className="h-4 w-4" />
-                    <span className="hidden sm:inline text-xs">Hapus</span>
-                  </Button>
+              <div className="flex flex-col gap-2 pt-2 border-t">
+                {template.is_catalog ? (
+                  onCustomizeCatalogTemplate ? (
+                    <div className="flex w-full">
+                      <Button
+                        size="sm"
+                        className="min-w-0 flex-1 gap-2 rounded-r-none border-r-0"
+                        onClick={() => onCustomizeCatalogTemplate(template)}
+                      >
+                        <FileEdit className="h-4 w-4 shrink-0" />
+                        Gunakan
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => onCreateSurat(template)}
+                    >
+                      <FileEdit className="h-4 w-4" />
+                      Gunakan
+                    </Button>
+                  )
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="min-w-0 flex-1 gap-2"
+                      onClick={() => onCreateSurat(template)}
+                    >
+                      <FileEdit className="h-4 w-4" />
+                      Buat Surat
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => onPreviewTemplate(template)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 shrink-0 text-destructive hover:text-destructive"
+                      title="Hapus template milik desa"
+                      onClick={() => onDeleteTemplate(template)}
+                    >
+                      <Trash className="h-4 w-4" />
+                      <span className="hidden sm:inline text-xs">Hapus</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      title="Ubah template"
+                      onClick={() => onEditTemplate(template)}
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="hidden sm:inline text-xs">Ubah</span>
+                    </Button>
+                  </div>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                  title={
-                    template.is_catalog
-                      ? "Edit menjadi template desa (katalog disembunyikan setelah disimpan)"
-                      : "Ubah template"
-                  }
-                  onClick={() => onEditTemplate(template)}
-                >
-                  <Edit className="h-4 w-4" />
-                  <span className="hidden sm:inline text-xs">
-                    {template.is_catalog ? "Edit" : "Ubah"}
-                  </span>
-                </Button>
               </div>
             </CardContent>
           </Card>

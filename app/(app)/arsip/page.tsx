@@ -31,6 +31,7 @@ export default async function ArsipPage() {
         subCategory: true,
         year: true,
         title: true,
+        isPublic: true,
         uploadedBy: true,
         uploadedAt: true,
         createdAt: true,
@@ -79,6 +80,8 @@ export default async function ArsipPage() {
     category: a.category,
     subCategory: a.subCategory ?? null,
     title: a.title,
+    isPublic: a.isPublic,
+    uploadedBy: a.uploadedBy,
     uploadedByName:
       uploaderNameById.get(a.uploadedBy) || `User #${a.uploadedBy}`,
     uploadedAt: a.uploadedAt.toISOString(),

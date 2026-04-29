@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 import {
   Search,
   Plus,
@@ -64,7 +65,14 @@ const getLevelName = (level: number): string => {
   return levelMap[level] || "Lainnya";
 };
 
+const DATA_JABATAN_VIEW_TABS = ["table", "hierarchy"] as const;
+
 export function DataJabatan() {
+  const [viewTab, setViewTab] = usePersistedTab(
+    "data-jabatan",
+    "table",
+    DATA_JABATAN_VIEW_TABS
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [showFormDialog, setShowFormDialog] = useState(false);
   const [jabatanList, setJabatanList] = useState<Jabatan[]>([]);
@@ -178,7 +186,7 @@ export function DataJabatan() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="table" className="space-y-4">
+      <Tabs value={viewTab} onValueChange={setViewTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 md:w-105">
           <TabsTrigger value="table">Daftar Jabatan</TabsTrigger>
           <TabsTrigger value="hierarchy">Bagan Hirarki</TabsTrigger>

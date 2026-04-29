@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { RecentActivity } from "@/components/app/RecentActivity";
 import { StatsCard } from "@/components/app/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -243,22 +244,34 @@ export default function AppDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="p-4 border border-border rounded-lg hover:bg-accent hover:border-primary transition-all duration-200 text-center">
+            <Link
+              href="/data-warga"
+              className="p-4 border border-border rounded-lg hover:bg-accent hover:border-primary transition-all duration-200 text-center block"
+            >
               <Users className="h-8 w-8 mx-auto mb-2 text-primary" />
               <p className="text-sm">Tambah Warga</p>
-            </button>
-            <button className="p-4 border border-border rounded-lg hover:bg-accent hover:border-primary transition-all duration-200 text-center">
+            </Link>
+            <Link
+              href="/layanan-surat"
+              className="p-4 border border-border rounded-lg hover:bg-accent hover:border-primary transition-all duration-200 text-center block"
+            >
               <FileText className="h-8 w-8 mx-auto mb-2 text-primary" />
               <p className="text-sm">Buat Surat</p>
-            </button>
-            <button className="p-4 border border-border rounded-lg hover:bg-accent hover:border-primary transition-all duration-200 text-center">
+            </Link>
+            <Link
+              href="/keuangan"
+              className="p-4 border border-border rounded-lg hover:bg-accent hover:border-primary transition-all duration-200 text-center block"
+            >
               <Wallet className="h-8 w-8 mx-auto mb-2 text-primary" />
               <p className="text-sm">Input Keuangan</p>
-            </button>
-            <button className="p-4 border border-border rounded-lg hover:bg-accent hover:border-primary transition-all duration-200 text-center">
+            </Link>
+            <Link
+              href="/statistik"
+              className="p-4 border border-border rounded-lg hover:bg-accent hover:border-primary transition-all duration-200 text-center block"
+            >
               <TrendingUp className="h-8 w-8 mx-auto mb-2 text-primary" />
               <p className="text-sm">Lihat Laporan</p>
-            </button>
+            </Link>
           </div>
         </CardContent>
       </Card>

@@ -88,7 +88,7 @@ export function headerLogoPixelSizeFromPreset(size: string | undefined): number 
     case "large":
       return 80;
     default:
-      return 64;
+      return 110;
   }
 }
 
@@ -132,6 +132,37 @@ export function headerLogoTopRowFlexClass(pos: string | undefined): string {
   }
 }
 
+/** Ukuran logo kop surat standar (px, persegi). */
+export const STANDARD_KOP_LOGO_PX = 110;
+
+const STANDARD_KOP_FONTS = {
+  village_name: 30,
+  government_label: 22,
+  address: 12,
+} as const;
+
+/**
+ * Gabungkan konfigurasi header dari template dengan standar kop tunggal:
+ * logo kiri, 110px, tipografi nama desa / label pemerintahan / alamat tetap.
+ */
+export function mergeHeaderForRender(headerConfig: any) {
+  const defaults = DEFAULT_HEADER_CONFIG;
+  const header = headerConfig || {};
+  const base = { ...defaults, ...header };
+  return {
+    ...base,
+    layout: "logo_left" as const,
+    logo_width_px: STANDARD_KOP_LOGO_PX,
+    logo_position: "left" as const,
+    font_size: {
+      ...base.font_size,
+      village_name: STANDARD_KOP_FONTS.village_name,
+      government_label: STANDARD_KOP_FONTS.government_label,
+      address: STANDARD_KOP_FONTS.address,
+    },
+  };
+}
+
 /**
  * Render header/letterhead of the letter (selaras TemplatePreview: layout, alignment, logo, border).
  */
@@ -143,19 +174,16 @@ export const renderHeader = (
   const showLetterhead = pageHeader?.show_letterhead ?? true;
   if (!showLetterhead) return null;
 
-  const header = headerConfig || {};
   const defaults = DEFAULT_HEADER_CONFIG;
-  const fontSize = {
-    ...defaults.font_size,
-    ...(header.font_size || {}),
-  };
-  const gov = fontSize.government_label ?? 14;
-  const vill = fontSize.village_name ?? 16;
-  const addr = fontSize.address ?? 12;
+  const header = mergeHeaderForRender(headerConfig);
+  const fontSize = header.font_size || {};
+  const gov = fontSize.government_label ?? STANDARD_KOP_FONTS.government_label;
+  const vill = fontSize.village_name ?? STANDARD_KOP_FONTS.village_name;
+  const addr = fontSize.address ?? STANDARD_KOP_FONTS.address;
 
-  const layout = header.layout ?? defaults.layout ?? "logo_top";
+  const layout = header.layout ?? "logo_left";
   const alignment = header.alignment ?? defaults.alignment ?? "center";
-  const logoPos = header.logo_position ?? defaults.logo_position ?? "center";
+  const logoPos = header.logo_position ?? "left";
   const spacing = header.spacing ?? defaults.spacing ?? "normal";
   const borderStyle = header.border_style ?? defaults.border_style ?? "double";
 
@@ -190,7 +218,7 @@ export const renderHeader = (
         className="font-bold uppercase"
         style={{ fontSize: `${gov}px` }}
       >
-        PEMERINTAH KABUPATEN {kab}
+        PEMERINTAH {kab}
       </div>
       <div
         className="font-bold uppercase"
@@ -232,7 +260,8 @@ export const renderHeader = (
   /** Logo kiri + teks: jika alignment tengah/kata penuh, kolom kosong kanan (lebar = logo)
    * menyamakan pusat optik teks dengan tengah halaman. */
   const logoLeftBalanceCenter =
-    alignment === "center" || alignment === "justify";
+    layout === "logo_left" &&
+    (alignment === "center" || alignment === "justify");
 
   return (
     <div className={borderWrap} style={wrapperStyle}>

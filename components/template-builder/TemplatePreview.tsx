@@ -4,6 +4,7 @@ import {
   replaceVariables,
   resolveHeaderLogoWidthPx,
   headerLogoTopRowFlexClass,
+  mergeHeaderForRender,
 } from "@/utils/templateRenderer";
 import { TemplateData, TableRow, ListItem } from "./types";
 import { FooterSignatureBlock } from "./FooterSignatureBlock";
@@ -52,13 +53,15 @@ export function TemplatePreview({
     }
   };
 
-  const headerPreviewLogoPx = (): number =>
-    resolveHeaderLogoWidthPx(template.header);
+  const headerForPreview = mergeHeaderForRender(template.header);
 
-  const hdrAlign = template.header?.alignment || "center";
+  const headerPreviewLogoPx = (): number =>
+    resolveHeaderLogoWidthPx(headerForPreview);
+
+  const hdrAlign = headerForPreview.alignment || "center";
   /** Logo kiri + teks tengah/halaman lebar sama seperti renderHeader */
   const isLogoLeftBalancedCenter =
-    template.header?.layout === "logo_left" &&
+    headerForPreview.layout === "logo_left" &&
     (hdrAlign === "center" || hdrAlign === "justify");
 
   const getBorderStyle = (style: string) => {
@@ -118,22 +121,22 @@ export function TemplatePreview({
       {/* Header */}
       <div
         className={`pb-4 mb-6 ${getBorderStyle(
-          template.header?.border_style || "none"
+          headerForPreview.border_style || "none",
         )}`}
         style={{
-          fontFamily: template.header.font_family,
-          color: template.header.text_color,
+          fontFamily: headerForPreview.font_family,
+          color: headerForPreview.text_color,
         }}
       >
-        {template.header.layout === "logo_top" ? (
+        {headerForPreview.layout === "logo_top" ? (
           <div
             className={`${getSpacingClass(
-              template.header.spacing || "default"
-            )} ${getAlignClass(template.header?.alignment || "center")}`}
+              headerForPreview.spacing || "default",
+            )} ${getAlignClass(headerForPreview.alignment || "center")}`}
           >
             <div
               className={`mb-3 flex w-full ${headerLogoTopRowFlexClass(
-                template.header?.logo_position,
+                headerForPreview.logo_position,
               )}`}
             >
               <div
@@ -154,33 +157,33 @@ export function TemplatePreview({
             </div>
             <div
               style={{
-                fontSize: `${template.header.font_size?.government_label}px`,
+                fontSize: `${headerForPreview.font_size?.government_label}px`,
               }}
             >
-              PEMERINTAH KABUPATEN {desaSettings.kabupaten}
+              PEMERINTAH {desaSettings.kabupaten}
             </div>
             <div
               style={{
-                fontSize: `${template.header.font_size?.government_label}px`,
+                fontSize: `${headerForPreview.font_size?.government_label}px`,
               }}
             >
               KECAMATAN {desaSettings.kecamatan}
             </div>
             <div
               style={{
-                fontSize: `${template.header.font_size?.village_name}px`,
+                fontSize: `${headerForPreview.font_size?.village_name}px`,
               }}
               className="font-bold"
             >
               DESA {desaSettings.nama_desa}
             </div>
             <div
-              style={{ fontSize: `${template.header.font_size?.address}px` }}
+              style={{ fontSize: `${headerForPreview.font_size?.address}px` }}
             >
               {desaSettings.alamat_desa} Kode Pos {desaSettings.kode_pos}
             </div>
             <div
-              style={{ fontSize: `${template.header.font_size?.address}px` }}
+              style={{ fontSize: `${headerForPreview.font_size?.address}px` }}
             >
               Email: {desaSettings.email_desa}
             </div>
@@ -206,38 +209,42 @@ export function TemplatePreview({
             </div>
             <div
               className={`min-w-0 flex-1 ${getSpacingClass(
-                template.header.spacing || "default",
+                headerForPreview.spacing || "default",
               )} ${getAlignClass(hdrAlign)}`}
             >
               <div
                 style={{
-                  fontSize: `${template.header.font_size?.government_label}px`,
+                  fontSize: `${headerForPreview.font_size?.government_label}px`,
                 }}
               >
-                PEMERINTAH KABUPATEN {desaSettings.kabupaten}
+                PEMERINTAH {desaSettings.kabupaten}
               </div>
               <div
                 style={{
-                  fontSize: `${template.header.font_size?.government_label}px`,
+                  fontSize: `${headerForPreview.font_size?.government_label}px`,
                 }}
               >
                 KECAMATAN {desaSettings.kecamatan}
               </div>
               <div
                 style={{
-                  fontSize: `${template.header.font_size?.village_name}px`,
+                  fontSize: `${headerForPreview.font_size?.village_name}px`,
                 }}
                 className="font-bold"
               >
                 DESA {desaSettings.nama_desa}
               </div>
               <div
-                style={{ fontSize: `${template.header.font_size?.address}px` }}
+                style={{
+                  fontSize: `${headerForPreview.font_size?.address}px`,
+                }}
               >
                 {desaSettings.alamat_desa} Kode Pos {desaSettings.kode_pos}
               </div>
               <div
-                style={{ fontSize: `${template.header.font_size?.address}px` }}
+                style={{
+                  fontSize: `${headerForPreview.font_size?.address}px`,
+                }}
               >
                 Email: {desaSettings.email_desa}
               </div>
@@ -267,38 +274,42 @@ export function TemplatePreview({
             </div>
             <div
               className={`min-w-0 flex-1 ${getSpacingClass(
-                template.header.spacing || "default",
+                headerForPreview.spacing || "default",
               )} ${getAlignClass(hdrAlign)}`}
             >
               <div
                 style={{
-                  fontSize: `${template.header.font_size?.government_label}px`,
+                  fontSize: `${headerForPreview.font_size?.government_label}px`,
                 }}
               >
-                PEMERINTAH KABUPATEN {desaSettings.kabupaten}
+                PEMERINTAH {desaSettings.kabupaten}
               </div>
               <div
                 style={{
-                  fontSize: `${template.header.font_size?.government_label}px`,
+                  fontSize: `${headerForPreview.font_size?.government_label}px`,
                 }}
               >
                 KECAMATAN {desaSettings.kecamatan}
               </div>
               <div
                 style={{
-                  fontSize: `${template.header.font_size?.village_name}px`,
+                  fontSize: `${headerForPreview.font_size?.village_name}px`,
                 }}
                 className="font-bold"
               >
                 DESA {desaSettings.nama_desa}
               </div>
               <div
-                style={{ fontSize: `${template.header.font_size?.address}px` }}
+                style={{
+                  fontSize: `${headerForPreview.font_size?.address}px`,
+                }}
               >
                 {desaSettings.alamat_desa} Kode Pos {desaSettings.kode_pos}
               </div>
               <div
-                style={{ fontSize: `${template.header.font_size?.address}px` }}
+                style={{
+                  fontSize: `${headerForPreview.font_size?.address}px`,
+                }}
               >
                 Email: {desaSettings.email_desa}
               </div>
