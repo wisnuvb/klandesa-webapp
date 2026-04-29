@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import { categorySubFromFolderPath } from "@/lib/digitalArchive/folderPath";
-import { assertStorageForUpload } from "@/lib/digitalArchive/quota";
+import { assertStorageForUpload, effectiveVillageStorageLimitGb } from "@/lib/digitalArchive/quota";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 function getExtension(name: string) {
@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
 
     const quota = await assertStorageForUpload(
       village.id,
-      village.storageLimit,
+      effectiveVillageStorageLimitGb(village.subscriptionPlan, village.storageLimit),
       fileSize,
     );
     if (!quota.ok) {

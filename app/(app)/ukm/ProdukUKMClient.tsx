@@ -86,21 +86,17 @@ export default function ProdukUKMClient(props: Props) {
     categoryModalHook.setIsSaving(true);
     try {
       if (from) {
-        // Rename existing category
         await categoriesHook.renameCategory(from, to);
-        // Update products state
-        productsHook.products.forEach((p) => {
-          if ((p.category?.trim() || "Tanpa Kategori") === from) {
-            p.category = to;
-          }
-        });
-        // Trigger re-render by updating products
-        productsHook.setSearchQuery(productsHook.searchQuery); // Hack to trigger re-render
+        productsHook.setProducts((prev) =>
+          prev.map((p) =>
+            (p.category?.trim() || "Tanpa Kategori") === from
+              ? { ...p, category: to }
+              : p,
+          ),
+        );
       } else {
-        // Add new category
         const newProduct = await categoriesHook.addCategory(to);
-        productsHook.products.push(newProduct);
-        productsHook.setSearchQuery(productsHook.searchQuery); // Hack to trigger re-render
+        productsHook.setProducts((prev) => [newProduct, ...prev]);
       }
       categoryModalHook.closeModal();
     } finally {
@@ -110,15 +106,16 @@ export default function ProdukUKMClient(props: Props) {
 
   const handleDeleteCategory = async (name: string) => {
     await categoriesHook.deleteCategory(name, productsHook.products);
-    // Remove placeholder products
-    const updatedProducts = productsHook.products.filter((p) =>
-      !((p.category?.trim() || "Tanpa Kategori") === name &&
-        p.status.toLowerCase() === "inactive" &&
-        p.name.startsWith("Kategori: ")),
+    productsHook.setProducts((prev) =>
+      prev.filter(
+        (p) =>
+          !(
+            (p.category?.trim() || "Tanpa Kategori") === name &&
+            p.status.toLowerCase() === "inactive" &&
+            p.name.startsWith("Kategori: ")
+          ),
+      ),
     );
-    // Update products state
-    productsHook.products.splice(0, productsHook.products.length, ...updatedProducts);
-    productsHook.setSearchQuery(productsHook.searchQuery); // Hack to trigger re-render
   };
 
   return (

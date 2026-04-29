@@ -147,6 +147,9 @@ export async function GET(req: NextRequest) {
       (r) => r.status === "ABSENT" || r.status === "LEAVE",
     ).length;
 
+    const role = String(session?.user?.role ?? "");
+    const canManageGpsOffice = role === "admin" || role === "village_head";
+
     return NextResponse.json({
       rows,
       stats: {
@@ -163,6 +166,15 @@ export async function GET(req: NextRequest) {
         subscriptionPlan: village.subscriptionPlan,
         subscriptionStatus: village.subscriptionStatus,
       },
+      gpsAddon: {
+        active: village.absensiGpsAddonActive,
+        officeLat: village.absensiOfficeLat ?? null,
+        officeLng: village.absensiOfficeLng ?? null,
+        radiusMeters: village.absensiCheckInRadiusMeters,
+        officeConfigured:
+          village.absensiOfficeLat != null && village.absensiOfficeLng != null,
+      },
+      canManageGpsOffice,
     });
   } catch (error) {
     console.error("GET /api/attendance/today error:", error);

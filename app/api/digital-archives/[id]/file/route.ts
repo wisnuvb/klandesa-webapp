@@ -129,7 +129,8 @@ export async function GET(
     ) {
       webBody = (body as { transformToWebStream: () => ReadableStream }).transformToWebStream();
     } else if (body instanceof Readable) {
-      webBody = Readable.toWeb(body);
+      // Node `Readable.toWeb` using type stream/web; DOM `ReadableStream` different in TS.
+      webBody = Readable.toWeb(body) as ReadableStream;
     }
 
     if (!webBody) {

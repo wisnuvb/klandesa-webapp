@@ -109,6 +109,10 @@ const pageConfig = {
     title: "Absensi Perangkat",
     subtitle: "Monitoring kehadiran perangkat desa",
   },
+  "absensi/check-in": {
+    title: "Check-in Absensi",
+    subtitle: "Catat kehadiran lewat QR desa",
+  },
   arsip: {
     title: "Arsip Digital",
     subtitle: "Pengelolaan dokumen dan arsip desa",

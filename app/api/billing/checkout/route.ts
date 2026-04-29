@@ -145,6 +145,7 @@ export async function POST(req: NextRequest) {
     const allowedProducts: BillingProductType[] = [
       "desa_package",
       "absensi",
+      "absensi_gps_addon",
       "arsip",
       "website",
     ];

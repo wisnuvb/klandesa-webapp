@@ -11,13 +11,23 @@ import {
 } from "@/components/ui/dialog";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
 import Link from "next/link";
-import { Search, Plus, FileText, Clock, FileEdit, Settings2 } from "lucide-react";
+import {
+  Search,
+  Plus,
+  FileText,
+  Clock,
+  FileEdit,
+  Settings2,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MultiPageTemplateBuilder } from "@/components/template-builder/MultiPageTemplateBuilder";
-import type { TemplateData, ContentBlock } from "@/components/template-builder/types";
+import type {
+  TemplateData,
+  ContentBlock,
+} from "@/components/template-builder/types";
 import type { TemplateBody } from "./types";
 import { useLayananSuratData } from "./_hooks/useLayananSuratData";
 import { useDesaSettings } from "./_hooks/useDesaSettings";
@@ -75,13 +85,17 @@ export function LayananSurat() {
   const [pageTab, setPageTab] = usePersistedTab(
     "layanan-surat",
     "templates",
-    LAYANAN_SURAT_PAGE_TABS
+    LAYANAN_SURAT_PAGE_TABS,
   );
   const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<TemplateBody | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<TemplateBody | null>(
+    null,
+  );
   const [templateBuilderSession, setTemplateBuilderSession] = useState(0);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
-  const [previewTemplate, setPreviewTemplate] = useState<TemplateBody | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<TemplateBody | null>(
+    null,
+  );
   const [catalogCustomizeTarget, setCatalogCustomizeTarget] =
     useState<TemplateBody | null>(null);
 
@@ -92,7 +106,10 @@ export function LayananSurat() {
   }, []);
 
   const catalogForkForCustomize = useMemo(() => {
-    if (!catalogCustomizeTarget?.is_catalog || !catalogCustomizeTarget.catalog_key) {
+    if (
+      !catalogCustomizeTarget?.is_catalog ||
+      !catalogCustomizeTarget.catalog_key
+    ) {
       return null;
     }
     return (
@@ -228,21 +245,24 @@ export function LayananSurat() {
   });
 
   const totalTemplates = templates.length;
-  const activeTemplates = templates.filter((template) => template.is_active).length;
-  const totalUsage = templates.reduce((sum, template) => sum + template.usage_count, 0);
+  const activeTemplates = templates.filter(
+    (template) => template.is_active,
+  ).length;
+  const totalUsage = templates.reduce(
+    (sum, template) => sum + template.usage_count,
+    0,
+  );
 
   const editingLetter = useMemo(
     () =>
       editingLetterId != null
-        ? history.find((h) => h.id === editingLetterId) ?? null
+        ? (history.find((h) => h.id === editingLetterId) ?? null)
         : null,
     [history, editingLetterId],
   );
 
   const persistLetterToServer = useCallback(
-    async (
-      status: "draft" | "completed" | "archived",
-    ): Promise<boolean> => {
+    async (status: "draft" | "completed" | "archived"): Promise<boolean> => {
       if (!selectedTemplate) return false;
 
       const role = parseSignerRoleFromForm(formData);
@@ -333,6 +353,7 @@ export function LayananSurat() {
     );
     setShowCreateDialog(false);
     resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     persistLetterToServer,
     printPreview,
@@ -419,8 +440,10 @@ export function LayananSurat() {
       <div className="flex flex-col gap-2 rounded-lg border border-dashed bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           Kop surat dan variabel desa mengikuti{" "}
-          <strong className="font-medium text-foreground">Pengaturan Desa</strong>. Sesuaikan
-          alamat, logo, dan penandatangan di sana.
+          <strong className="font-medium text-foreground">
+            Pengaturan Desa
+          </strong>
+          . Sesuaikan alamat, logo, dan penandatangan di sana.
         </p>
         <Button variant="outline" size="sm" className="shrink-0 gap-2" asChild>
           <Link href="/pengaturan-desa">
@@ -451,7 +474,9 @@ export function LayananSurat() {
                     <FileEdit className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Template</p>
+                    <p className="text-sm text-muted-foreground">
+                      Total Template
+                    </p>
                     <p className="text-2xl font-semibold">{totalTemplates}</p>
                   </div>
                 </div>
@@ -464,7 +489,9 @@ export function LayananSurat() {
                     <FileText className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Template Aktif</p>
+                    <p className="text-sm text-muted-foreground">
+                      Template Aktif
+                    </p>
                     <p className="text-2xl font-semibold">{activeTemplates}</p>
                   </div>
                 </div>
@@ -477,7 +504,9 @@ export function LayananSurat() {
                     <Clock className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Penggunaan</p>
+                    <p className="text-sm text-muted-foreground">
+                      Total Penggunaan
+                    </p>
                     <p className="text-2xl font-semibold">{totalUsage}</p>
                   </div>
                 </div>
@@ -636,18 +665,21 @@ export function LayananSurat() {
           <DialogHeader>
             <DialogTitle>Sesuaikan template surat desa</DialogTitle>
             <DialogDescription>
-              Template bertanda <strong>Katalog bawaan</strong> tidak dapat diubah langsung.
-              Perubahan dilakukan pada salinan template milik desa Anda.
+              Template bertanda <strong>Katalog bawaan</strong> tidak dapat
+              diubah langsung. Perubahan dilakukan pada salinan template milik
+              desa Anda.
             </DialogDescription>
           </DialogHeader>
           {catalogForkForCustomize ? (
             <p className="text-sm text-muted-foreground">
-              Salinan desa untuk template ini sudah ada. Lanjutkan untuk membuka editor.
+              Salinan desa untuk template ini sudah ada. Lanjutkan untuk membuka
+              editor.
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Belum ada salinan. Sistem akan menyalin dari katalog ke template desa lalu
-              membuka editor — Anda bisa menyimpan penyesuaian seperti biasa.
+              Belum ada salinan. Sistem akan menyalin dari katalog ke template
+              desa lalu membuka editor — Anda bisa menyimpan penyesuaian seperti
+              biasa.
             </p>
           )}
           <DialogFooter className="gap-2 sm:gap-0">
@@ -658,8 +690,13 @@ export function LayananSurat() {
             >
               Batal
             </Button>
-            <Button type="button" onClick={() => void handleConfirmCatalogCustomize()}>
-              {catalogForkForCustomize ? "Buka editor" : "Salin ke desa & buka editor"}
+            <Button
+              type="button"
+              onClick={() => void handleConfirmCatalogCustomize()}
+            >
+              {catalogForkForCustomize
+                ? "Buka editor"
+                : "Salin ke desa & buka editor"}
             </Button>
           </DialogFooter>
         </DialogContent>

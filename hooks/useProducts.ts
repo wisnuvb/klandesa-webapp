@@ -122,6 +122,7 @@ export function useProducts(initialProducts: UkmProduct[]) {
 
   return {
     products,
+    setProducts,
     filteredProducts,
     searchQuery,
     setSearchQuery,

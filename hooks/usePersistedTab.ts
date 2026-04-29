@@ -1,8 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 const STORAGE_PREFIX = "klandesa:tab:";
+
+function readPersistedTab<T extends string>(
+  storageKey: string,
+  defaultValue: T,
+  allowed: readonly T[],
+): T {
+  const allowedSet = new Set<string>(allowed);
+  if (typeof window === "undefined") {
+    return defaultValue;
+  }
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw && allowedSet.has(raw)) {
+      return raw as T;
+    }
+  } catch {
+    // localStorage tidak tersedia atau diblokir
+  }
+  return defaultValue;
+}
 
 /**
  * Menyimpan tab aktif ke localStorage agar tetap sama saat user kembali ke halaman.
@@ -20,25 +40,9 @@ export function usePersistedTab<T extends string>(
     [allowed]
   );
 
-  const [value, setValue] = useState<T>(defaultValue);
-
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      try {
-        const raw = localStorage.getItem(storageKey);
-        if (raw && allowedSet.has(raw)) {
-          setValue(raw as T);
-        }
-      } catch {
-        // localStorage tidak tersedia atau diblokir
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [storageKey, allowedSet]);
+  const [value, setValue] = useState<T>(() =>
+    readPersistedTab(storageKey, defaultValue, allowed),
+  );
 
   const setTab = useCallback(
     (next: string) => {

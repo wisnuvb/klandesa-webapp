@@ -9,7 +9,7 @@ import {
   getSpacesClient,
   getSpacesConfig,
 } from "@/lib/spaces";
-import { assertStorageForUpload } from "@/lib/digitalArchive/quota";
+import { assertStorageForUpload, effectiveVillageStorageLimitGb } from "@/lib/digitalArchive/quota";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 function sanitizeFileName(name: string) {
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
 
     const quota = await assertStorageForUpload(
       village.id,
-      village.storageLimit,
+      effectiveVillageStorageLimitGb(village.subscriptionPlan, village.storageLimit),
       fileSize,
     );
     if (!quota.ok) {

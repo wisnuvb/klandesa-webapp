@@ -1,5 +1,33 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  arsipStorageLimitForDesaTierGb,
+  type DesaPackageTier,
+} from "@/lib/billing/catalog";
+
+function normalizeVillagePlanToDesaTier(
+  plan: string | null | undefined,
+): DesaPackageTier {
+  const p = String(plan ?? "starter").toLowerCase();
+  if (p === "profesional" || p === "professional") return "profesional";
+  if (p === "enterprise") return "enterprise";
+  return "starter";
+}
+
+/**
+ * Kuota penyimpanan arsip (GB) untuk UI dan pengecekan upload:
+ * pakai nilai di DB, tetapi tidak di bawah minimum paket desa (`arsip` di katalog billing).
+ * Memperbaiki desa starter yang masih menyimpan default lama 1 GB.
+ */
+export function effectiveVillageStorageLimitGb(
+  subscriptionPlan: string | null | undefined,
+  storageLimitDb: number,
+): number {
+  const tier = normalizeVillagePlanToDesaTier(subscriptionPlan);
+  const planFloor = arsipStorageLimitForDesaTierGb(tier);
+  const stored = Math.max(0, Math.floor(Number(storageLimitDb) || 0));
+  return Math.max(stored, planFloor);
+}
 
 export type QuotaMeta = {
   usedBytes: number;

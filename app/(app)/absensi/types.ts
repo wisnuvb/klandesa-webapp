@@ -43,6 +43,14 @@ export interface AttendanceTodayResponse {
     subscriptionPlan: string | null;
     subscriptionStatus: string | null;
   };
+  gpsAddon: {
+    active: boolean;
+    officeLat: number | null;
+    officeLng: number | null;
+    radiusMeters: number;
+    officeConfigured: boolean;
+  };
+  canManageGpsOffice: boolean;
 }
 
 export interface AttendanceHistoryRow {

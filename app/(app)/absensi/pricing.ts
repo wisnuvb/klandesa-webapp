@@ -11,14 +11,14 @@ export interface PricingTier {
 }
 
 export const pricingTiers: PricingTier[] = [
-  {
-    id: "FREE",
-    name: "Basic",
-    staffRange: "1-5 Pegawai",
-    price: 15000,
-    priceLabel: "Rp 15.000",
-    features: ["✅ QR Code Absensi", "✅ Laporan Basic", "✅ Max 5 Pegawai"],
-  },
+  // {
+  //   id: "FREE",
+  //   name: "Basic",
+  //   staffRange: "1-5 Pegawai",
+  //   price: 15000,
+  //   priceLabel: "Rp 15.000",
+  //   features: ["✅ QR Code Absensi", "✅ Laporan Basic", "✅ Max 5 Pegawai"],
+  // },
   {
     id: "TIER_6_10",
     name: "Starter",

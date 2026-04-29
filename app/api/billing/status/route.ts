@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveVillage } from "@/lib/village";
 import { prisma } from "@/lib/prisma";
 import { mapDesaTierToAddonTier, type DesaPackageTier } from "@/lib/billing/catalog";
+import { effectiveVillageStorageLimitGb } from "@/lib/digitalArchive/quota";
 
 export async function GET(req: NextRequest) {
   try {
@@ -61,11 +62,22 @@ export async function GET(req: NextRequest) {
         startDate: village.subscriptionDate?.toISOString() ?? null,
         expiry: village.subscriptionExpiry?.toISOString() ?? null,
       },
+      absensiGpsAddon: {
+        active: village.absensiGpsAddonActive,
+        officeLat: village.absensiOfficeLat ?? null,
+        officeLng: village.absensiOfficeLng ?? null,
+        radiusMeters: village.absensiCheckInRadiusMeters,
+        officeConfigured:
+          village.absensiOfficeLat != null && village.absensiOfficeLng != null,
+      },
       entitlements: hasDesaTier && subscriptionActive ? {
         desaTier,
         absensiTier: mapDesaTierToAddonTier(desaTier),
         arsipTier: mapDesaTierToAddonTier(desaTier),
-        arsipStorageLimitGb: village.storageLimit,
+        arsipStorageLimitGb: effectiveVillageStorageLimitGb(
+          village.subscriptionPlan,
+          village.storageLimit,
+        ),
       } : null,
       invoices: invoices.map((inv) => ({
         id: String(inv.id),

@@ -52,9 +52,7 @@ export async function GET(req: NextRequest) {
     );
 
     const origin = getOrigin(req);
-    const scanUrl = `${origin}/api/attendance/scan?token=${encodeURIComponent(
-      token
-    )}`;
+    const scanUrl = `${origin}/absensi/check-in?token=${encodeURIComponent(token)}`;
 
     const totalActive = await prisma.official.count({
       where: { villageId: village.id, status: "active" },

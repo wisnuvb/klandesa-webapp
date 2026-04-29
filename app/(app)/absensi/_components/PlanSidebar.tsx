@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertCircle, Crown, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, Crown, MapPin, TrendingUp } from "lucide-react";
 import { motion } from "motion/react";
 import type { AttendanceStats, SubscriptionTier } from "../types";
 import type { PricingTier } from "../pricing";
@@ -11,11 +12,17 @@ export function PlanSidebar({
   stats,
   recommendedTier,
   onUpgradeClick,
+  gpsAddonActive,
+  gpsOfficeConfigured,
+  onGpsAddonClick,
 }: {
   currentTier: SubscriptionTier;
   stats: AttendanceStats;
   recommendedTier: PricingTier;
   onUpgradeClick: () => void;
+  gpsAddonActive: boolean;
+  gpsOfficeConfigured: boolean;
+  onGpsAddonClick: () => void;
 }) {
   return (
     <motion.div
@@ -87,6 +94,39 @@ export function PlanSidebar({
           <TrendingUp className="w-4 h-4" />
           Upgrade Paket
         </button>
+
+        {!gpsAddonActive ? (
+          <button
+            type="button"
+            onClick={onGpsAddonClick}
+            className="w-full mt-3 bg-teal-800/80 text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-teal-900/90 transition-colors flex items-center justify-center gap-2 border border-teal-500/40"
+          >
+            <MapPin className="w-4 h-4" />
+            Add-on GPS Radius
+          </button>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <div className="rounded-lg bg-teal-800/60 border border-teal-500/30 px-3 py-2 text-sm text-teal-50">
+              <span className="font-medium flex items-center gap-2">
+                <MapPin className="w-4 h-4 shrink-0" />
+                GPS Add-on aktif
+              </span>
+              {!gpsOfficeConfigured && (
+                <p className="mt-1 text-xs text-teal-100">
+                  Atur titik kantor di bawah agar staf bisa absen GPS.
+                </p>
+              )}
+            </div>
+            {gpsOfficeConfigured && (
+              <Link
+                href="/absensi/check-in"
+                className="block w-full text-center bg-white text-teal-800 font-medium py-2 px-3 rounded-lg text-sm hover:bg-teal-50 transition-colors"
+              >
+                Halaman check-in GPS (staf)
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );

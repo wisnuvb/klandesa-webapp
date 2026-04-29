@@ -1,6 +1,6 @@
 import type { PlanDetail, StoragePlan, VillageStorageInfo } from "../_types";
 import {
-  Zap,
+  // Zap,
   Rocket,
   TrendingUp,
   Building2,
@@ -9,19 +9,19 @@ import {
 } from "lucide-react";
 
 export const STORAGE_PLANS: PlanDetail[] = [
-  {
-    id: "FREE",
-    name: "Basic",
-    icon: Zap,
-    storage: 1,
-    storageLabel: "1 GB",
-    price: 15000,
-    priceLabel: "Rp 15.000",
-    color: "text-gray-600",
-    bgColor: "bg-gray-100",
-    borderColor: "border-gray-300",
-    features: ["1 GB Storage", "Upload file dasar", "Akses file manager", "Support email"],
-  },
+  // {
+  //   id: "FREE",
+  //   name: "Basic",
+  //   icon: Zap,
+  //   storage: 1,
+  //   storageLabel: "1 GB",
+  //   price: 15000,
+  //   priceLabel: "Rp 15.000",
+  //   color: "text-gray-600",
+  //   bgColor: "bg-gray-100",
+  //   borderColor: "border-gray-300",
+  //   features: ["1 GB Storage", "Upload file dasar", "Akses file manager", "Support email"],
+  // },
   {
     id: "STARTER",
     name: "Starter",

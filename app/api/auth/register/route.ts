@@ -2,6 +2,7 @@ import "@/env";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
+import { arsipStorageLimitForDesaTierGb } from "@/lib/billing/catalog";
 
 function slugifyVillageCode(input: string): string {
   const s = input
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
           email: emailDesa,
           subscriptionPlan: "starter",
           subscriptionStatus: "inactive",
+          storageLimit: arsipStorageLimitForDesaTierGb("starter"),
         },
         select: { id: true, code: true, name: true },
       });

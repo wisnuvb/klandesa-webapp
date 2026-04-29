@@ -37,8 +37,16 @@ model Village {
   subscriptionStatus String    @default("active") @db.VarChar(50) // active, inactive, trial, cancelled
   subscriptionDate   DateTime? // Tanggal mulai berlangganan
   subscriptionExpiry DateTime?
-  storageLimit       Int       @default(1) // in GB
+  storageLimit       Int       @default(5) // in GB; minimum paket starter = 5 (lihat BILLING_CATALOG.arsip)
   storageUsed        Float     @default(0) // in GB
+
+  /// Add-on absensi: check-in dengan validasi radius GPS (pembayaran terpisah).
+  absensiGpsAddonActive Boolean @default(false)
+  /// Titik acuan geofencing (kantor desa). Wajib diisi admin agar GPS check-in berfungsi.
+  absensiOfficeLat      Float?
+  absensiOfficeLng      Float?
+  /// Radius izin absen GPS dalam meter (default 100 m).
+  absensiCheckInRadiusMeters Int @default(100)
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

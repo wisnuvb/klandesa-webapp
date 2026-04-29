@@ -1,4 +1,12 @@
-export type BillingProductType = "desa_package" | "absensi" | "arsip" | "website";
+export type BillingProductType =
+  | "desa_package"
+  | "absensi"
+  | "absensi_gps_addon"
+  | "arsip"
+  | "website";
+
+/** Satu-satunya planCode untuk checkout add-on GPS di LinkQu / invoice. */
+export const ABSENSI_GPS_ADDON_PLAN_CODE = "default" as const;
 
 export type DesaPackageTier = "starter" | "profesional" | "enterprise";
 
@@ -24,18 +32,18 @@ export const BILLING_CATALOG = {
     tiers: {
       starter: {
         name: "Starter",
-        setupFee: 2_500_000,
+        setupFee: 10.000_000,
         annualFee: 1_200_000,
       },
       profesional: {
         name: "Profesional",
-        setupFee: 10_000_000,
-        annualFee: 1_200_000,
+        setupFee: 45_000_000,
+        annualFee: 3_500_000,
       },
       enterprise: {
         name: "Enterprise",
-        setupFee: 45_000_000,
-        annualFee: 1_200_000,
+        setupFee: 75_000_000,
+        annualFee: 5_000_000,
       },
     } satisfies Record<
       DesaPackageTier,
@@ -44,26 +52,30 @@ export const BILLING_CATALOG = {
   },
   absensi: {
     tiers: {
-      basic: { name: "Basic", monthlyFee: 15_000 },
+      // basic: { name: "Basic", monthlyFee: 15_000 },
       starter: { name: "Starter", monthlyFee: 49_000 },
       professional: { name: "Professional", monthlyFee: 99_000 },
       business: { name: "Business", monthlyFee: 149_000 },
       enterprise: { name: "Enterprise", monthlyFee: 249_000 },
     } satisfies Record<
-      Exclude<AddonTier, "promax">,
+      Exclude<AddonTier, "promax" | "basic">,
       { name: string; monthlyFee: number }
     >,
   },
+  absensi_gps_addon: {
+    name: "GPS Radius Add-on",
+    monthlyFee: 49_000,
+  },
   arsip: {
     tiers: {
-      basic: { name: "Basic", monthlyFee: 15_000, storageGb: 1 },
+      // basic: { name: "Basic", monthlyFee: 15_000, storageGb: 1 },
       starter: { name: "Starter", monthlyFee: 35_000, storageGb: 5 },
       professional: { name: "Professional", monthlyFee: 99_000, storageGb: 20 },
       business: { name: "Business", monthlyFee: 149_000, storageGb: 50 },
       enterprise: { name: "Enterprise", monthlyFee: 349_000, storageGb: 100 },
       promax: { name: "Pro Max", monthlyFee: 699_000, storageGb: 250 },
     } satisfies Record<
-      AddonTier,
+      Exclude<AddonTier, "basic">,
       { name: string; monthlyFee: number; storageGb: number }
     >,
   },
@@ -72,13 +84,19 @@ export const BILLING_CATALOG = {
   },
 } as const;
 
-export function mapDesaTierToAddonTier(tier: DesaPackageTier): Exclude<AddonTier, "promax"> {
+/**
+ * Tier add-on mapped from desa package (Starter/Professional/Enterprise).
+ * Not all `AddonTier` — not "basic" or "business" from here.
+ */
+export type MappedDesaAddonTier = "starter" | "professional" | "enterprise";
+
+export function mapDesaTierToAddonTier(tier: DesaPackageTier): MappedDesaAddonTier {
   if (tier === "starter") return "starter";
   if (tier === "profesional") return "professional";
   return "enterprise";
 }
 
-/** Ringkasan tagihan paket desa (sama logika dengan kartu di halaman billing). */
+/** Summary of desa package charge (same logic as card on billing page). */
 export function getDesaPackageCharge(
   tier: DesaPackageTier,
   opts: { subscriptionActive: boolean; currentPlan: string | null },
@@ -88,7 +106,9 @@ export function getDesaPackageCharge(
   const isUpgrade = opts.subscriptionActive && !isCurrentPlan;
   const needsSetupFee = !opts.subscriptionActive || isUpgrade;
   const totalAmount =
-    needsSetupFee && tierInfo.setupFee != null ? tierInfo.setupFee : tierInfo.annualFee;
+    needsSetupFee && tierInfo.setupFee != null
+      ? tierInfo.setupFee
+      : tierInfo.annualFee;
   return {
     tierInfo,
     isCurrentPlan,
@@ -102,4 +122,3 @@ export function arsipStorageLimitForDesaTierGb(tier: DesaPackageTier): number {
   const addonTier = mapDesaTierToAddonTier(tier);
   return BILLING_CATALOG.arsip.tiers[addonTier].storageGb;
 }
-

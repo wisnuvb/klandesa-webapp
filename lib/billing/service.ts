@@ -8,11 +8,13 @@ import type {
 import { verifyLinkquCallbackSignature } from "@/lib/linkqu";
 import { getLinkquClient, getLinkquConfig } from "@/lib/billing/linkqu";
 import {
+  ABSENSI_GPS_ADDON_PLAN_CODE,
   BILLING_CATALOG,
   type BillingProductType,
   type DesaPackageTier,
   arsipStorageLimitForDesaTierGb,
 } from "@/lib/billing/catalog";
+import { isVillageSubscriptionActive } from "@/lib/subscription";
 
 export type BillingPaymentMethod = "qris" | "va" | "ewallet";
 
@@ -102,6 +104,7 @@ async function prepareCheckoutLineItems(
       subscriptionPlan: true,
       subscriptionStatus: true,
       subscriptionExpiry: true,
+      absensiGpsAddonActive: true,
     },
   });
   if (!village) throw new Error("Village tidak ditemukan");
@@ -156,6 +159,25 @@ async function prepareCheckoutLineItems(
       unitAmount: tierInfo.monthlyFee,
       totalAmount: tierInfo.monthlyFee,
       metadata: { kind: "monthly_fee", tier },
+    });
+  } else if (input.productType === "absensi_gps_addon") {
+    if (input.planCode !== ABSENSI_GPS_ADDON_PLAN_CODE) {
+      throw new Error("Paket add-on GPS tidak valid");
+    }
+    if (!isVillageSubscriptionActive(village)) {
+      throw new Error("Langganan desa tidak aktif. Aktifkan paket desa di halaman Tagihan.");
+    }
+    if (village.absensiGpsAddonActive) {
+      throw new Error("Add-on GPS sudah aktif untuk desa ini.");
+    }
+    const addon = BILLING_CATALOG.absensi_gps_addon;
+    lineItems.push({
+      name: addon.name,
+      description: "Langganan bulanan",
+      quantity: 1,
+      unitAmount: addon.monthlyFee,
+      totalAmount: addon.monthlyFee,
+      metadata: { kind: "absensi_gps_monthly", planCode: ABSENSI_GPS_ADDON_PLAN_CODE },
     });
   } else if (input.productType === "arsip") {
     const tier = input.planCode;
@@ -487,6 +509,13 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
           subscriptionStatus: "active",
           subscriptionDate: now,
         },
+      });
+    }
+
+    if (invoice.productType === "absensi_gps_addon") {
+      await tx.village.update({
+        where: { id: invoice.villageId },
+        data: { absensiGpsAddonActive: true },
       });
     }
 

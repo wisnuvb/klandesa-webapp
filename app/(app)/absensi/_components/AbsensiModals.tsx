@@ -10,8 +10,22 @@ import {
   Smartphone,
   X,
 } from "lucide-react";
+import { BILLING_CATALOG, formatIdr } from "@/lib/billing/catalog";
+import { LINKQU_VA_CHANNELS } from "@/lib/payment/linkqu-channels";
 import type { PaymentMethod, SubscriptionTier } from "../types";
 import type { PricingTier } from "../pricing";
+
+export type AbsensiGpsCheckoutInvoice = {
+  id: string;
+  invoiceNumber: string;
+  amount: number;
+  paymentUrl: string | null;
+  qrContent: string | null;
+  qrImageUrl: string | null;
+  vaNumber: string | null;
+  bankCode: string | null;
+  expiresAt: string | null;
+};
 
 export function UpgradeModal({
   open,
@@ -189,7 +203,7 @@ export function GpsAddonModal({
                   <MapPin className="w-10 h-10 text-blue-600" />
                 </div>
                 <h4 className="text-2xl font-bold text-gray-900 mb-2">
-                  Rp 49.000
+                  {formatIdr(BILLING_CATALOG.absensi_gps_addon.monthlyFee)}
                 </h4>
                 <p className="text-gray-600">per bulan</p>
               </div>
@@ -261,29 +275,50 @@ export function GpsAddonModal({
 export function CheckoutModal({
   open,
   onClose,
+  checkoutKind,
   selectedTier,
   pricingTiers,
   selectedPaymentMethod,
   onChangePaymentMethod,
+  vaBankLinkquCode,
+  onChangeVaBankLinkquCode,
+  gpsInvoice,
+  gpsCheckoutError,
+  gpsCheckoutLoading,
   onPay,
 }: {
   open: boolean;
   onClose: () => void;
+  checkoutKind: "tier" | "gps_addon";
   selectedTier: SubscriptionTier | null;
   pricingTiers: PricingTier[];
   selectedPaymentMethod: PaymentMethod;
   onChangePaymentMethod: (method: PaymentMethod) => void;
-  onPay: () => void;
+  vaBankLinkquCode: string;
+  onChangeVaBankLinkquCode: (code: string) => void;
+  gpsInvoice: AbsensiGpsCheckoutInvoice | null;
+  gpsCheckoutError: string | null;
+  gpsCheckoutLoading: boolean;
+  onPay: () => void | Promise<void>;
 }) {
   const summaryName =
-    selectedTier === "FREE" || !selectedTier
-      ? "GPS Add-on"
-      : pricingTiers.find((t) => t.id === selectedTier)?.name;
+    checkoutKind === "gps_addon"
+      ? BILLING_CATALOG.absensi_gps_addon.name
+      : selectedTier
+        ? pricingTiers.find((t) => t.id === selectedTier)?.name
+        : "";
 
   const summaryPrice =
-    selectedTier === "FREE" || !selectedTier
-      ? "Rp 49.000"
-      : pricingTiers.find((t) => t.id === selectedTier)?.priceLabel;
+    checkoutKind === "gps_addon"
+      ? formatIdr(BILLING_CATALOG.absensi_gps_addon.monthlyFee)
+      : selectedTier
+        ? pricingTiers.find((t) => t.id === selectedTier)?.priceLabel
+        : "";
+
+  const showPaymentCreated =
+    checkoutKind === "gps_addon" && gpsInvoice != null;
+
+  const vaChannels = LINKQU_VA_CHANNELS.filter((c) => c.enabled);
 
   return (
     <AnimatePresence>
@@ -300,119 +335,243 @@ export function CheckoutModal({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full"
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
           >
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-xl font-bold text-gray-900">Pembayaran</h3>
             </div>
 
             <div className="p-6 space-y-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-3">
-                  Ringkasan Pesanan
-                </h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Item:</span>
-                    <span className="font-medium text-gray-900">
-                      {summaryName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Harga:</span>
-                    <span className="font-medium text-gray-900">
-                      {summaryPrice}
-                    </span>
-                  </div>
-                  <div className="border-t border-gray-200 pt-2 mt-2">
+              {showPaymentCreated ? (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-2">
                     <div className="flex justify-between">
-                      <span className="font-semibold text-gray-900">Total:</span>
-                      <span className="font-bold text-teal-600 text-lg">
-                        {summaryPrice}
+                      <span className="text-gray-600">Invoice</span>
+                      <span className="font-mono font-medium">
+                        {gpsInvoice.invoiceNumber}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total</span>
+                      <span className="font-bold text-teal-600">
+                        {formatIdr(gpsInvoice.amount)}
+                      </span>
+                    </div>
+                    {gpsInvoice.expiresAt && (
+                      <p className="text-xs text-gray-500">
+                        Berlaku hingga:{" "}
+                        {new Date(gpsInvoice.expiresAt).toLocaleString("id-ID")}
+                      </p>
+                    )}
+                  </div>
+
+                  {gpsInvoice.qrImageUrl && (
+                    <div className="flex justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={gpsInvoice.qrImageUrl}
+                        alt="QRIS"
+                        className="w-48 h-48 object-contain"
+                      />
+                    </div>
+                  )}
+
+                  {gpsInvoice.paymentUrl && (
+                    <a
+                      href={gpsInvoice.paymentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full text-center px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-semibold"
+                    >
+                      Buka halaman bayar
+                    </a>
+                  )}
+
+                  {gpsInvoice.vaNumber && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                      <p className="font-medium text-amber-900 mb-1">
+                        Virtual Account
+                      </p>
+                      <p className="font-mono text-lg tracking-wider">
+                        {gpsInvoice.vaNumber}
+                      </p>
+                      {gpsInvoice.bankCode && (
+                        <p className="text-xs text-amber-800 mt-1">
+                          Bank code: {gpsInvoice.bankCode}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-600">
+                    Setelah pembayaran tercatat, status add-on GPS akan ter-update
+                    otomatis. Anda dapat menutup jendela ini dan memuat ulang halaman
+                    absensi.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">
+                      Ringkasan Pesanan
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Item:</span>
+                        <span className="font-medium text-gray-900">
+                          {summaryName}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Harga:</span>
+                        <span className="font-medium text-gray-900">
+                          {summaryPrice}
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-200 pt-2 mt-2">
+                        <div className="flex justify-between">
+                          <span className="font-semibold text-gray-900">
+                            Total:
+                          </span>
+                          <span className="font-bold text-teal-600 text-lg">
+                            {summaryPrice}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">
+                      Metode Pembayaran
+                    </h4>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-teal-300 transition-colors">
+                        <input
+                          type="radio"
+                          name="payment"
+                          value="QRIS"
+                          checked={selectedPaymentMethod === "QRIS"}
+                          onChange={() => onChangePaymentMethod("QRIS")}
+                          className="w-4 h-4 text-teal-600"
+                        />
+                        <QrCode className="w-5 h-5 text-gray-600" />
+                        <span className="font-medium text-gray-900">QRIS</span>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-teal-300 transition-colors">
+                        <input
+                          type="radio"
+                          name="payment"
+                          value="VA"
+                          checked={selectedPaymentMethod === "VA"}
+                          onChange={() => onChangePaymentMethod("VA")}
+                          className="w-4 h-4 text-teal-600"
+                        />
+                        <Building2 className="w-5 h-5 text-gray-600" />
+                        <span className="font-medium text-gray-900">
+                          Virtual Account
+                        </span>
+                        <span className="text-xs text-gray-500 ml-auto">
+                          (BCA, BNI, Mandiri, BRI)
+                        </span>
+                      </label>
+
+                      {checkoutKind === "tier" && (
+                        <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-teal-300 transition-colors">
+                          <input
+                            type="radio"
+                            name="payment"
+                            value="EWALLET"
+                            checked={selectedPaymentMethod === "EWALLET"}
+                            onChange={() => onChangePaymentMethod("EWALLET")}
+                            className="w-4 h-4 text-teal-600"
+                          />
+                          <Smartphone className="w-5 h-5 text-gray-600" />
+                          <span className="font-medium text-gray-900">
+                            E-Wallet
+                          </span>
+                          <span className="text-xs text-gray-500 ml-auto">
+                            (OVO, GoPay, Dana)
+                          </span>
+                        </label>
+                      )}
+
+                      {checkoutKind === "gps_addon" && (
+                        <p className="text-xs text-gray-500 px-1">
+                          Add-on GPS: gunakan QRIS atau Virtual Account. Channel
+                          E-Wallet penuh tersedia di halaman Tagihan.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {checkoutKind === "gps_addon" &&
+                    selectedPaymentMethod === "VA" && (
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2 text-sm">
+                          Bank VA
+                        </h4>
+                        <select
+                          value={vaBankLinkquCode}
+                          onChange={(e) =>
+                            onChangeVaBankLinkquCode(e.target.value)
+                          }
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        >
+                          {vaChannels.map((c) => (
+                            <option key={c.id} value={c.linkquBankCode}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                  {gpsCheckoutError && (
+                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      {gpsCheckoutError}
+                    </div>
+                  )}
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-blue-600" />
+                      <span className="text-xs text-blue-900">
+                        Pembayaran aman dengan{" "}
+                        <strong>LinkQu Payment Gateway</strong>
                       </span>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">
-                  Metode Pembayaran
-                </h4>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-teal-300 transition-colors">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="QRIS"
-                      checked={selectedPaymentMethod === "QRIS"}
-                      onChange={() => onChangePaymentMethod("QRIS")}
-                      className="w-4 h-4 text-teal-600"
-                    />
-                    <QrCode className="w-5 h-5 text-gray-600" />
-                    <span className="font-medium text-gray-900">QRIS</span>
-                  </label>
-
-                  <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-teal-300 transition-colors">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="VA"
-                      checked={selectedPaymentMethod === "VA"}
-                      onChange={() => onChangePaymentMethod("VA")}
-                      className="w-4 h-4 text-teal-600"
-                    />
-                    <Building2 className="w-5 h-5 text-gray-600" />
-                    <span className="font-medium text-gray-900">
-                      Virtual Account
-                    </span>
-                    <span className="text-xs text-gray-500 ml-auto">
-                      (BCA, BNI, Mandiri, BRI)
-                    </span>
-                  </label>
-
-                  <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-teal-300 transition-colors">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="EWALLET"
-                      checked={selectedPaymentMethod === "EWALLET"}
-                      onChange={() => onChangePaymentMethod("EWALLET")}
-                      className="w-4 h-4 text-teal-600"
-                    />
-                    <Smartphone className="w-5 h-5 text-gray-600" />
-                    <span className="font-medium text-gray-900">E-Wallet</span>
-                    <span className="text-xs text-gray-500 ml-auto">
-                      (OVO, GoPay, Dana)
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs text-blue-900">
-                    Pembayaran aman dengan <strong>LinkQu Payment Gateway</strong>
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={onClose}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={onPay}
-                  className="flex-1 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-semibold flex items-center justify-center gap-2"
-                >
-                  <CreditCard className="w-5 h-5" />
-                  Bayar Sekarang
-                </button>
-              </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      disabled={gpsCheckoutLoading}
+                      onClick={() => void onPay()}
+                      className="flex-1 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      {gpsCheckoutLoading ? "Memproses…" : "Bayar Sekarang"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         </motion.div>
