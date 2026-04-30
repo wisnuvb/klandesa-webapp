@@ -30,7 +30,7 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
   return (
     <section
       id="statistik"
-      className="relative py-20 md:py-32 bg-gradient-to-b from-white via-gray-50 to-white overflow-hidden"
+      className="relative py-20 md:py-32 bg-linear-to-b from-white via-gray-50 to-white overflow-hidden"
     >
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 opacity-20">

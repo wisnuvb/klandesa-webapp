@@ -201,19 +201,39 @@ export async function GET(req: NextRequest) {
     const totalBel = sumAmounts(belanjaBudgets);
 
     // Use transactions data if no budgets exist
+    // Realisasi mengikuti total transaksi tahun ini (kas), selaras dengan grafik & buku kas.
+    // Anggaran APBDes tetap dari budget jika ada.
     const apbdes: ApbdesData = {
       tahun: year,
       totalPendapatan:
         totalPend.budget > 0 ? totalPend.budget : incomeFromTrans,
       totalBelanja: totalBel.budget > 0 ? totalBel.budget : expenseFromTrans,
-      realisasiPendapatan:
-        totalPend.realized > 0 ? totalPend.realized : incomeFromTrans,
-      realisasiBelanja:
-        totalBel.realized > 0 ? totalBel.realized : expenseFromTrans,
+      realisasiPendapatan: incomeFromTrans,
+      realisasiBelanja: expenseFromTrans,
       budgetPendapatan:
         totalPend.budget > 0 ? totalPend.budget : incomeFromTrans,
       budgetBelanja: totalBel.budget > 0 ? totalBel.budget : expenseFromTrans,
     };
+
+    // Trend per bulan dalam tahun yang dipilih (bukan rolling 6 bulan dari "hari ini")
+    const monthlyIncome = Array.from({ length: 12 }, () => 0);
+    const monthlyExpense = Array.from({ length: 12 }, () => 0);
+    for (const t of allTransactions) {
+      const d = new Date(t.transactionDate);
+      if (d.getFullYear() !== year) continue;
+      const m = d.getMonth();
+      const amt = Number(t.amount ?? 0);
+      if (t.type === "income") monthlyIncome[m] += amt;
+      else if (t.type === "expense") monthlyExpense[m] += amt;
+    }
+    const trendFromYear: TrendItem[] = [];
+    for (let month = 0; month < 12; month++) {
+      trendFromYear.push({
+        bulan: monthName(month),
+        pendapatan: monthlyIncome[month],
+        belanja: monthlyExpense[month],
+      });
+    }
 
     // Build pendapatan items grouped by category, with subKategori from subCategory
     const pendapatanMap = new Map<
@@ -453,53 +473,13 @@ export async function GET(req: NextRequest) {
         pengaju: "Bendahara Desa",
       }));
 
-    // Trend: last 6 months totals
-    const last6Months: Date[] = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      last6Months.push(d);
-    }
-
-    const trend: TrendItem[] = [];
-    for (const d of last6Months) {
-      const start = new Date(d.getFullYear(), d.getMonth(), 1);
-      const end = new Date(
-        d.getFullYear(),
-        d.getMonth() + 1,
-        0,
-        23,
-        59,
-        59,
-        999
-      );
-      const monthTrans = await prisma.transaction.findMany({
-        where: {
-          villageId: village.id,
-          transactionDate: { gte: start, lte: end },
-        },
-        select: { type: true, amount: true },
-      });
-      const pendapatan = monthTrans
-        .filter((t) => t.type === "income")
-        .reduce((s, t) => s + Number(t.amount ?? 0), 0);
-      const belanjaTotal = monthTrans
-        .filter((t) => t.type === "expense")
-        .reduce((s, t) => s + Number(t.amount ?? 0), 0);
-      trend.push({
-        bulan: monthName(start.getMonth()),
-        pendapatan,
-        belanja: belanjaTotal,
-      });
-    }
-
     const data: FinanceResponse = {
       apbdes,
       pendapatan,
       belanja,
       transaksi,
       spp,
-      trend,
+      trend: trendFromYear,
     };
     financeSummaryCache.set(cacheKey, { data, timestamp: Date.now() });
 

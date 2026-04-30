@@ -245,11 +245,16 @@ export function Keuangan() {
     null,
   );
 
-  const fetchFinance = async () => {
+  const fetchFinance = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
-      const res = await fetch(`/api/finance/summary?year=${selectedYear}`);
+      const res = await fetch(`/api/finance/summary?year=${selectedYear}`, {
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error("Gagal memuat data keuangan");
 
       const result: { data: FinanceResponse } = await res.json();
@@ -263,7 +268,9 @@ export function Keuangan() {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan");
       console.error("fetchFinance error", err);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -309,7 +316,7 @@ export function Keuangan() {
           <div className="text-red-500 text-4xl mb-2">⚠️</div>
           <h3 className="text-lg font-semibold">Gagal memuat data</h3>
           <p className="text-muted-foreground">{error}</p>
-          <Button onClick={fetchFinance}>Coba Lagi</Button>
+          <Button onClick={() => void fetchFinance()}>Coba Lagi</Button>
         </div>
       </div>
     );
@@ -480,7 +487,7 @@ export function Keuangan() {
         );
       }
 
-      await fetchFinance();
+      await fetchFinance({ silent: true });
 
       setFormPendapatan({
         tanggal: new Date().toISOString().split("T")[0],
@@ -549,7 +556,7 @@ export function Keuangan() {
       }
 
       // Refetch data
-      await fetchFinance();
+      await fetchFinance({ silent: true });
 
       // Reset form
       setFormBelanja({
@@ -659,7 +666,7 @@ export function Keuangan() {
       }
 
       // Refetch data
-      await fetchFinance();
+      await fetchFinance({ silent: true });
 
       // Reset form
       setFormTransaksi({
@@ -771,7 +778,7 @@ export function Keuangan() {
       }
 
       // Refetch data
-      await fetchFinance();
+      await fetchFinance({ silent: true });
 
       // Reset form
       setFormSPP({
@@ -831,7 +838,7 @@ export function Keuangan() {
       }
 
       // Refetch data
-      await fetchFinance();
+      await fetchFinance({ silent: true });
 
       setShowConfirmDialog(false);
       setShowDetailSPPDialog(false);
@@ -1053,7 +1060,15 @@ export function Keuangan() {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis dataKey="bulan" stroke="#6b7280" />
-                        <YAxis stroke="#6b7280" />
+                        <YAxis
+                          stroke="#6b7280"
+                          width={80}
+                          tickFormatter={(v) =>
+                            typeof v === "number"
+                              ? formatRupiahShort(v).replace(/^Rp\s?/, "")
+                              : String(v)
+                          }
+                        />
                         <Tooltip
                           formatter={(value: number) =>
                             formatRupiah(Number(value))

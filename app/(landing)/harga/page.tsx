@@ -40,7 +40,7 @@ export default function PricingPage() {
         { name: "Support email & chat", included: true },
         { name: "Training online", included: true },
         { name: "Laporan bulanan otomatis", included: false },
-        { name: "Integrasi WhatsApp notifikasi", included: false },
+        // { name: "Integrasi WhatsApp notifikasi", included: false },
         { name: "Custom branding", included: false },
         { name: "API access", included: false },
         { name: "Priority support 24/7", included: false },
@@ -62,9 +62,9 @@ export default function PricingPage() {
         { name: "Semua fitur Starter", included: true },
         { name: "Dashboard analytics lengkap", included: true },
         { name: "Laporan bulanan otomatis", included: true },
-        { name: "Integrasi WhatsApp notifikasi", included: true },
+        // { name: "Integrasi WhatsApp notifikasi", included: true },
         { name: "Custom domain (.desa.id)", included: true },
-        { name: "Mobile app premium", included: true },
+        { name: "Mobile app premium (android)", included: true },
         { name: "QR code & barcode scanner", included: true },
         { name: "E-signature digital", included: true },
         { name: "Priority support (email, chat, phone)", included: true },
@@ -91,7 +91,7 @@ export default function PricingPage() {
         { name: "Custom mobile app development", included: true },
         { name: "API access unlimited", included: true },
         // { name: "Dedicated account manager", included: true },
-        { name: "Priority support 24/7 (phone, chat, email)", included: true },
+        { name: "Priority support (phone, chat, email)", included: true },
         { name: "On-site training & implementasi", included: true },
         { name: "Custom development sesuai kebutuhan", included: true },
         { name: "Data migration assistance", included: true },
@@ -118,17 +118,16 @@ export default function PricingPage() {
     {
       question: "Bagaimana cara pembayarannya?",
       answer:
-        "Pembayaran dilakukan secara tahunan melalui transfer bank (BCA, Mandiri, BNI, BRI) atau sesuai mekanisme pengadaan desa. Kami juga bisa membantu proses administrasi untuk pencairan APBDes.",
+        "Pembayaran dilakukan diawal dan setiap tahun melalui transfer bank (BCA, Mandiri, BNI, BRI, dll) atau sesuai mekanisme pengadaan desa. Kami juga bisa membantu proses administrasi untuk pencairan APBDes.",
     },
     {
       question: "Apakah data desa kami aman?",
       answer:
-        "Sangat aman! Kami menggunakan enkripsi SSL 256-bit, backup otomatis harian, dan server di Indonesia yang memenuhi standar keamanan data pemerintahan. Data desa Anda sepenuhnya terlindungi.",
+        "Sangat aman! Kami menggunakan enkripsi SSL 256-bit, backup otomatis harian, dan server yang memenuhi standar keamanan data pemerintahan. Data desa Anda sepenuhnya terlindungi.",
     },
     {
       question: "Apakah tersedia demo atau trial?",
-      answer:
-        "Ya! Kami menyediakan demo langsung baik online maupun on-site ke kantor desa. Untuk paket tertentu, kami juga menyediakan trial period agar tim desa bisa mencoba langsung sebelum berkomitmen.",
+      answer: "Ya! Kami menyediakan demo langsung baik online maupun on-site ke kantor desa. Untuk paket tertentu, kami juga menyediakan trial period agar tim desa bisa mencoba langsung sebelum berkomitmen. Silakan klik tombol chat di pojok kanan bawah untuk menghubungi kami.",
     },
     {
       question: "Bagaimana dengan pelatihan untuk perangkat desa?",
@@ -143,7 +142,7 @@ export default function PricingPage() {
     {
       question: "Berapa lama proses implementasi?",
       answer:
-        "Implementasi paket Starter dan Profesional biasanya 1-2 minggu. Untuk paket Enterprise dengan custom development, prosesnya sekitar 1-2 bulan tergantung kompleksitas kebutuhan.",
+        "Implementasi paket Starter langsung online dihari yang sama dengan pembayaran dan Profesional biasanya 1-2 minggu. Untuk paket Enterprise dengan custom development, prosesnya sekitar 1-2 bulan tergantung kompleksitas kebutuhan.",
     },
   ];
 
@@ -212,7 +211,7 @@ export default function PricingPage() {
               <div className="w-px h-6 bg-gray-300 hidden sm:block"></div>
               <div className="flex items-center gap-2">
                 <HeadphonesIcon className="w-5 h-5 text-[#0d9488]" />
-                <span className="text-sm text-gray-700">Support 24/7</span>
+                <span className="text-sm text-gray-700">Support prioritas</span>
               </div>
             </div>
           </div>
@@ -388,7 +387,7 @@ export default function PricingPage() {
                     items: [
                       {
                         name: "Storage space",
-                        values: ["1 GB", "20 GB", "100 GB"],
+                        values: ["5 GB", "20 GB", "100 GB"],
                       },
                       {
                         name: "Backup otomatis",
@@ -434,7 +433,7 @@ export default function PricingPage() {
                       { name: "Email & chat support", values: ["✓", "✓", "✓"] },
                       {
                         name: "Phone support",
-                        values: ["—", "Jam kerja", "24/7"],
+                        values: ["—", "Jam kerja", "Prioritas"],
                       },
                       { name: "Online training", values: ["✓", "✓", "✓"] },
                       { name: "On-site training", values: ["—", "—", "✓"] },

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Bell, Search, Menu } from "lucide-react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
@@ -36,8 +35,11 @@ interface HeaderProps {
   onMenuClick?: () => void;
 }
 
+function isExternalHref(href: string) {
+  return /^https?:\/\//i.test(href);
+}
+
 export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
-  const router = useRouter();
   const { user, isLoading, isAuthenticated } = useNextAuthSession();
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -81,6 +83,12 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
     }
   };
 
+  const onNotificationActivate = (n: NotificationRow) => {
+    if (!n.read) {
+      void markNotificationRead(n.id);
+    }
+  };
+
   const markAllRead = async () => {
     try {
       await fetch("/api/notifications/read", {
@@ -93,13 +101,6 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
     } catch {
       /* abaikan */
     }
-  };
-
-  const openNotification = async (n: NotificationRow) => {
-    if (!n.read) {
-      await markNotificationRead(n.id);
-    }
-    router.push(n.href);
   };
 
   const getDisplayName = () => {
@@ -184,16 +185,9 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
                   pembaruan warga akan muncul di sini.
                 </div>
               ) : (
-                notifications.map((n, index) => (
-                  <div key={n.id}>
-                    {index > 0 ? <DropdownMenuSeparator /> : null}
-                    <DropdownMenuItem
-                      className={cn(
-                        "cursor-pointer flex-col items-start gap-1 p-3",
-                        !n.read && "bg-muted/60",
-                      )}
-                      onSelect={() => void openNotification(n)}
-                    >
+                notifications.map((n, index) => {
+                  const lines = (
+                    <>
                       <p
                         className={cn(
                           "font-medium leading-snug",
@@ -208,9 +202,44 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
                         </p>
                       ) : null}
                       <p className="text-xs text-muted-foreground">{n.timeAgo}</p>
-                    </DropdownMenuItem>
-                  </div>
-                ))
+                    </>
+                  );
+                  const linkClass = cn(
+                    "flex cursor-pointer flex-col items-start gap-1 p-3 outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent",
+                    !n.read && "bg-muted/60",
+                  );
+
+                  return (
+                    <div key={n.id}>
+                      {index > 0 ? <DropdownMenuSeparator /> : null}
+                      <DropdownMenuItem
+                        asChild
+                        className="p-0 focus:bg-transparent"
+                      >
+                        {isExternalHref(n.href) ? (
+                          <a
+                            href={n.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={linkClass}
+                            onClick={() => onNotificationActivate(n)}
+                          >
+                            {lines}
+                          </a>
+                        ) : (
+                          <Link
+                            href={n.href}
+                            prefetch={false}
+                            className={linkClass}
+                            onClick={() => onNotificationActivate(n)}
+                          >
+                            {lines}
+                          </Link>
+                        )}
+                      </DropdownMenuItem>
+                    </div>
+                  );
+                })
               )}
             </DropdownMenuContent>
           </DropdownMenu>

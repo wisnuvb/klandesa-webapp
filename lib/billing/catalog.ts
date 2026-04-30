@@ -32,7 +32,7 @@ export const BILLING_CATALOG = {
     tiers: {
       starter: {
         name: "Starter",
-        setupFee: 10.000_000,
+        setupFee: 10_000_000,
         annualFee: 1_200_000,
       },
       profesional: {

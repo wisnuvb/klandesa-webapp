@@ -1,4 +1,8 @@
 import { getApiSession } from "@/lib/api-session";
+import {
+  parseAppsScriptWebAppUrl,
+  postAppsScriptWebhook,
+} from "@/lib/apps-script-webhook";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -46,6 +50,32 @@ export async function POST(req: NextRequest) {
       },
       select: { id: true, createdAt: true },
     });
+
+    const sheetUrl = process.env.GOOGLE_APPS_SCRIPT_CONTACT_URL?.trim();
+    const sheetSecret = process.env.GOOGLE_APPS_SCRIPT_CONTACT_SECRET?.trim();
+    if (sheetUrl) {
+      const webhook = parseAppsScriptWebAppUrl(sheetUrl);
+      if (webhook) {
+        const sync = await postAppsScriptWebhook(webhook, sheetSecret, {
+          name,
+          email,
+          phone: phone || "",
+          subject,
+          message,
+        });
+        if (!sync.accepted) {
+          console.error(
+            "[contacts] Apps Script (Spreadsheet) sync gagal:",
+            sync.httpStatus,
+            sync.rawBody.slice(0, 400),
+          );
+        }
+      } else {
+        console.error(
+          "[contacts] GOOGLE_APPS_SCRIPT_CONTACT_URL tidak valid (harus https://script.google.com/...).",
+        );
+      }
+    }
 
     return NextResponse.json(
       { ok: true, id: String(created.id), createdAt: created.createdAt.toISOString() },
