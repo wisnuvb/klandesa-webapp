@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import "@/env";
+import { parse as parseCookieHeader } from "cookie";
 import type { NextAuthOptions, DefaultSession, Session } from "next-auth";
 import { cookies, headers } from "next/headers";
+import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { getResolvedAuthSecret } from "@/lib/auth-secret";
 import {
@@ -279,46 +282,71 @@ function sessionFromJwtToken(token: JwtPayload | null): Session | null {
 
 /**
  * Satu sumber kebenaran untuk membaca sesi (RSC + Route Handler).
- * - Route Handler: getToken(req) dulu (cookie dari Request asli), lalu getServerSession.
- * - RSC: getServerSession lalu getToken dari cookies()/headers().
+ * Selaras dengan alur getServerSession: cookie dari Header (parse) harus sama dengan
+ * yang dipakai NextAuth di toInternalRequest — di beberapa versi App Router, req.cookies
+ * kosong meski header Cookie lengkap, sehingga getToken(NextRequest) gagal.
  */
 export async function readAppSession(
-  req?: import("next/server").NextRequest | null,
+  req?: NextRequest | null,
 ): Promise<Session | null> {
   const secret = getResolvedAuthSecret();
+  const secureCookie = secureCookieForNextAuth();
 
   try {
-    if (req && secret) {
-      const token = (await getToken({
-        req,
-        secret,
-        secureCookie: secureCookieForNextAuth(),
-      })) as JwtPayload | null;
-      const fromReq = sessionFromJwtToken(token);
-      if (fromReq) return fromReq;
+    try {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.id) return session;
+    } catch (e) {
+      console.warn("[readAppSession] getServerSession error:", e);
     }
 
-    const session = await getServerSession(authOptions);
-    if (session?.user?.id) return session;
+    if (req && secret) {
+      const tokenFrom = async (tokenReq: NextRequest | Record<string, unknown>) => {
+        const token = (await getToken({
+          req: tokenReq as NextRequest,
+          secret,
+          secureCookie,
+        })) as JwtPayload | null;
+        return sessionFromJwtToken(token);
+      };
+
+      const fromNextCookies = await tokenFrom(req);
+      if (fromNextCookies) return fromNextCookies;
+
+      const rawCookie = req.headers.get("cookie");
+      if (rawCookie) {
+        const parsed = parseCookieHeader(rawCookie);
+        const fromParsed = await tokenFrom({
+          headers: Object.fromEntries(req.headers.entries()),
+          cookies: parsed,
+        });
+        if (fromParsed) return fromParsed;
+      }
+    }
 
     if (!secret) return null;
 
-    if (req) {
-      return null;
-    }
-
     const cookieStore = await cookies();
     const headersList = await headers();
-    const token = (await getToken({
-      req: {
-        headers: Object.fromEntries(headersList.entries()),
-        cookies: cookieStore,
-      } as unknown as import("next/server").NextRequest,
-      secret,
-      secureCookie: secureCookieForNextAuth(),
-    })) as JwtPayload | null;
+    const headerMap = Object.fromEntries(headersList.entries());
+    const plainCookies = Object.fromEntries(
+      cookieStore.getAll().map((c) => [c.name, c.value]),
+    );
 
-    return sessionFromJwtToken(token);
+    for (const jar of [plainCookies, cookieStore]) {
+      const token = (await getToken({
+        req: {
+          headers: headerMap,
+          cookies: jar,
+        } as unknown as NextRequest,
+        secret,
+        secureCookie,
+      })) as JwtPayload | null;
+      const decoded = sessionFromJwtToken(token);
+      if (decoded) return decoded;
+    }
+
+    return null;
   } catch (error) {
     console.error("[readAppSession] Error:", error);
     return null;

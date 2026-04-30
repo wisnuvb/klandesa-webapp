@@ -79,6 +79,7 @@ model Village {
   adminNotifications     AdminNotification[]
   billingInvoices        BillingInvoice[]
   websiteDomains         WebsiteDomain[]
+  cooperative            Cooperative?
 
   @@index([code])
   @@index([isActive])
@@ -161,6 +162,8 @@ model User {
   citizenReportResponses CitizenReportResponse[]
   notificationReads      NotificationRead[]
   respondedContacts      Contact[]               @relation("ContactRespondedBy")
+  cooperativeMemberLinks CooperativeMember[]   @relation("CoopMemberUser")
+  coopLedgerCreates      CooperativeLedgerEntry[] @relation("CoopLedgerCreatedBy")
 
   @@index([villageId, role])
   @@index([email])
@@ -286,6 +289,8 @@ model Resident {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  cooperativeMembers CooperativeMember[]
 
   @@unique([villageId, nik])
   @@index([villageId, name])
@@ -766,6 +771,89 @@ model Budget {
   @@index([villageId, year])
   @@index([villageId, category])
   @@map("budgets")
+}
+
+// ============================================
+// KOPERASI DESA — pencatatan internal (bukan laporan resmi pengawas)
+// ============================================
+
+enum CoopAppRole {
+  none
+  board
+  manager
+}
+
+model Cooperative {
+  id        Int     @id @default(autoincrement())
+  villageId Int     @unique
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name    String  @db.VarChar(255)
+  address String? @db.Text
+  phone   String? @db.VarChar(50)
+  email   String? @db.VarChar(255)
+  /// NIB / NPWP / catatan legal ringkas (opsional)
+  legalNotes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       CooperativeMember[]
+  ledgerEntries CooperativeLedgerEntry[]
+
+  @@map("cooperatives")
+}
+
+model CooperativeMember {
+  id             Int         @id @default(autoincrement())
+  cooperativeId  Int
+  cooperative    Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+
+  residentId Int?
+  resident   Resident? @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  name              String    @db.VarChar(255)
+  nik               String?   @db.VarChar(16)
+  membershipNumber  String?   @db.VarChar(50)
+  joinedAt          DateTime  @default(now())
+  status            String    @default("active") @db.VarChar(50) // active, inactive
+  notes             String?   @db.Text
+
+  /// Akun dashboard yang sama dengan perangkat desa (opsional)
+  linkedUserId Int?
+  linkedUser   User? @relation("CoopMemberUser", fields: [linkedUserId], references: [id], onDelete: SetNull)
+
+  coopAppRole CoopAppRole @default(none)
+  boardTitle  String?     @db.VarChar(120) // Ketua, Sekretaris, Bendahara, dll.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cooperativeId, linkedUserId])
+  @@index([cooperativeId, status])
+  @@index([residentId])
+  @@map("cooperative_members")
+}
+
+model CooperativeLedgerEntry {
+  id            Int         @id @default(autoincrement())
+  cooperativeId Int
+  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+
+  entryDate   DateTime @db.Date
+  direction   String   @db.VarChar(20) // income | expense
+  amount      Decimal  @db.Decimal(15, 2)
+  category    String   @db.VarChar(100)
+  description String?  @db.Text
+
+  createdBy   Int
+  createdUser User @relation("CoopLedgerCreatedBy", fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cooperativeId, entryDate(sort: Desc)])
+  @@map("cooperative_ledger_entries")
 }
 
 // ============================================

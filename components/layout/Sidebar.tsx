@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Home,
@@ -11,7 +10,6 @@ import {
   Archive,
   ShoppingBag,
   Sprout,
-  Globe,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
@@ -22,11 +20,13 @@ import {
   Image,
   Settings2,
   Monitor,
+  Landmark,
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
-import { useSession } from "next-auth/react";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
+import { useCooperativeNav } from "@/components/providers/CooperativeNavProvider";
+import { useMemo, useState } from "react";
 
 interface MenuItem {
   id: string;
@@ -36,7 +36,28 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const menuItems: MenuItem[] = [
+const COOPERATIVE_ONLY_SIDEBAR_MENU: MenuItem[] = [
+  {
+    id: "koperasi",
+    label: "Koperasi",
+    icon: Landmark,
+    path: "/koperasi",
+  },
+  {
+    id: "profil",
+    label: "Profil Akun",
+    icon: UserCircle,
+    path: "/profil",
+  },
+  {
+    id: "billing",
+    label: "Billing",
+    icon: Wallet,
+    path: "/billing",
+  },
+];
+
+const BASE_SIDEBAR_MENU: MenuItem[] = [
   {
     id: "dashboard",
     label: "Dashboard",
@@ -184,13 +205,29 @@ const menuItems: MenuItem[] = [
     icon: ShoppingBag,
     path: "/ukm",
   },
-  // {
-  //   id: "website",
-  //   label: "Website Desa",
-  //   icon: Globe,
-  //   path: "/website",
-  // },
 ];
+
+function withKoperasiMenuItem(items: MenuItem[], include: boolean): MenuItem[] {
+  return items.map((item) => {
+    if (item.id !== "data" || !item.children) return item;
+    const filtered = item.children.filter((c) => c.id !== "koperasi");
+    if (!include) {
+      return { ...item, children: filtered };
+    }
+    return {
+      ...item,
+      children: [
+        ...filtered,
+        {
+          id: "koperasi",
+          label: "Koperasi",
+          icon: Landmark,
+          path: "/koperasi",
+        },
+      ],
+    };
+  });
+}
 
 interface SidebarProps {
   activePage: string;
@@ -210,6 +247,20 @@ export function Sidebar({
   onCollapse,
 }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  const { access, loading: coopNavLoading } = useCooperativeNav();
+
+  const visibleMenuItems = useMemo(() => {
+    if (access?.cooperativeOnlyNav) {
+      return COOPERATIVE_ONLY_SIDEBAR_MENU;
+    }
+    return withKoperasiMenuItem(
+      BASE_SIDEBAR_MENU,
+      Boolean(!coopNavLoading && access?.showCoopMenu),
+    );
+  }, [access, coopNavLoading]);
+
+  const { user, isLoading } = useNextAuthSession();
 
   const toggleExpand = (id: string) => {
     // Accordion behavior - only one can be open at a time
@@ -304,8 +355,6 @@ export function Sidebar({
     );
   };
 
-  const { user, isLoading } = useNextAuthSession();
-
   const getDisplayVillageName = () => {
     if (isLoading) return "Memuat...";
     return user?.village?.name || "Desa";
@@ -375,6 +424,11 @@ export function Sidebar({
                 <p className="text-xs text-muted-foreground whitespace-nowrap">
                   {getDisplayVillageDistrict()}
                 </p>
+                {access?.cooperativeOnlyNav && (
+                  <p className="text-xs text-primary font-medium mt-1 whitespace-nowrap">
+                    Mode pengelola koperasi
+                  </p>
+                )}
               </motion.div>
             )}
           </div>
@@ -397,7 +451,7 @@ export function Sidebar({
             isCollapsed ? "p-2" : "p-4"
           )}
         >
-          {menuItems.map((item) => renderMenuItem(item))}
+          {visibleMenuItems.map((item) => renderMenuItem(item))}
         </nav>
 
         {/* Collapse Toggle Button */}

@@ -42,6 +42,10 @@ const pageConfig = {
     title: "Anggaran Desa",
     subtitle: "Kelola anggaran dan realisasi keuangan desa",
   },
+  koperasi: {
+    title: "Koperasi Desa",
+    subtitle: "Profil, anggota, dan buku kas (pencatatan internal)",
+  },
   statistik: {
     title: "Statistik Kependudukan",
     subtitle: "Data statistik dan demografi desa",

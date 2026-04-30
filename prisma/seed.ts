@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient, Prisma, CoopAppRole } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { catalogRowsForSeed } from "../lib/mail/catalogTemplates";
 import { mergeTemplateCapabilities } from "../lib/website-engine/feature-capabilities";
@@ -85,6 +85,148 @@ async function main() {
   } else {
     console.log("✓ User already exists:", user.email);
   }
+
+  const coopSeedOk = await trySeedStep("Koperasi (demo)", async () => {
+    const coop = await prisma.cooperative.upsert({
+      where: { villageId: village.id },
+      create: {
+        villageId: village.id,
+        name: `Koperasi Merah Putih ${village.name}`,
+        address: village.address,
+        phone: village.phone ?? undefined,
+        email: village.email ?? undefined,
+        legalNotes:
+          "Contoh data seed pengembangan — ganti dengan data legal resmi bila dipakai produksi.",
+      },
+      update: {
+        name: `Koperasi Merah Putih ${village.name}`,
+      },
+    });
+
+    let kopManager = await prisma.user.findUnique({
+      where: { email: "kopmanager@test.id" },
+    });
+    if (!kopManager) {
+      kopManager = await prisma.user.create({
+        data: {
+          email: "kopmanager@test.id",
+          password: hashedPassword,
+          name: "Bendahara Koperasi (Uji)",
+          role: "staff",
+          villageId: village.id,
+          isActive: true,
+        },
+      });
+      console.log("✓ User koperasi (manager):", kopManager.email);
+    }
+
+    let kopBoard = await prisma.user.findUnique({
+      where: { email: "kopboard@test.id" },
+    });
+    if (!kopBoard) {
+      kopBoard = await prisma.user.create({
+        data: {
+          email: "kopboard@test.id",
+          password: hashedPassword,
+          name: "Ketua Koperasi (Uji)",
+          role: "staff",
+          villageId: village.id,
+          isActive: true,
+        },
+      });
+      console.log("✓ User koperasi (pengurus/baca):", kopBoard.email);
+    }
+
+    async function ensureMember(args: {
+      membershipNumber: string;
+      name: string;
+      nik?: string | null;
+      coopAppRole: CoopAppRole;
+      boardTitle?: string | null;
+      linkedUserId?: number | null;
+    }) {
+      const existing = await prisma.cooperativeMember.findFirst({
+        where: {
+          cooperativeId: coop.id,
+          membershipNumber: args.membershipNumber,
+        },
+      });
+      const base = {
+        name: args.name,
+        nik: args.nik ?? null,
+        coopAppRole: args.coopAppRole,
+        boardTitle: args.boardTitle ?? null,
+        linkedUserId: args.linkedUserId ?? null,
+        status: "active",
+      };
+      if (existing) {
+        return prisma.cooperativeMember.update({
+          where: { id: existing.id },
+          data: base,
+        });
+      }
+      return prisma.cooperativeMember.create({
+        data: {
+          cooperativeId: coop.id,
+          membershipNumber: args.membershipNumber,
+          ...base,
+        },
+      });
+    }
+
+    await ensureMember({
+      membershipNumber: "KP-SEED-001",
+      name: "Sukinah (anggota tanpa akun app)",
+      nik: "3201010101010001",
+      coopAppRole: CoopAppRole.none,
+    });
+
+    await ensureMember({
+      membershipNumber: "KP-SEED-MGR",
+      name: kopManager.name,
+      coopAppRole: CoopAppRole.manager,
+      boardTitle: "Bendahara",
+      linkedUserId: kopManager.id,
+    });
+
+    await ensureMember({
+      membershipNumber: "KP-SEED-BRD",
+      name: kopBoard.name,
+      coopAppRole: CoopAppRole.board,
+      boardTitle: "Ketua",
+      linkedUserId: kopBoard.id,
+    });
+
+    const ledgerCount = await prisma.cooperativeLedgerEntry.count({
+      where: { cooperativeId: coop.id },
+    });
+    if (ledgerCount === 0) {
+      await prisma.cooperativeLedgerEntry.create({
+        data: {
+          cooperativeId: coop.id,
+          entryDate: new Date("2025-01-05T12:00:00.000Z"),
+          direction: "income",
+          amount: new Prisma.Decimal(500_000),
+          category: "Simpanan wajib",
+          description: "Kontribusi awal (data seed)",
+          createdBy: user.id,
+        },
+      });
+      await prisma.cooperativeLedgerEntry.create({
+        data: {
+          cooperativeId: coop.id,
+          entryDate: new Date("2025-01-10T12:00:00.000Z"),
+          direction: "expense",
+          amount: new Prisma.Decimal(150_000),
+          category: "ATK",
+          description: "Alat tulis kantor (data seed)",
+          createdBy: kopManager.id,
+        },
+      });
+    }
+
+    console.log("✓ Koperasi demo siap:", coop.name, "(DESA001)");
+  });
 
   let village2 = await prisma.village.findUnique({
     where: { code: "DESA002" },
@@ -728,7 +870,12 @@ async function main() {
   console.log("📊 Summary:");
   console.log(`  • Village: ${village.code} - ${village.name}`);
   console.log(`  • Village 2: ${village2.code} - ${village2.name}`);
-  console.log(`  • User: ${user.email} (Password: password123)`);
+  console.log(`  • User admin: ${user.email} (Password: 123456)`);
+  console.log(
+    coopSeedOk
+      ? `  • Koperasi: aktif di ${village.code} — login kopmanager@test.id / kopboard@test.id (Password: 123456) untuk uji peran`
+      : `  • Koperasi: dilewati (skema tidak lengkap — lihat peringatan di atas)`,
+  );
   console.log(
     regionalOk
       ? `  • Regional kabupaten: kabupaten@test.id | kecamatan: kecamatan@test.id (Password: 123456)`

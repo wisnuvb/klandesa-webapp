@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { RegionalAppShell } from "@/components/layout/RegionalAppShell";
+import { CooperativeNavGate } from "@/components/layout/CooperativeNavGate";
+import { CooperativeNavProvider } from "@/components/providers/CooperativeNavProvider";
 import { AppDialogProvider } from "@/components/providers/AppDialogProvider";
 import { isRegionalAccount } from "@/lib/regional-session";
 import { AppShell } from "./AppShell";
@@ -41,7 +43,10 @@ export function AppLayoutClient({
       {isWilayah ? (
         <RegionalAppShell>{children}</RegionalAppShell>
       ) : (
-        <AppShell>{children}</AppShell>
+        <CooperativeNavProvider>
+          <CooperativeNavGate />
+          <AppShell>{children}</AppShell>
+        </CooperativeNavProvider>
       )}
     </AppDialogProvider>
   );
