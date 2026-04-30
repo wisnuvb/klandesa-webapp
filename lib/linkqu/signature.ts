@@ -1,12 +1,11 @@
 import { createHmac } from "crypto";
-import { logger } from "@/lib/logger";
 
 /**
  * Generate HMAC-SHA256 signature untuk Linkqu API
  * @see https://www.linkqu.id/en/support/panduan-signatur-untuk-api-linkqu/
  * Align with NestJS LinkQuSignatureGenerator implementation
  *
- * Formula: path + method + secondValue + clientId (clientId outside secondValue)
+ * Formula: path + method + secondValue — secondValue menyertakan clientId (dan field lain per tipe).
  * secondValue: lowercase, alphanumeric only
  */
 

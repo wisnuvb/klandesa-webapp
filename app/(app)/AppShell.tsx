@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { isRegionalAccount } from "@/lib/regional-session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Toaster } from "sonner";
@@ -147,8 +148,7 @@ function derivePageKey(pathname: string): PageKey {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const enforcedRef = useRef(false);
+  const { data: session, status: sessionStatus } = useSession();
 
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -158,34 +158,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setActivePage(derivePageKey(pathname));
   }, [pathname]);
 
-  // SEMUA REDIRECT AUTH DAN BILLING DIMATIKAN UNTUK DEBUGGING
-  // useEffect(() => {
-  //   if (!session?.user?.id) return;
-  //   if (enforcedRef.current) return;
-  //
-  //   const current = pathname || "/";
-  //   if (current.startsWith("/billing") || current.startsWith("/profil")) return;
-  //   if (current.startsWith("/auth")) return;
-  //
-  //   const check = async () => {
-  //     try {
-  //       const res = await fetch("/api/billing/status", { cache: "no-store" });
-  //       if (!res.ok) return;
-  //       const data = (await res.json().catch(() => null)) as {
-  //         subscription?: { active?: boolean };
-  //       } | null;
-  //       const active = data?.subscription?.active === true;
-  //       if (!active) {
-  //         enforcedRef.current = true;
-  //         router.replace("/billing");
-  //       }
-  //     } catch {
-  //       return;
-  //     }
-  //   };
-  //
-  //   void check();
-  // }, [pathname, router, session?.user?.id]);
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || !session?.user?.id) return;
+    if (isRegionalAccount(session)) return;
+
+    const current = pathname || "/";
+    if (current.startsWith("/billing") || current.startsWith("/auth")) return;
+
+    const check = async () => {
+      try {
+        const res = await fetch("/api/billing/status", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => null)) as {
+          subscription?: { active?: unknown };
+        } | null;
+        if (!data?.subscription || typeof data.subscription.active !== "boolean") {
+          return;
+        }
+        if (!data.subscription.active) {
+          router.replace("/billing");
+        }
+      } catch {
+        return;
+      }
+    };
+
+    void check();
+  }, [pathname, router, session, sessionStatus]);
 
   const { title, subtitle } = useMemo(
     () => pageConfig[activePage],

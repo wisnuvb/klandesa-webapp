@@ -14,7 +14,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 
 // NextAuth will handle auth; Redux sync happens via the hook below
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
@@ -38,6 +38,12 @@ export function LoginModal({ onClose }: LoginModalProps) {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
+      try {
+        await signOut({ redirect: false });
+      } catch (e) {
+        console.warn("[LoginModal] signOut before login:", e);
+      }
+
       const result = await signIn("credentials", {
         email: username,
         password,

@@ -25,7 +25,7 @@ export function Footer() {
       { name: "Harga", path: "/harga", type: "route" },
       { name: "Manfaat", href: "#manfaat", type: "hash" },
       { name: "Statistik", href: "#statistik", type: "hash" },
-      { name: "Demo", href: "#demo", type: "hash" },
+      { name: "Demo", href: "/demo", type: "route" },
     ],
     company: [
       { name: "Tentang Kami", href: "#tentang", type: "hash" },
@@ -59,7 +59,7 @@ export function Footer() {
   };
 
   const socialMedia = [
-    { icon: Facebook, href: "#", label: "Facebook" },
+    { icon: Facebook, href: "https://www.facebook.com/klandesacom", label: "Facebook" },
     { icon: Twitter, href: "#", label: "Twitter" },
     { icon: Instagram, href: "#", label: "Instagram" },
     { icon: Linkedin, href: "#", label: "LinkedIn" },

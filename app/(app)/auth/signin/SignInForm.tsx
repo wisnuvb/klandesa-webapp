@@ -1,6 +1,6 @@
 "use client";
 
-import { getSession, signIn } from "next-auth/react";
+import { getSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
@@ -22,6 +22,12 @@ export function SignInForm() {
     setError(null);
 
     try {
+      try {
+        await signOut({ redirect: false });
+      } catch (e) {
+        console.warn("[signin] signOut before login:", e);
+      }
+
       const result = await signIn("credentials", {
         email,
         password,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { WebsiteSiteSeo } from "@/lib/website-engine/types";
 import type { WebsiteCMSPage } from "@/lib/website-engine/types";
+import { getMainSiteOrigin, hostToOrigin, joinUrl } from "@/lib/seo/url";
 
 export type TenantSeoContext = {
   host: string;
@@ -14,8 +15,8 @@ export type TenantSeoContext = {
 };
 
 export function absoluteUrl(proto: string, host: string, pathname: string): string {
-  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
-  return `${proto}://${host.split(":")[0]}${path}`;
+  const origin = hostToOrigin(host, proto) || getMainSiteOrigin();
+  return joinUrl(origin, pathname);
 }
 
 export function buildSiteMetadata(ctx: TenantSeoContext): Metadata {

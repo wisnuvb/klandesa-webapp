@@ -12,7 +12,12 @@ import {
   validateLinkquCheckoutInput,
 } from "@/lib/payment/linkqu-channels";
 
+/** Hanya aktif jika `BILLING_DEBUG_CHECKOUT=true` — jangan aktifkan di produksi. */
 export async function GET(req: NextRequest) {
+  if (process.env.BILLING_DEBUG_CHECKOUT !== "true") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     console.log("[BILLING DEBUG] Debug session request");
 

@@ -1,12 +1,13 @@
 {
   "name": "klandesa-webapp",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "scripts": {
     "dev": "next dev --port 2042",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:unit": "node --import tsx --test tests/domain-doh.test.ts tests/domain-validators.test.ts tests/domain-verify-flow.test.ts tests/linkqu-signature.test.ts tests/sign-footer-id-label.test.ts tests/website-engine-normalize.test.ts",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",

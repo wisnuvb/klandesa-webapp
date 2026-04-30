@@ -25,15 +25,15 @@ export interface LinkquCreatePaymentParams {
   expired: string; // format: yyyyMMddHHmmss
   remark?: string;
   billTitle?: string;
-  /** Hanya untuk VA */
+  /** Only for VA */
   bankCode?: string;
-  /** Hanya untuk E-Wallet: PAYDANA, PAYLINKAJA, PAYSHOPEEPAY */
+  /** Only for E-Wallet: PAYDANA, PAYLINKAJA, PAYSHOPEEPAY */
   retailCode?: string;
-  /** Hanya untuk E-Wallet */
+  /** Only for E-Wallet */
   ewalletPhone?: string;
 }
 
-/** Response umum dari Linkqu create transaction - dinamis per tipe payment */
+/** Response from Linkqu create transaction - dynamic per payment type */
 export interface LinkquCreatePaymentResponse {
   rc?: string;
   message?: string;
@@ -57,7 +57,7 @@ export interface LinkquCreatePaymentResponse {
   data?: Record<string, unknown>;
 }
 
-/** Callback payload dari Linkqu saat pembayaran diterima */
+/** Callback payload from Linkqu when payment is received */
 export interface LinkquCallbackPayload {
   partner_reff?: string;
   partner_reff2?: string;

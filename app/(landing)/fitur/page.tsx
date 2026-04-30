@@ -21,11 +21,8 @@ import {
   Store,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function FeaturesPage() {
-  const navigate = useRouter();
-
   const features = [
     {
       icon: Database,
@@ -234,7 +231,7 @@ export default function FeaturesPage() {
   return (
     <>
       {/* Header */}
-      <div className="relative bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] px-8 pt-32 pb-20 md:px-12 md:pt-40 md:pb-24 overflow-hidden">
+      <div className="relative bg-linear-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] px-8 pt-32 pb-20 md:px-12 md:pt-40 md:pb-24 overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"></div>
@@ -282,7 +279,7 @@ export default function FeaturesPage() {
             >
               {/* Icon */}
               <div
-                className={`inline-flex p-4 rounded-xl bg-gradient-to-br ${feature.color} mb-4 group-hover:scale-110 transition-transform`}
+                className={`inline-flex p-4 rounded-xl bg-linear-to-br ${feature.color} mb-4 group-hover:scale-110 transition-transform`}
               >
                 <feature.icon className="w-8 h-8 text-white" />
               </div>
@@ -301,7 +298,7 @@ export default function FeaturesPage() {
               <div className="space-y-2">
                 {feature.benefits.map((benefit, idx) => (
                   <div key={idx} className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#0d9488] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-[#0d9488] shrink-0 mt-0.5" />
                     <span className="text-sm text-gray-700">{benefit}</span>
                   </div>
                 ))}
@@ -311,7 +308,7 @@ export default function FeaturesPage() {
         </div>
 
         {/* Additional Features */}
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 border border-gray-200 mb-12">
+        <div className="bg-linear-to-br from-gray-50 to-gray-100 rounded-2xl p-8 border border-gray-200 mb-12">
           <h3 className="text-2xl text-gray-900 mb-6 text-center">
             Keunggulan Lainnya
           </h3>
@@ -331,7 +328,7 @@ export default function FeaturesPage() {
         </div>
 
         {/* CTA Section */}
-        <div className="bg-gradient-to-br from-[#0d9488] to-[#0f766e] rounded-2xl p-8 md:p-10 text-center relative overflow-hidden">
+        <div className="bg-linear-to-br from-[#0d9488] to-[#0f766e] rounded-2xl p-8 md:p-10 text-center relative overflow-hidden">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div
