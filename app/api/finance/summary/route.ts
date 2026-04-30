@@ -168,6 +168,7 @@ export async function GET(req: NextRequest) {
         type: true,
         category: true,
         amount: true,
+        transactionDate: true,
       },
     });
 

@@ -13,7 +13,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:verify-fk": "tsx scripts/verify-fk.ts",
     "test:api": "bash scripts/test-api.sh",
-    "restart": "git pull && yarn && yarn build && pm2 restart ecosystem.config.js --env production"
+    "restart": "git pull && yarn && yarn build && pm2 restart ecosystem.config.js --env production",
+    "release": "git pull && yarn && yarn build && pm2 restart ecosystem.config.js --env production"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1025.0",
