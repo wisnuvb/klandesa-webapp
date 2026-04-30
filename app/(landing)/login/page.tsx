@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { getSession, signIn, signOut } from "next-auth/react";
 
-export default function LoginPage() {
+function LandingLoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
@@ -179,5 +179,23 @@ export default function LoginPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <p className="text-sm text-slate-400">Memuat halaman masuk…</p>
+      </div>
+    </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LandingLoginContent />
+    </Suspense>
   );
 }
