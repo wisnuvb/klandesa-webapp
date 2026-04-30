@@ -3,12 +3,10 @@
 import {
   ExternalLink,
   Facebook,
-  Instagram,
   Linkedin,
   Mail,
   MapPin,
   Phone,
-  Twitter,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,22 +23,27 @@ export function Footer() {
       { name: "Harga", path: "/harga", type: "route" },
       { name: "Manfaat", href: "#manfaat", type: "hash" },
       { name: "Statistik", href: "#statistik", type: "hash" },
-      { name: "Demo", href: "/demo", type: "route" },
+      { name: "Demo", path: "/demo", type: "route" },
     ],
     company: [
       { name: "Tentang Kami", href: "#tentang", type: "hash" },
       { name: "Blog", href: "#blog", type: "hash" },
-      { name: "Karir", href: "/karir", type: "route" },
+      { name: "Karir", path: "/karir", type: "route" },
       { name: "Kontak", href: "#kontak", type: "hash" },
     ],
     legal: [
-      { name: "Privacy Policy", href: "#privacy", type: "hash" },
-      { name: "Terms of Service", href: "#terms", type: "hash" },
-      { name: "Cookie Policy", href: "#cookie", type: "hash" },
+      { name: "Privacy Policy", path: "/privacy-policy", type: "route" },
+      { name: "Terms of Service", path: "/terms-of-service", type: "route" },
+      { name: "Cookie Policy", path: "/cookie-policy", type: "route" },
     ],
   };
 
-  const handleLinkClick = (href?: string, path?: string, type?: string) => {
+  const handleLinkClick = (link: {
+    href?: string;
+    path?: string;
+    type?: string;
+  }) => {
+    const { href, path, type } = link;
     if (type === "route" && path) {
       router.push(path);
       window.scrollTo(0, 0);
@@ -59,10 +62,18 @@ export function Footer() {
   };
 
   const socialMedia = [
-    { icon: Facebook, href: "https://www.facebook.com/klandesacom", label: "Facebook" },
-    { icon: Twitter, href: "#", label: "Twitter" },
-    { icon: Instagram, href: "#", label: "Instagram" },
-    { icon: Linkedin, href: "#", label: "LinkedIn" },
+    {
+      icon: Facebook,
+      href: "https://www.facebook.com/klandesacom",
+      label: "Facebook",
+    },
+    // { icon: Twitter, href: "#", label: "Twitter" },
+    // { icon: Instagram, href: "#", label: "Instagram" },
+    {
+      icon: Linkedin,
+      href: "https://www.linkedin.com/company/klandesa",
+      label: "LinkedIn",
+    },
   ];
 
   return (
@@ -115,6 +126,8 @@ export function Footer() {
                   key={index}
                   href={social.href}
                   aria-label={social.label}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="group bg-white/5 backdrop-blur-sm p-3 rounded-xl border border-white/10 hover:bg-linear-to-br hover:from-[#0d9488] hover:to-[#0f766e] hover:border-transparent transition-all hover:scale-110"
                 >
                   <social.icon className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
@@ -133,10 +146,8 @@ export function Footer() {
               {footerLinks.product.map((link, index) => (
                 <li key={index}>
                   <button
-                    onClick={() =>
-                      handleLinkClick(link.href, link.path, link.type)
-                    }
-                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group"
+                    onClick={() => handleLinkClick(link)}
+                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group cursor-pointer"
                   >
                     <span className="w-0 group-hover:w-2 h-0.5 bg-[#0d9488] transition-all duration-300 rounded-full"></span>
                     {link.name}
@@ -156,10 +167,8 @@ export function Footer() {
               {footerLinks.company.map((link, index) => (
                 <li key={index}>
                   <button
-                    onClick={() =>
-                      handleLinkClick(link.href, link.href, link.type)
-                    }
-                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group"
+                    onClick={() => handleLinkClick(link)}
+                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group cursor-pointer"
                   >
                     <span className="w-0 group-hover:w-2 h-0.5 bg-[#6366f1] transition-all duration-300 rounded-full"></span>
                     {link.name}
@@ -229,14 +238,14 @@ export function Footer() {
           {/* Legal Links */}
           <div className="flex flex-wrap gap-6 justify-center">
             {footerLinks.legal.map((link, index) => (
-              <a
+              <Link
                 key={index}
-                href={link.href}
+                href={link.path}
                 className="text-gray-400 hover:text-white text-sm transition-colors flex items-center gap-1 group"
               >
                 {link.name}
                 <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
+              </Link>
             ))}
           </div>
         </div>
