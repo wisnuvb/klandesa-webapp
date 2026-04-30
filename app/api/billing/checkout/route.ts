@@ -1,6 +1,5 @@
-import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { resolveVillage } from "@/lib/village";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import {
   createCheckout,
   type BillingPaymentMethod,
@@ -31,7 +30,10 @@ export async function GET(req: NextRequest) {
           ?.value?.substring(0, 50) + "...",
     });
 
-    const session = await getApiSession(req);
+    const loaded = await requireVillageApiContext(req);
+    const session = loaded.ok ? loaded.ctx.session : null;
+    const village = loaded.ok ? loaded.ctx.village : null;
+
     console.log("[BILLING DEBUG] Session:", {
       hasSession: !!session,
       hasUser: !!session?.user,
@@ -46,10 +48,6 @@ export async function GET(req: NextRequest) {
           }
         : null,
     });
-
-    const village = session?.user?.villageCode
-      ? await resolveVillage({ req, session })
-      : null;
     console.log("[BILLING DEBUG] Village:", {
       hasVillage: !!village,
       village: village
@@ -98,20 +96,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const village = await resolveVillage({ req, session });
-
-    if (!village) {
-      return NextResponse.json(
-        { error: "Village tidak ditemukan" },
-        { status: 404 },
-      );
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village, session } = loaded.ctx;
 
     const body = (await req.json().catch(() => null)) as {
       productType?: string;

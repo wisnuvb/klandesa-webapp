@@ -21,6 +21,7 @@ export function Footer() {
     product: [
       { name: "Fitur", path: "/fitur", type: "route" },
       { name: "Harga", path: "/harga", type: "route" },
+      { name: "Harga Pangan", path: "/harga-pangan", type: "route" },
       { name: "Manfaat", href: "#manfaat", type: "hash" },
       { name: "Statistik", href: "#statistik", type: "hash" },
       { name: "Demo", path: "/demo", type: "route" },

@@ -27,6 +27,11 @@ export const CmsContentShortcutsCard = memo(function CmsContentShortcutsCard({
         <CardDescription>Pintasan modul terkait website</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
+        <Button asChild variant="outline">
+          <Link href="/bantuan-program-keluarga">
+            Bantuan & program keluarga (data desa)
+          </Link>
+        </Button>
         {showNewsShortcut ? (
           <Button asChild variant="outline">
             <Link href="/pengumuman-desa">Berita / Pengumuman</Link>
@@ -36,11 +41,6 @@ export const CmsContentShortcutsCard = memo(function CmsContentShortcutsCard({
           <Button asChild variant="outline">
             <Link href="/pengaturan-desa">Profil & Kontak Desa</Link>
           </Button>
-        ) : null}
-        {!showNewsShortcut && !showProfileShortcut ? (
-          <div className="text-muted-foreground text-sm">
-            Tidak ada pintasan untuk capability saat ini.
-          </div>
         ) : null}
       </CardContent>
     </Card>

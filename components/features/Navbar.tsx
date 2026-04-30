@@ -1,10 +1,16 @@
 "use client";
 
 import React from "react";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { KlandesaLogo } from "./KlandesaLogo";
 
 interface NavbarProps {
@@ -12,19 +18,39 @@ interface NavbarProps {
   onRegisterClick: () => void;
 }
 
+type NavLeaf = { name: string; href: string; type: "route" | "hash" };
+type NavGroup = { name: string; children: NavLeaf[] };
+type NavItem = NavLeaf | NavGroup;
+
 export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
   // const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const router = useRouter();
 
-  const navLinks = [
+  const navItems: NavItem[] = [
     { name: "Beranda", href: "/", type: "route" },
-    { name: "Tentang", href: "#tentang", type: "hash" },
     { name: "Fitur", href: "/fitur", type: "route" },
     { name: "Harga", href: "/harga", type: "route" },
+    {
+      name: "Layanan Warga",
+      children: [
+        { name: "Harga Pangan", href: "/harga-pangan", type: "route" },
+        {
+          name: "Cek Bansos Program",
+          href: "/cek-bantuan-program",
+          type: "route",
+        },
+      ],
+    },
+    {
+      name: "Perusahaan",
+      children: [
+        { name: "Tentang", href: "#tentang", type: "hash" },
+        { name: "Manfaat", href: "#manfaat", type: "hash" },
+        { name: "Kontak", href: "#kontak", type: "hash" },
+      ],
+    },
     { name: "Karir", href: "/karir", type: "route" },
-    { name: "Manfaat", href: "#manfaat", type: "hash" },
-    { name: "Kontak", href: "#kontak", type: "hash" },
   ];
 
   const handleNavClick = (href: string, type: string) => {
@@ -71,15 +97,40 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
 
           {/* Navigation Links - Desktop */}
           <div className="hidden md:flex items-center space-x-0">
-            {navLinks.map((link) => (
-              <button
-                key={link.name}
-                onClick={() => handleNavClick(link.href, link.type)}
-                className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-              >
-                {link.name}
-              </button>
-            ))}
+            {navItems.map((item) => {
+              if ("children" in item) {
+                return (
+                  <DropdownMenu key={item.name}>
+                    <DropdownMenuTrigger asChild>
+                      <button className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 rounded-lg hover:bg-gray-50 cursor-pointer inline-flex items-center gap-1">
+                        {item.name}
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-56">
+                      {item.children.map((c) => (
+                        <DropdownMenuItem
+                          key={c.name}
+                          onSelect={() => handleNavClick(c.href, c.type)}
+                        >
+                          {c.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              }
+
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => handleNavClick(item.href, item.type)}
+                  className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                >
+                  {item.name}
+                </button>
+              );
+            })}
           </div>
 
           {/* Auth Buttons */}
@@ -92,7 +143,7 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
             </button>
             <button
               onClick={() => onRegisterClick()}
-              className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-2.5 rounded-lg hover:shadow-lg transition-all hover:scale-105 cursor-pointer"
+              className="bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-2.5 rounded-lg hover:shadow-lg transition-all hover:scale-105 cursor-pointer"
             >
               Daftar Sekarang
             </button>
@@ -116,15 +167,36 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
       {isMenuOpen && (
         <div className="md:hidden animate-in slide-in-from-top-5 duration-200">
           <div className="px-4 py-4 space-y-3">
-            {navLinks.map((link) => (
-              <button
-                key={link.name}
-                onClick={() => handleNavClick(link.href, link.type)}
-                className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg cursor-pointer"
-              >
-                {link.name}
-              </button>
-            ))}
+            {navItems.map((item) => {
+              if ("children" in item) {
+                return (
+                  <div key={item.name} className="space-y-2">
+                    <div className="px-4 pt-2 text-xs text-gray-500 uppercase tracking-wide">
+                      {item.name}
+                    </div>
+                    {item.children.map((c) => (
+                      <button
+                        key={c.name}
+                        onClick={() => handleNavClick(c.href, c.type)}
+                        className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg cursor-pointer"
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => handleNavClick(item.href, item.type)}
+                  className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg cursor-pointer"
+                >
+                  {item.name}
+                </button>
+              );
+            })}
           </div>
 
           {/* Mobile Auth Buttons */}
@@ -144,7 +216,7 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
                 onRegisterClick();
                 setIsMenuOpen(false);
               }}
-              className="w-full bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-4 py-3 rounded-lg hover:shadow-lg transition-all cursor-pointer"
+              className="w-full bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-4 py-3 rounded-lg hover:shadow-lg transition-all cursor-pointer"
             >
               Daftar Sekarang
             </button>

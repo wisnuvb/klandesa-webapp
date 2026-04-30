@@ -1,8 +1,8 @@
-import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import {
   FINANCE_SUMMARY_CACHE_MS,
   financeSummaryCache,
@@ -77,22 +77,6 @@ interface FinanceResponse {
   trend: TrendItem[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveVillage(session: any) {
-  if (session?.user?.villageCode) {
-    const v = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (v) return v;
-  }
-  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
-  if (defaultCode) {
-    const v = await prisma.village.findUnique({ where: { code: defaultCode } });
-    if (v) return v;
-  }
-  return prisma.village.findFirst({ orderBy: { id: "asc" } });
-}
-
 function monthName(i: number) {
   const months = [
     "Jan",
@@ -113,17 +97,9 @@ function monthName(i: number) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const village = await resolveVillage(session);
-    if (!village) {
-      return NextResponse.json(
-        { error: "Tidak ada desa yang tersedia" },
-        { status: 404 }
-      );
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

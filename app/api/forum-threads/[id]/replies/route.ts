@@ -1,8 +1,7 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 function mapRoleLabel(role?: string | null): string {
@@ -20,17 +19,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
     const { id: idStr } = await params;
     const threadId = BigInt(idStr);
 
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -71,17 +65,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village, session } = loaded.ctx;
     const { id: idStr } = await params;
     const threadId = BigInt(idStr);
 
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

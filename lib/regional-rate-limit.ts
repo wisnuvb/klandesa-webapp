@@ -8,7 +8,7 @@ type Bucket = { count: number; windowStart: number };
 const store = new Map<string, Bucket>();
 
 const WINDOW_MS = 60_000;
-const MAX_REQUESTS = 120;
+const DEFAULT_MAX_REQUESTS = 120;
 
 function key(ip: string, route: string): string {
   return `${ip}:${route}`;
@@ -17,7 +17,9 @@ function key(ip: string, route: string): string {
 export function checkRegionalRateLimit(
   ip: string,
   route: string,
+  opts?: { maxRequests?: number },
 ): { ok: true } | { ok: false; retryAfterSec: number } {
+  const maxRequests = opts?.maxRequests ?? DEFAULT_MAX_REQUESTS;
   const k = key(ip || "unknown", route);
   const now = Date.now();
   let b = store.get(k);
@@ -26,7 +28,7 @@ export function checkRegionalRateLimit(
     store.set(k, b);
   }
   b.count += 1;
-  if (b.count > MAX_REQUESTS) {
+  if (b.count > maxRequests) {
     const retryAfterSec = Math.ceil(
       (WINDOW_MS - (now - b.windowStart)) / 1000,
     );

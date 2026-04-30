@@ -1,8 +1,7 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSubdomain } from "@/lib/subdomain";
 import {
   EDUCATION_OPTIONS,
   JOB_OPTIONS,
@@ -10,45 +9,9 @@ import {
 } from "@/utils/constants/user";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
-async function resolveVillage(
-  req: NextRequest,
-  queryVillageCode?: string,
-  session?: any
-) {
-  if (session?.user?.villageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (village) return village;
-  }
-  if (queryVillageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: queryVillageCode },
-    });
-    if (village) return village;
-  }
-  const sub = getSubdomain(req);
-  if (sub && sub !== "app") {
-    const village = await prisma.village.findUnique({ where: { code: sub } });
-    if (village) return village;
-  }
-  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
-  if (defaultCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: defaultCode },
-    });
-    if (village) return village;
-  }
-  const firstVillage = await prisma.village.findFirst({
-    orderBy: { id: "asc" },
-  });
-  if (firstVillage) return firstVillage;
-  return null;
-}
-
 function findKeyByValue<T extends Record<string | number, string>>(
   obj: T,
-  value: string
+  value: string,
 ): number {
   const entry = Object.entries(obj).find(([, v]) => v === value);
   return entry ? Number(entry[0]) : 0;
@@ -56,21 +19,15 @@ function findKeyByValue<T extends Record<string | number, string>>(
 
 export async function GET(
   req: NextRequest,
-  ctx: { params: Promise<{ kk: string }> }
+  ctx: { params: Promise<{ kk: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const url = new URL(req.url);
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
     const { kk } = await ctx.params;
 
-    const village = await resolveVillage(req, villageCode, session);
-    if (!village) {
-      return NextResponse.json({ error: "Tidak ada desa." }, { status: 404 });
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -83,7 +40,7 @@ export async function GET(
     if (members.length === 0) {
       return NextResponse.json(
         { error: "KK tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -102,12 +59,12 @@ export async function GET(
       marital_status: m.maritalStatus.startsWith("Belum")
         ? "TM"
         : m.maritalStatus.startsWith("Kawin")
-        ? "M"
-        : m.maritalStatus.startsWith("Cerai Hidup")
-        ? "CH"
-        : m.maritalStatus.startsWith("Cerai Mati")
-        ? "CM"
-        : m.maritalStatus,
+          ? "M"
+          : m.maritalStatus.startsWith("Cerai Hidup")
+            ? "CH"
+            : m.maritalStatus.startsWith("Cerai Mati")
+              ? "CM"
+              : m.maritalStatus,
       status_family: m.familyRole,
       is_live: m.isAlive ? "Y" : "N",
       role: "CITIZEN",
@@ -130,7 +87,7 @@ export async function GET(
     console.error("GET /api/kk/[kk] error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

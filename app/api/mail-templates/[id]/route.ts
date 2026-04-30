@@ -1,28 +1,7 @@
-import { getApiSession } from "@/lib/api-session";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSubdomain } from "@/lib/subdomain";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-
-async function resolveVillage(req: NextRequest, session?: any) {
-  if (session?.user?.villageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (village) return village;
-  }
-
-  const sub = getSubdomain(req);
-  if (sub && sub !== "app") {
-    const village = await prisma.village.findUnique({ where: { code: sub } });
-    if (village) return village;
-  }
-
-  return await prisma.village.findFirst({
-    orderBy: { id: "asc" },
-  });
-}
 
 /**
  * Hapus template milik desa. Surat (`MailService`) yang masih memakai template ini
@@ -33,15 +12,10 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const village = await resolveVillage(req, session);
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
 
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

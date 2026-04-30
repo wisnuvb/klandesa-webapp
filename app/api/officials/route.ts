@@ -1,54 +1,12 @@
-import { getApiSession } from "@/lib/api-session";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSubdomain } from "@/lib/subdomain";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 
-async function resolveVillage(
-  req: NextRequest,
-  queryVillageCode?: string,
-  session?: any,
-) {
-  if (session?.user?.villageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (village) return village;
-  }
-
-  if (queryVillageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: queryVillageCode },
-    });
-    if (village) return village;
-  }
-
-  const sub = getSubdomain(req);
-  if (sub && sub !== "app") {
-    const village = await prisma.village.findUnique({ where: { code: sub } });
-    if (village) return village;
-  }
-
-  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
-  if (defaultCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: defaultCode },
-    });
-    if (village) return village;
-  }
-
-  const firstVillage = await prisma.village.findFirst({
-    orderBy: { id: "asc" },
-  });
-  if (firstVillage) return firstVillage;
-
-  return null;
-}
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 function normalizeStatus(status?: string) {
   if (!status) return undefined;
   const value = status.toLowerCase();
@@ -60,10 +18,10 @@ function normalizeStatus(status?: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
     const url = new URL(req.url);
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
     const pageSize = Math.max(
@@ -73,18 +31,6 @@ export async function GET(req: NextRequest) {
     const search = url.searchParams.get("search") ?? undefined;
     const status = normalizeStatus(url.searchParams.get("status") ?? undefined);
     const positionId = url.searchParams.get("positionId");
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
-
-    const village = await resolveVillage(req, villageCode, session);
-    if (!village) {
-      return NextResponse.json(
-        {
-          error:
-            "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
-        },
-        { status: 404 },
-      );
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -158,15 +104,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const village = await resolveVillage(req, undefined, session);
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

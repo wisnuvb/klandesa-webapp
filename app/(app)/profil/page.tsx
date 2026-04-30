@@ -1,12 +1,28 @@
 "use client";
 
 import { User } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 
 export default function ProfilPage() {
   const { user, isLoading } = useNextAuthSession();
-  const role = user?.role ?? "—";
+  const sessionUser = user as
+    | {
+        name?: string | null;
+        email?: string | null;
+        role?: string | null;
+        village?: { name?: string | null } | null;
+        villageCode?: string | null;
+      }
+    | null
+    | undefined;
+  const role = sessionUser?.role ?? "—";
 
   return (
     <div className="mx-auto max-w-lg space-y-6 p-6">
@@ -34,11 +50,15 @@ export default function ProfilPage() {
             <>
               <div className="flex justify-between gap-4 border-b border-border pb-2">
                 <span className="text-muted-foreground">Nama</span>
-                <span className="font-medium text-right">{user?.name ?? "—"}</span>
+                <span className="font-medium text-right">
+                  {sessionUser?.name ?? "—"}
+                </span>
               </div>
               <div className="flex justify-between gap-4 border-b border-border pb-2">
                 <span className="text-muted-foreground">Email</span>
-                <span className="text-right break-all">{user?.email ?? "—"}</span>
+                <span className="text-right break-all">
+                  {sessionUser?.email ?? "—"}
+                </span>
               </div>
               <div className="flex justify-between gap-4 border-b border-border pb-2">
                 <span className="text-muted-foreground">Peran</span>
@@ -47,13 +67,13 @@ export default function ProfilPage() {
               <div className="flex justify-between gap-4 border-b border-border pb-2">
                 <span className="text-muted-foreground">Desa</span>
                 <span className="font-medium text-right">
-                  {(user as { village?: { name?: string } })?.village?.name ?? "—"}
+                  {sessionUser?.village?.name ?? "—"}
                 </span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Kode desa</span>
                 <span className="font-mono text-right">
-                  {(user as { villageCode?: string })?.villageCode ?? "—"}
+                  {sessionUser?.villageCode ?? "—"}
                 </span>
               </div>
             </>

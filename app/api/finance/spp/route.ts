@@ -1,84 +1,68 @@
 import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/auth";
-import { getToken } from "next-auth/jwt";
 import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { resolveFinanceWriteVillage } from "@/lib/finance-village-context";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveVillage(session: any, token?: any) {
-  if (session?.user?.villageCode) {
-    const v = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (v) return v;
-  }
-  if (token?.villageCode) {
-    const v = await prisma.village.findUnique({
-      where: { code: token.villageCode },
-    });
-    if (v) return v;
-  }
-  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
-  if (defaultCode) {
-    const v = await prisma.village.findUnique({ where: { code: defaultCode } });
-    if (v) return v;
-  }
-  return prisma.village.findFirst({ orderBy: { id: "asc" } });
-}
-
-// Approve or reject SPP (update transaction status)
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    const token = await getToken({ req, secret: authOptions.secret });
-    const apiKeyHeader = req.headers.get("x-api-key");
-    const validApiKey = process.env.FINANCE_API_KEY;
-    if (!session?.user && !token?.id) {
-      if (!validApiKey || apiKeyHeader !== validApiKey) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
     }
 
-    const village = await resolveVillage(session, token);
-    if (!village) {
-      return NextResponse.json(
-        { error: "Tidak ada desa yang tersedia" },
-        { status: 404 }
-      );
-    }
+    const resolved = await resolveFinanceWriteVillage(req, body as { villageId?: unknown });
+    if (!resolved.ok) return resolved.response;
+    const { village, userId: ctxUserId } = resolved;
+
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
 
-    const body = await req.json();
-    const { transactionId, action, reason } = body;
+    const { transactionId, action, reason } = body as {
+      transactionId?: string;
+      action?: string;
+      reason?: string;
+    };
 
     if (!transactionId || !action) {
       return NextResponse.json(
         { error: "Transaction ID dan action diperlukan" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!["approve", "reject"].includes(action)) {
       return NextResponse.json(
         { error: "Action harus 'approve' atau 'reject'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const status = action === "approve" ? "approved" : "rejected";
 
+    const existing = await prisma.transaction.findFirst({
+      where: { id: BigInt(transactionId), villageId: village.id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Transaksi tidak ditemukan" }, { status: 404 });
+    }
+
+    let verifiedBy: number | undefined = ctxUserId;
+    if (verifiedBy == null || !Number.isFinite(verifiedBy)) {
+      const session = await getApiSession(req);
+      if (session?.user?.id) {
+        verifiedBy = parseInt(String(session.user.id), 10);
+      }
+    }
+
     const transaction = await prisma.transaction.update({
-      where: { id: BigInt(transactionId) },
+      where: { id: existing.id },
       data: {
         status,
-        ...(session?.user?.id && {
-          verifiedBy: parseInt(session.user.id as string),
-        }),
-        ...(reason && { description: reason }), // Store rejection reason in description or add a separate field
+        ...(verifiedBy != null && Number.isFinite(verifiedBy) ? { verifiedBy } : {}),
+        ...(reason ? { description: reason } : {}),
       },
     });
 

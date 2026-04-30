@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import { buildLandingSeo } from "@/lib/seo/landing";
 
-export type LandingPageSeoKey = "home" | "fitur" | "harga" | "karir" | "demo";
+export type LandingPageSeoKey =
+  | "home"
+  | "fitur"
+  | "harga"
+  | "harga-pangan"
+  | "cek-bantuan-program"
+  | "karir"
+  | "demo";
 
 export type LandingPageSeoConfig = {
   pathname: string;
@@ -58,6 +65,42 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
       "paket sistem desa",
       "biaya digitalisasi desa",
       "paket klandesa",
+    ],
+    robots: "index, follow",
+  },
+  "harga-pangan": {
+    pathname: "/harga-pangan",
+    title: "Pantau Harga Pangan — Info Harga Bapok Rata-rata per Kab/Kota",
+    description:
+      "Cek harga rata-rata bahan pokok per kab/kota, bandingkan dengan periode sebelumnya, dan lihat referensi HET/HA. Sumber data: SP2KP Kemendag.",
+    keywords: [
+      "harga pangan",
+      "harga bahan pokok",
+      "harga sembako",
+      "harga beras",
+      "harga minyak goreng",
+      "harga telur",
+      "HET",
+      "SP2KP",
+      "kemendag",
+      "klandesa",
+    ],
+    robots: "index, follow",
+  },
+  "cek-bantuan-program": {
+    pathname: "/cek-bantuan-program",
+    title:
+      "Cek Bantuan Sosial & Program Keluarga — Catatan Desa & Arahan Resmi",
+    description:
+      "Cek ringkas status program yang dicatat Pemdes lewat Klandesa (tanpa nominal) dan temukan tautan resmi Kemensos untuk verifikasi bansos nasional.",
+    keywords: [
+      "cek bansos",
+      "program keluarga",
+      "BLT desa",
+      "PKH",
+      "Kemensos",
+      "bantuan sosial",
+      "klandesa",
     ],
     robots: "index, follow",
   },

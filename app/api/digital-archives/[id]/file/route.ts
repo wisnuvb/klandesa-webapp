@@ -1,9 +1,8 @@
 import { Readable } from "node:stream";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import { getSpacesClient, getSpacesConfig, publicUrlToStorageKey } from "@/lib/spaces";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { canAccessArchiveBinary } from "@/lib/digitalArchive/access";
@@ -31,20 +30,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = Number(session.user.id);
-    if (!Number.isFinite(userId) || userId <= 0) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village, session, userId } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

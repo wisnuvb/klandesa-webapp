@@ -1,7 +1,6 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isRegionalAccount } from "@/lib/regional-session";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 const SETTINGS_ROLES = new Set(["admin", "village_head"]);
@@ -11,15 +10,11 @@ const SETTINGS_ROLES = new Set(["admin", "village_head"]);
  */
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id || !session.user.villageId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (isRegionalAccount(session)) {
-      return NextResponse.json({ error: "Akun wilayah tidak dapat mengubah pengaturan desa." }, { status: 403 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { dbUser, village: villageRow } = loaded.ctx;
 
-    const role = String(session.user.role ?? "");
+    const role = String(dbUser.role ?? "");
     if (!SETTINGS_ROLES.has(role)) {
       return NextResponse.json(
         { error: "Hanya admin atau kepala desa yang dapat mengatur lokasi GPS." },
@@ -27,7 +22,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const villageId = session.user.villageId;
+    const villageId = villageRow.id;
 
     const village = await prisma.village.findUnique({
       where: { id: villageId },

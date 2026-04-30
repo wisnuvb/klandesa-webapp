@@ -1,7 +1,6 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -19,24 +18,14 @@ const ALLOWED_STATUSES = new Set([
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
     const url = new URL(req.url);
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
     const status = url.searchParams.get("status") ?? "ALL";
     const reportType = url.searchParams.get("reportType") ?? "ALL";
     const isPublic = url.searchParams.get("isPublic") ?? "ALL";
-
-    const village = await resolveVillage({
-      req,
-      queryVillageCode: villageCode,
-      session,
-    });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -85,14 +74,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

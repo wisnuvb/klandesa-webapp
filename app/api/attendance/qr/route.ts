@@ -1,6 +1,5 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
-import { resolveVillage } from "@/lib/village";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -15,25 +14,10 @@ function getOrigin(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    const url = new URL(req.url);
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
 
-    const village = await resolveVillage({
-      req,
-      queryVillageCode: villageCode,
-      session,
-    });
-
-    if (!village) {
-      return NextResponse.json(
-        {
-          error:
-            "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
-        },
-        { status: 404 }
-      );
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -48,7 +32,7 @@ export async function GET(req: NextRequest) {
         villageCode: village.code,
       },
       secret,
-      { expiresIn: expiresInSeconds }
+      { expiresIn: expiresInSeconds },
     );
 
     const origin = getOrigin(req);
@@ -71,7 +55,7 @@ export async function GET(req: NextRequest) {
     console.error("GET /api/attendance/qr error:", error);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

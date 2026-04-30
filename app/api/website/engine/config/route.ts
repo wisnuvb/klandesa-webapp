@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApiSession } from "@/lib/api-session";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
+import { requireVillageApiContext } from "@/lib/api-village-context";
+import { requireVillageAdminResponse } from "@/lib/access-policy";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -32,14 +32,6 @@ import {
 import { checkWebsiteEnginePatchLimit } from "@/lib/website-engine/engine-rate-limit";
 import type { WebsiteSection } from "@/lib/website-engine/types";
 
-function requireVillageAdmin(session: unknown) {
-  const role = (session as { user?: { role?: string } } | null)?.user?.role;
-  if (role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  return null;
-}
-
 function clientIp(req: NextRequest): string {
   return (
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -50,14 +42,12 @@ function clientIp(req: NextRequest): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const forbidden = requireVillageAdmin(session);
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const forbidden = requireVillageAdminResponse(loaded.ctx.session);
     if (forbidden) return forbidden;
 
-    const village = await resolveVillage({ req, session });
-    if (!village) return NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 });
+    const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) return subscriptionBlockedResponse(village);
 
     const subscription = await prisma.websiteSubscription.findUnique({
@@ -127,10 +117,9 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const forbidden = requireVillageAdmin(session);
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const forbidden = requireVillageAdminResponse(loaded.ctx.session);
     if (forbidden) return forbidden;
 
     const rl = checkWebsiteEnginePatchLimit(clientIp(req));
@@ -144,8 +133,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const village = await resolveVillage({ req, session });
-    if (!village) return NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 });
+    const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) return subscriptionBlockedResponse(village);
 
     const subscription = await prisma.websiteSubscription.findUnique({

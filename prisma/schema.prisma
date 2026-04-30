@@ -80,6 +80,7 @@ model Village {
   billingInvoices        BillingInvoice[]
   websiteDomains         WebsiteDomain[]
   cooperative            Cooperative?
+  socialBenefitPrograms  SocialBenefitProgram[]
 
   @@index([code])
   @@index([isActive])
@@ -1505,3 +1506,58 @@ model Attendance {
   @@index([officialId, attendanceDate])
   @@map("attendances")
 }
+
+// ============================================
+// BANTUAN SOSIAL & PROGRAM KELUARGA (publik cek NIK + kelola desa)
+// ============================================
+
+enum SocialBenefitEnrollmentStatus {
+  registered
+  under_review
+  approved
+  active
+  completed
+  withdrawn
+}
+
+model SocialBenefitProgram {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name         String  @db.VarChar(255)
+  periodLabel  String? @db.VarChar(120)
+  /// Catatan internal admin; tidak dikeluarkan lewat API publik.
+  internalNote String? @db.Text
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  beneficiaries SocialBenefitBeneficiary[]
+
+  @@index([villageId])
+  @@index([villageId, isActive])
+  @@map("social_benefit_programs")
+}
+
+model SocialBenefitBeneficiary {
+  id        Int                  @id @default(autoincrement())
+  programId Int
+  program   SocialBenefitProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  /// NIK tanpa pemisah; konsisten uppercase.
+  nik        String                        @db.VarChar(16)
+  /// Konteks pendek untuk warga; menimpa turunan label dari `status` bila ada.
+  publicNote String?                       @db.VarChar(240)
+  status     SocialBenefitEnrollmentStatus @default(registered)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([programId, nik])
+  @@index([nik])
+  @@map("social_benefit_beneficiaries")
+}
+

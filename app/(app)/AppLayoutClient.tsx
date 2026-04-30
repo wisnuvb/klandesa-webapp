@@ -11,8 +11,8 @@ import { isRegionalAccount } from "@/lib/regional-session";
 import { AppShell } from "./AppShell";
 
 /**
- * Rute /auth/* tidak memakai AppShell agar halaman login tidak tertutup sidebar/header.
- * Akun regional hanya memakai shell wilayah dan dialihkan dari rute desa.
+ * Route /auth/* not using AppShell so that the login page is not covered by the sidebar/header.
+ * Regional account only using regional shell and redirected from desa route.
  */
 export function AppLayoutClient({
   children,

@@ -1,32 +1,12 @@
 import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/auth";
 import { getToken } from "next-auth/jwt";
+import { authOptions } from "@/auth";
 import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveVillage(session: any, token?: any) {
-  if (session?.user?.villageCode) {
-    const v = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (v) return v;
-  }
-  if (token?.villageCode) {
-    const v = await prisma.village.findUnique({
-      where: { code: token.villageCode },
-    });
-    if (v) return v;
-  }
-  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
-  if (defaultCode) {
-    const v = await prisma.village.findUnique({ where: { code: defaultCode } });
-    if (v) return v;
-  }
-  return prisma.village.findFirst({ orderBy: { id: "asc" } });
-}
+import { requireVillageApiContext } from "@/lib/api-village-context";
+import { resolveFinanceWriteVillage } from "@/lib/finance-village-context";
 
 function generateBudgetCode(category: string, year: number) {
   const prefix = category.substring(0, 3).toUpperCase();
@@ -36,55 +16,98 @@ function generateBudgetCode(category: string, year: number) {
   return `${prefix}-${year}-${random}`;
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await getApiSession(req);
-    const token = await getToken({ req, secret: authOptions.secret });
-    const apiKeyHeader = req.headers.get("x-api-key");
-    const validApiKey = process.env.FINANCE_API_KEY;
-    if (!session?.user && !token?.id) {
-      if (!validApiKey || apiKeyHeader !== validApiKey) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+async function assertBudgetVillageAccess(
+  req: NextRequest,
+  villageId: number,
+  body?: { villageId?: unknown },
+): Promise<NextResponse | null> {
+  const loaded = await requireVillageApiContext(req);
+  if (loaded.ok) {
+    if (loaded.ctx.village.id !== villageId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    return null;
+  }
 
-    const village = await resolveVillage(session, token);
-    if (!village) {
+  const token = await getToken({ req, secret: authOptions.secret });
+  if (
+    token &&
+    token.accountType !== "regional" &&
+    typeof token.villageId === "number" &&
+    token.villageId === villageId
+  ) {
+    return null;
+  }
+
+  const apiKeyHeader = req.headers.get("x-api-key");
+  const validApiKey = process.env.FINANCE_API_KEY;
+  if (validApiKey && apiKeyHeader === validApiKey) {
+    const vid = body != null ? Number(body.villageId) : NaN;
+    if (!Number.isFinite(vid) || vid !== villageId) {
       return NextResponse.json(
-        { error: "Tidak ada desa yang tersedia" },
-        { status: 404 }
+        { error: "villageId di body harus cocok dengan anggaran" },
+        { status: 403 },
       );
     }
+    return null;
+  }
+
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
+    }
+
+    const resolved = await resolveFinanceWriteVillage(req, body as { villageId?: unknown });
+    if (!resolved.ok) return resolved.response;
+    const { village, userId } = resolved;
+
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
 
-    const body = await req.json();
-    const { year, category, subCategory, budgetAmount, description } = body;
+    const { year, category, subCategory, budgetAmount, description } = body as {
+      year?: number | string;
+      category?: string;
+      subCategory?: string;
+      budgetAmount?: number | string;
+      description?: string;
+    };
 
     if (!year || !category || !subCategory || !budgetAmount) {
       return NextResponse.json(
         { error: "Field yang diperlukan tidak lengkap" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const budgetCode = generateBudgetCode(category, year);
+    const budgetCode = generateBudgetCode(category, Number(year));
+
+    const session = await getApiSession(req);
+    const creatorIdRaw =
+      userId != null && Number.isFinite(userId)
+        ? userId
+        : session?.user?.id
+          ? parseInt(String(session.user.id), 10)
+          : undefined;
 
     const budget = await prisma.budget.create({
       data: {
         villageId: village.id,
         budgetCode,
-        year: parseInt(year),
+        year: parseInt(String(year), 10),
         category,
         subCategory,
         description: description || `Anggaran ${category} - ${subCategory}`,
-        budgetAmount: parseFloat(budgetAmount),
+        budgetAmount: parseFloat(String(budgetAmount)),
         realizedAmount: 0,
-        remainingAmount: parseFloat(budgetAmount),
+        remainingAmount: parseFloat(String(budgetAmount)),
         status: "active",
-        createdBy:
-          parseInt((session?.user?.id as string) || (token?.id as string)) || 1,
+        createdBy: creatorIdRaw != null && Number.isFinite(creatorIdRaw) ? creatorIdRaw : 1,
       },
     });
 
@@ -97,26 +120,20 @@ export async function POST(req: NextRequest) {
     console.error("POST /api/finance/budgets error:", err);
     return NextResponse.json(
       { error: "Gagal menyimpan anggaran" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    const token = await getToken({ req, secret: authOptions.secret });
-    if (!session?.user && !token?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await req.json();
     const { id, category, subCategory, budgetAmount, status } = body;
 
     if (!id) {
       return NextResponse.json(
         { error: "ID anggaran diperlukan" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -127,9 +144,12 @@ export async function PUT(req: NextRequest) {
     if (!currentBudget) {
       return NextResponse.json(
         { error: "Anggaran tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
+
+    const authErr = await assertBudgetVillageAccess(req, currentBudget.villageId, body);
+    if (authErr) return authErr;
 
     const village = await prisma.village.findUnique({
       where: { id: currentBudget.villageId },
@@ -164,7 +184,7 @@ export async function PUT(req: NextRequest) {
     console.error("PUT /api/finance/budgets error:", err);
     return NextResponse.json(
       { error: "Gagal mengupdate anggaran" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

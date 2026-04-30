@@ -1,7 +1,6 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 type SubscriptionTier =
@@ -91,33 +90,19 @@ function normalizeStatus(status?: string | null) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
     const url = new URL(req.url);
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
     const pageSize = Math.min(
       100,
-      Math.max(1, Number(url.searchParams.get("pageSize") ?? 50))
+      Math.max(1, Number(url.searchParams.get("pageSize") ?? 50)),
     );
     const search = url.searchParams.get("search") ?? undefined;
     const status = normalizeStatus(url.searchParams.get("status"));
-
-    const village = await resolveVillage({
-      req,
-      queryVillageCode: villageCode,
-      session,
-    });
-
-    if (!village) {
-      return NextResponse.json(
-        {
-          error:
-            "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
-        },
-        { status: 404 }
-      );
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

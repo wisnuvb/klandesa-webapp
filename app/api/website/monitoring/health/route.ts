@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -17,14 +16,12 @@ function requireVillageAdmin(session: unknown) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village, session } = loaded.ctx;
     const forbidden = requireVillageAdmin(session);
     if (forbidden) return forbidden;
 
-    const village = await resolveVillage({ req, session });
-    if (!village) return NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 });
     if (!isVillageSubscriptionActive(village)) return subscriptionBlockedResponse(village);
 
     const [total, active, pending, errorCount, lastError] = await Promise.all([

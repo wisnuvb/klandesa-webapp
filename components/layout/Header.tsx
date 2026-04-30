@@ -55,7 +55,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
       setNotifications(data.notifications ?? []);
       setUnreadCount(typeof data.unreadCount === "number" ? data.unreadCount : 0);
     } catch {
-      /* abaikan */
+      /* ignore */
     } finally {
       setNotifLoading(false);
     }
@@ -79,7 +79,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
       );
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch {
-      /* abaikan */
+      /* ignore */
     }
   };
 
@@ -99,7 +99,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch {
-      /* abaikan */
+      /* ignore */
     }
   };
 

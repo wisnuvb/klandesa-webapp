@@ -1,8 +1,7 @@
-import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { PutObjectCommand, type PutObjectCommandInput } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { resolveVillage } from "@/lib/village";
 import { prisma } from "@/lib/prisma";
 import {
   buildSpacesPublicUrl,
@@ -33,15 +32,9 @@ function objectAclEnabled(): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

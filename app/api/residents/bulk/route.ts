@@ -1,4 +1,4 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
  
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
@@ -49,23 +49,6 @@ const TRANSACTION_TIMEOUT = 300000; // 5 minutes
 //   return map[id] ?? id;
 // }
 
-async function resolveVillage(session?: any) {
-  if (session?.user?.villageId != null) {
-    const byId = await prisma.village.findUnique({
-      where: { id: session.user.villageId },
-    });
-    if (byId) return byId;
-  }
-
-  if (session?.user?.villageCode) {
-    return prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-  }
-
-  return null;
-}
-
 function validateResidentData(row: any): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -115,21 +98,10 @@ function parseYN(val: any): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Anda harus login terlebih dahulu" },
-        { status: 401 }
-      );
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
 
-    const village = await resolveVillage(session);
-    if (!village) {
-      return NextResponse.json(
-        { error: "Desa tidak ditemukan" },
-        { status: 404 }
-      );
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

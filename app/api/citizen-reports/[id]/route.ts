@@ -1,7 +1,6 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -21,24 +20,14 @@ function mapRoleLabel(role?: string | null): string {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
-    if (!isVillageSubscriptionActive(village)) {
-      return subscriptionBlockedResponse(village);
-    }
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -86,18 +75,16 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const session = await getApiSession(req);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village, session } = loaded.ctx;
 
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();
@@ -116,11 +103,11 @@ export async function PATCH(
     if (!allowed || !allowed.includes(status)) {
       return NextResponse.json(
         { error: `Tidak dapat mengubah status dari ${existing.status} ke ${status}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const userId = Number((session.user as { id?: string | number }).id);
+    const userId = Number(session.user.id);
     const updated = await prisma.citizenReport.update({
       where: { id: reportId },
       data: {
@@ -130,7 +117,6 @@ export async function PATCH(
       },
     });
 
-    // If rejecting with reason, add a response automatically
     if (status === "REJECT" && body.reason?.trim()) {
       await prisma.citizenReportResponse.create({
         data: {
@@ -139,7 +125,7 @@ export async function PATCH(
           response: body.reason.trim(),
           responderId: userId || null,
           responderName: session.user.name || "Admin",
-          responderRole: mapRoleLabel((session.user as { role?: string }).role),
+          responderRole: mapRoleLabel(session.user.role),
         },
       });
     }

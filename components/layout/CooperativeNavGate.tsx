@@ -22,8 +22,8 @@ function isAllowedPath(pathname: string): boolean {
 }
 
 /**
- * Pengurus/manager koperasi (role staff) tidak boleh mengakses rute dashboard desa lewat URL;
- * dialihkan ke /koperasi.
+ * Pengurus/manager cooperative (role staff) not allowed to access desa dashboard via URL;
+ * redirect to /cooperative.
  */
 export function CooperativeNavGate() {
   const pathname = usePathname();

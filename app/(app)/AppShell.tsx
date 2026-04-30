@@ -106,6 +106,10 @@ const pageConfig = {
     title: "Pengaduan Masyarakat",
     subtitle: "Kelola laporan dan pengaduan warga",
   },
+  "bantuan-program-keluarga": {
+    title: "Bantuan Sosial & Program Keluarga",
+    subtitle: "Kelola program desa dan penerima untuk cek publik NIK",
+  },
   "galeri-desa": {
     title: "Galeri Kegiatan Desa",
     subtitle: "Dokumentasi foto kegiatan dan pembangunan",

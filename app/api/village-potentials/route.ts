@@ -1,62 +1,18 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSubdomain } from "@/lib/subdomain";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
 
-async function resolveVillage(
-  req: NextRequest,
-  queryVillageCode?: string,
-  session?: any,
-) {
-  if (session?.user?.villageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (village) return village;
-  }
-
-  if (queryVillageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: queryVillageCode },
-    });
-    if (village) return village;
-  }
-
-  const sub = getSubdomain(req);
-  if (sub && sub !== "app") {
-    const village = await prisma.village.findUnique({ where: { code: sub } });
-    if (village) return village;
-  }
-
-  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
-  if (defaultCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: defaultCode },
-    });
-    if (village) return village;
-  }
-
-  const firstVillage = await prisma.village.findFirst();
-  return firstVillage;
-}
-
-// GET - Fetch village potentials
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const village = await resolveVillage(req, undefined, session);
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
 
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -69,7 +25,6 @@ export async function GET(req: NextRequest) {
 
     const skip = (page - 1) * pageSize;
 
-    // Build where clause
     const where: any = {
       villageId: village.id,
     };
@@ -86,7 +41,6 @@ export async function GET(req: NextRequest) {
       where.year = year;
     }
 
-    // Fetch data with pagination
     const [rows, total] = await Promise.all([
       prisma.villagePotential.findMany({
         where,
@@ -113,24 +67,18 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST - Create village potential
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const body = await req.json();
-    const village = await resolveVillage(req, body.villageCode, session);
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
 
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const body = await req.json();
+
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
 
-    // Validate required fields
     const requiredFields = [
       "year",
       "population",
@@ -154,7 +102,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check if year already exists for this village
     const existing = await prisma.villagePotential.findUnique({
       where: {
         villageId_year: {
@@ -171,7 +118,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create village potential
     const villagePotential = await prisma.villagePotential.create({
       data: {
         villageId: village.id,

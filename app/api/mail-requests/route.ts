@@ -1,40 +1,25 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
     const url = new URL(req.url);
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
     const search = url.searchParams.get("search") ?? undefined;
     const status = url.searchParams.get("status") ?? undefined;
     const page = Number(url.searchParams.get("page") ?? 1);
     const pageSize = Number(url.searchParams.get("pageSize") ?? 10);
 
-    const village = await resolveVillage({
-      req,
-      queryVillageCode: villageCode,
-      session,
-    });
-
-    if (!village) {
-      return NextResponse.json(
-        {
-          error:
-            "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
-        },
-        { status: 404 }
-      );
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
 
-    // Build where clause
     const where: any = { villageId: village.id };
 
     if (search) {
@@ -46,11 +31,10 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // Map UI status to DB status
     if (status && status !== "all") {
       const statusMap: Record<string, string> = {
         PENDING: "pending",
-        DIPROSES: "pending", // For now, "DIPROSES" maps to pending
+        DIPROSES: "pending",
         SELESAI: "approved",
         DITOLAK: "rejected",
       };
@@ -60,10 +44,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Get total count
     const total = await prisma.mailRequest.count({ where });
 
-    // Get paginated data
     const rows = await prisma.mailRequest.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -71,22 +53,21 @@ export async function GET(req: NextRequest) {
       take: Math.max(1, pageSize),
     });
 
-    // Map to UI format
     const mappedRows = rows.map((row) => ({
       id: Number(row.id),
       pemohon_name: row.name,
       pemohon_nik: row.nik,
-      pemohon_phone: "", // Not in schema, can be added later
+      pemohon_phone: "",
       jenis_surat: row.mailType,
       keperluan: row.purpose,
       status:
         row.status === "approved"
           ? "SELESAI"
           : row.status === "rejected"
-          ? "DITOLAK"
-          : "PENDING", // For now, all pending are shown as PENDING
+            ? "DITOLAK"
+            : "PENDING",
       created_at: row.requestDate.toISOString(),
-      lampiran: [], // Can be added if attachments are stored
+      lampiran: [],
       catatan: row.notes || row.rejectionReason || undefined,
       requestNumber: row.requestNumber,
       processedDate: row.processedDate?.toISOString(),
@@ -102,17 +83,19 @@ export async function GET(req: NextRequest) {
     console.error("GET /api/mail-requests error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// PUT - Update status of mail request
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
     }
 
     const body = await req.json();
@@ -121,11 +104,10 @@ export async function PUT(req: NextRequest) {
     if (!id || !status) {
       return NextResponse.json(
         { error: "ID dan status harus diisi" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Map UI status to DB status
     const statusMap: Record<string, string> = {
       PENDING: "pending",
       DIPROSES: "pending",
@@ -137,7 +119,18 @@ export async function PUT(req: NextRequest) {
     if (!dbStatus) {
       return NextResponse.json(
         { error: "Status tidak valid" },
-        { status: 400 }
+        { status: 400 },
+      );
+    }
+
+    const existing = await prisma.mailRequest.findFirst({
+      where: { id: BigInt(id), villageId: village.id },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Permohonan tidak ditemukan" },
+        { status: 404 },
       );
     }
 
@@ -170,7 +163,7 @@ export async function PUT(req: NextRequest) {
     console.error("PUT /api/mail-requests error:", err);
     return NextResponse.json(
       { error: err?.message || "Gagal memperbarui permohonan" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

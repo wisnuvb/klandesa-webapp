@@ -1,8 +1,7 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isRegionalAccount } from "@/lib/regional-session";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { haversineDistanceMeters } from "@/lib/geo/haversine";
 
@@ -97,16 +96,9 @@ async function resolveOfficialForUser(villageId: number, userId: number) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (isRegionalAccount(session)) {
-      return NextResponse.json(
-        { error: "Akun wilayah tidak dapat mencatat absensi desa." },
-        { status: 403 },
-      );
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { session, village: boundVillage } = loaded.ctx;
 
     const userId = parseInt(String(session.user.id), 10);
     if (!Number.isFinite(userId) || userId <= 0) {
@@ -153,7 +145,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Data desa pada QR tidak valid" }, { status: 400 });
       }
 
-      if (session.user.villageId !== vid) {
+      if (boundVillage.id !== vid) {
         return NextResponse.json(
           { error: "QR ini untuk desa lain. Pastikan Anda login ke akun desa yang sama." },
           { status: 403 },
@@ -199,14 +191,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      if (!session.user.villageId) {
-        return NextResponse.json(
-          { error: "Sesi tidak memiliki desa; login ulang." },
-          { status: 400 },
-        );
-      }
-
-      villageId = session.user.villageId;
+      villageId = boundVillage.id;
 
       const v = await prisma.village.findUnique({
         where: { id: villageId },

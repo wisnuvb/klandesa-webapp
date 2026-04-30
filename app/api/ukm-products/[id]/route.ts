@@ -1,8 +1,7 @@
-import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { normalizeImageUrls } from "@/app/(app)/ukm/_utils";
 import {
@@ -16,14 +15,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -60,20 +54,14 @@ export async function GET(
   }
 }
 
-export async function PUT(
+export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
 
     const { id: idParam } = await params;
     const id = parseInt(idParam);
@@ -108,53 +96,84 @@ export async function PUT(
       notes?: unknown;
     };
 
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    const description =
-      typeof body.description === "string" ? body.description.trim() : "";
+    const has = (k: keyof typeof body) =>
+      Object.prototype.hasOwnProperty.call(body, k);
 
-    if (!name) {
+    const data: Record<string, unknown> = {};
+
+    if (has("name")) {
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      if (!name) {
+        return NextResponse.json(
+          { error: "Nama produk wajib diisi" },
+          { status: 400 },
+        );
+      }
+      data.name = name;
+    }
+
+    if (has("description")) {
+      const description =
+        typeof body.description === "string" ? body.description.trim() : "";
+      if (!description) {
+        return NextResponse.json(
+          { error: "Deskripsi produk wajib diisi" },
+          { status: 400 },
+        );
+      }
+      data.description = description;
+    }
+
+    if (has("category")) {
+      const category =
+        typeof body.category === "string" ? body.category.trim() : "";
+      data.subCategory = category || null;
+    }
+
+    if (has("images")) {
+      data.images = normalizeImageUrls(body.images);
+    }
+
+    if (has("unit")) {
+      const unit = typeof body.unit === "string" ? body.unit.trim() : "";
+      data.productionUnit = unit || null;
+    }
+
+    if (has("notes")) {
+      const notesRaw = typeof body.notes === "string" ? body.notes.trim() : "";
+      data.productNotes = notesRaw || null;
+    }
+
+    if (has("stockQuantity")) {
+      data.stockQuantity = parseStockQuantity(body.stockQuantity);
+    }
+
+    if (has("price")) {
+      const priceNum =
+        typeof body.price === "number"
+          ? body.price
+          : typeof body.price === "string"
+            ? parseFloat(body.price)
+            : 0;
+      const price =
+        typeof priceNum === "number" &&
+        Number.isFinite(priceNum) &&
+        priceNum > 0
+          ? new Prisma.Decimal(priceNum)
+          : null;
+      data.productionValue = price;
+    }
+
+    if (Object.keys(data).length === 0) {
       return NextResponse.json(
-        { error: "Nama produk wajib diisi" },
+        { error: "Tidak ada field yang diubah" },
         { status: 400 },
       );
     }
-    if (!description) {
-      return NextResponse.json(
-        { error: "Deskripsi produk wajib diisi" },
-        { status: 400 },
-      );
-    }
-
-    const category =
-      typeof body.category === "string" ? body.category.trim() : "";
-    const images = normalizeImageUrls(body.images);
-    const unit = typeof body.unit === "string" ? body.unit.trim() : "";
-    const notesRaw = typeof body.notes === "string" ? body.notes.trim() : "";
-    const stockQuantity = parseStockQuantity(body.stockQuantity);
-
-    const priceNum =
-      typeof body.price === "number"
-        ? body.price
-        : typeof body.price === "string"
-          ? parseFloat(body.price)
-          : 0;
-    const price =
-      typeof priceNum === "number" && Number.isFinite(priceNum) && priceNum > 0
-        ? new Prisma.Decimal(priceNum)
-        : null;
 
     const updated = await prisma.potential.update({
       where: { id },
-      data: {
-        name,
-        description,
-        subCategory: category || null,
-        productionValue: price,
-        productionUnit: unit || null,
-        stockQuantity,
-        productNotes: notesRaw || null,
-        images,
-      },
+      data,
       select: ukmProductSelect,
     });
 
@@ -168,20 +187,21 @@ export async function PUT(
   }
 }
 
+export async function PUT(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  return PATCH(req, ctx);
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
 
     const { id: idParam } = await params;
     const id = parseInt(idParam);

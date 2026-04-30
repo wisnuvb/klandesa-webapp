@@ -1,21 +1,14 @@
-import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
-import { resolveVillage } from "@/lib/village";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
 import { mapDesaTierToAddonTier, type DesaPackageTier } from "@/lib/billing/catalog";
 import { effectiveVillageStorageLimitGb } from "@/lib/digitalArchive/quota";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village tidak ditemukan" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
 
     const now = Date.now();
     const subscriptionActive =

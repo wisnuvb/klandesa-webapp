@@ -1,7 +1,6 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 function mapRoleLabel(role?: string | null): string {
@@ -16,19 +15,14 @@ function mapRoleLabel(role?: string | null): string {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const session = await getApiSession(req);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village, session } = loaded.ctx;
 
-    const village = await resolveVillage({ req, session });
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -51,12 +45,15 @@ export async function POST(
 
     if (existing.status === "REJECT" || existing.status === "DONE") {
       return NextResponse.json(
-        { error: "Tidak dapat menambah tanggapan pada laporan yang sudah selesai atau ditolak" },
-        { status: 400 }
+        {
+          error:
+            "Tidak dapat menambah tanggapan pada laporan yang sudah selesai atau ditolak",
+        },
+        { status: 400 },
       );
     }
 
-    const userId = Number((session.user as { id?: string | number }).id);
+    const userId = Number(session.user.id);
     const created = await prisma.citizenReportResponse.create({
       data: {
         citizenReportId: reportId,
@@ -64,7 +61,7 @@ export async function POST(
         response: response.trim(),
         responderId: userId || null,
         responderName: session.user.name || "Admin",
-        responderRole: mapRoleLabel((session.user as { role?: string }).role),
+        responderRole: mapRoleLabel(session.user.role),
       },
     });
 
@@ -76,7 +73,7 @@ export async function POST(
         responder_role: created.responderRole,
         created_at: created.createdAt.toISOString(),
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("POST /api/citizen-reports/[id]/responses error:", error);

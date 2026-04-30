@@ -1,7 +1,6 @@
-import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 type SubscriptionTier =
@@ -63,25 +62,9 @@ function toDateString(date: Date) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    const url = new URL(req.url);
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
-
-    const village = await resolveVillage({
-      req,
-      queryVillageCode: villageCode,
-      session,
-    });
-
-    if (!village) {
-      return NextResponse.json(
-        {
-          error:
-            "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
-        },
-        { status: 404 },
-      );
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village, session } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

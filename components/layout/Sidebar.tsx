@@ -21,6 +21,7 @@ import {
   Settings2,
   Monitor,
   Landmark,
+  HeartHandshake,
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
@@ -178,6 +179,12 @@ const BASE_SIDEBAR_MENU: MenuItem[] = [
         label: "Aduan Warga",
         icon: AlertCircle,
         path: "/pengaduan-masyarakat",
+      },
+      {
+        id: "bantuan-program-keluarga",
+        label: "Bansos & PKH",
+        icon: HeartHandshake,
+        path: "/bantuan-program-keluarga",
       },
       {
         id: "galeri-desa",

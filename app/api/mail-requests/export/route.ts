@@ -1,41 +1,24 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import * as XLSX from "xlsx";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
     const url = new URL(req.url);
-    const format = url.searchParams.get("format") || "excel";
     const search = url.searchParams.get("search") ?? undefined;
     const status = url.searchParams.get("status") ?? undefined;
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
-    // Resolve village
-    const village = await resolveVillage({
-      req,
-      queryVillageCode: villageCode,
-      session,
-    });
-
-    if (!village) {
-      return NextResponse.json(
-        {
-          error:
-            "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
-        },
-        { status: 404 }
-      );
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
 
-    // Build where clause
     const where: any = { villageId: village.id };
 
     if (search) {
@@ -47,7 +30,6 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // Map UI status to DB status
     if (status && status !== "all") {
       const statusMap: Record<string, string> = {
         PENDING: "pending",
@@ -61,7 +43,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Get all mail requests matching the filter (no pagination for export)
     const mailRequests = await prisma.mailRequest.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -70,11 +51,10 @@ export async function GET(req: NextRequest) {
     if (mailRequests.length === 0) {
       return NextResponse.json(
         { error: "Tidak ada data untuk diekspor" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Format data for export
     const exportData = mailRequests.map((request, index) => ({
       No: index + 1,
       "No. Permohonan": request.requestNumber || "",
@@ -86,8 +66,8 @@ export async function GET(req: NextRequest) {
         request.status === "approved"
           ? "Selesai"
           : request.status === "rejected"
-          ? "Ditolak"
-          : "Pending",
+            ? "Ditolak"
+            : "Pending",
       "Tanggal Pengajuan": request.requestDate
         ? new Date(request.requestDate).toLocaleDateString("id-ID", {
             day: "2-digit",
@@ -109,31 +89,27 @@ export async function GET(req: NextRequest) {
       Catatan: request.notes || request.rejectionReason || "",
     }));
 
-    // Generate Excel
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Permohonan Warga");
 
-    // Auto-size columns
     const maxWidth = 50;
     const colWidths = Object.keys(exportData[0]).map((key) => {
       const maxLength = Math.max(
         key.length,
-        ...exportData.map((row) => String(row[key as keyof typeof row]).length)
+        ...exportData.map((row) => String(row[key as keyof typeof row]).length),
       );
       return { wch: Math.min(maxLength + 2, maxWidth) };
     });
     worksheet["!cols"] = colWidths;
 
     const buffer = Buffer.from(
-      XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
+      XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }),
     );
 
-    // Generate filename with timestamp
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `permohonan-warga-${village.code}-${timestamp}.xlsx`;
 
-    // Return file with proper headers
     return new NextResponse(buffer, {
       headers: {
         "Content-Type":
@@ -146,7 +122,7 @@ export async function GET(req: NextRequest) {
     console.error("Error exporting mail requests:", error);
     return NextResponse.json(
       { error: "Gagal mengekspor data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

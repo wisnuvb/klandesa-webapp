@@ -1,8 +1,7 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSubdomain } from "@/lib/subdomain";
 import {
   getEducationLevel,
   getJob,
@@ -40,71 +39,12 @@ function mapReligionId(id: string) {
   return map[id] ?? id;
 }
 
-async function resolveVillage(
-  req: NextRequest,
-  queryVillageCode?: string,
-  session?: any,
-) {
-  // Priority 1: Use villageCode from session (authenticated user)
-  if (session?.user?.villageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: session.user.villageCode },
-    });
-    if (village) return village;
-  }
-
-  // Priority 2: Use villageCode from query parameter (for testing/manual override)
-  if (queryVillageCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: queryVillageCode },
-    });
-    if (village) return village;
-  }
-
-  // Priority 3: Use subdomain (for future multi-domain tenant routing)
-  const sub = getSubdomain(req);
-  if (sub && sub !== "app") {
-    const village = await prisma.village.findUnique({ where: { code: sub } });
-    if (village) return village;
-  }
-
-  // Fallback 1: use DEFAULT_VILLAGE_CODE from env (for development)
-  const defaultCode = process.env.DEFAULT_VILLAGE_CODE;
-  if (defaultCode) {
-    const village = await prisma.village.findUnique({
-      where: { code: defaultCode },
-    });
-    if (village) return village;
-  }
-
-  // Fallback 2: use the first village in database
-  const firstVillage = await prisma.village.findFirst({
-    orderBy: { id: "asc" },
-  });
-  if (firstVillage) return firstVillage;
-
-  return null;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
     const body = await req.json();
-
-    // Resolve village from session (authenticated user) or provided code in body
-    const village = await resolveVillage(req, body.villageCode, session);
-    if (!village) {
-      return NextResponse.json(
-        {
-          error:
-            "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
-        },
-        { status: 404 },
-      );
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -205,10 +145,10 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
     const url = new URL(req.url);
     const page = Number(url.searchParams.get("page") ?? 1);
     const pageSize = Number(url.searchParams.get("pageSize") ?? 10);
@@ -218,18 +158,7 @@ export async function GET(req: NextRequest) {
     const search = url.searchParams.get("search") ?? undefined;
     const gender = url.searchParams.get("gender") ?? undefined; // Laki-laki, Perempuan
     const status = url.searchParams.get("status") ?? undefined; // Belum Kawin, Kawin, Cerai Hidup, Cerai Mati
-    const villageCode = url.searchParams.get("villageCode") ?? undefined;
 
-    const village = await resolveVillage(req, villageCode, session);
-    if (!village) {
-      return NextResponse.json(
-        {
-          error:
-            "Tidak ada desa yang tersedia. Login terlebih dahulu atau atur DEFAULT_VILLAGE_CODE di env.",
-        },
-        { status: 404 },
-      );
-    }
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }

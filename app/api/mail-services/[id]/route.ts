@@ -1,8 +1,7 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveVillage } from "@/lib/village";
 import {
   buildLetterFormSnapshot,
   mergeMailFormDataForPersistence,
@@ -15,12 +14,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getApiSession(req);
-    const village = await resolveVillage({ req, session });
-
-    if (!village) {
-      return NextResponse.json({ error: "Village not found" }, { status: 404 });
-    }
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village, userId } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -81,7 +77,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
-    const changedBy = session?.user?.id ? parseInt(session.user.id, 10) : undefined;
+    const changedBy = userId;
 
     const serverSnapshot = await buildLetterFormSnapshot(village.id);
     const persistedFormData = mergeMailFormDataForPersistence(
