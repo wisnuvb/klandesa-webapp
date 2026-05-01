@@ -6,6 +6,7 @@ export type LandingPageSeoKey =
   | "fitur"
   | "harga"
   | "harga-pangan"
+  | "beasiswa"
   | "cek-bantuan-program"
   | "karir"
   | "demo";
@@ -83,6 +84,22 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
       "HET",
       "SP2KP",
       "kemendag",
+      "klandesa",
+    ],
+    robots: "index, follow",
+  },
+  beasiswa: {
+    pathname: "/beasiswa",
+    title: "Info Beasiswa LPDP — Program yang Sedang Dibuka",
+    description:
+      "Lihat daftar program beasiswa LPDP yang sedang dibuka, termasuk ringkasan informasi, tenggat, serta filter dan pengurutan agar mudah menemukan yang sesuai.",
+    keywords: [
+      "beasiswa",
+      "beasiswa LPDP",
+      "pendaftaran beasiswa",
+      "tenggat beasiswa",
+      "beasiswa S2",
+      "beasiswa S3",
       "klandesa",
     ],
     robots: "index, follow",

@@ -34,6 +34,7 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
     {
       name: "Layanan Warga",
       children: [
+        { name: "Beasiswa", href: "/beasiswa", type: "route" },
         { name: "Harga Pangan", href: "/harga-pangan", type: "route" },
         {
           name: "Cek Bansos Program",
@@ -112,6 +113,7 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
                         <DropdownMenuItem
                           key={c.name}
                           onSelect={() => handleNavClick(c.href, c.type)}
+                          className="text-sm sm:text-base"
                         >
                           {c.name}
                         </DropdownMenuItem>

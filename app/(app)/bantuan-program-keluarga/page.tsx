@@ -559,8 +559,8 @@ export default function BantuanProgramKeluargaPage() {
               {editingProg ? "Ubah program" : "Program baru"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-1">
-            <div>
+          <div className="space-y-3 sm:space-y-4 py-1">
+            <div className="space-y-2">
               <Label htmlFor="p-name">Nama program</Label>
               <Input
                 id="p-name"
@@ -571,7 +571,7 @@ export default function BantuanProgramKeluargaPage() {
                 placeholder='mis. BLT penyaluran 2026'
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="p-period">Label periode (opsional)</Label>
               <Input
                 id="p-period"
@@ -582,7 +582,7 @@ export default function BantuanProgramKeluargaPage() {
                 placeholder="mis. Tahap I / Mei 2026"
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="p-note">Catatan internal (tidak ditampilkan)</Label>
               <Textarea
                 id="p-note"
@@ -594,7 +594,7 @@ export default function BantuanProgramKeluargaPage() {
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="space-y-2">
                 <Label>Urutan</Label>
                 <Input
                   type="number"
@@ -643,8 +643,8 @@ export default function BantuanProgramKeluargaPage() {
               {editingBen ? "Ubah peserta" : "Peserta baru"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-1">
-            <div>
+          <div className="space-y-3 sm:space-y-4 py-1">
+            <div className="space-y-2">
               <Label htmlFor="b-nik">NIK (16 digit)</Label>
               <Input
                 id="b-nik"
@@ -663,7 +663,7 @@ export default function BantuanProgramKeluargaPage() {
                 </p>
               ) : null}
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Status ringkas</Label>
               <Select
                 value={benForm.status}
@@ -686,7 +686,7 @@ export default function BantuanProgramKeluargaPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="b-pub">Catatan publik singkat (opsional)</Label>
               <Textarea
                 id="b-pub"

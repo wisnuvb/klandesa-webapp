@@ -93,14 +93,14 @@ export function CekBantuanProgramKeluargaPublic() {
             </p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4 flex gap-3">
+            <form onSubmit={handleSubmit} className="space-y-1 sm:space-y-4 flex flex-col sm:flex-row gap-1 sm:gap-3">
               <Input
                 inputMode="numeric"
                 autoComplete="off"
                 placeholder="Contoh: 3201010101010001"
                 value={nik}
                 onChange={(e) => setNik(e.target.value)}
-                className="text-lg tracking-wide"
+                className="text-base sm:text-lg tracking-wide"
                 maxLength={19}
               />
               <Button
