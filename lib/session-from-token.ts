@@ -12,7 +12,8 @@ export type JwtPayload = Record<string, unknown> & {
   villageId?: number;
   villageCode?: string;
   village?: unknown;
-  accountType?: "village" | "regional";
+  partnerId?: number;
+  accountType?: "village" | "regional" | "partner" | "platform";
   regionalScope?: RegionalScope;
 };
 
@@ -39,10 +40,18 @@ export function jwtPayloadToSession(token: JwtPayload | null): Session | null {
       email: token.email ?? null,
       image: (token.picture as string | undefined) ?? null,
       role: token.role as string | undefined,
-      accountType: (token.accountType as "village" | "regional" | undefined) ?? "village",
+      accountType:
+        (token.accountType as
+          | "village"
+          | "regional"
+          | "partner"
+          | "platform"
+          | undefined) ??
+        "village",
       regionalScope: token.regionalScope as RegionalScope | undefined,
       villageId: token.villageId as number | undefined,
       villageCode: token.villageCode as string | undefined,
+      partnerId: token.partnerId as number | undefined,
       village: token.village as Session["user"] extends { village?: infer V }
         ? V
         : undefined,

@@ -32,8 +32,26 @@ export type JwtTokenPayloadRegional = {
   accountType: "regional";
 };
 
+export type JwtTokenPayloadPartner = {
+  id: number;
+  email: string;
+  role: string;
+  accountType: "partner";
+};
+
+export type JwtTokenPayloadPlatform = {
+  id: number;
+  email: string;
+  role: string;
+  accountType: "platform";
+};
+
 export function generateTokens(
-  payload: JwtTokenPayloadVillage | JwtTokenPayloadRegional,
+  payload:
+    | JwtTokenPayloadVillage
+    | JwtTokenPayloadRegional
+    | JwtTokenPayloadPartner
+    | JwtTokenPayloadPlatform,
 ) {
   const accessToken = jwt.sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRY,

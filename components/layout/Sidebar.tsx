@@ -58,6 +58,54 @@ const COOPERATIVE_ONLY_SIDEBAR_MENU: MenuItem[] = [
   },
 ];
 
+const PARTNER_SIDEBAR_MENU: MenuItem[] = [
+  {
+    id: "mitra",
+    label: "Dashboard",
+    icon: Home,
+    path: "/mitra",
+  },
+  {
+    id: "mitra/prospek",
+    label: "Prospek Desa",
+    icon: Users,
+    path: "/mitra/prospek",
+  },
+  {
+    id: "mitra/profil",
+    label: "Profil & Rekening",
+    icon: UserCircle,
+    path: "/mitra/profil",
+  },
+  {
+    id: "mitra/komisi",
+    label: "Komisi",
+    icon: Wallet,
+    path: "/mitra/komisi",
+  },
+];
+
+const PLATFORM_SIDEBAR_MENU: MenuItem[] = [
+  {
+    id: "admin",
+    label: "Admin",
+    icon: Home,
+    path: "/admin",
+  },
+  {
+    id: "admin/desa",
+    label: "Kelola Desa",
+    icon: Users,
+    path: "/admin/desa",
+  },
+  {
+    id: "admin/mitra",
+    label: "Kelola Mitra",
+    icon: HeartHandshake,
+    path: "/admin/mitra",
+  },
+];
+
 const BASE_SIDEBAR_MENU: MenuItem[] = [
   {
     id: "dashboard",
@@ -256,8 +304,19 @@ export function Sidebar({
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const { access, loading: coopNavLoading } = useCooperativeNav();
+  const { user, isLoading } = useNextAuthSession();
+  const userId = typeof user?.id === "string" ? user.id : "";
+  const isPartner = user?.accountType === "partner" || userId.startsWith("pt:");
+  const isPlatform =
+    user?.accountType === "platform" || userId.startsWith("pl:");
 
   const visibleMenuItems = useMemo(() => {
+    if (isPlatform) {
+      return PLATFORM_SIDEBAR_MENU;
+    }
+    if (isPartner) {
+      return PARTNER_SIDEBAR_MENU;
+    }
     if (access?.cooperativeOnlyNav) {
       return COOPERATIVE_ONLY_SIDEBAR_MENU;
     }
@@ -265,9 +324,7 @@ export function Sidebar({
       BASE_SIDEBAR_MENU,
       Boolean(!coopNavLoading && access?.showCoopMenu),
     );
-  }, [access, coopNavLoading]);
-
-  const { user, isLoading } = useNextAuthSession();
+  }, [access, coopNavLoading, isPartner, isPlatform]);
 
   const toggleExpand = (id: string) => {
     // Accordion behavior - only one can be open at a time
@@ -313,7 +370,7 @@ export function Sidebar({
               "bg-primary text-primary-foreground shadow-sm",
             !isActive &&
               "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            isCollapsed && "justify-center px-2"
+            isCollapsed && "justify-center px-2",
           )}
           title={isCollapsed ? item.label : undefined}
         >
@@ -351,7 +408,7 @@ export function Sidebar({
               >
                 <div className="mt-1 space-y-1">
                   {item.children?.map((child) =>
-                    renderMenuItem(child, level + 1)
+                    renderMenuItem(child, level + 1),
                   )}
                 </div>
               </motion.div>
@@ -364,11 +421,15 @@ export function Sidebar({
 
   const getDisplayVillageName = () => {
     if (isLoading) return "Memuat...";
+    if (isPlatform) return "Klandesa";
+    if (isPartner) return user?.name || "Mitra";
     return user?.village?.name || "Desa";
   };
 
   const getDisplayVillageDistrict = () => {
     if (isLoading) return "Memuat...";
+    if (isPlatform) return user?.email || "Admin platform";
+    if (isPartner) return user?.email || "Akun mitra";
     return user?.village?.district || "Kecamatan";
   };
 
@@ -399,20 +460,20 @@ export function Sidebar({
           "bg-sidebar border-r border-sidebar-border flex flex-col h-screen z-50",
           "transition-all duration-300",
           "fixed md:relative",
-          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
         {/* Logo & Title */}
         <div
           className={cn(
             "transition-all duration-300",
-            isCollapsed ? "px-2 py-5" : "px-6 py-5"
+            isCollapsed ? "px-2 py-5" : "px-6 py-5",
           )}
         >
           <div
             className={cn(
               "flex items-center gap-3",
-              isCollapsed && "justify-center"
+              isCollapsed && "justify-center",
             )}
           >
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shrink-0">
@@ -431,7 +492,7 @@ export function Sidebar({
                 <p className="text-xs text-muted-foreground whitespace-nowrap">
                   {getDisplayVillageDistrict()}
                 </p>
-                {access?.cooperativeOnlyNav && (
+                {!isPartner && !isPlatform && access?.cooperativeOnlyNav && (
                   <p className="text-xs text-primary font-medium mt-1 whitespace-nowrap">
                     Mode pengelola koperasi
                   </p>
@@ -455,7 +516,7 @@ export function Sidebar({
         <nav
           className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden space-y-1 transition-all duration-300",
-            isCollapsed ? "p-2" : "p-4"
+            isCollapsed ? "p-2" : "p-4",
           )}
         >
           {visibleMenuItems.map((item) => renderMenuItem(item))}
@@ -465,7 +526,7 @@ export function Sidebar({
         <div
           className={cn(
             "border-t border-sidebar-border transition-all duration-300",
-            isCollapsed ? "p-2" : "p-4"
+            isCollapsed ? "p-2" : "p-4",
           )}
         >
           <Button
@@ -473,7 +534,7 @@ export function Sidebar({
             onClick={onCollapse}
             className={cn(
               "w-full justify-start gap-2 hidden md:flex",
-              isCollapsed && "justify-center px-2"
+              isCollapsed && "justify-center px-2",
             )}
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >

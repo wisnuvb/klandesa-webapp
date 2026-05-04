@@ -5,7 +5,15 @@ import Link from "next/link";
 import { RecentActivity } from "@/components/app/RecentActivity";
 import { StatsCard } from "@/components/app/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, Wallet, TrendingUp } from "lucide-react";
+import { Users, FileText, Wallet, TrendingUp, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   BarChart,
   Bar,
@@ -31,6 +39,30 @@ type DashboardStats = {
     gender: { name: string; value: number; color?: string }[];
     age: { name: string; value: number }[];
     education: { name: string; value: number }[];
+  };
+  statusDesa?: {
+    idm?: {
+      configured: boolean;
+      year: number;
+      villageCode: string;
+      cached: boolean;
+      sourceUrl: string;
+      score: number | null;
+      status: string | null;
+      subScores: { social: number | null; economic: number | null; ecology: number | null };
+      error: string | null;
+    };
+    idmHistory?: Array<{
+      year: number;
+      cached: boolean;
+      sourceUrl: string;
+      score: number | null;
+      status: string | null;
+      error: string | null;
+    }>;
+    sdgs?: {
+      dashboardUrl: string;
+    };
   };
 };
 
@@ -68,13 +100,14 @@ function formatCurrency(value: number) {
 export default function AppDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [idmYear, setIdmYear] = useState(() => `${new Date().getFullYear()}`);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadStats = async () => {
       try {
-        const res = await fetch("/api/dashboard/stats");
+        const res = await fetch(`/api/dashboard/stats?idmYear=${encodeURIComponent(idmYear)}`);
         if (!res.ok) throw new Error("Failed to fetch stats");
         const data: DashboardStats = await res.json();
         if (isMounted) setStats(data);
@@ -89,13 +122,56 @@ export default function AppDashboard() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [idmYear]);
 
   const genderData = stats?.charts.gender ?? fallbackGenderData;
   const ageData = stats?.charts.age ?? fallbackAgeData;
   const educationData = stats?.charts.education ?? fallbackEducationData;
 
   const totals = stats?.totals;
+  const idm = stats?.statusDesa?.idm;
+  const sdgs = stats?.statusDesa?.sdgs;
+  const idmHistory = stats?.statusDesa?.idmHistory ?? [];
+
+  const idmYearOptions = Array.from({ length: 8 }, (_, i) => `${new Date().getFullYear() - i}`);
+
+  const idmTrendData = idmHistory.map((x) => ({
+    year: String(x.year),
+    score: x.score ?? 0,
+    hasData: x.score !== null,
+  }));
+
+  const downloadIdmCsv = () => {
+    const rows = [
+      ["tahun", "skor_idm", "status_idm", "catatan"],
+      ...idmHistory.map((x) => [
+        String(x.year),
+        x.score === null ? "" : String(x.score),
+        x.status ?? "",
+        x.error ?? "",
+      ]),
+    ];
+    const csv = rows
+      .map((r) =>
+        r
+          .map((cell) => {
+            const s = String(cell ?? "");
+            if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+            return s;
+          })
+          .join(","),
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `idm-${idm?.villageCode || "desa"}-${idmYear}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -150,6 +226,127 @@ export default function AppDashboard() {
           color="warning"
         />
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle>Status IDM & SDGs</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={idmYear} onValueChange={setIdmYear}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {idmYearOptions.map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                onClick={downloadIdmCsv}
+                disabled={!idm?.configured || idmHistory.length === 0}
+              >
+                <Download className="h-4 w-4" />
+                Export IDM
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Memuat status…</p>
+          ) : !idm?.configured ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Kode desa IDM/SDGs belum diisi. Isi dulu agar sistem bisa menarik status IDM dari portal
+                resmi.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/pengaturan-desa"
+                  className="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors"
+                >
+                  Isi kode desa
+                </Link>
+                {sdgs?.dashboardUrl ? (
+                  <a
+                    href={sdgs.dashboardUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-2 rounded-md border border-border text-sm hover:bg-accent transition-colors"
+                  >
+                    Buka Dashboard SDGs
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <p className="text-sm">
+                  IDM {idm.year}:{" "}
+                  <span className="font-medium">{idm.status ?? "—"}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Skor:{" "}
+                  <span className="font-mono">
+                    {idm.score === null ? "—" : idm.score.toFixed(4)}
+                  </span>
+                </p>
+              </div>
+              {idm.error ? (
+                <p className="text-sm text-muted-foreground">{idm.error}</p>
+              ) : null}
+              {idmTrendData.length ? (
+                <div className="h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={idmTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="year" className="text-xs" />
+                      <YAxis className="text-xs" domain={[0, 1]} />
+                      <Tooltip />
+                      <Bar dataKey="score" fill="#0f766e" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                {idm.sourceUrl ? (
+                  <a
+                    href={idm.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-2 rounded-md border border-border text-sm hover:bg-accent transition-colors"
+                  >
+                    Lihat sumber IDM
+                  </a>
+                ) : null}
+                {sdgs?.dashboardUrl ? (
+                  <a
+                    href={sdgs.dashboardUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-2 rounded-md border border-border text-sm hover:bg-accent transition-colors"
+                  >
+                    Buka Dashboard SDGs
+                  </a>
+                ) : null}
+                <Link
+                  href="/pengaturan-desa"
+                  className="px-3 py-2 rounded-md border border-border text-sm hover:bg-accent transition-colors"
+                >
+                  Ubah kode desa
+                </Link>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

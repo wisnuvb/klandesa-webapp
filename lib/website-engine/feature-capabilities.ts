@@ -1,6 +1,12 @@
 /** Kunci stabil untuk gating CMS & renderer; dipetakan dari copy marketing seed. */
 export const BASE_VILLAGE_WEBSITE_CAPS = [
   "section_hero",
+  "section_features",
+  "section_stats",
+  "section_gallery",
+  "section_faq",
+  "section_testimonials",
+  "section_spacer",
   "section_news",
   "section_contact",
   "section_rich_text",

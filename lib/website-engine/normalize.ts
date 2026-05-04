@@ -77,12 +77,48 @@ const MAX_SEO_TITLE = 120;
 const MAX_SEO_DESC = 320;
 const MAX_OG_URL = 500;
 const MAX_FAVICON_URL = 500;
+const MAX_SAVED_TEMPLATE_NAME = 80;
+const MAX_SAVED_TEMPLATE_DESC = 300;
+const MAX_SAVED_TEMPLATE_ID = 64;
 
 function takeUrlish(v: unknown, max: number): string | undefined {
   if (typeof v !== "string") return undefined;
   const t = v.trim();
   if (!t || t.length > max) return undefined;
   return t;
+}
+
+function sanitizeCustomizationSnapshot(
+  input: unknown,
+): import("@/lib/website-engine/types").WebsiteCustomizationSnapshot {
+  if (!isRecord(input)) return {};
+  const presetKey =
+    typeof input.presetKey === "string" ? input.presetKey : undefined;
+  const overrides = "overrides" in input ? input.overrides : undefined;
+  const theme =
+    "theme" in input
+      ? sanitizeTheme((input as Record<string, unknown>).theme)
+      : undefined;
+  const layout =
+    "layout" in input
+      ? sanitizeLayout((input as Record<string, unknown>).layout)
+      : undefined;
+  const siteSeo =
+    "siteSeo" in input
+      ? sanitizeSiteSeo((input as Record<string, unknown>).siteSeo)
+      : undefined;
+  const faviconUrl = takeUrlish(
+    (input as Record<string, unknown>).faviconUrl,
+    MAX_FAVICON_URL,
+  );
+  return {
+    presetKey,
+    overrides,
+    theme,
+    layout,
+    siteSeo,
+    ...(faviconUrl ? { faviconUrl } : {}),
+  };
 }
 
 
@@ -132,6 +168,37 @@ export function parseCustomization(input: unknown): WebsiteCustomization {
     (input as Record<string, unknown>).faviconUrl,
     MAX_FAVICON_URL,
   );
+  const savedTemplates = Array.isArray((input as Record<string, unknown>).savedTemplates)
+    ? ((input as Record<string, unknown>).savedTemplates as unknown[])
+        .filter(isRecord)
+        .map((t) => {
+          const id =
+            typeof t.id === "string"
+              ? t.id.trim().slice(0, MAX_SAVED_TEMPLATE_ID)
+              : "";
+          const name =
+            typeof t.name === "string"
+              ? t.name.trim().slice(0, MAX_SAVED_TEMPLATE_NAME)
+              : "";
+          const description =
+            typeof t.description === "string"
+              ? t.description.trim().slice(0, MAX_SAVED_TEMPLATE_DESC)
+              : undefined;
+          const createdAt = typeof t.createdAt === "string" ? t.createdAt : "";
+          const updatedAt = typeof t.updatedAt === "string" ? t.updatedAt : "";
+          const snapshot = sanitizeCustomizationSnapshot(t.snapshot);
+          if (!id || !name || !createdAt || !updatedAt) return null;
+          return {
+            id,
+            name,
+            ...(description ? { description } : {}),
+            snapshot,
+            createdAt,
+            updatedAt,
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => Boolean(x))
+    : undefined;
   return {
     presetKey,
     overrides,
@@ -139,6 +206,7 @@ export function parseCustomization(input: unknown): WebsiteCustomization {
     layout,
     siteSeo,
     savedPresets,
+    savedTemplates,
     ...(faviconUrl ? { faviconUrl } : {}),
   };
 }

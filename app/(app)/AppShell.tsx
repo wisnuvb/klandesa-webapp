@@ -14,6 +14,34 @@ const pageConfig = {
     title: "Dashboard",
     subtitle: "Ringkasan informasi dan statistik desa",
   },
+  mitra: {
+    title: "Dashboard Mitra",
+    subtitle: "Ringkasan aktivitas dan prospek Anda",
+  },
+  "mitra/prospek": {
+    title: "Prospek Desa",
+    subtitle: "Catat dan pantau status desa yang Anda prospek",
+  },
+  "mitra/profil": {
+    title: "Profil & Rekening",
+    subtitle: "Perbarui profil dan rekening untuk pengiriman komisi",
+  },
+  "mitra/komisi": {
+    title: "Komisi",
+    subtitle: "Ringkasan komisi dan riwayat pembayaran (Coming Soon)",
+  },
+  admin: {
+    title: "Admin Klandesa",
+    subtitle: "Kelola desa, mitra, dan operasional platform",
+  },
+  "admin/desa": {
+    title: "Kelola Desa",
+    subtitle: "Daftar desa dan status berlangganan",
+  },
+  "admin/mitra": {
+    title: "Kelola Mitra",
+    subtitle: "Pendaftaran mitra, akun mitra, dan aktivasi",
+  },
   profil: {
     title: "Profil Akun",
     subtitle: "Informasi pengguna yang sedang masuk",
@@ -168,7 +196,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (sessionStatus !== "authenticated" || !session?.user?.id) return;
-    if (isRegionalAccount(session)) return;
+    if (
+      isRegionalAccount(session) ||
+      session.user.accountType === "partner" ||
+      session.user.accountType === "platform"
+    )
+      return;
 
     const current = pathname || "/";
     if (current.startsWith("/billing") || current.startsWith("/auth")) return;

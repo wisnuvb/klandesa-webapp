@@ -16,7 +16,11 @@ export const BUILTIN_PRESETS: BuiltinPreset[] = [
         home: {
           sections: [
             { kind: "hero" },
+            { kind: "features" },
+            { kind: "stats" },
+            { kind: "gallery" },
             { kind: "news", limit: 6 },
+            { kind: "cta" },
             { kind: "contact" },
           ],
         },
@@ -45,4 +49,3 @@ export function findBuiltinPreset(key: string): BuiltinPreset | null {
   if (!k) return null;
   return BUILTIN_PRESETS.find((p) => p.key === k) ?? null;
 }
-

@@ -31,6 +31,7 @@ import {
 } from "@/lib/website-engine/resolved-structure";
 import { checkWebsiteEnginePatchLimit } from "@/lib/website-engine/engine-rate-limit";
 import type { WebsiteSection } from "@/lib/website-engine/types";
+import { invalidateTenantPublicPageCache } from "@/lib/website-engine/site-renderer";
 
 function clientIp(req: NextRequest): string {
   return (
@@ -203,6 +204,8 @@ export async function PATCH(req: NextRequest) {
       data: { customization: nextCustomization as never },
       select: { customization: true },
     });
+
+    invalidateTenantPublicPageCache(village.id);
 
     return NextResponse.json({ ok: true, customization: parseCustomization(updated.customization) });
   } catch (e) {

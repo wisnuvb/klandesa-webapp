@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { INVOKE_PATHNAME_HEADER } from "@/lib/middleware-headers";
 import { isRegionalAccount } from "@/lib/regional-session";
+import { isPartnerAccount } from "@/lib/partner-session";
+import { isPlatformAccount } from "@/lib/platform-session";
 import { AppLayoutClient } from "./AppLayoutClient";
 import type { Metadata } from "next";
 
@@ -40,12 +42,26 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   }
 
   const isWilayah = pathname.startsWith("/wilayah");
+  const isMitra = pathname.startsWith("/mitra");
+  const isAdmin = pathname.startsWith("/admin");
+  if (isPlatformAccount(session)) {
+    if (!isAdmin) {
+      redirect("/admin");
+    }
+    return <AppLayoutClient>{children}</AppLayoutClient>;
+  }
   if (isRegionalAccount(session)) {
-    if (!isWilayah) {
+    if (isAdmin || !isWilayah) {
       redirect("/wilayah");
     }
-  } else if (isWilayah) {
-    redirect("/dashboard");
+  } else if (isPartnerAccount(session)) {
+    if (isAdmin || !isMitra) {
+      redirect("/mitra");
+    }
+  } else {
+    if (isWilayah || isMitra || isAdmin) {
+      redirect("/dashboard");
+    }
   }
 
   return <AppLayoutClient>{children}</AppLayoutClient>;

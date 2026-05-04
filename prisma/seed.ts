@@ -37,6 +37,51 @@ async function trySeedStep(
 async function main() {
   console.log("Start seeding...");
 
+  await trySeedStep("Platform admin (Klandesa)", async () => {
+    const email =
+      process.env.PLATFORM_ADMIN_EMAIL?.trim() ||
+      "platform-admin@klandesa.local";
+    const name = process.env.PLATFORM_ADMIN_NAME?.trim() || "Admin Klandesa";
+    const passwordEnv = process.env.PLATFORM_ADMIN_PASSWORD?.trim() || "";
+    const password = passwordEnv !== "" ? passwordEnv : "admin123456";
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const existing = await prisma.platformUser.findUnique({ where: { email } });
+    if (!existing) {
+      await prisma.platformUser.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          role: "platform_admin",
+          isActive: true,
+        },
+      });
+      if (passwordEnv !== "") {
+        console.log("✓ Platform admin created:", email, "(password from env)");
+      } else {
+        console.log("✓ Platform admin created:", email, "password:", password);
+      }
+      return;
+    }
+
+    await prisma.platformUser.update({
+      where: { id: existing.id },
+      data: {
+        name,
+        role: existing.role || "platform_admin",
+        isActive: true,
+        password: hashedPassword,
+      },
+    });
+    if (passwordEnv !== "") {
+      console.log("✓ Platform admin updated:", email, "(password from env)");
+    } else {
+      console.log("✓ Platform admin updated:", email, "password:", password);
+    }
+  });
+
   // Create or get village
   let village = await prisma.village.findUnique({
     where: { code: "DESA001" },

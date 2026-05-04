@@ -4,6 +4,7 @@ import {
   parseAppsScriptWebAppUrl,
   postAppsScriptWebhook,
 } from "@/lib/apps-script-webhook";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Pendaftaran mitra → Google Apps Script (Web App URL).
@@ -25,27 +26,6 @@ export async function POST(req: NextRequest) {
   try {
     const appsScriptUrl = process.env.GOOGLE_FORM_PARTNER_APPS_SCRIPT_URL?.trim();
     const secret = process.env.GOOGLE_FORM_PARTNER_APPS_SCRIPT_SECRET?.trim();
-
-    if (!appsScriptUrl) {
-      return NextResponse.json(
-        {
-          error:
-            "Pendaftaran mitra belum dikonfigurasi. Set GOOGLE_FORM_PARTNER_APPS_SCRIPT_URL di environment.",
-        },
-        { status: 503 },
-      );
-    }
-
-    const webhook = parseAppsScriptWebAppUrl(appsScriptUrl);
-    if (!webhook) {
-      return NextResponse.json(
-        {
-          error:
-            "GOOGLE_FORM_PARTNER_APPS_SCRIPT_URL harus HTTPS ke script.google.com (URL Web App /exec).",
-        },
-        { status: 503 },
-      );
-    }
 
     const body = (await req.json().catch(() => null)) as
       | {
@@ -89,35 +69,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pesan terlalu panjang" }, { status: 400 });
     }
 
-    const result = await postAppsScriptWebhook(webhook, secret, {
-      name,
-      email,
-      phone,
-      region,
-      message,
+    const forwardedFor = req.headers.get("x-forwarded-for") || "";
+    const ipAddress = forwardedFor.split(",")[0]?.trim() || null;
+    const userAgent = req.headers.get("user-agent") || null;
+
+    await prisma.partnerApplication.create({
+      data: {
+        name,
+        email,
+        phone,
+        region,
+        message,
+        source: "karir",
+        meta: {
+          ipAddress,
+          userAgent,
+        },
+      },
     });
 
-    if (!result.accepted) {
-      const dev = process.env.NODE_ENV === "development";
-      return NextResponse.json(
-        {
-          error: "Gagal mengirim pendaftaran. Coba lagi nanti.",
-          ...(dev
-            ? {
-                _debug: {
-                  webhookHttpStatus: result.httpStatus,
-                  webhookBody: result.rawBody.slice(0, 500),
-                  parsedOk: result.parsedOk,
-                  parsedError: result.parsedError,
-                },
-              }
-            : {}),
-        },
-        { status: 502 },
-      );
+    let spreadsheetSynced = false;
+    if (appsScriptUrl) {
+      const webhook = parseAppsScriptWebAppUrl(appsScriptUrl);
+      if (webhook) {
+        const result = await postAppsScriptWebhook(webhook, secret, {
+          name,
+          email,
+          phone,
+          region,
+          message,
+        });
+        spreadsheetSynced = result.accepted;
+        if (!result.accepted) {
+          console.error("Partner application spreadsheet sync failed", {
+            webhookHttpStatus: result.httpStatus,
+            parsedOk: result.parsedOk,
+            parsedError: result.parsedError,
+          });
+        }
+      } else {
+        console.error("Invalid GOOGLE_FORM_PARTNER_APPS_SCRIPT_URL");
+      }
     }
 
-    return NextResponse.json({ ok: true }, { status: 201 });
+    return NextResponse.json({ ok: true, spreadsheetSynced }, { status: 201 });
   } catch {
     return NextResponse.json(
       { error: "Terjadi kesalahan server. Coba lagi nanti." },

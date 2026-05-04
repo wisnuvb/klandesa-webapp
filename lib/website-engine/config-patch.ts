@@ -87,6 +87,7 @@ function customizationToJsonObject(c: WebsiteCustomization): Record<string, unkn
   if (c.siteSeo !== undefined) o.siteSeo = c.siteSeo;
   if (c.faviconUrl !== undefined) o.faviconUrl = c.faviconUrl;
   if (c.savedPresets !== undefined) o.savedPresets = c.savedPresets;
+  if (c.savedTemplates !== undefined) o.savedTemplates = c.savedTemplates;
   return o;
 }
 
@@ -159,6 +160,7 @@ export function applyEngineConfigPatch(
     siteSeo:
       mergedSiteSeo && Object.keys(mergedSiteSeo).length ? mergedSiteSeo : undefined,
     savedPresets: parsed.savedPresets,
+    savedTemplates: parsed.savedTemplates,
     ...(faviconUrl ? { faviconUrl } : {}),
   };
 

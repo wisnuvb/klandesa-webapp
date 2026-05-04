@@ -36,6 +36,9 @@ type VillageProfilePayload = {
   website: string;
   logoUrl: string;
   mail: VillageMailSettingsFields;
+  integrations: {
+    idmVillageCode: string;
+  };
 };
 
 const emptyMail: VillageMailSettingsFields = {
@@ -61,6 +64,7 @@ export default function PengaturanDesaPage() {
   const [logoUrl, setLogoUrl] = useState("");
   const [logoPickerOpen, setLogoPickerOpen] = useState(false);
   const [mail, setMail] = useState<VillageMailSettingsFields>(emptyMail);
+  const [idmVillageCode, setIdmVillageCode] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +87,7 @@ export default function PengaturanDesaPage() {
       setWebsite(data.website);
       setLogoUrl(data.logoUrl);
       setMail({ ...emptyMail, ...data.mail });
+      setIdmVillageCode(data.integrations?.idmVillageCode ?? "");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal memuat data");
     } finally {
@@ -113,6 +118,7 @@ export default function PengaturanDesaPage() {
           website,
           logoUrl,
           mail,
+          integrations: { idmVillageCode },
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -202,6 +208,19 @@ export default function PengaturanDesaPage() {
                   onChange={(e) => setProvince(e.target.value)}
                   required
                 />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="idmVillageCode">Kode desa IDM/SDGs (Kemendesa)</Label>
+                <Input
+                  id="idmVillageCode"
+                  value={idmVillageCode}
+                  onChange={(e) => setIdmVillageCode(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="Contoh: 6201022016"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Dipakai untuk menampilkan status IDM dan (opsional) evaluasi SDGs dari portal resmi.
+                </p>
               </div>
             </div>
           </CardContent>

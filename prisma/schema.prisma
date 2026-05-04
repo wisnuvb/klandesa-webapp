@@ -41,12 +41,12 @@ model Village {
   storageUsed        Float     @default(0) // in GB
 
   /// Add-on absensi: check-in dengan validasi radius GPS (pembayaran terpisah).
-  absensiGpsAddonActive Boolean @default(false)
+  absensiGpsAddonActive      Boolean @default(false)
   /// Titik acuan geofencing (kantor desa). Wajib diisi admin agar GPS check-in berfungsi.
-  absensiOfficeLat      Float?
-  absensiOfficeLng      Float?
+  absensiOfficeLat           Float?
+  absensiOfficeLng           Float?
   /// Radius izin absen GPS dalam meter (default 100 m).
-  absensiCheckInRadiusMeters Int @default(100)
+  absensiCheckInRadiusMeters Int     @default(100)
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -132,6 +132,24 @@ model RegionalAccessLog {
   @@map("regional_access_logs")
 }
 
+model PlatformUser {
+  id       Int    @id @default(autoincrement())
+  email    String @unique @db.VarChar(255)
+  password String @db.VarChar(255)
+  name     String @db.VarChar(255)
+
+  role String @default("platform_admin") @db.VarChar(50)
+
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@map("platform_users")
+}
+
 model User {
   id        Int     @id @default(autoincrement())
   villageId Int
@@ -152,18 +170,18 @@ model User {
   updatedAt DateTime  @updatedAt
 
   // Relations
-  createdMailServices    MailService[]           @relation("CreatedBy")
-  createdRequests        Request[]               @relation("CreatedBy")
-  createdBudgets         Budget[]                @relation("CreatedBy")
-  createdAnnouncements   Announcement[]          @relation("CreatedBy")
+  createdMailServices    MailService[]            @relation("CreatedBy")
+  createdRequests        Request[]                @relation("CreatedBy")
+  createdBudgets         Budget[]                 @relation("CreatedBy")
+  createdAnnouncements   Announcement[]           @relation("CreatedBy")
   mailHistory            MailHistory[]
-  forumThreads           ForumThread[]           @relation("ForumThreadCreatedBy")
-  forumReplies           ForumReply[]            @relation("ForumReplyCreatedBy")
-  citizenReportsDone     CitizenReport[]         @relation("CitizenReportDoneBy")
+  forumThreads           ForumThread[]            @relation("ForumThreadCreatedBy")
+  forumReplies           ForumReply[]             @relation("ForumReplyCreatedBy")
+  citizenReportsDone     CitizenReport[]          @relation("CitizenReportDoneBy")
   citizenReportResponses CitizenReportResponse[]
   notificationReads      NotificationRead[]
-  respondedContacts      Contact[]               @relation("ContactRespondedBy")
-  cooperativeMemberLinks CooperativeMember[]   @relation("CoopMemberUser")
+  respondedContacts      Contact[]                @relation("ContactRespondedBy")
+  cooperativeMemberLinks CooperativeMember[]      @relation("CoopMemberUser")
   coopLedgerCreates      CooperativeLedgerEntry[] @relation("CoopLedgerCreatedBy")
 
   @@index([villageId, role])
@@ -501,10 +519,10 @@ model MailTemplate {
   contentTemplate   String @db.Text // Template content with {VARIABLES}
 
   // Configuration
-  isActive   Boolean @default(true)
-  isGlobal   Boolean @default(false) // Available for all villages
+  isActive           Boolean @default(true)
+  isGlobal           Boolean @default(false) // Available for all villages
   /// Kunci stabil untuk seed katalog (unik di DB); null untuk template ad-hoc per-desa.
-  catalogKey String? @unique @db.VarChar(80)
+  catalogKey         String? @unique @db.VarChar(80)
   /// Jika tidak null, template desa ini menggantikan entri katalog dengan `catalogKey` yang sama di UI.
   inheritsCatalogKey String? @db.VarChar(80)
 
@@ -535,12 +553,12 @@ model MailService {
   templateCategory String       @db.VarChar(100)
 
   // Letter Identification
-  letterNumber   String @db.VarChar(255)
-  letterDate     DateTime
-  /** YYYY-MM-DD — skoping unik nomor per (desa, jenis surat, hari). */
-  letterDateKey  String @db.VarChar(10)
-
-  @@unique([villageId, templateId, letterDateKey, letterNumber])
+  letterNumber  String   @db.VarChar(255)
+  letterDate    DateTime
+  /**
+   * YYYY-MM-DD — skoping unik nomor per (desa, jenis surat, hari).
+   */
+  letterDateKey String   @db.VarChar(10)
 
   // Applicant (Normalized for fast query)
   applicantName String @db.VarChar(255)
@@ -573,6 +591,7 @@ model MailService {
   history     MailHistory[]
   attachments MailAttachment[]
 
+  @@unique([villageId, templateId, letterDateKey, letterNumber])
   @@index([villageId, createdAt(sort: Desc)])
   @@index([villageId, applicantNik])
   @@index([villageId, status])
@@ -789,10 +808,10 @@ model Cooperative {
   villageId Int     @unique
   village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
 
-  name    String  @db.VarChar(255)
-  address String? @db.Text
-  phone   String? @db.VarChar(50)
-  email   String? @db.VarChar(255)
+  name       String  @db.VarChar(255)
+  address    String? @db.Text
+  phone      String? @db.VarChar(50)
+  email      String? @db.VarChar(255)
   /// NIB / NPWP / catatan legal ringkas (opsional)
   legalNotes String? @db.Text
 
@@ -806,19 +825,19 @@ model Cooperative {
 }
 
 model CooperativeMember {
-  id             Int         @id @default(autoincrement())
-  cooperativeId  Int
-  cooperative    Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+  id            Int         @id @default(autoincrement())
+  cooperativeId Int
+  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
 
   residentId Int?
   resident   Resident? @relation(fields: [residentId], references: [id], onDelete: SetNull)
 
-  name              String    @db.VarChar(255)
-  nik               String?   @db.VarChar(16)
-  membershipNumber  String?   @db.VarChar(50)
-  joinedAt          DateTime  @default(now())
-  status            String    @default("active") @db.VarChar(50) // active, inactive
-  notes             String?   @db.Text
+  name             String   @db.VarChar(255)
+  nik              String?  @db.VarChar(16)
+  membershipNumber String?  @db.VarChar(50)
+  joinedAt         DateTime @default(now())
+  status           String   @default("active") @db.VarChar(50) // active, inactive
+  notes            String?  @db.Text
 
   /// Akun dashboard yang sama dengan perangkat desa (opsional)
   linkedUserId Int?
@@ -890,7 +909,7 @@ model Potential {
   /// Stok produk (UKM); null = tidak dilacak
   stockQuantity Int?
   /// Catatan tambahan penjual (SKU, supplier, keterangan internal, dll.)
-  productNotes String? @db.Text
+  productNotes  String? @db.Text
 
   // Status
   status String @default("active") @db.VarChar(50) // active, inactive, potential
@@ -1349,6 +1368,114 @@ model Contact {
   @@map("contacts")
 }
 
+model PartnerApplication {
+  id BigInt @id @default(autoincrement())
+
+  name    String @db.VarChar(120)
+  email   String @db.VarChar(254)
+  phone   String @db.VarChar(40)
+  region  String @db.VarChar(200)
+  message String @db.Text
+
+  status String @default("NEW") @db.VarChar(30)
+  source String @default("karir") @db.VarChar(50)
+  meta   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("partner_applications")
+}
+
+model Partner {
+  id Int @id @default(autoincrement())
+
+  email    String  @unique @db.VarChar(255)
+  password String  @db.VarChar(255)
+  name     String  @db.VarChar(255)
+  phone    String? @db.VarChar(40)
+  region   String? @db.VarChar(200)
+
+  status String @default("active") @db.VarChar(30)
+
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  bankAccounts PartnerBankAccount[]
+  prospects    PartnerProspect[]
+
+  @@index([status])
+  @@map("partners")
+}
+
+model PartnerBankAccount {
+  id Int @id @default(autoincrement())
+
+  partnerId Int
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  bankName      String    @db.VarChar(80)
+  accountNumber String    @db.VarChar(40)
+  accountName   String    @db.VarChar(120)
+  isPrimary     Boolean   @default(true)
+  verifiedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerId])
+  @@map("partner_bank_accounts")
+}
+
+model PartnerProspect {
+  id BigInt @id @default(autoincrement())
+
+  partnerId Int
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  villageName String  @db.VarChar(255)
+  district    String? @db.VarChar(255)
+  regency     String? @db.VarChar(255)
+  province    String? @db.VarChar(255)
+
+  picName  String? @db.VarChar(255)
+  picPhone String? @db.VarChar(40)
+
+  status String  @default("BARU") @db.VarChar(30)
+  notes  String? @db.Text
+
+  lastContactAt  DateTime?
+  nextFollowUpAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events PartnerProspectEvent[]
+
+  @@index([partnerId, status])
+  @@index([partnerId, createdAt(sort: Desc)])
+  @@map("partner_prospects")
+}
+
+model PartnerProspectEvent {
+  id BigInt @id @default(autoincrement())
+
+  prospectId BigInt
+  prospect   PartnerProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  fromStatus String? @db.VarChar(30)
+  toStatus   String  @db.VarChar(30)
+  note       String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([prospectId, createdAt(sort: Desc)])
+  @@map("partner_prospect_events")
+}
+
 // ============================================
 // SYSTEM LOGS & AUDIT
 // ============================================
@@ -1560,4 +1687,3 @@ model SocialBenefitBeneficiary {
   @@index([nik])
   @@map("social_benefit_beneficiaries")
 }
-

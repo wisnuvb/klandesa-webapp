@@ -17,6 +17,8 @@ import Google from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { RegionalScope } from "@/lib/regional-session";
 import { regionalSessionUserId } from "@/lib/regional-session";
+import { partnerSessionUserId } from "@/lib/partner-session";
+import { platformSessionUserId } from "@/lib/platform-session";
 
 // Village type untuk session
 interface Village {
@@ -42,7 +44,8 @@ declare module "next-auth" {
       villageId?: number;
       villageCode?: string;
       village?: Village;
-      accountType?: "village" | "regional";
+      partnerId?: number;
+      accountType?: "village" | "regional" | "partner" | "platform";
       regionalScope?: RegionalScope;
     };
   }
@@ -57,7 +60,8 @@ declare module "next-auth/jwt" {
     villageId?: number;
     villageCode?: string;
     village?: Village;
-    accountType?: "village" | "regional";
+    partnerId?: number;
+    accountType?: "village" | "regional" | "partner" | "platform";
     regionalScope?: RegionalScope;
   }
 }
@@ -69,7 +73,7 @@ if (process.env.GITHUB_ID && process.env.GITHUB_SECRET) {
     GitHub({
       clientId: process.env.GITHUB_ID,
       clientSecret: process.env.GITHUB_SECRET,
-    })
+    }),
   );
 }
 
@@ -78,7 +82,7 @@ if (process.env.GOOGLE_ID && process.env.GOOGLE_SECRET) {
     Google({
       clientId: process.env.GOOGLE_ID,
       clientSecret: process.env.GOOGLE_SECRET,
-    })
+    }),
   );
 }
 
@@ -126,6 +130,33 @@ providers.push(
           };
         }
 
+        if (res.ok && data.accountType === "partner" && data.user) {
+          return {
+            id: partnerSessionUserId(data.user.partnerId as number),
+            name: data.user.name,
+            email: data.user.email,
+            image: null,
+            role: data.user.role,
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken,
+            accountType: "partner" as const,
+            partnerId: data.user.partnerId as number,
+          };
+        }
+
+        if (res.ok && data.accountType === "platform" && data.user) {
+          return {
+            id: platformSessionUserId(data.user.platformUserId as number),
+            name: data.user.name,
+            email: data.user.email,
+            image: null,
+            role: data.user.role,
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken,
+            accountType: "platform" as const,
+          };
+        }
+
         if (res.ok && data.user) {
           return {
             id: String(data.user.id),
@@ -163,7 +194,7 @@ providers.push(
         return null;
       }
     },
-  })
+  }),
 );
 
 /**
@@ -180,7 +211,7 @@ export const authSecret =
  * - Untuk development localhost, gunakan undefined agar cookie bisa diakses dari localhost dan subdomains
  */
 const sessionCookieDomain: string | undefined =
-  process.env.NODE_ENV === "production" ? process.env.COOKIE_DOMAIN : undefined;
+  process.env.COOKIE_DOMAIN?.trim() || undefined;
 
 const resolvedAuthSecret = getResolvedAuthSecret();
 
@@ -232,14 +263,33 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as { role?: string }).role;
         token.accessToken = (user as any).accessToken;
         token.refreshToken = (user as any).refreshToken;
-        const at = (user as any).accountType as "village" | "regional" | undefined;
+        const at = (user as any).accountType as
+          | "village"
+          | "regional"
+          | "partner"
+          | "platform"
+          | undefined;
         token.accountType = at ?? "village";
         if (token.accountType === "regional") {
           token.regionalScope = (user as any).regionalScope;
           token.villageId = undefined;
           token.villageCode = undefined;
           token.village = undefined;
+          token.partnerId = undefined;
+        } else if (token.accountType === "partner") {
+          token.partnerId = (user as any).partnerId;
+          token.villageId = undefined;
+          token.villageCode = undefined;
+          token.village = undefined;
+          token.regionalScope = undefined;
+        } else if (token.accountType === "platform") {
+          token.partnerId = undefined;
+          token.villageId = undefined;
+          token.villageCode = undefined;
+          token.village = undefined;
+          token.regionalScope = undefined;
         } else {
+          token.partnerId = undefined;
           token.villageId = (user as any).villageId;
           token.villageCode = (user as any).villageCode;
           token.village = (user as any).village;
@@ -255,13 +305,19 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.role = token.role as string | undefined;
         session.user.accountType =
-          (token.accountType as "village" | "regional" | undefined) ?? "village";
+          (token.accountType as
+            | "village"
+            | "regional"
+            | "partner"
+            | "platform"
+            | undefined) ?? "village";
         session.user.regionalScope = token.regionalScope as
           | RegionalScope
           | undefined;
         session.user.villageId = token.villageId as number | undefined;
         session.user.villageCode = token.villageCode as string | undefined;
         session.user.village = token.village as Village | undefined;
+        session.user.partnerId = token.partnerId as number | undefined;
       }
       (session as any).accessToken = token.accessToken;
       (session as any).refreshToken = token.refreshToken;
@@ -301,7 +357,9 @@ export async function readAppSession(
     }
 
     if (req && secret) {
-      const tokenFrom = async (tokenReq: NextRequest | Record<string, unknown>) => {
+      const tokenFrom = async (
+        tokenReq: NextRequest | Record<string, unknown>,
+      ) => {
         const token = (await getToken({
           req: tokenReq as NextRequest,
           secret,

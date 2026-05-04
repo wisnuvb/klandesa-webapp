@@ -2,6 +2,8 @@
 
 import { memo, useMemo } from "react";
 import { Plus, Save } from "lucide-react";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,6 +49,7 @@ type Props = {
   onAddNavRow: () => void;
   onRemoveNavRow: (idx: number) => void;
   onMoveSection: (from: number, direction: -1 | 1) => void;
+  onReorderSection: (from: number, to: number) => void;
   onRemoveSection: (idx: number) => void;
   onPatchSectionField: (
     idx: number,
@@ -79,6 +82,7 @@ export const CmsMenuPagesCard = memo(function CmsMenuPagesCard({
   onAddNavRow,
   onRemoveNavRow,
   onMoveSection,
+  onReorderSection,
   onRemoveSection,
   onPatchSectionField,
   onNewKindChange,
@@ -167,29 +171,32 @@ export const CmsMenuPagesCard = memo(function CmsMenuPagesCard({
           {loading ? (
             <div className="text-sm text-muted-foreground">Memuat...</div>
           ) : (
-            <div className="space-y-3">
-              {sections.map((s, idx) => {
-                const fromSchema = schemaByKind.get(s.kind);
-                const def = getSectionDefinition(s.kind);
-                const label = fromSchema?.label ?? def.label;
-                const fields = fromSchema?.cmsFields ?? def.cmsFields;
-                return (
-                  <CmsSectionBlockCard
-                    key={`${s.kind}-${idx}`}
-                    idx={idx}
-                    section={s}
-                    label={label}
-                    fields={fields}
-                    saving={saving}
-                    sectionCount={sections.length}
-                    onMoveUp={(i) => onMoveSection(i, -1)}
-                    onMoveDown={(i) => onMoveSection(i, 1)}
-                    onRemove={onRemoveSection}
-                    onPatchField={onPatchSectionField}
-                  />
-                );
-              })}
-            </div>
+            <DndProvider backend={HTML5Backend}>
+              <div className="space-y-3">
+                {sections.map((s, idx) => {
+                  const fromSchema = schemaByKind.get(s.kind);
+                  const def = getSectionDefinition(s.kind);
+                  const label = fromSchema?.label ?? def.label;
+                  const fields = fromSchema?.cmsFields ?? def.cmsFields;
+                  return (
+                    <CmsSectionBlockCard
+                      key={`${s.kind}-${idx}`}
+                      idx={idx}
+                      section={s}
+                      label={label}
+                      fields={fields}
+                      saving={saving}
+                      sectionCount={sections.length}
+                      onMoveUp={(i) => onMoveSection(i, -1)}
+                      onMoveDown={(i) => onMoveSection(i, 1)}
+                      onReorder={onReorderSection}
+                      onRemove={onRemoveSection}
+                      onPatchField={onPatchSectionField}
+                    />
+                  );
+                })}
+              </div>
+            </DndProvider>
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2">

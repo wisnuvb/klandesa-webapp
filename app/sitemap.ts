@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: joinUrl(mainOrigin, "/fitur"), lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     { url: joinUrl(mainOrigin, "/harga"), lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     { url: joinUrl(mainOrigin, "/karir"), lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: joinUrl(mainOrigin, "/mitra"), lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: joinUrl(mainOrigin, "/demo"), lastModified: now, changeFrequency: "weekly", priority: 0.8 },
   ];
 

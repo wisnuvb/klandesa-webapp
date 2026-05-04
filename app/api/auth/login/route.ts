@@ -112,11 +112,116 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const platformUser = await prisma.platformUser.findUnique({
+      where: { email },
+    });
+
+    if (platformUser) {
+      if (!platformUser.isActive) {
+        return NextResponse.json(
+          { error: "Akun Anda telah dinonaktifkan" },
+          { status: 403 },
+        );
+      }
+
+      const isPlatformPasswordValid = await verifyPassword(
+        password,
+        platformUser.password,
+      );
+      if (!isPlatformPasswordValid) {
+        return NextResponse.json(
+          { error: "Email atau password salah" },
+          { status: 401 },
+        );
+      }
+
+      await prisma.platformUser.update({
+        where: { id: platformUser.id },
+        data: { lastLogin: new Date() },
+      });
+
+      const { accessToken, refreshToken } = generateTokens({
+        id: platformUser.id,
+        email: platformUser.email,
+        role: platformUser.role,
+        accountType: "platform",
+      });
+
+      return NextResponse.json({
+        accountType: "platform",
+        user: {
+          platformUserId: platformUser.id,
+          email: platformUser.email,
+          name: platformUser.name,
+          role: platformUser.role,
+        },
+        accessToken,
+        refreshToken,
+      });
+    }
+
     const regionalUser = await prisma.regionalUser.findUnique({
       where: { email },
     });
 
-    if (!regionalUser) {
+    if (regionalUser) {
+      if (!regionalUser.isActive) {
+        return NextResponse.json(
+          { error: "Akun Anda telah dinonaktifkan" },
+          { status: 403 },
+        );
+      }
+
+      const isRegionalPasswordValid = await verifyPassword(
+        password,
+        regionalUser.password,
+      );
+      if (!isRegionalPasswordValid) {
+        return NextResponse.json(
+          { error: "Email atau password salah" },
+          { status: 401 },
+        );
+      }
+
+      const regionalScope = buildRegionalScopeFromUser(regionalUser);
+      if (!regionalScope) {
+        return NextResponse.json(
+          { error: "Akun wilayah tidak valid. Hubungi administrator." },
+          { status: 403 },
+        );
+      }
+
+      await prisma.regionalUser.update({
+        where: { id: regionalUser.id },
+        data: { lastLogin: new Date() },
+      });
+
+      const { accessToken, refreshToken } = generateTokens({
+        id: regionalUser.id,
+        email: regionalUser.email,
+        role: regionalUser.role,
+        accountType: "regional",
+      });
+
+      return NextResponse.json({
+        accountType: "regional",
+        user: {
+          regionalUserId: regionalUser.id,
+          email: regionalUser.email,
+          name: regionalUser.name,
+          role: regionalUser.role,
+          regionalScope,
+        },
+        accessToken,
+        refreshToken,
+      });
+    }
+
+    const partner = await prisma.partner.findUnique({
+      where: { email },
+    });
+
+    if (!partner) {
       console.log(`User not found: ${email}`);
       return NextResponse.json(
         { error: "Email atau password salah" },
@@ -124,52 +229,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!regionalUser.isActive) {
+    if (partner.status !== "active") {
       return NextResponse.json(
-        { error: "Akun Anda telah dinonaktifkan" },
+        { error: "Akun Anda belum aktif. Hubungi administrator." },
         { status: 403 },
       );
     }
 
-    const isRegionalPasswordValid = await verifyPassword(
-      password,
-      regionalUser.password,
-    );
-    if (!isRegionalPasswordValid) {
+    const isPartnerPasswordValid = await verifyPassword(password, partner.password);
+    if (!isPartnerPasswordValid) {
       return NextResponse.json(
         { error: "Email atau password salah" },
         { status: 401 },
       );
     }
 
-    const regionalScope = buildRegionalScopeFromUser(regionalUser);
-    if (!regionalScope) {
-      return NextResponse.json(
-        { error: "Akun wilayah tidak valid. Hubungi administrator." },
-        { status: 403 },
-      );
-    }
-
-    await prisma.regionalUser.update({
-      where: { id: regionalUser.id },
+    await prisma.partner.update({
+      where: { id: partner.id },
       data: { lastLogin: new Date() },
     });
 
     const { accessToken, refreshToken } = generateTokens({
-      id: regionalUser.id,
-      email: regionalUser.email,
-      role: regionalUser.role,
-      accountType: "regional",
+      id: partner.id,
+      email: partner.email,
+      role: "partner",
+      accountType: "partner",
     });
 
     return NextResponse.json({
-      accountType: "regional",
+      accountType: "partner",
       user: {
-        regionalUserId: regionalUser.id,
-        email: regionalUser.email,
-        name: regionalUser.name,
-        role: regionalUser.role,
-        regionalScope,
+        partnerId: partner.id,
+        email: partner.email,
+        name: partner.name,
+        role: "partner",
       },
       accessToken,
       refreshToken,

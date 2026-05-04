@@ -24,6 +24,8 @@ import { CmsFaviconSection } from "./_components/CmsFaviconSection";
 import { CmsThemeLayoutCard } from "./_components/CmsThemeLayoutCard";
 import { CmsPresetCard } from "./_components/CmsPresetCard";
 import { CmsMenuPagesCard } from "./_components/CmsMenuPagesCard";
+import { CmsTemplateLibraryCard } from "./_components/CmsTemplateLibraryCard";
+import { CmsLivePreviewCard } from "./_components/CmsLivePreviewCard";
 
 export default function WebsiteCmsPage() {
   const [loading, setLoading] = useState(true);
@@ -56,6 +58,13 @@ export default function WebsiteCmsPage() {
   const [themeRadiusMd, setThemeRadiusMd] = useState("");
   const [hideSiteHeader, setHideSiteHeader] = useState(false);
   const [faviconUrl, setFaviconUrl] = useState("");
+  const [villageProfile, setVillageProfile] = useState<{
+    name: string;
+    address: string;
+    phone?: string | null;
+    email?: string | null;
+    website?: string | null;
+  } | null>(null);
 
   const activePage = engine?.pages[pageIndex];
   const sections = activePage?.sections ?? [];
@@ -103,30 +112,33 @@ export default function WebsiteCmsPage() {
   const [initialSnapshot, setInitialSnapshot] = useState<string>("");
   const isDirty = initialSnapshot !== "" && snapshot !== initialSnapshot;
 
-  const applyLoadResult = useCallback((data: ReturnType<typeof mapEngineConfigResponseToLoadResult>) => {
-    setTemplateName(data.templateName);
-    setTemplateKey(data.templateKey);
-    setCapabilities(data.capabilities);
-    setPresets(data.presets);
-    setPresetKey(data.presetKey);
-    setEngine(data.engine);
-    setPageIndex(data.pageIndex);
-    setAllowedKinds(data.allowedKinds);
-    setSectionSchema(data.sectionSchema);
-    setHeroVariants(data.heroVariants);
-    setThemePrimary(data.themePrimary);
-    setThemeAccent(data.themeAccent);
-    setThemeFont(data.themeFont);
-    setThemeFontHeading(data.themeFontHeading);
-    setThemeSurface(data.themeSurface);
-    setThemeSurfaceMuted(data.themeSurfaceMuted);
-    setThemeBorder(data.themeBorder);
-    setThemeMutedFg(data.themeMutedFg);
-    setThemeRadiusMd(data.themeRadiusMd);
-    setHideSiteHeader(data.hideSiteHeader);
-    setFaviconUrl(data.faviconUrl);
-    setInitialSnapshot(data.initialSnapshot);
-  }, []);
+  const applyLoadResult = useCallback(
+    (data: ReturnType<typeof mapEngineConfigResponseToLoadResult>) => {
+      setTemplateName(data.templateName);
+      setTemplateKey(data.templateKey);
+      setCapabilities(data.capabilities);
+      setPresets(data.presets);
+      setPresetKey(data.presetKey);
+      setEngine(data.engine);
+      setPageIndex(data.pageIndex);
+      setAllowedKinds(data.allowedKinds);
+      setSectionSchema(data.sectionSchema);
+      setHeroVariants(data.heroVariants);
+      setThemePrimary(data.themePrimary);
+      setThemeAccent(data.themeAccent);
+      setThemeFont(data.themeFont);
+      setThemeFontHeading(data.themeFontHeading);
+      setThemeSurface(data.themeSurface);
+      setThemeSurfaceMuted(data.themeSurfaceMuted);
+      setThemeBorder(data.themeBorder);
+      setThemeMutedFg(data.themeMutedFg);
+      setThemeRadiusMd(data.themeRadiusMd);
+      setHideSiteHeader(data.hideSiteHeader);
+      setFaviconUrl(data.faviconUrl);
+      setInitialSnapshot(data.initialSnapshot);
+    },
+    [],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -160,6 +172,30 @@ export default function WebsiteCmsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/village/profile", { cache: "no-store" })
+      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => {
+        if (cancelled) return;
+        if (!ok) return;
+        const name = typeof j?.name === "string" ? j.name : "";
+        const address = typeof j?.address === "string" ? j.address : "";
+        if (!name || !address) return;
+        setVillageProfile({
+          name,
+          address,
+          phone: typeof j?.phone === "string" ? j.phone : null,
+          email: typeof j?.email === "string" ? j.email : null,
+          website: typeof j?.website === "string" ? j.website : null,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updatePreset = useCallback(
     async (nextKey: string) => {
@@ -306,16 +342,19 @@ export default function WebsiteCmsPage() {
     [pageIndex],
   );
 
-  const updateNav = useCallback((idx: number, patch: Partial<WebsiteNavItem>) => {
-    setEngine((e) => {
-      if (!e) return e;
-      const nav = [...e.nav];
-      const cur = nav[idx];
-      if (!cur) return e;
-      nav[idx] = { ...cur, ...patch };
-      return { ...e, nav };
-    });
-  }, []);
+  const updateNav = useCallback(
+    (idx: number, patch: Partial<WebsiteNavItem>) => {
+      setEngine((e) => {
+        if (!e) return e;
+        const nav = [...e.nav];
+        const cur = nav[idx];
+        if (!cur) return e;
+        nav[idx] = { ...cur, ...patch };
+        return { ...e, nav };
+      });
+    },
+    [],
+  );
 
   const addNavRow = useCallback(() => {
     setEngine((e) => {
@@ -409,9 +448,47 @@ export default function WebsiteCmsPage() {
         ...p,
         sections: p.sections.map((sec, i) => {
           if (i !== idx) return sec;
-          return { ...(sec as object), [fieldName]: value } as WebsiteSection;
+          const next = { ...(sec as unknown as Record<string, unknown>) };
+          const parts = fieldName
+            .split(".")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (parts.length <= 1) {
+            next[fieldName] = value;
+            return next as WebsiteSection;
+          }
+          let cur: Record<string, unknown> = next;
+          for (let pi = 0; pi < parts.length - 1; pi++) {
+            const k = parts[pi]!;
+            const existing = cur[k];
+            const obj =
+              existing &&
+              typeof existing === "object" &&
+              !Array.isArray(existing)
+                ? { ...(existing as Record<string, unknown>) }
+                : {};
+            cur[k] = obj;
+            cur = obj;
+          }
+          cur[parts[parts.length - 1]!] = value;
+          return next as WebsiteSection;
         }),
       }));
+    },
+    [patchCurrentPage],
+  );
+
+  const reorderSections = useCallback(
+    (from: number, to: number) => {
+      patchCurrentPage((p) => {
+        if (from === to) return p;
+        if (from < 0 || to < 0) return p;
+        if (from >= p.sections.length || to >= p.sections.length) return p;
+        const next = [...p.sections];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        return { ...p, sections: next };
+      });
     },
     [patchCurrentPage],
   );
@@ -429,10 +506,33 @@ export default function WebsiteCmsPage() {
   );
 
   const canRemoveCurrentPage = Boolean(
-    engine &&
-      engine.pages[pageIndex] &&
-      engine.pages[pageIndex].slug !== "",
+    engine && engine.pages[pageIndex] && engine.pages[pageIndex].slug !== "",
   );
+
+  const previewTheme = useMemo(() => {
+    const setIf = (v: string) => (v.trim() ? v.trim() : undefined);
+    return {
+      primary: setIf(themePrimary),
+      accent: setIf(themeAccent),
+      fontBody: setIf(themeFont),
+      fontHeading: setIf(themeFontHeading),
+      surface: setIf(themeSurface),
+      surfaceMuted: setIf(themeSurfaceMuted),
+      border: setIf(themeBorder),
+      mutedForeground: setIf(themeMutedFg),
+      radiusMd: setIf(themeRadiusMd),
+    };
+  }, [
+    themePrimary,
+    themeAccent,
+    themeFont,
+    themeFontHeading,
+    themeSurface,
+    themeSurfaceMuted,
+    themeBorder,
+    themeMutedFg,
+    themeRadiusMd,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -515,11 +615,26 @@ export default function WebsiteCmsPage() {
         onAddNavRow={addNavRow}
         onRemoveNavRow={removeNavRow}
         onMoveSection={moveSection}
+        onReorderSection={reorderSections}
         onRemoveSection={removeSectionAt}
         onPatchSectionField={patchSectionField}
         onNewKindChange={setNewKind}
         onAddSection={addSection}
         onSaveAll={saveAll}
+      />
+
+      <CmsTemplateLibraryCard
+        disabled={saving || loading}
+        onReloadEngine={load}
+      />
+
+      <CmsLivePreviewCard
+        templateKey={templateKey}
+        theme={previewTheme}
+        hideSiteHeader={hideSiteHeader}
+        navItems={engine?.nav ?? []}
+        page={activePage}
+        village={villageProfile}
       />
     </div>
   );

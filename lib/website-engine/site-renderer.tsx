@@ -6,6 +6,19 @@ import type { TenantContext } from "@/lib/tenant";
 import type { ResolvedEngineStructure } from "@/lib/website-engine/types";
 import { findPageBySlug } from "@/lib/website-engine/resolved-structure";
 
+const TENANT_PAGE_CACHE_MS = 60 * 1000;
+const tenantPageCache = new Map<
+  string,
+  { timestamp: number; value: Awaited<ReturnType<typeof loadTenantPublicPageContext>> }
+>();
+
+export function invalidateTenantPublicPageCache(villageId: number): void {
+  const prefix = `site-${villageId}-`;
+  for (const key of [...tenantPageCache.keys()]) {
+    if (key.startsWith(prefix)) tenantPageCache.delete(key);
+  }
+}
+
 export async function loadTenantPublicPageContext(
   tenant: TenantContext,
   slugForPage: string,
@@ -16,6 +29,12 @@ export async function loadTenantPublicPageContext(
   announcements: Array<{ id: number; title: string; date: string }>;
 } | null> {
   if (!tenant.template || !tenant.subscription) return null;
+
+  const cacheKey = `site-${tenant.village.id}-${slugForPage}`;
+  const cached = tenantPageCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < TENANT_PAGE_CACHE_MS) {
+    return cached.value;
+  }
 
   const resolved = resolveEffectiveStructure({
     templateStructure: tenant.template.structure,
@@ -46,7 +65,9 @@ export async function loadTenantPublicPageContext(
     date: a.createdAt.toLocaleDateString("id-ID"),
   }));
 
-  return { resolved, templateKey, page, announcements };
+  const value = { resolved, templateKey, page, announcements };
+  tenantPageCache.set(cacheKey, { timestamp: Date.now(), value });
+  return value;
 }
 
 type VillageLite = TenantContext["village"];
