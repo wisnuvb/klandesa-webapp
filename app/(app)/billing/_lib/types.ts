@@ -63,6 +63,7 @@ export type CheckoutInvoice = {
 };
 
 export type CheckoutResponse = {
+  reused?: boolean;
   invoice: CheckoutInvoice;
 };
 
@@ -71,4 +72,3 @@ export type VaBank = {
   label: string;
   linkquBankCode: string;
 };
-

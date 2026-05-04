@@ -25,6 +25,7 @@ export default function Page() {
         setSelectedBankCode={checkout.setSelectedBankCode}
         vaBanks={checkout.vaBanks}
         checkoutError={checkout.checkoutError}
+        checkoutNotice={checkout.checkoutNotice}
         onConfirmBank={checkout.onConfirmBank}
         activeInvoice={checkout.activeInvoice}
         bankLabelForInvoice={checkout.bankLabelForInvoice}
@@ -41,10 +42,16 @@ export default function Page() {
         checkoutError={checkout.checkoutError}
         checkoutOpen={checkout.checkoutOpen}
         activeInvoice={checkout.activeInvoice}
+        pendingInvoice={checkout.pendingDesaInvoice}
         lastInvoice={checkout.lastInvoice}
         bankLabelForInvoice={checkout.bankLabelForInvoice}
         statusCheckLoading={checkout.statusCheckLoading}
         openCheckout={checkout.openCheckout}
+        resumePendingInvoice={() => {
+          if (checkout.pendingDesaInvoice) {
+            checkout.resumePendingInvoice(checkout.pendingDesaInvoice);
+          }
+        }}
         copyText={checkout.copyText}
         refreshInvoiceStatus={checkout.refreshInvoiceStatus}
       />

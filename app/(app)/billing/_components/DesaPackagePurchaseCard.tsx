@@ -18,11 +18,13 @@ type DesaPackagePurchaseCardProps = {
   checkoutOpen: boolean;
 
   activeInvoice: CheckoutInvoice | null;
+  pendingInvoice: BillingStatusResponse["invoices"][number] | null;
   lastInvoice: BillingStatusResponse["invoices"][number] | null;
   bankLabelForInvoice: string | null;
   statusCheckLoading: boolean;
 
   openCheckout: (tier: DesaPackageTier) => void;
+  resumePendingInvoice: () => void;
   copyText: (text: string) => Promise<void>;
   refreshInvoiceStatus: (invoiceId: string) => Promise<void>;
 };
@@ -34,13 +36,17 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
     checkoutError,
     checkoutOpen,
     activeInvoice,
+    pendingInvoice,
     lastInvoice,
     bankLabelForInvoice,
     statusCheckLoading,
     openCheckout,
+    resumePendingInvoice,
     copyText,
     refreshInvoiceStatus,
   } = props;
+
+  const displayInvoice = activeInvoice ?? pendingInvoice;
 
   return (
     <Card>
@@ -48,6 +54,18 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
         <CardTitle>Pembelian Paket Desa</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {pendingInvoice && !checkoutOpen && (
+          <div className="rounded-lg border bg-muted/20 p-4 space-y-2">
+            <div className="text-sm font-medium">Invoice pending</div>
+            <div className="text-sm text-muted-foreground">
+              Selesaikan pembayaran invoice ini agar tidak terjadi tagihan ganda.
+            </div>
+            <Button type="button" size="sm" onClick={resumePendingInvoice}>
+              Lanjutkan pembayaran
+            </Button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {(
             Object.keys(BILLING_CATALOG.desa_package.tiers) as DesaPackageTier[]
@@ -58,7 +76,7 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
               currentPlan={data?.subscription.plan ?? null}
               isActive={data?.subscription.active ?? false}
               onOpenCheckout={openCheckout}
-              checkoutLoading={checkoutLoading}
+              checkoutLoading={checkoutLoading || Boolean(pendingInvoice)}
             />
           ))}
         </div>
@@ -67,36 +85,33 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
           <div className="text-sm text-red-600">{checkoutError}</div>
         )}
 
-        {activeInvoice && !checkoutOpen && (
+        {displayInvoice && !checkoutOpen && (
           <div className="rounded-lg border p-4 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="font-medium">{activeInvoice.invoiceNumber}</div>
-              <Badge variant={statusBadgeVariant(activeInvoice.status)}>
-                {activeInvoice.status}
+              <div className="font-medium">{displayInvoice.invoiceNumber}</div>
+              <Badge variant={statusBadgeVariant(displayInvoice.status)}>
+                {displayInvoice.status}
               </Badge>
               <div className="text-sm text-muted-foreground">
-                Total: {formatIdr(activeInvoice.amount)}
+                Total: {formatIdr(displayInvoice.amount)}
               </div>
             </div>
 
-            {activeInvoice.paymentMethod === "va" && activeInvoice.vaNumber && (
+            {displayInvoice.paymentMethod === "va" && displayInvoice.vaNumber && (
               <div className="text-sm space-y-1">
-                {bankLabelForInvoice && (
-                  <div>
-                    <span className="text-muted-foreground">Bank: </span>
-                    {bankLabelForInvoice}
-                  </div>
-                )}
                 <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground">
+                    Bank: {bankLabelForInvoice ?? displayInvoice.bankCode ?? "-"}
+                  </span>
                   <span className="text-muted-foreground">VA:</span>
                   <code className="rounded bg-muted px-2 py-0.5 font-mono">
-                    {activeInvoice.vaNumber}
+                    {displayInvoice.vaNumber}
                   </code>
                   <Button
                     size="sm"
                     variant="outline"
                     type="button"
-                    onClick={() => void copyText(activeInvoice.vaNumber!)}
+                    onClick={() => void copyText(displayInvoice.vaNumber!)}
                   >
                     Salin VA
                   </Button>
@@ -104,10 +119,10 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
               </div>
             )}
 
-            {activeInvoice.qrImageUrl && (
+            {displayInvoice.qrImageUrl && (
               <div>
                 <Image
-                  src={activeInvoice.qrImageUrl}
+                  src={displayInvoice.qrImageUrl}
                   alt="QR pembayaran"
                   className="h-56 w-56 rounded-md border object-contain bg-white"
                   width={225}
@@ -115,13 +130,13 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
                 />
               </div>
             )}
-            {!activeInvoice.qrImageUrl && activeInvoice.qrContent && (
-              <div className="text-sm break-all">{activeInvoice.qrContent}</div>
+            {!displayInvoice.qrImageUrl && displayInvoice.qrContent && (
+              <div className="text-sm break-all">{displayInvoice.qrContent}</div>
             )}
-            {activeInvoice.paymentUrl && (
+            {displayInvoice.paymentUrl && (
               <div className="text-sm">
                 <a
-                  href={activeInvoice.paymentUrl}
+                  href={displayInvoice.paymentUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="underline"
@@ -135,14 +150,14 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
               variant="secondary"
               size="sm"
               disabled={statusCheckLoading}
-              onClick={() => void refreshInvoiceStatus(activeInvoice.id)}
+              onClick={() => void refreshInvoiceStatus(displayInvoice.id)}
             >
               {statusCheckLoading ? "Memeriksa…" : "Cek status pembayaran"}
             </Button>
           </div>
         )}
 
-        {lastInvoice && !activeInvoice && (
+        {lastInvoice && !displayInvoice && (
           <div className="text-sm text-muted-foreground">
             Invoice terakhir: {lastInvoice.invoiceNumber} ({lastInvoice.status})
           </div>

@@ -269,6 +269,20 @@ async function prepareCheckoutLineItems(
 }
 
 export async function createCheckout(input: BillingCheckoutInput) {
+  const existingPending = await prisma.billingInvoice.findFirst({
+    where: {
+      villageId: input.villageId,
+      productType: input.productType,
+      status: "pending",
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+    orderBy: { createdAt: "desc" },
+    include: { items: true },
+  });
+  if (existingPending) {
+    return { invoice: existingPending, reused: true as const };
+  }
+
   const invoiceNumber = buildInvoiceNumber(input.villageCode);
   const partnerReff = invoiceNumber;
 
@@ -368,7 +382,7 @@ export async function createCheckout(input: BillingCheckoutInput) {
     include: { items: true },
   });
 
-  return created;
+  return { invoice: created, reused: false as const };
 }
 
 export async function handleLinkquCallback(payload: LinkquCallbackPayload) {

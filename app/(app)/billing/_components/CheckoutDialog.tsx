@@ -44,6 +44,7 @@ type CheckoutDialogProps = {
   vaBanks: VaBank[];
 
   checkoutError: string | null;
+  checkoutNotice?: string | null;
   onConfirmBank: () => Promise<void>;
 
   activeInvoice: CheckoutInvoice | null;
@@ -66,6 +67,7 @@ export function CheckoutDialog(props: CheckoutDialogProps) {
     setSelectedBankCode,
     vaBanks,
     checkoutError,
+    checkoutNotice,
     onConfirmBank,
     activeInvoice,
     bankLabelForInvoice,
@@ -122,6 +124,9 @@ export function CheckoutDialog(props: CheckoutDialogProps) {
               </Select>
             </div>
 
+            {checkoutNotice && (
+              <div className="text-sm text-muted-foreground">{checkoutNotice}</div>
+            )}
             {checkoutError && (
               <div className="text-sm text-red-600">{checkoutError}</div>
             )}
@@ -162,6 +167,9 @@ export function CheckoutDialog(props: CheckoutDialogProps) {
               </Badge>
             </div>
 
+            {checkoutNotice && (
+              <div className="text-sm text-muted-foreground">{checkoutNotice}</div>
+            )}
             {activeInvoice.status.toLowerCase() === "paid" ? (
               <p className="text-sm text-green-700">
                 Pembayaran diterima. Langganan akan diperbarui.

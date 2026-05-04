@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
 import { motion } from "motion/react";
+import { useSession } from "next-auth/react";
 import {
   Users,
   TrendingUp,
@@ -92,11 +93,16 @@ const STATISTIK_TABS = [
 ] as const;
 
 export function Statistik() {
-  const [selectedPeriod, setSelectedPeriod] = useState("2024");
+  const { data: session } = useSession();
+  const villageName =
+    session?.user?.village?.name || session?.user?.villageCode || null;
+  const [selectedPeriod, setSelectedPeriod] = useState(
+    new Date().getFullYear(),
+  );
   const [activeTab, setActiveTab] = usePersistedTab(
     "statistik",
     "overview",
-    STATISTIK_TABS
+    STATISTIK_TABS,
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +195,9 @@ export function Statistik() {
     setStatisticListModalOpen(true);
   };
 
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 10 }, (_, i) => currentYear - i);
+
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -196,18 +205,24 @@ export function Statistik() {
         <div>
           <h1 className="text-3xl font-semibold">Statistik Kependudukan</h1>
           <p className="text-muted-foreground mt-1">
-            Data statistik dan demografi Desa Brambang
+            Data statistik dan demografi{" "}
+            {villageName ? `${villageName}` : "desa Anda"}
           </p>
         </div>
         <div className="flex gap-2">
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+          <Select
+            value={selectedPeriod.toString()}
+            onValueChange={(value) => setSelectedPeriod(Number(value))}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2024">2024</SelectItem>
-              <SelectItem value="2023">2023</SelectItem>
-              <SelectItem value="2022">2022</SelectItem>
+              {yearOptions.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Button variant="outline" className="gap-2">
@@ -566,9 +581,7 @@ export function Statistik() {
                         key={index}
                         type="button"
                         className="group w-full space-y-2 rounded-lg border border-transparent p-3 text-left transition-colors hover:border-border hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        onClick={() =>
-                          openResidentList("gender", item.name)
-                        }
+                        onClick={() => openResidentList("gender", item.name)}
                         aria-label={`Lihat penduduk berjenis kelamin ${item.name}`}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -734,7 +747,9 @@ export function Statistik() {
                         key={index}
                         type="button"
                         className="group flex w-full items-center justify-between gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        onClick={() => openResidentList("occupation", item.pekerjaan)}
+                        onClick={() =>
+                          openResidentList("occupation", item.pekerjaan)
+                        }
                         aria-label={`Lihat daftar penduduk berdasarkan pekerjaan ${item.pekerjaan}`}
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -970,9 +985,7 @@ export function Statistik() {
                         key={index}
                         type="button"
                         className="group flex w-full items-center justify-between gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        onClick={() =>
-                          openResidentList("hamlet", item.wilayah)
-                        }
+                        onClick={() => openResidentList("hamlet", item.wilayah)}
                         aria-label={`Lihat penduduk di wilayah ${item.wilayah}`}
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-3">

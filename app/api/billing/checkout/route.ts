@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
       session.user.email || village.email || "billing@klandesa.id";
     const customerPhone = village.phone || "0000000000";
 
-    const invoice = await createCheckout({
+    const created = await createCheckout({
       villageId: village.id,
       villageCode: village.code,
       villageName: village.name,
@@ -200,22 +200,23 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
+      reused: created.reused,
       invoice: {
-        id: String(invoice.id),
-        invoiceNumber: invoice.invoiceNumber,
-        productType: invoice.productType,
-        planCode: invoice.planCode,
-        amount: Number(invoice.amount),
-        status: invoice.status,
-        expiresAt: invoice.expiresAt?.toISOString() ?? null,
-        paymentMethod: invoice.paymentMethod,
-        paymentUrl: invoice.paymentUrl,
-        qrContent: invoice.qrContent,
-        qrImageUrl: invoice.qrImageUrl,
-        vaNumber: invoice.vaNumber,
-        bankCode: invoice.bankCode,
-        createdAt: invoice.createdAt.toISOString(),
-        items: invoice.items.map((it) => ({
+        id: String(created.invoice.id),
+        invoiceNumber: created.invoice.invoiceNumber,
+        productType: created.invoice.productType,
+        planCode: created.invoice.planCode,
+        amount: Number(created.invoice.amount),
+        status: created.invoice.status,
+        expiresAt: created.invoice.expiresAt?.toISOString() ?? null,
+        paymentMethod: created.invoice.paymentMethod,
+        paymentUrl: created.invoice.paymentUrl,
+        qrContent: created.invoice.qrContent,
+        qrImageUrl: created.invoice.qrImageUrl,
+        vaNumber: created.invoice.vaNumber,
+        bankCode: created.invoice.bankCode,
+        createdAt: created.invoice.createdAt.toISOString(),
+        items: created.invoice.items.map((it) => ({
           id: String(it.id),
           name: it.name,
           quantity: it.quantity,

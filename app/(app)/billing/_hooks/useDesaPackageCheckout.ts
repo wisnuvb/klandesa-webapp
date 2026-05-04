@@ -7,6 +7,7 @@ import {
 } from "@/lib/billing/catalog";
 import type {
   BillingStatusResponse,
+  BillingStatusInvoice,
   CheckoutInvoice,
   CheckoutResponse,
   VaBank,
@@ -22,28 +23,43 @@ export function useDesaPackageCheckout(params: {
 
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<CheckoutInvoice | null>(
     null,
   );
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutTier, setCheckoutTier] = useState<DesaPackageTier | null>(null);
+  const [checkoutTier, setCheckoutTier] = useState<DesaPackageTier | null>(
+    null,
+  );
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("bank");
   const [vaBanks, setVaBanks] = useState<VaBank[]>([]);
   const [banksLoading, setBanksLoading] = useState(false);
   const [selectedBankCode, setSelectedBankCode] = useState<string>("");
   const [statusCheckLoading, setStatusCheckLoading] = useState(false);
 
+  const pendingDesaInvoice = useMemo(() => {
+    const inv = (data?.invoices ?? []).find((x) => {
+      if (String(x.productType ?? "").toLowerCase() !== "desa_package")
+        return false;
+      if (String(x.status ?? "").toLowerCase() !== "pending") return false;
+      if (!x.expiresAt) return true;
+      return new Date(x.expiresAt).getTime() > Date.now();
+    });
+    return inv ?? null;
+  }, [data?.invoices]);
+
   useEffect(() => {
-    if (!checkoutOpen) return;
+    if (!checkoutOpen || checkoutStep !== "bank") return;
     let cancelled = false;
     (async () => {
       setBanksLoading(true);
       try {
         const res = await fetch("/api/billing/va-banks");
-        const j = (await res.json().catch(() => null)) as
-          | { banks?: VaBank[]; error?: string }
-          | null;
+        const j = (await res.json().catch(() => null)) as {
+          banks?: VaBank[];
+          error?: string;
+        } | null;
         if (!res.ok) {
           throw new Error(j?.error || "Gagal memuat daftar bank");
         }
@@ -61,7 +77,7 @@ export function useDesaPackageCheckout(params: {
     return () => {
       cancelled = true;
     };
-  }, [checkoutOpen]);
+  }, [checkoutOpen, checkoutStep]);
 
   const chargePreview = useMemo(() => {
     if (!checkoutTier || !data) return null;
@@ -71,20 +87,66 @@ export function useDesaPackageCheckout(params: {
     });
   }, [checkoutTier, data]);
 
-  const openCheckout = useCallback((tier: DesaPackageTier) => {
+  const resumePendingInvoice = useCallback((inv: BillingStatusInvoice) => {
+    const maybeTier = String(inv.planCode ?? "").toLowerCase();
+    const tier =
+      maybeTier === "starter" ||
+      maybeTier === "profesional" ||
+      maybeTier === "enterprise"
+        ? (maybeTier as DesaPackageTier)
+        : null;
+
     setCheckoutTier(tier);
-    setCheckoutStep("bank");
+    setCheckoutStep("payment");
     setSelectedBankCode("");
     setCheckoutError(null);
-    setActiveInvoice(null);
+    setCheckoutNotice(
+      "Masih ada invoice pending. Selesaikan pembayaran untuk melanjutkan.",
+    );
+    setActiveInvoice({
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      productType: inv.productType,
+      planCode: inv.planCode,
+      amount: inv.amount,
+      status: inv.status,
+      expiresAt: inv.expiresAt,
+      paymentMethod: inv.paymentMethod,
+      paymentUrl: inv.paymentUrl,
+      qrContent: inv.qrContent,
+      qrImageUrl: inv.qrImageUrl,
+      vaNumber: inv.vaNumber,
+      bankCode: inv.bankCode,
+      createdAt: inv.createdAt,
+      items: [],
+    });
     setCheckoutOpen(true);
   }, []);
+
+  const openCheckout = useCallback(
+    (tier: DesaPackageTier) => {
+      if (pendingDesaInvoice) {
+        resumePendingInvoice(pendingDesaInvoice);
+        return;
+      }
+
+      setCheckoutTier(tier);
+      setCheckoutStep("bank");
+      setSelectedBankCode("");
+      setCheckoutError(null);
+      setCheckoutNotice(null);
+      setActiveInvoice(null);
+      setCheckoutOpen(true);
+    },
+    [pendingDesaInvoice, resumePendingInvoice],
+  );
 
   const createDesaCheckout = useCallback(
     async (tier: DesaPackageTier, bankCode: string) => {
       try {
         setCheckoutLoading(true);
         setCheckoutError(null);
+        setCheckoutNotice(null);
 
         const res = await fetch("/api/billing/checkout", {
           method: "POST",
@@ -107,12 +169,20 @@ export function useDesaPackageCheckout(params: {
           );
         }
 
-        const invoice = (j as CheckoutResponse).invoice;
+        const ok = j as CheckoutResponse;
+        const invoice = ok.invoice;
         setActiveInvoice(invoice);
         setCheckoutStep("payment");
+        if (ok.reused) {
+          setCheckoutNotice(
+            "Invoice pending ditemukan. Gunakan invoice ini agar tidak terjadi tagihan ganda.",
+          );
+        }
         await reloadBilling();
       } catch (e) {
-        setCheckoutError(e instanceof Error ? e.message : "Gagal membuat invoice");
+        setCheckoutError(
+          e instanceof Error ? e.message : "Gagal membuat invoice",
+        );
       } finally {
         setCheckoutLoading(false);
       }
@@ -134,10 +204,12 @@ export function useDesaPackageCheckout(params: {
       try {
         setStatusCheckLoading(true);
         setCheckoutError(null);
+        setCheckoutNotice(null);
         const res = await fetch(`/api/billing/invoices/${invoiceId}`);
-        const j = (await res.json().catch(() => null)) as
-          | { invoice?: CheckoutInvoice; error?: string }
-          | null;
+        const j = (await res.json().catch(() => null)) as {
+          invoice?: CheckoutInvoice;
+          error?: string;
+        } | null;
         if (!res.ok) {
           throw new Error(j?.error || "Gagal memeriksa status");
         }
@@ -146,7 +218,9 @@ export function useDesaPackageCheckout(params: {
           await reloadBilling();
         }
       } catch (e) {
-        setCheckoutError(e instanceof Error ? e.message : "Gagal memeriksa status");
+        setCheckoutError(
+          e instanceof Error ? e.message : "Gagal memeriksa status",
+        );
       } finally {
         setStatusCheckLoading(false);
       }
@@ -166,15 +240,21 @@ export function useDesaPackageCheckout(params: {
     }, 8000);
 
     return () => window.clearInterval(t);
-  }, [checkoutOpen, checkoutStep, pollInvoiceId, pollInvoiceStatus, refreshInvoiceStatus]);
+  }, [
+    checkoutOpen,
+    checkoutStep,
+    pollInvoiceId,
+    pollInvoiceStatus,
+    refreshInvoiceStatus,
+  ]);
 
   const bankLabelForInvoice = useMemo(() => {
-    if (!activeInvoice?.bankCode) return null;
-    const b = vaBanks.find((x) => x.linkquBankCode === activeInvoice.bankCode);
-    return b?.label ?? `Bank (kode ${activeInvoice.bankCode})`;
-  }, [activeInvoice?.bankCode, vaBanks]);
-
-  const lastInvoice = useMemo(() => data?.invoices?.[0] ?? null, [data]);
+    const code =
+      activeInvoice?.bankCode ?? pendingDesaInvoice?.bankCode ?? null;
+    if (!code) return null;
+    const b = vaBanks.find((x) => x.linkquBankCode === code);
+    return b?.label ?? `Bank (kode ${code})`;
+  }, [activeInvoice?.bankCode, pendingDesaInvoice?.bankCode, vaBanks]);
 
   const copyText = useCallback(async (text: string) => {
     try {
@@ -190,13 +270,22 @@ export function useDesaPackageCheckout(params: {
       setCheckoutTier(null);
       setCheckoutStep("bank");
       setSelectedBankCode("");
+      setCheckoutNotice(null);
     }
   }, []);
+
+  const lastInvoice = useMemo(() => {
+    const inv = (data?.invoices ?? []).find(
+      (x) => String(x.productType ?? "").toLowerCase() === "desa_package",
+    );
+    return inv ?? null;
+  }, [data?.invoices]);
 
   return {
     checkoutLoading,
     checkoutError,
     setCheckoutError,
+    checkoutNotice,
     activeInvoice,
 
     checkoutOpen,
@@ -211,6 +300,8 @@ export function useDesaPackageCheckout(params: {
 
     chargePreview,
     openCheckout,
+    pendingDesaInvoice,
+    resumePendingInvoice,
     onConfirmBank,
     refreshInvoiceStatus,
     bankLabelForInvoice,
@@ -218,4 +309,3 @@ export function useDesaPackageCheckout(params: {
     copyText,
   };
 }
-

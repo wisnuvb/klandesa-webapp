@@ -40,7 +40,9 @@ export function InvoiceHistoryCard(props: InvoiceHistoryCardProps) {
                     <td className="py-2 pr-3">
                       <Badge variant={statusBadgeVariant(inv.status)}>{inv.status}</Badge>
                     </td>
-                    <td className="py-2 pr-3">{inv.createdAt}</td>
+                    <td className="py-2 pr-3">
+                      {new Date(inv.createdAt).toLocaleString("id-ID")}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -53,4 +55,3 @@ export function InvoiceHistoryCard(props: InvoiceHistoryCardProps) {
     </Card>
   );
 }
-
