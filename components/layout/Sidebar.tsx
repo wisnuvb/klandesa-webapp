@@ -104,6 +104,12 @@ const PLATFORM_SIDEBAR_MENU: MenuItem[] = [
     icon: HeartHandshake,
     path: "/admin/mitra",
   },
+  {
+    id: "admin/blog",
+    label: "Kelola Blog",
+    icon: FileText,
+    path: "/admin/blog",
+  },
 ];
 
 const BASE_SIDEBAR_MENU: MenuItem[] = [

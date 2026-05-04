@@ -42,10 +42,100 @@ export async function GET(req: NextRequest) {
       province: true,
       subscriptionPlan: true,
       subscriptionStatus: true,
+      subscriptionExpiry: true,
       isActive: true,
       createdAt: true,
     },
   });
 
   return NextResponse.json({ villages }, { status: 200 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const auth = await requirePlatformSession(req);
+  if (!auth.ok) return auth.response;
+
+  const body = (await req.json().catch(() => null)) as
+    | {
+        villageId?: unknown;
+        villageCode?: unknown;
+        partnerId?: unknown;
+        acquisitionSource?: unknown;
+      }
+    | null;
+
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
+  }
+
+  const villageId =
+    body.villageId == null || body.villageId === ""
+      ? null
+      : Number(body.villageId);
+  const villageCodeRaw = typeof body.villageCode === "string" ? body.villageCode : "";
+  const villageCode = villageCodeRaw.trim();
+
+  if (villageId != null && !Number.isFinite(villageId)) {
+    return NextResponse.json({ error: "villageId tidak valid" }, { status: 400 });
+  }
+  if (villageId == null && !villageCode) {
+    return NextResponse.json(
+      { error: "Wajib isi villageId atau villageCode" },
+      { status: 400 },
+    );
+  }
+
+  const partnerId =
+    body.partnerId == null || body.partnerId === ""
+      ? null
+      : Number(body.partnerId);
+  if (partnerId != null && !Number.isFinite(partnerId)) {
+    return NextResponse.json({ error: "partnerId tidak valid" }, { status: 400 });
+  }
+
+  const source =
+    typeof body.acquisitionSource === "string"
+      ? body.acquisitionSource.trim().slice(0, 50)
+      : "";
+  const acquisitionSource = source || "admin";
+
+  const village = await prisma.village.findUnique({
+    where: villageId != null ? { id: Math.floor(villageId) } : { code: villageCode },
+    select: { id: true, code: true, name: true },
+  });
+  if (!village) {
+    return NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 });
+  }
+
+  if (partnerId != null) {
+    const partner = await prisma.partner.findUnique({
+      where: { id: Math.floor(partnerId) },
+      select: { id: true },
+    });
+    if (!partner) {
+      return NextResponse.json({ error: "Mitra tidak ditemukan" }, { status: 404 });
+    }
+  }
+
+  const updated = await prisma.village.update({
+    where: { id: village.id },
+    data:
+      partnerId == null
+        ? { acquiredByPartnerId: null, acquiredAt: null, acquisitionSource: null }
+        : {
+            acquiredByPartnerId: Math.floor(partnerId),
+            acquiredAt: new Date(),
+            acquisitionSource,
+          },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      acquiredByPartnerId: true,
+      acquiredAt: true,
+      acquisitionSource: true,
+    },
+  });
+
+  return NextResponse.json({ ok: true, village: updated }, { status: 200 });
 }

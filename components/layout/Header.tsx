@@ -47,6 +47,12 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
 
   const loadNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
+    const at = (user as { accountType?: string } | null)?.accountType;
+    if (at && at !== "village") {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
     setNotifLoading(true);
     try {
       const res = await fetch("/api/notifications");
@@ -59,7 +65,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
     } finally {
       setNotifLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -112,6 +118,10 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
     return user?.role || "Administrator";
   };
 
+  const accountType = (user as { accountType?: string } | null)?.accountType;
+  const showNotifications = isAuthenticated && (!accountType || accountType === "village");
+  const showVillageSettings = !accountType || accountType === "village";
+
   return (
     <header className="bg-card border-b border-border px-6 py-2">
       <div className="flex items-center justify-between gap-4">
@@ -143,106 +153,108 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          <DropdownMenu
-            onOpenChange={(open) => {
-              if (open && isAuthenticated) void loadNotifications();
-            }}
-          >
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                {unreadCount > 0 ? (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 min-w-5 px-1 flex items-center justify-center text-[10px]"
-                  >
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </Badge>
-                ) : null}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                <DropdownMenuLabel className="p-0">Notifikasi</DropdownMenuLabel>
-                {notifications.length > 0 && unreadCount > 0 ? (
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => void markAllRead()}
-                  >
-                    Tandai semua dibaca
-                  </button>
-                ) : null}
-              </div>
-              <DropdownMenuSeparator />
-              {notifLoading && notifications.length === 0 ? (
-                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  Memuat notifikasi…
+          {showNotifications ? (
+            <DropdownMenu
+              onOpenChange={(open) => {
+                if (open && isAuthenticated) void loadNotifications();
+              }}
+            >
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 ? (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 h-5 min-w-5 px-1 flex items-center justify-center text-[10px]"
+                    >
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </Badge>
+                  ) : null}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                  <DropdownMenuLabel className="p-0">Notifikasi</DropdownMenuLabel>
+                  {notifications.length > 0 && unreadCount > 0 ? (
+                    <button
+                      type="button"
+                      className="text-xs text-primary hover:underline"
+                      onClick={() => void markAllRead()}
+                    >
+                      Tandai semua dibaca
+                    </button>
+                  ) : null}
                 </div>
-              ) : notifications.length === 0 ? (
-                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  Belum ada notifikasi. Aktivitas permohonan surat, keuangan, dan
-                  pembaruan warga akan muncul di sini.
-                </div>
-              ) : (
-                notifications.map((n, index) => {
-                  const lines = (
-                    <>
-                      <p
-                        className={cn(
-                          "font-medium leading-snug",
-                          !n.read && "font-semibold",
-                        )}
-                      >
-                        {n.title}
-                      </p>
-                      {n.body ? (
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {n.body}
+                <DropdownMenuSeparator />
+                {notifLoading && notifications.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    Memuat notifikasi…
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    Belum ada notifikasi. Aktivitas permohonan surat, keuangan, dan
+                    pembaruan warga akan muncul di sini.
+                  </div>
+                ) : (
+                  notifications.map((n, index) => {
+                    const lines = (
+                      <>
+                        <p
+                          className={cn(
+                            "font-medium leading-snug",
+                            !n.read && "font-semibold",
+                          )}
+                        >
+                          {n.title}
                         </p>
-                      ) : null}
-                      <p className="text-xs text-muted-foreground">{n.timeAgo}</p>
-                    </>
-                  );
-                  const linkClass = cn(
-                    "flex cursor-pointer flex-col items-start gap-1 p-3 outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent",
-                    !n.read && "bg-muted/60",
-                  );
+                        {n.body ? (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {n.body}
+                          </p>
+                        ) : null}
+                        <p className="text-xs text-muted-foreground">{n.timeAgo}</p>
+                      </>
+                    );
+                    const linkClass = cn(
+                      "flex cursor-pointer flex-col items-start gap-1 p-3 outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent",
+                      !n.read && "bg-muted/60",
+                    );
 
-                  return (
-                    <div key={n.id}>
-                      {index > 0 ? <DropdownMenuSeparator /> : null}
-                      <DropdownMenuItem
-                        asChild
-                        className="p-0 focus:bg-transparent"
-                      >
-                        {isExternalHref(n.href) ? (
-                          <a
-                            href={n.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={linkClass}
-                            onClick={() => onNotificationActivate(n)}
-                          >
-                            {lines}
-                          </a>
-                        ) : (
-                          <Link
-                            href={n.href}
-                            prefetch={false}
-                            className={linkClass}
-                            onClick={() => onNotificationActivate(n)}
-                          >
-                            {lines}
-                          </Link>
-                        )}
-                      </DropdownMenuItem>
-                    </div>
-                  );
-                })
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                    return (
+                      <div key={n.id}>
+                        {index > 0 ? <DropdownMenuSeparator /> : null}
+                        <DropdownMenuItem
+                          asChild
+                          className="p-0 focus:bg-transparent"
+                        >
+                          {isExternalHref(n.href) ? (
+                            <a
+                              href={n.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={linkClass}
+                              onClick={() => onNotificationActivate(n)}
+                            >
+                              {lines}
+                            </a>
+                          ) : (
+                            <Link
+                              href={n.href}
+                              prefetch={false}
+                              className={linkClass}
+                              onClick={() => onNotificationActivate(n)}
+                            >
+                              {lines}
+                            </Link>
+                          )}
+                        </DropdownMenuItem>
+                      </div>
+                    );
+                  })
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -264,9 +276,11 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
               <DropdownMenuItem asChild className="cursor-pointer">
                 <Link href="/profil">Profil</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="cursor-pointer">
-                <Link href="/pengaturan-desa">Pengaturan desa</Link>
-              </DropdownMenuItem>
+              {showVillageSettings ? (
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/pengaturan-desa">Pengaturan desa</Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"

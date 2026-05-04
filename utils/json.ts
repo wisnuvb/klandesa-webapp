@@ -6,12 +6,21 @@ export function toJSONSafe<T>(value: T): unknown {
   if (t === "bigint") {
     return (value as unknown as bigint).toString();
   }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
   if (Array.isArray(value)) {
     return value.map((v) => toJSONSafe(v));
   }
   if (t === "object") {
-    const maybeJson =
-      (value as unknown as { toJSON?: () => unknown }).toJSON?.() ?? value;
+    const toJson = (value as unknown as { toJSON?: () => unknown }).toJSON;
+    if (typeof toJson === "function") {
+      const jsonValue = toJson.call(value);
+      if (jsonValue === null || jsonValue === undefined) return jsonValue;
+      if (typeof jsonValue !== "object") return toJSONSafe(jsonValue);
+      return toJSONSafe(jsonValue);
+    }
+    const maybeJson = value;
     return Object.fromEntries(
       Object.entries(maybeJson as Record<string, unknown>).map(([k, v]) => [
         k,

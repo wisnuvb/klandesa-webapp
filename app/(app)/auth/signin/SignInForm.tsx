@@ -47,7 +47,13 @@ export function SignInForm() {
             accountType?: string;
           };
           const defaultDest =
-            u.accountType === "regional" ? "/wilayah" : "/dashboard";
+            u.accountType === "regional"
+              ? "/wilayah"
+              : u.accountType === "partner"
+                ? "/mitra"
+                : u.accountType === "platform"
+                  ? "/admin"
+                  : "/dashboard";
           const next =
             callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
               ? callbackUrl
@@ -55,7 +61,11 @@ export function SignInForm() {
           const safe =
             u.accountType === "regional" && next.startsWith("/dashboard")
               ? "/wilayah"
-              : next;
+              : u.accountType === "partner" && next.startsWith("/dashboard")
+                ? "/mitra"
+                : u.accountType === "platform" && !next.startsWith("/admin")
+                  ? "/admin"
+                  : next;
           window.location.assign(safe);
         } else {
           setError("Sesi tidak terbaca. Coba refresh halaman.");

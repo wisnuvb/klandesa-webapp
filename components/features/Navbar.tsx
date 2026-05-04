@@ -49,6 +49,7 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
         { name: "Tentang", href: "#tentang", type: "hash" },
         { name: "Manfaat", href: "#manfaat", type: "hash" },
         { name: "Kontak", href: "#kontak", type: "hash" },
+        { name: "Blog", href: "/blog", type: "route" },
       ],
     },
     { name: "Karir", href: "/karir", type: "route" },

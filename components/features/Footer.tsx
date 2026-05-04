@@ -28,7 +28,7 @@ export function Footer() {
     ],
     company: [
       { name: "Tentang Kami", href: "#tentang", type: "hash" },
-      { name: "Blog", href: "#blog", type: "hash" },
+      { name: "Blog", path: "/blog", type: "route" },
       { name: "Karir", path: "/karir", type: "route" },
       { name: "Kontak", href: "#kontak", type: "hash" },
     ],

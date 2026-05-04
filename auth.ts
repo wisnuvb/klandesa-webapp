@@ -210,8 +210,11 @@ export const authSecret =
  * - Jika tidak di-set, fallback host-only cookie.
  * - Untuk development localhost, gunakan undefined agar cookie bisa diakses dari localhost dan subdomains
  */
+const cookieDomainRaw = process.env.COOKIE_DOMAIN?.trim() || "";
 const sessionCookieDomain: string | undefined =
-  process.env.COOKIE_DOMAIN?.trim() || undefined;
+  cookieDomainRaw && cookieDomainRaw !== "localhost" && cookieDomainRaw !== ".localhost"
+    ? cookieDomainRaw
+    : undefined;
 
 const resolvedAuthSecret = getResolvedAuthSecret();
 

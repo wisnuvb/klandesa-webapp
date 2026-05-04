@@ -43,5 +43,58 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ partners }, { status: 200 });
+  const partnerIds = partners.map((p) => p.id);
+
+  const [prospectGroups, acquiredGroups] =
+    partnerIds.length === 0
+      ? [[], []]
+      : await Promise.all([
+          prisma.partnerProspect.groupBy({
+            by: ["partnerId", "status"],
+            where: { partnerId: { in: partnerIds } },
+            _count: { _all: true },
+          }),
+          prisma.village.groupBy({
+            by: ["acquiredByPartnerId"],
+            where: { acquiredByPartnerId: { in: partnerIds } },
+            _count: { _all: true },
+          }),
+        ]);
+
+  const prospectSummaryByPartner = new Map<
+    number,
+    { total: number; byStatus: Record<string, number> }
+  >();
+  for (const g of prospectGroups) {
+    const partnerId = g.partnerId;
+    const status = g.status;
+    const count = g._count?._all ?? 0;
+    const existing = prospectSummaryByPartner.get(partnerId) ?? {
+      total: 0,
+      byStatus: {},
+    };
+    existing.total += count;
+    existing.byStatus[status] = (existing.byStatus[status] ?? 0) + count;
+    prospectSummaryByPartner.set(partnerId, existing);
+  }
+
+  const acquiredVillageCountByPartner = new Map<number, number>();
+  for (const g of acquiredGroups) {
+    const partnerId = g.acquiredByPartnerId;
+    if (typeof partnerId !== "number") continue;
+    acquiredVillageCountByPartner.set(partnerId, g._count?._all ?? 0);
+  }
+
+  const enriched = partners.map((p) => ({
+    ...p,
+    stats: {
+      prospects: prospectSummaryByPartner.get(p.id) ?? {
+        total: 0,
+        byStatus: {},
+      },
+      acquiredVillages: acquiredVillageCountByPartner.get(p.id) ?? 0,
+    },
+  }));
+
+  return NextResponse.json({ partners: enriched }, { status: 200 });
 }

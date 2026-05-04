@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,9 +14,21 @@ type VillageRow = {
   province: string;
   subscriptionPlan: string;
   subscriptionStatus: string;
+  subscriptionExpiry: string | null;
   isActive: boolean;
   createdAt: string;
 };
+
+function isSubscriptionActive(
+  v: Pick<VillageRow, "subscriptionStatus" | "subscriptionExpiry">,
+): boolean {
+  const status = String(v.subscriptionStatus ?? "").toLowerCase();
+  if (status !== "active") return false;
+  if (!v.subscriptionExpiry) return true;
+  const d = new Date(v.subscriptionExpiry);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getTime() > Date.now();
+}
 
 export default function AdminDesaPage() {
   const [query, setQuery] = useState("");
@@ -26,30 +38,44 @@ export default function AdminDesaPage() {
 
   const q = useMemo(() => query.trim(), [query]);
 
-  const load = async (signal?: AbortSignal) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const url = `/api/admin/villages?query=${encodeURIComponent(q)}`;
-      const res = await fetch(url, { cache: "no-store", signal });
-      const data = (await res.json().catch(() => null)) as
-        | { villages?: VillageRow[]; error?: string }
-        | null;
-      if (!res.ok) throw new Error(data?.error || "Gagal memuat desa");
-      setRows(data?.villages ?? []);
-    } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") return;
-      setError(e instanceof Error ? e.message : "Gagal memuat desa");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setLoading(true);
+        setError(null);
+        const url = `/api/admin/villages?query=${encodeURIComponent(q)}`;
+        const res = await fetch(url, { cache: "no-store", signal });
+        const data = (await res.json().catch(() => null)) as {
+          villages?: VillageRow[];
+          error?: string;
+        } | null;
+        if (!res.ok) throw new Error(data?.error || "Gagal memuat desa");
+        setRows(data?.villages ?? []);
+      } catch (e) {
+        const name =
+          e && typeof e === "object" && "name" in e
+            ? String((e as { name?: unknown }).name || "")
+            : "";
+        if (name === "AbortError") return;
+        setError(e instanceof Error ? e.message : "Gagal memuat desa");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [q],
+  );
 
   useEffect(() => {
     const c = new AbortController();
     void load(c.signal);
-    return () => c.abort();
-  }, [q]);
+    return () => {
+      try {
+        c.abort("cleanup");
+      } catch {
+        return;
+      }
+    };
+  }, [load]);
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -67,7 +93,11 @@ export default function AdminDesaPage() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Cari desa…"
             />
-            <Button className="w-full sm:w-auto" variant="outline" onClick={() => setQuery("")}>
+            <Button
+              className="w-full sm:w-auto"
+              variant="outline"
+              onClick={() => setQuery("")}
+            >
               Reset
             </Button>
           </div>
@@ -95,20 +125,27 @@ export default function AdminDesaPage() {
             <>
               <div className="space-y-3 md:hidden">
                 {rows.map((v) => (
-                  <div key={v.id} className="rounded-lg border border-border p-3 space-y-1">
+                  <div
+                    key={v.id}
+                    className="rounded-lg border border-border p-3 space-y-1"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="font-medium truncate">{v.name}</div>
                         <div className="text-xs text-muted-foreground truncate">
-                          {v.code} · {[v.district, v.regency, v.province].filter(Boolean).join(" · ")}
+                          {v.code} ·{" "}
+                          {[v.district, v.regency, v.province]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </div>
                       </div>
                       <div className="text-xs font-medium text-muted-foreground shrink-0">
-                        {v.isActive ? "aktif" : "nonaktif"}
+                        {v.isActive && isSubscriptionActive(v) ? "aktif" : "nonaktif"}
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Paket: {v.subscriptionPlan} · Status: {v.subscriptionStatus}
+                      Paket: {v.subscriptionPlan} · Langganan:{" "}
+                      {v.subscriptionStatus}
                     </div>
                   </div>
                 ))}
@@ -122,21 +159,27 @@ export default function AdminDesaPage() {
                       <th className="py-2 pr-4 font-medium">Kode</th>
                       <th className="py-2 pr-4 font-medium">Wilayah</th>
                       <th className="py-2 pr-4 font-medium">Paket</th>
-                      <th className="py-2 pr-4 font-medium">Status</th>
-                      <th className="py-2 pr-4 font-medium">Aktif</th>
+                      <th className="py-2 pr-4 font-medium">Langganan</th>
+                      <th className="py-2 pr-4 font-medium">Akses</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((v) => (
                       <tr key={v.id} className="border-b border-border">
                         <td className="py-2 pr-4 font-medium">{v.name}</td>
-                        <td className="py-2 pr-4 text-muted-foreground">{v.code}</td>
                         <td className="py-2 pr-4 text-muted-foreground">
-                          {[v.district, v.regency, v.province].filter(Boolean).join(" · ")}
+                          {v.code}
+                        </td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          {[v.district, v.regency, v.province]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </td>
                         <td className="py-2 pr-4">{v.subscriptionPlan}</td>
                         <td className="py-2 pr-4">{v.subscriptionStatus}</td>
-                        <td className="py-2 pr-4">{v.isActive ? "ya" : "tidak"}</td>
+                        <td className="py-2 pr-4">
+                          {v.isActive && isSubscriptionActive(v) ? "ya" : "tidak"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

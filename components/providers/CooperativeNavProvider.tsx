@@ -49,7 +49,7 @@ export function CooperativeNavProvider({
       return;
     }
     const at = (user as { accountType?: string } | null)?.accountType;
-    if (at === "regional") {
+    if (at && at !== "village") {
       setAccess(null);
       setLoading(false);
       return;

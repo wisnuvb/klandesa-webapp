@@ -48,6 +48,11 @@ model Village {
   /// Radius izin absen GPS dalam meter (default 100 m).
   absensiCheckInRadiusMeters Int     @default(100)
 
+  acquiredByPartnerId Int?
+  acquiredByPartner   Partner?  @relation("PartnerAcquiredVillages", fields: [acquiredByPartnerId], references: [id], onDelete: SetNull)
+  acquiredAt          DateTime?
+  acquisitionSource   String?   @db.VarChar(50)
+
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -86,6 +91,7 @@ model Village {
   @@index([isActive])
   @@index([regency])
   @@index([regency, district])
+  @@index([acquiredByPartnerId])
   @@map("villages")
 }
 
@@ -145,6 +151,8 @@ model PlatformUser {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  blogPosts BlogPost[]
+
   @@index([email])
   @@index([role])
   @@map("platform_users")
@@ -162,7 +170,8 @@ model User {
   phone  String? @db.VarChar(20)
   avatar String? @db.Text
 
-  role String @db.VarChar(50) // admin, staff, village_head, secretary
+  role      String @db.VarChar(50) // admin, staff, village_head, secretary
+  aiCredits Int    @default(0)
 
   isActive  Boolean   @default(true)
   lastLogin DateTime?
@@ -1404,8 +1413,9 @@ model Partner {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  bankAccounts PartnerBankAccount[]
-  prospects    PartnerProspect[]
+  bankAccounts     PartnerBankAccount[]
+  prospects        PartnerProspect[]
+  acquiredVillages Village[]            @relation("PartnerAcquiredVillages")
 
   @@index([status])
   @@map("partners")
@@ -1474,6 +1484,63 @@ model PartnerProspectEvent {
 
   @@index([prospectId, createdAt(sort: Desc)])
   @@map("partner_prospect_events")
+}
+
+model BlogPost {
+  id BigInt @id @default(autoincrement())
+
+  slug  String @unique @db.VarChar(200)
+  title String @db.VarChar(200)
+
+  excerpt String? @db.Text
+  content String? @db.LongText
+
+  status String @default("draft") @db.VarChar(30) // draft | review | published | archived
+
+  coverImageUrl         String? @db.Text
+  coverImageAttribution Json?
+
+  seoTitle       String? @db.VarChar(200)
+  seoDescription String? @db.VarChar(500)
+
+  publishedAt DateTime?
+
+  createdByPlatformUserId Int?
+  createdByPlatformUser   PlatformUser? @relation(fields: [createdByPlatformUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags BlogPostTag[]
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("blog_posts")
+}
+
+model BlogTag {
+  id Int @id @default(autoincrement())
+
+  slug String @unique @db.VarChar(80)
+  name String @unique @db.VarChar(80)
+
+  createdAt DateTime @default(now())
+
+  posts BlogPostTag[]
+
+  @@map("blog_tags")
+}
+
+model BlogPostTag {
+  postId BigInt
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  tagId Int
+  tag   BlogTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+  @@map("blog_post_tags")
 }
 
 // ============================================

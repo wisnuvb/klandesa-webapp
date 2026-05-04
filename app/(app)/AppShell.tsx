@@ -42,6 +42,10 @@ const pageConfig = {
     title: "Kelola Mitra",
     subtitle: "Pendaftaran mitra, akun mitra, dan aktivasi",
   },
+  "admin/blog": {
+    title: "Kelola Blog",
+    subtitle: "Buat dan publish artikel blog Klandesa",
+  },
   profil: {
     title: "Profil Akun",
     subtitle: "Informasi pengguna yang sedang masuk",
@@ -213,7 +217,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         const data = (await res.json().catch(() => null)) as {
           subscription?: { active?: unknown };
         } | null;
-        if (!data?.subscription || typeof data.subscription.active !== "boolean") {
+        if (
+          !data?.subscription ||
+          typeof data.subscription.active !== "boolean"
+        ) {
           return;
         }
         if (!data.subscription.active) {
