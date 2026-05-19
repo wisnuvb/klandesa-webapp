@@ -47,6 +47,7 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
       name: "Perusahaan",
       children: [
         { name: "Tentang", href: "#tentang", type: "hash" },
+        { name: "Tim Kami", href: "/tim", type: "route" },
         { name: "Manfaat", href: "#manfaat", type: "hash" },
         { name: "Kontak", href: "#kontak", type: "hash" },
         { name: "Blog", href: "/blog", type: "route" },
@@ -86,15 +87,7 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
             className="flex items-center group"
             onClick={() => window.scrollTo(0, 0)}
           >
-            <KlandesaLogo className="w-10 h-10" showText={false} />
-            <div className="flex flex-col ml-2">
-              <span className="text-xl text-gray-900 group-hover:text-[#0d9488] transition-colors">
-                Klandesa
-              </span>
-              <span className="text-xs text-gray-500 -mt-1">
-                Digitalisasi Desa
-              </span>
-            </div>
+            <KlandesaLogo />
           </Link>
 
           {/* Navigation Links - Desktop */}

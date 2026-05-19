@@ -9,7 +9,10 @@ export type LandingPageSeoKey =
   | "beasiswa"
   | "cek-bantuan-program"
   | "karir"
-  | "demo";
+  | "demo"
+  | "tim"
+  | "mitra-klandesa"
+  | "blog";
 
 export type LandingPageSeoConfig = {
   pathname: string;
@@ -147,7 +150,91 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
     ],
     robots: "index, follow",
   },
+  tim: {
+    pathname: "/tim",
+    title: "Tim Klandesa — Founder & Orang di Balik Platform Desa Digital",
+    description:
+      "Kenali Wisnu Saputro, Boediman EP., dan Krina Wibisana — tim pendiri yang membangun Klandesa untuk digitalisasi layanan desa di Indonesia.",
+    keywords: [
+      "tim klandesa",
+      "founder klandesa",
+      "startup desa digital",
+      "platform desa digital indonesia",
+      "klandesa",
+    ],
+    robots: "index, follow",
+  },
+  "mitra-klandesa": {
+    pathname: "/mitra-klandesa",
+    title: "Program Mitra Klandesa — Kemitraan Digitalisasi Desa",
+    description:
+      "Bergabung sebagai mitra Klandesa: bagi hasil per closing, dukungan materi produk, dan fleksibilitas untuk konsultan desa, relasi pemda, atau komunitas yang memperkenalkan solusi digital desa.",
+    keywords: [
+      "mitra klandesa",
+      "kemitraan digitalisasi desa",
+      "partner aplikasi desa",
+      "komisi mitra desa",
+      "klandesa",
+    ],
+    robots: "index, follow",
+  },
+  blog: {
+    pathname: "/blog",
+    title: "Blog Klandesa — Artikel Digitalisasi Desa & Layanan Publik",
+    description:
+      "Artikel seputar digitalisasi desa, layanan publik, administrasi pemerintahan desa, dan perkembangan produk Klandesa.",
+    keywords: [
+      "blog klandesa",
+      "artikel digitalisasi desa",
+      "layanan publik desa",
+      "sistem informasi desa",
+      "klandesa",
+    ],
+    robots: "index, follow",
+  },
 };
+
+/** Halaman legal yang diindeks (metadata didefinisikan di masing-masing page). */
+export const LEGAL_SITEMAP_PATHS = [
+  "/privacy-policy",
+  "/terms-of-service",
+  "/cookie-policy",
+] as const;
+
+const SITEMAP_PRIORITY: Partial<Record<string, number>> = {
+  "/": 1,
+  "/fitur": 0.9,
+  "/harga": 0.9,
+  "/harga-pangan": 0.85,
+  "/beasiswa": 0.85,
+  "/cek-bantuan-program": 0.85,
+  "/demo": 0.85,
+  "/mitra-klandesa": 0.8,
+  "/karir": 0.8,
+  "/tim": 0.75,
+  "/blog": 0.8,
+};
+
+/** Entri statis marketing + legal untuk sitemap.xml */
+export function listStaticMarketingSitemapRoutes(): Array<{
+  pathname: string;
+  priority: number;
+  changeFrequency: "weekly" | "monthly";
+}> {
+  const marketing = Object.values(landingPageSeoMap).map((config) => ({
+    pathname: config.pathname,
+    priority: SITEMAP_PRIORITY[config.pathname] ?? 0.7,
+    changeFrequency: "weekly" as const,
+  }));
+
+  const legal = LEGAL_SITEMAP_PATHS.map((pathname) => ({
+    pathname,
+    priority: 0.4,
+    changeFrequency: "monthly" as const,
+  }));
+
+  return [...marketing, ...legal];
+}
 
 export function getLandingPageSeo(key: LandingPageSeoKey) {
   const config = landingPageSeoMap[key];

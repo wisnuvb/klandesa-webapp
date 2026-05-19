@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import React from 'react';
 import { Database, Layers, Lightbulb, Users } from 'lucide-react';
 
@@ -73,6 +74,16 @@ export function AboutSection() {
               semua lapisan masyarakat. Kami bertujuan menyederhanakan proses
               layanan desa dengan pendekatan yang efisien, memudahkan warga
               dalam mendapatkan informasi dan pelayanan.
+            </p>
+
+            <p className="pt-2">
+              <Link
+                href="/tim"
+                className="text-sm font-medium text-[#0d9488] hover:text-[#0f766e] hover:underline inline-flex items-center gap-1"
+              >
+                Kenali tim kami
+                <span aria-hidden>→</span>
+              </Link>
             </p>
 
             {/* Stats */}

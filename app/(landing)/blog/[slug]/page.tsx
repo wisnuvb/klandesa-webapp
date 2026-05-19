@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { buildLandingSeo } from "@/lib/seo/landing";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -22,25 +23,38 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       status: true,
     },
   });
-  if (!post || post.status !== "published") return { title: "Blog" };
+  if (!post || post.status !== "published") {
+    return {
+      title: "Artikel tidak ditemukan",
+      robots: { index: false, follow: false },
+    };
+  }
 
   const title = post.seoTitle || post.title;
   const description = post.seoDescription || post.excerpt || undefined;
+  const seo = buildLandingSeo(`/blog/${slug}`, title, description ?? title);
+  const ogImages = post.coverImageUrl
+    ? [{ url: post.coverImageUrl }]
+    : [{ url: seo.ogImage }];
 
   return {
     title,
     description,
+    alternates: { canonical: seo.canonical },
+    robots: "index, follow",
     openGraph: {
       type: "article",
+      locale: "id_ID",
       title,
       description,
-      images: post.coverImageUrl ? [{ url: post.coverImageUrl }] : undefined,
+      url: seo.canonical,
+      images: ogImages,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: post.coverImageUrl ? [post.coverImageUrl] : undefined,
+      images: ogImages.map((img) => img.url),
     },
   };
 }

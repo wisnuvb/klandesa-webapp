@@ -12,6 +12,7 @@ const seo = buildLandingSeo(
 export const metadata: Metadata = {
   title: seo.title,
   description: seo.description,
+  robots: "index, follow",
   alternates: { canonical: seo.canonical },
   openGraph: {
     type: "website",

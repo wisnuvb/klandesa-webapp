@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import { listStaticMarketingSitemapRoutes } from "@/lib/seo/landing-pages";
 import { getTenant } from "@/lib/tenant";
 import { resolveEffectiveStructure } from "@/lib/website-engine/normalize";
 import { getMainSiteOrigin, hostToOrigin, joinUrl } from "@/lib/seo/url";
@@ -12,18 +14,42 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const mainOrigin = getMainSiteOrigin();
 
   const now = new Date();
-  const urls: MetadataRoute.Sitemap = [
-    { url: joinUrl(mainOrigin, "/"), lastModified: now, changeFrequency: "weekly", priority: 1 },
-    { url: joinUrl(mainOrigin, "/fitur"), lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-    { url: joinUrl(mainOrigin, "/harga"), lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-    { url: joinUrl(mainOrigin, "/karir"), lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: joinUrl(mainOrigin, "/mitra"), lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: joinUrl(mainOrigin, "/blog"), lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: joinUrl(mainOrigin, "/demo"), lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-  ];
+  const urls: MetadataRoute.Sitemap = listStaticMarketingSitemapRoutes().map(
+    (route) => ({
+      url: joinUrl(mainOrigin, route.pathname),
+      lastModified: now,
+      changeFrequency: route.changeFrequency,
+      priority: route.priority,
+    }),
+  );
+
+  try {
+    const posts = await prisma.blogPost.findMany({
+      where: { status: "published" },
+      select: {
+        slug: true,
+        updatedAt: true,
+        publishedAt: true,
+      },
+      orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
+    });
+
+    for (const post of posts) {
+      urls.push({
+        url: joinUrl(mainOrigin, `/blog/${post.slug}`),
+        lastModified: post.updatedAt ?? post.publishedAt ?? now,
+        changeFrequency: "weekly",
+        priority: 0.65,
+      });
+    }
+  } catch {
+    // DB tidak tersedia saat build — sitemap statis tetap valid
+  }
 
   const tenant = await getTenant();
-  if (!tenant?.template || !tenant?.subscription || !requestOrigin) return urls;
+  if (!tenant?.template || !tenant?.subscription || !requestOrigin) {
+    return urls;
+  }
 
   const resolved = resolveEffectiveStructure({
     templateStructure: tenant.template.structure,
