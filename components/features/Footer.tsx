@@ -109,8 +109,7 @@ export function Footer() {
             <div className="mb-6">
               <Link href="/" className="inline-block mb-4">
                 <KlandesaLogo
-                  className="w-12 h-12"
-                  showText={false}
+                  // className="w-12 h-12"
                   variant="white"
                 />
               </Link>

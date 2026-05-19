@@ -1,16 +1,28 @@
 import Image from "next/image";
-import React from "react";
+import { cn } from "../ui/utils";
 
-export function KlandesaLogo() {
+interface KlandesaLogoProps {
+  className?: string;
+  variant?: "default" | "white";
+}
+
+export function KlandesaLogo({
+  className,
+  variant = "default",
+}: KlandesaLogoProps) {
+  const logoSrc =
+    variant === "white"
+      ? "/images/klandesa-logo-white.png"
+      : "/images/klandesa-logo.png";
+
   return (
     <div className="flex items-center gap-3">
-      {/* Logo Icon */}
       <Image
-        src="/images/klandesa-logo.png"
+        src={logoSrc}
         alt="Klandesa Logo"
         width={300}
         height={150}
-        className="w-auto h-[30px] object-contain"
+        className={cn("w-auto h-[30px] object-contain", className)}
       />
     </div>
   );

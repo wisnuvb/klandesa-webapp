@@ -139,8 +139,8 @@ export function ContactModal({ onClose }: ContactModalProps) {
                 <div className="mb-8">
                   <div className="inline-flex items-center gap-3 mb-4">
                     <KlandesaLogo
-                      className="w-12 h-12"
-                      showText={false}
+                      // className="w-12 h-12"
+                      // showText={false}
                       variant="white"
                     />
                   </div>

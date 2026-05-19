@@ -169,8 +169,8 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 mb-4 group">
               <KlandesaLogo
-                className="w-10 h-10"
-                showText={false}
+                // className="w-10 h-10"
+                // showText={false}
                 variant="white"
               />
             </div>
