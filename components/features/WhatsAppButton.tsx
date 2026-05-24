@@ -1,13 +1,26 @@
 import React from "react";
 import { MessageCircle } from "lucide-react";
+import { getStoredReferralCode, trackReferralClient } from "@/lib/referrals/client";
 
 export function WhatsAppButton() {
+  const phone = "6282320337777";
+  const href = `https://wa.me/${phone}?text=${encodeURIComponent(
+    `Halo, saya ingin bertanya tentang Klandesa${getStoredReferralCode() ? ` (ref: ${getStoredReferralCode()})` : ""}`,
+  )}`;
+
   return (
     <div className="fixed bottom-6 right-6 z-50 group">
       <a
-        href="https://wa.me/6282320337777?text=Halo, saya ingin bertanya tentang Klandesa"
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() =>
+          void trackReferralClient("whatsapp_click", {
+            phone,
+            subject: "hubungi_cs_whatsapp",
+            metadata: { destination: "cs_whatsapp" },
+          })
+        }
         className="flex items-center justify-center bg-[#25D366] text-white p-4 rounded-full shadow-2xl hover:bg-[#20ba5a] transition-all hover:scale-110 relative"
         aria-label="Hubungi kami via WhatsApp"
       >

@@ -160,6 +160,57 @@ model PlatformUser {
   @@map("platform_users")
 }
 
+model ReferralCode {
+  id Int @id @default(autoincrement())
+
+  code        String  @unique @db.VarChar(40)
+  label       String  @db.VarChar(120)
+  ownerName   String? @db.VarChar(120)
+  ownerPhone  String? @db.VarChar(40)
+  ownerEmail  String? @db.VarChar(255)
+  commission  String? @db.VarChar(80)
+  status      String  @default("active") @db.VarChar(30)
+  landingPath String  @default("/tim") @db.VarChar(120)
+  notes       String? @db.Text
+
+  events ReferralEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("referral_codes")
+}
+
+model ReferralEvent {
+  id BigInt @id @default(autoincrement())
+
+  referralCodeId Int?
+  referralCode   ReferralCode? @relation(fields: [referralCodeId], references: [id], onDelete: SetNull)
+  codeSnapshot   String?       @db.VarChar(40)
+
+  action     String  @db.VarChar(50)
+  sourcePath String? @db.VarChar(500)
+
+  name        String? @db.VarChar(255)
+  email       String? @db.VarChar(255)
+  phone       String? @db.VarChar(40)
+  villageName String? @db.VarChar(255)
+  subject     String? @db.VarChar(120)
+
+  metadata Json?
+
+  ipAddress String? @db.VarChar(80)
+  userAgent String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([referralCodeId, createdAt(sort: Desc)])
+  @@index([codeSnapshot, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@map("referral_events")
+}
+
 model User {
   id        Int     @id @default(autoincrement())
   villageId Int
@@ -602,7 +653,7 @@ model MailService {
   history     MailHistory[]
   attachments MailAttachment[]
 
-  @@unique([villageId, templateId, letterDateKey, letterNumber])
+  @@unique([villageId, templateId, letterDateKey, letterNumber], map: "mail_services_letter_scope_key")
   @@index([villageId, createdAt(sort: Desc)])
   @@index([villageId, applicantNik])
   @@index([villageId, status])

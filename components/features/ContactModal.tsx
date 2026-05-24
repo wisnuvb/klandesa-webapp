@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { KlandesaLogo } from "./KlandesaLogo";
+import { getStoredReferralCode } from "@/lib/referrals/client";
 
 interface ContactModalProps {
   onClose: () => void;
@@ -37,7 +38,14 @@ export function ContactModal({ onClose }: ContactModalProps) {
       const res = await fetch("/api/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          referralCode: getStoredReferralCode(),
+          sourcePath:
+            typeof window === "undefined"
+              ? "/"
+              : `${window.location.pathname}${window.location.search}`,
+        }),
       });
       const data = (await res.json().catch(() => null)) as {
         error?: string;

@@ -5,6 +5,7 @@ import {
 } from "@/lib/apps-script-webhook";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { normalizeReferralCode, trackReferralEvent } from "@/lib/referrals/tracking";
 
 function firstIp(req: NextRequest): string | null {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -21,6 +22,8 @@ export async function POST(req: NextRequest) {
           phone?: string;
           subject?: string;
           message?: string;
+          referralCode?: string;
+          sourcePath?: string;
         }
       | null;
 
@@ -29,6 +32,8 @@ export async function POST(req: NextRequest) {
     const phone = String(body?.phone ?? "").trim();
     const subject = String(body?.subject ?? "").trim();
     const message = String(body?.message ?? "").trim();
+    const referralCode = normalizeReferralCode(body?.referralCode);
+    const sourcePath = String(body?.sourcePath ?? "/").trim();
 
     if (!name || !email || !subject || !message) {
       return NextResponse.json(
@@ -49,6 +54,20 @@ export async function POST(req: NextRequest) {
         userAgent: req.headers.get("user-agent"),
       },
       select: { id: true, createdAt: true },
+    });
+
+    await trackReferralEvent(req, {
+      code: referralCode,
+      action: "contact_submit",
+      sourcePath,
+      name,
+      email,
+      phone,
+      subject,
+      metadata: {
+        contactId: String(created.id),
+        messagePreview: message.slice(0, 160),
+      },
     });
 
     const sheetUrl = process.env.GOOGLE_APPS_SCRIPT_CONTACT_URL?.trim();
@@ -140,4 +159,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

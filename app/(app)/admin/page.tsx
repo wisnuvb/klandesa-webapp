@@ -62,6 +62,9 @@ export default function AdminDashboardPage() {
           <Button asChild variant="outline" className="w-full md:w-auto">
             <Link href="/admin/mitra">Kelola mitra</Link>
           </Button>
+          <Button asChild variant="outline" className="w-full md:w-auto">
+            <Link href="/admin/referral">Referral</Link>
+          </Button>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import { Navbar } from "@/components/features/Navbar";
 import { RegistrationModal } from "@/components/features/RegistrationModal";
 import { ContactModal } from "@/components/features/ContactModal";
 import { WhatsAppButton } from "@/components/features/WhatsAppButton";
+import { captureReferralFromUrl, trackReferralClient } from "@/lib/referrals/client";
 
 // Create a context to share modal state across pages
 const ModalContext = React.createContext<{
@@ -33,6 +34,10 @@ export default function LandingLayout({
   const [showRegistration, setShowRegistration] = React.useState(false);
   const [showContact, setShowContact] = React.useState(false);
 
+  React.useEffect(() => {
+    captureReferralFromUrl();
+  }, []);
+
   return (
     <ModalContext.Provider
       value={{
@@ -45,7 +50,10 @@ export default function LandingLayout({
         <div className="min-h-screen bg-white">
         <Navbar
           onLoginClick={() => setShowLogin(true)}
-          onRegisterClick={() => setShowRegistration(true)}
+          onRegisterClick={() => {
+            void trackReferralClient("register_open");
+            setShowRegistration(true);
+          }}
         />
         {children}
         <Footer />

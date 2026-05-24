@@ -9,10 +9,19 @@ import { StatsSection } from "@/components/features/StatsSection";
 import { RegistrationModal } from "@/components/features/RegistrationModal";
 import { ContactModal } from "@/components/features/ContactModal";
 import { getMainSiteOrigin } from "@/lib/seo/url";
+import { trackReferralClient } from "@/lib/referrals/client";
 
 export default function HomePage() {
   const [showRegistration, setShowRegistration] = React.useState(false);
   const [showContact, setShowContact] = React.useState(false);
+  const openRegistration = () => {
+    void trackReferralClient("register_open");
+    setShowRegistration(true);
+  };
+  const openContact = () => {
+    void trackReferralClient("contact_open", { subject: "hubungi_cs" });
+    setShowContact(true);
+  };
   const siteOrigin = getMainSiteOrigin();
   const organizationJsonLd = {
     "@context": "https://schema.org",
@@ -40,13 +49,13 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
 
-      <HeroSection onRegisterClick={() => setShowRegistration(true)} />
+      <HeroSection onRegisterClick={openRegistration} />
       <AboutSection />
       <BenefitsSection />
-      <StatsSection onRegisterClick={() => setShowRegistration(true)} />
+      <StatsSection onRegisterClick={openRegistration} />
       <CTASection
-        onRegisterClick={() => setShowRegistration(true)}
-        onContactClick={() => setShowContact(true)}
+        onRegisterClick={openRegistration}
+        onContactClick={openContact}
       />
 
       {showRegistration && (

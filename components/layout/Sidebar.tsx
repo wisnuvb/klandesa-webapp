@@ -22,6 +22,7 @@ import {
   Monitor,
   Landmark,
   HeartHandshake,
+  Share2,
   CircleDollarSign,
 } from "lucide-react";
 import { cn } from "../ui/utils";
@@ -116,6 +117,12 @@ const PLATFORM_SIDEBAR_MENU: MenuItem[] = [
     label: "Kelola Mitra",
     icon: HeartHandshake,
     path: "/admin/mitra",
+  },
+  {
+    id: "admin/referral",
+    label: "Referral",
+    icon: Share2,
+    path: "/admin/referral",
   },
   {
     id: "admin/blog",

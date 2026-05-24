@@ -1,36 +1,39 @@
 -- Scoped letter number: same number allowed for different template or different calendar day within a village.
 
-DROP INDEX IF EXISTS "mail_services_letter_number_key";
+DROP INDEX `mail_services_letterNumber_key` ON `mail_services`;
 
-ALTER TABLE "mail_services" ADD COLUMN "letter_date_key" VARCHAR(10);
+ALTER TABLE `mail_services` ADD COLUMN `letterDateKey` VARCHAR(10) NULL;
 
 -- Isi dari tanggal surat (kalender, mengikuti penyimpanan timezone server)
-UPDATE "mail_services"
-SET "letter_date_key" = TO_CHAR(("letter_date" AT TIME ZONE 'UTC')::DATE, 'YYYY-MM-DD')
-WHERE "letter_date_key" IS NULL;
+UPDATE `mail_services`
+SET `letterDateKey` = DATE_FORMAT(DATE(`letterDate`), '%Y-%m-%d')
+WHERE `letterDateKey` IS NULL;
 
 -- Fallback (seharusnya tidak perlu)
-UPDATE "mail_services"
-SET "letter_date_key" = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')
-WHERE "letter_date_key" IS NULL OR "letter_date_key" = '';
+UPDATE `mail_services`
+SET `letterDateKey` = DATE_FORMAT(CURRENT_DATE, '%Y-%m-%d')
+WHERE `letterDateKey` IS NULL OR `letterDateKey` = '';
 
 -- Pecah duplikat lama (nomor sama + template sama + hari sama): tambahkan suffix id supaya constraint bisa dibuat
-UPDATE "mail_services" AS m
-SET "letter_number" = LEFT("letter_number" || '-' || SUBSTRING("id"::TEXT FROM 1 FOR 20), 255)
-WHERE m."id" IN (
+UPDATE `mail_services` AS m
+JOIN (
   SELECT id FROM (
     SELECT
-      id,
+      `id`,
       ROW_NUMBER() OVER (
-        PARTITION BY "village_id", "template_id", "letter_date_key", "letter_number"
-        ORDER BY id ASC
+        PARTITION BY `villageId`, `templateId`, `letterDateKey`, `letterNumber`
+        ORDER BY `id` ASC
       ) AS rn
-    FROM "mail_services"
+    FROM `mail_services`
   ) t
   WHERE t.rn > 1
-);
+) AS duplicate_rows ON duplicate_rows.id = m.id
+SET m.`letterNumber` = LEFT(CONCAT(m.`letterNumber`, '-', SUBSTRING(CAST(m.`id` AS CHAR), 1, 20)), 255);
 
-ALTER TABLE "mail_services" ALTER COLUMN "letter_date_key" SET NOT NULL;
+ALTER TABLE `mail_services` MODIFY COLUMN `letterDateKey` VARCHAR(10) NOT NULL;
 
-CREATE UNIQUE INDEX "mail_services_village_id_template_id_letter_date_key_letter_number_key"
-  ON "mail_services" ("village_id", "template_id", "letter_date_key", "letter_number");
+CREATE UNIQUE INDEX `mail_services_letter_scope_key`
+  ON `mail_services` (`villageId`, `templateId`, `letterDateKey`, `letterNumber`);
+
+CREATE INDEX `mail_services_villageId_templateId_letterDateKey_idx`
+  ON `mail_services` (`villageId`, `templateId`, `letterDateKey`);
