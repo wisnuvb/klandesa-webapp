@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { arsipStorageLimitForDesaTierGb } from "@/lib/billing/catalog";
+import { normalizeReferralCode, trackReferralEvent } from "@/lib/referrals/tracking";
 
 function slugifyVillageCode(input: string): string {
   const s = input
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest) {
           confirmPassword?: string;
           agreeTerms?: boolean;
           agreePrivacy?: boolean;
+          referralCode?: string;
+          sourcePath?: string;
         }
       | null;
 
@@ -54,6 +57,8 @@ export async function POST(req: NextRequest) {
 
     const password = String(body?.password ?? "");
     const confirmPassword = String(body?.confirmPassword ?? "");
+    const referralCode = normalizeReferralCode(body?.referralCode);
+    const sourcePath = String(body?.sourcePath ?? "/").trim();
 
     if (!namaDesa || !namaKecamatan || !namaKabupaten || !provinsi) {
       return NextResponse.json(
@@ -135,6 +140,28 @@ export async function POST(req: NextRequest) {
         select: { id: true, email: true },
       });
 
+      await trackReferralEvent(
+        req,
+        {
+          code: referralCode,
+          action: "register_submit",
+          sourcePath,
+          name: namaKepala,
+          email: emailDesa,
+          phone: nomorTelepon,
+          villageName: namaDesa,
+          subject: "pendaftaran_desa",
+          metadata: {
+            villageId: village.id,
+            villageCode: village.code,
+            regency: namaKabupaten,
+            district: namaKecamatan,
+            province: provinsi,
+          },
+        },
+        tx,
+      );
+
       return { village, user };
     });
 
@@ -153,4 +180,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

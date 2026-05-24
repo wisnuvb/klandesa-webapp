@@ -16,6 +16,7 @@ import {
 
 import { KlandesaLogo } from "./KlandesaLogo";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { getStoredReferralCode } from "@/lib/referrals/client";
 
 interface RegistrationModalProps {
   onClose: () => void;
@@ -68,7 +69,14 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            ...formData,
+            referralCode: getStoredReferralCode(),
+            sourcePath:
+              typeof window === "undefined"
+                ? "/"
+                : `${window.location.pathname}${window.location.search}`,
+          }),
         });
         const data = (await res.json().catch(() => null)) as {
           error?: string;

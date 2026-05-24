@@ -42,6 +42,10 @@ const pageConfig = {
     title: "Kelola Mitra",
     subtitle: "Pendaftaran mitra, akun mitra, dan aktivasi",
   },
+  "admin/referral": {
+    title: "Referral",
+    subtitle: "Kode referral, tracking lead, dan dasar komisi",
+  },
   "admin/blog": {
     title: "Kelola Blog",
     subtitle: "Buat dan publish artikel blog Klandesa",
