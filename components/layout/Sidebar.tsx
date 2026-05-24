@@ -22,6 +22,7 @@ import {
   Monitor,
   Landmark,
   HeartHandshake,
+  CircleDollarSign,
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
@@ -72,16 +73,28 @@ const PARTNER_SIDEBAR_MENU: MenuItem[] = [
     path: "/mitra/prospek",
   },
   {
+    id: "mitra/desa",
+    label: "Desa Dikelola",
+    icon: Landmark,
+    path: "/mitra/desa",
+  },
+  {
+    id: "mitra/komisi",
+    label: "Revenue & Komisi",
+    icon: Wallet,
+    path: "/mitra/komisi",
+  },
+  {
+    id: "mitra/disbursment",
+    label: "Disbursement",
+    icon: CircleDollarSign,
+    path: "/mitra/disbursment",
+  },
+  {
     id: "mitra/profil",
     label: "Profil & Rekening",
     icon: UserCircle,
     path: "/mitra/profil",
-  },
-  {
-    id: "mitra/komisi",
-    label: "Komisi",
-    icon: Wallet,
-    path: "/mitra/komisi",
   },
 ];
 

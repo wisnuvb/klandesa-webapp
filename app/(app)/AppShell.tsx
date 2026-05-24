@@ -22,13 +22,21 @@ const pageConfig = {
     title: "Prospek Desa",
     subtitle: "Catat dan pantau status desa yang Anda prospek",
   },
+  "mitra/desa": {
+    title: "Desa Dikelola",
+    subtitle: "Desa closing yang tertaut pada akun mitra Anda",
+  },
   "mitra/profil": {
     title: "Profil & Rekening",
     subtitle: "Perbarui profil dan rekening untuk pengiriman komisi",
   },
   "mitra/komisi": {
-    title: "Komisi",
-    subtitle: "Ringkasan komisi dan riwayat pembayaran (Coming Soon)",
+    title: "Revenue & Komisi",
+    subtitle: "Ringkasan bagi hasil, grafik menurut tipe, dan ledger komisi mitra",
+  },
+  "mitra/disbursment": {
+    title: "Disbursement",
+    subtitle: "Riwayat transfer komisi oleh platform ke rekening mitra",
   },
   admin: {
     title: "Admin Klandesa",

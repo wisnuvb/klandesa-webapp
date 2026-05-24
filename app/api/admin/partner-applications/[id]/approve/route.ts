@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { hashPassword } from "@/lib/auth";
+import { ensurePartnerCommissionRule } from "@/lib/partner/commission";
 
 function generateTempPassword(): string {
   return randomBytes(9).toString("base64url");
@@ -98,6 +99,8 @@ export async function POST(
       data: { status: "APPROVED", meta: nextMeta },
       select: { id: true },
     });
+
+    await ensurePartnerCommissionRule(tx, partner.id);
 
     return partner;
   });

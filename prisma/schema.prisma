@@ -83,6 +83,7 @@ model Village {
   citizenReportResponses CitizenReportResponse[]
   adminNotifications     AdminNotification[]
   billingInvoices        BillingInvoice[]
+  partnerCommissionEntries PartnerCommissionEntry[]
   websiteDomains         WebsiteDomain[]
   cooperative            Cooperative?
   socialBenefitPrograms  SocialBenefitProgram[]
@@ -151,7 +152,8 @@ model PlatformUser {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  blogPosts BlogPost[]
+  blogPosts           BlogPost[]
+  partnerDisbursementsCreated PartnerDisbursement[] @relation("DisbursementCreatedBy")
 
   @@index([email])
   @@index([role])
@@ -1303,8 +1305,9 @@ model BillingInvoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items  BillingInvoiceItem[]
-  events BillingPaymentEvent[]
+  items                 BillingInvoiceItem[]
+  events                BillingPaymentEvent[]
+  partnerCommissionEntries PartnerCommissionEntry[]
 
   @@index([villageId, createdAt(sort: Desc)])
   @@index([villageId, status])
@@ -1413,9 +1416,12 @@ model Partner {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  bankAccounts     PartnerBankAccount[]
-  prospects        PartnerProspect[]
-  acquiredVillages Village[]            @relation("PartnerAcquiredVillages")
+  bankAccounts      PartnerBankAccount[]
+  prospects         PartnerProspect[]
+  acquiredVillages  Village[]                @relation("PartnerAcquiredVillages")
+  commissionRule    PartnerCommissionRule?
+  commissionEntries PartnerCommissionEntry[]
+  disbursements     PartnerDisbursement[]
 
   @@index([status])
   @@map("partners")
@@ -1484,6 +1490,109 @@ model PartnerProspectEvent {
 
   @@index([prospectId, createdAt(sort: Desc)])
   @@map("partner_prospect_events")
+}
+
+/// Skema bagi hasil per mitra (flat closing + % langganan).
+model PartnerCommissionRule {
+  id Int @id @default(autoincrement())
+
+  partnerId Int     @unique
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  closingBonusAmount         Decimal @default(500000.00) @db.Decimal(15, 2)
+  subscriptionSharePercent Decimal @default(10.00) @db.Decimal(5, 2)
+
+  effectiveFrom DateTime @default(now())
+  isActive      Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerId, isActive])
+  @@map("partner_commission_rules")
+}
+
+model PartnerCommissionEntry {
+  id BigInt @id @default(autoincrement())
+
+  partnerId Int
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  villageId Int?
+  village   Village? @relation(fields: [villageId], references: [id], onDelete: SetNull)
+
+  /// CLOSING | SUBSCRIPTION | ADJUSTMENT
+  type String @db.VarChar(30)
+
+  sourceInvoiceId BigInt?
+  sourceInvoice   BillingInvoice? @relation(fields: [sourceInvoiceId], references: [id], onDelete: SetNull)
+
+  amount      Decimal @db.Decimal(15, 2)
+  currency    String  @default("IDR") @db.VarChar(10)
+  description String? @db.Text
+
+  /// accrued | approved | disbursed | cancelled
+  status String @default("accrued") @db.VarChar(30)
+
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  disbursementItem PartnerDisbursementItem?
+
+  @@unique([sourceInvoiceId])
+  @@index([partnerId, status])
+  @@index([partnerId, type, createdAt(sort: Desc)])
+  @@map("partner_commission_entries")
+}
+
+model PartnerDisbursement {
+  id BigInt @id @default(autoincrement())
+
+  partnerId Int
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  amount   Decimal @db.Decimal(15, 2)
+  currency String  @default("IDR") @db.VarChar(10)
+
+  /// pending | processing | paid | failed
+  status String @default("pending") @db.VarChar(30)
+
+  bankName       String @db.VarChar(80)
+  accountNumber  String @db.VarChar(40)
+  accountName    String @db.VarChar(120)
+  reference      String? @db.VarChar(120)
+  paidAt         DateTime?
+  notes          String? @db.Text
+
+  createdByPlatformUserId Int?
+  createdByPlatformUser   PlatformUser? @relation("DisbursementCreatedBy", fields: [createdByPlatformUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items PartnerDisbursementItem[]
+
+  @@index([partnerId, status])
+  @@index([partnerId, createdAt(sort: Desc)])
+  @@map("partner_disbursements")
+}
+
+model PartnerDisbursementItem {
+  id BigInt @id @default(autoincrement())
+
+  disbursementId BigInt
+  disbursement   PartnerDisbursement @relation(fields: [disbursementId], references: [id], onDelete: Cascade)
+
+  commissionEntryId BigInt               @unique
+  commissionEntry   PartnerCommissionEntry @relation(fields: [commissionEntryId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([disbursementId])
+  @@map("partner_disbursement_items")
 }
 
 model BlogPost {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { accrueClosingCommissionInTx } from "@/lib/partner/commission";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 
 function readLimit(req: NextRequest): number {
@@ -101,11 +102,13 @@ export async function PATCH(req: NextRequest) {
 
   const village = await prisma.village.findUnique({
     where: villageId != null ? { id: Math.floor(villageId) } : { code: villageCode },
-    select: { id: true, code: true, name: true },
+    select: { id: true, code: true, name: true, acquiredByPartnerId: true },
   });
   if (!village) {
     return NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 });
   }
+
+  const previousPartnerId = village.acquiredByPartnerId;
 
   if (partnerId != null) {
     const partner = await prisma.partner.findUnique({
@@ -117,24 +120,40 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  const updated = await prisma.village.update({
-    where: { id: village.id },
-    data:
-      partnerId == null
-        ? { acquiredByPartnerId: null, acquiredAt: null, acquisitionSource: null }
-        : {
-            acquiredByPartnerId: Math.floor(partnerId),
-            acquiredAt: new Date(),
-            acquisitionSource,
-          },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      acquiredByPartnerId: true,
-      acquiredAt: true,
-      acquisitionSource: true,
-    },
+  const resolvedPartnerId =
+    partnerId == null ? null : Math.floor(partnerId);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.village.update({
+      where: { id: village.id },
+      data:
+        resolvedPartnerId == null
+          ? { acquiredByPartnerId: null, acquiredAt: null, acquisitionSource: null }
+          : {
+              acquiredByPartnerId: resolvedPartnerId,
+              acquiredAt: new Date(),
+              acquisitionSource,
+            },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        acquiredByPartnerId: true,
+        acquiredAt: true,
+        acquisitionSource: true,
+      },
+    });
+
+    const isNewAssignment =
+      resolvedPartnerId != null && previousPartnerId == null;
+    if (isNewAssignment) {
+      await accrueClosingCommissionInTx(tx, {
+        partnerId: resolvedPartnerId,
+        villageId: row.id,
+      });
+    }
+
+    return row;
   });
 
   return NextResponse.json({ ok: true, village: updated }, { status: 200 });

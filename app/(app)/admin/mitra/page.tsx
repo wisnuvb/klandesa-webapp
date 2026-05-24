@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PartnerFinancePanel } from "./_components/PartnerFinancePanel";
 
 type PartnerApplicationRow = {
   id: string;
@@ -61,6 +62,7 @@ export default function AdminMitraPage() {
   const [villageCodeByPartnerId, setVillageCodeByPartnerId] = useState<
     Record<number, string>
   >({});
+  const [financePartnerId, setFinancePartnerId] = useState<number | null>(null);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -377,6 +379,22 @@ export default function AdminMitraPage() {
                       Lepas
                     </Button>
                   </div>
+                  <Button
+                    className="w-full mt-2"
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() =>
+                      setFinancePartnerId((cur) =>
+                        cur === p.id ? null : p.id,
+                      )
+                    }
+                  >
+                    {financePartnerId === p.id ? "Sembunyikan bagi hasil" : "Kelola bagi hasil"}
+                  </Button>
+                  {financePartnerId === p.id ? (
+                    <PartnerFinancePanel partnerId={p.id} />
+                  ) : null}
                 </div>
               ))}
             </div>

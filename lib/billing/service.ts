@@ -15,6 +15,7 @@ import {
   arsipStorageLimitForDesaTierGb,
 } from "@/lib/billing/catalog";
 import { isVillageSubscriptionActive } from "@/lib/subscription";
+import { accrueSubscriptionCommissionInTx } from "@/lib/partner/commission";
 
 export type BillingPaymentMethod = "qris" | "va" | "ewallet";
 
@@ -471,6 +472,15 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
     });
 
     if (!paid) return;
+
+    await accrueSubscriptionCommissionInTx(tx, {
+      invoiceId: invoice.id,
+      villageId: invoice.villageId,
+      invoiceAmount: invoiceAmount,
+      invoiceNumber: invoice.invoiceNumber,
+      productType: invoice.productType,
+      paidAt: now,
+    });
 
     if (invoice.productType === "desa_package") {
       const tier = invoice.planCode as DesaPackageTier;
