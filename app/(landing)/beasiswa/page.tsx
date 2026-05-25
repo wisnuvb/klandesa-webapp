@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  DEFAULT_LPDP_APPLY_URL,
   getLpdpOpenScholarshipsSnapshot,
   LPDP_OPEN_SCHOLARSHIPS_SOURCE_URL,
 } from "@/lib/scholarships/lpdp";
@@ -40,6 +41,7 @@ export default async function Page({
 
   const q = firstParam(searchParams, "q").trim();
   const jenjang = firstParam(searchParams, "jenjang").trim();
+  const kategori = firstParam(searchParams, "kategori").trim();
   const instansi = firstParam(searchParams, "instansi").trim();
   const status = firstParam(searchParams, "status").trim();
   const sort = firstParam(searchParams, "sort").trim() || "deadline_asc";
@@ -47,6 +49,9 @@ export default async function Page({
   const allItems = snapshot.items;
   const levels = Array.from(new Set(allItems.map((x) => x.level).filter(Boolean)))
     .sort((a, b) => a.localeCompare(b, "id"));
+  const categories = Array.from(
+    new Set(allItems.map((x) => x.category).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b, "id"));
   const providers = Array.from(
     new Set(allItems.map((x) => x.provider).filter(Boolean)),
   ).sort((a, b) => a.localeCompare(b, "id"));
@@ -55,10 +60,11 @@ export default async function Page({
   if (q) {
     const needle = q.toLowerCase();
     items = items.filter((x) => {
-      const hay = `${x.title} ${x.description} ${x.provider} ${x.level}`.toLowerCase();
+      const hay = `${x.title} ${x.description} ${x.provider} ${x.level} ${x.category}`.toLowerCase();
       return hay.includes(needle);
     });
   }
+  if (kategori) items = items.filter((x) => x.category === kategori);
   if (jenjang) items = items.filter((x) => x.level === jenjang);
   if (instansi) items = items.filter((x) => x.provider === instansi);
   if (status === "open" || status === "last_day" || status === "closed") {
@@ -114,8 +120,9 @@ export default async function Page({
               method="GET"
               className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-xs"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
-                <div className="lg:col-span-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
+                  <div className="lg:col-span-5">
                   <label
                     htmlFor="q"
                     className="block text-sm font-medium text-gray-700"
@@ -131,7 +138,29 @@ export default async function Page({
                   />
                 </div>
 
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-3">
+                  <label
+                    htmlFor="kategori"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Kategori
+                  </label>
+                  <select
+                    id="kategori"
+                    name="kategori"
+                    defaultValue={kategori}
+                    className="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none bg-white"
+                  >
+                    <option value="">Semua</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="lg:col-span-4">
                   <label
                     htmlFor="jenjang"
                     className="block text-sm font-medium text-gray-700"
@@ -152,8 +181,10 @@ export default async function Page({
                     ))}
                   </select>
                 </div>
+                </div>
 
-                <div className="lg:col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
+                  <div className="lg:col-span-4">
                   <label
                     htmlFor="instansi"
                     className="block text-sm font-medium text-gray-700"
@@ -175,7 +206,7 @@ export default async function Page({
                   </select>
                 </div>
 
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-4">
                   <label
                     htmlFor="status"
                     className="block text-sm font-medium text-gray-700"
@@ -195,7 +226,7 @@ export default async function Page({
                   </select>
                 </div>
 
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-4">
                   <label
                     htmlFor="sort"
                     className="block text-sm font-medium text-gray-700"
@@ -215,6 +246,7 @@ export default async function Page({
                     <option value="title_asc">Judul A–Z</option>
                     <option value="title_desc">Judul Z–A</option>
                   </select>
+                </div>
                 </div>
               </div>
 
@@ -274,7 +306,7 @@ export default async function Page({
               </p>
             </div>
             <Link
-              href="https://beasiswalpdp-terintegrasi.kemenkeu.go.id/login"
+              href={DEFAULT_LPDP_APPLY_URL}
               target="_blank"
               rel="noreferrer"
               className="hidden sm:inline-flex px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
@@ -301,6 +333,11 @@ export default async function Page({
                         {it.title}
                       </h3>
                       <div className="mt-2 flex flex-wrap gap-2">
+                        {it.category ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs bg-sky-50 text-sky-800 border border-sky-200">
+                            {it.category}
+                          </span>
+                        ) : null}
                         <span className="px-2.5 py-1 rounded-full text-xs bg-emerald-50 text-emerald-700 border border-emerald-200">
                           {it.level}
                         </span>
@@ -354,10 +391,10 @@ export default async function Page({
                       rel="noreferrer"
                       className="flex-1 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors text-center text-sm"
                     >
-                      Situs Resmi
+                      Detail
                     </Link>
                     <Link
-                      href="https://beasiswalpdp-terintegrasi.kemenkeu.go.id/login"
+                      href={it.applyUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="flex-1 px-4 py-2 rounded-xl bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white hover:shadow-md transition-all text-center text-sm"

@@ -8,6 +8,8 @@ export type LpdpScholarshipStatus = "open" | "last_day" | "closed";
 
 export type LpdpScholarshipItem = {
   id: string;
+  /** Kategori dari API (Beasiswa, Riset, …); kosong jika respons format lama. */
+  category: string;
   title: string;
   description: string;
   requirements: string[];
@@ -19,6 +21,8 @@ export type LpdpScholarshipItem = {
   status: LpdpScholarshipStatus;
   statusLabel: string;
   sourceUrl: string;
+  /** URL pendaftaran dari API atau portal default */
+  applyUrl: string;
 };
 
 export type LpdpScholarshipsSnapshot = {
@@ -29,6 +33,9 @@ export type LpdpScholarshipsSnapshot = {
   items: LpdpScholarshipItem[];
   error?: string;
 };
+
+export const DEFAULT_LPDP_APPLY_URL =
+  "https://beasiswalpdp-terintegrasi.kemenkeu.go.id/login";
 
 type LpdpScholarshipProgramRaw = {
   jenjang?: unknown;
@@ -41,6 +48,13 @@ type LpdpScholarshipProgramRaw = {
   status_pendaftaran?: unknown;
   status?: unknown;
   label_status?: unknown;
+  link_detail?: unknown;
+  link_apply?: unknown;
+};
+
+type LpdpCategoryBucketRaw = {
+  nama_kategori?: unknown;
+  data?: unknown;
 };
 
 type LpdpApiResponse = {
@@ -126,51 +140,113 @@ function toJakartaISO(dateStr: string, timeStr: string): string | null {
   return `${d}T${hhmm}:00+07:00`;
 }
 
+function looksLikeProgramRow(r: unknown): r is Record<string, unknown> {
+  return (
+    r !== null &&
+    typeof r === "object" &&
+    "jenis_program" in r &&
+    typeof (r as LpdpScholarshipProgramRaw).jenis_program !== "undefined"
+  );
+}
+
+function resolveSourceUrl(linkDetail: string): string {
+  if (linkDetail && /^https?:\/\//i.test(linkDetail)) return linkDetail;
+  return LPDP_OPEN_SCHOLARSHIPS_SOURCE_URL;
+}
+
+function resolveApplyUrl(linkApply: string): string {
+  if (linkApply && /^https?:\/\//i.test(linkApply)) return linkApply;
+  return DEFAULT_LPDP_APPLY_URL;
+}
+
+function flattenLpdpProgramRows(payloadData: unknown[]): Array<{
+  category: string;
+  program: LpdpScholarshipProgramRaw;
+}> {
+  const out: Array<{ category: string; program: LpdpScholarshipProgramRaw }> =
+    [];
+
+  for (const item of payloadData) {
+    if (looksLikeProgramRow(item)) {
+      out.push({ category: "", program: item as LpdpScholarshipProgramRaw });
+      continue;
+    }
+    const bucket = item as LpdpCategoryBucketRaw;
+    const cat = asTrimmedString(bucket.nama_kategori);
+    const programs = Array.isArray(bucket.data) ? bucket.data : [];
+    for (const p of programs) {
+      if (!looksLikeProgramRow(p)) continue;
+      out.push({
+        category: cat,
+        program: p as LpdpScholarshipProgramRaw,
+      });
+    }
+  }
+
+  return out;
+}
+
+function mapProgramRow(
+  category: string,
+  x: LpdpScholarshipProgramRaw,
+): LpdpScholarshipItem {
+  const level = asTrimmedString(x.jenjang) || "—";
+  const title = asTrimmedString(x.jenis_program) || "Program Beasiswa";
+  const provider = asTrimmedString(x.instansi_string) || "LPDP";
+  const description = asTrimmedString(x.deskripsi) || "—";
+  const deadlineDate = asTrimmedString(x.deadline_pendaftaran) || "";
+  const deadlineAt = toJakartaISO(deadlineDate, asTrimmedString(x.jam_tutup));
+  const daysLeft = parseDaysLeft(x.deadline_pendaftaran_hari);
+
+  const label =
+    asTrimmedString(x.status_pendaftaran) ||
+    asTrimmedString(x.status) ||
+    asTrimmedString(x.label_status);
+
+  const { status, statusLabel } = computeStatus(daysLeft, label);
+
+  const linkDetail = asTrimmedString(x.link_detail);
+  const linkApply = asTrimmedString(x.link_apply);
+  const sourceUrl = resolveSourceUrl(linkDetail);
+  const applyUrl = resolveApplyUrl(linkApply);
+
+  const requirements: string[] = [];
+  if (level && level !== "—") requirements.push(`Jenjang: ${level}`);
+  if (provider) requirements.push(`Instansi: ${provider}`);
+
+  return {
+    id: stableId([
+      category,
+      title,
+      provider,
+      deadlineDate,
+      description.slice(0, 120),
+    ]),
+    category,
+    title,
+    description,
+    requirements,
+    level,
+    provider,
+    deadlineDate: deadlineDate || null,
+    deadlineAt,
+    daysLeft,
+    status,
+    statusLabel,
+    sourceUrl,
+    applyUrl,
+  };
+}
+
 export function normalizeLpdpOpenScholarships(
   raw: unknown,
 ): LpdpScholarshipItem[] {
   const payload = raw as LpdpApiResponse;
   const arr = Array.isArray(payload?.data) ? (payload.data as unknown[]) : [];
 
-  const items: LpdpScholarshipItem[] = [];
-  for (const r of arr) {
-    const x = r as LpdpScholarshipProgramRaw;
-    const level = asTrimmedString(x.jenjang) || "—";
-    const title = asTrimmedString(x.jenis_program) || "Program Beasiswa";
-    const provider = asTrimmedString(x.instansi_string) || "LPDP";
-    const description = asTrimmedString(x.deskripsi) || "—";
-    const deadlineDate = asTrimmedString(x.deadline_pendaftaran) || "";
-    const deadlineAt = toJakartaISO(deadlineDate, asTrimmedString(x.jam_tutup));
-    const daysLeft = parseDaysLeft(x.deadline_pendaftaran_hari);
-
-    const label =
-      asTrimmedString(x.status_pendaftaran) ||
-      asTrimmedString(x.status) ||
-      asTrimmedString(x.label_status);
-
-    const { status, statusLabel } = computeStatus(daysLeft, label);
-
-    const requirements: string[] = [];
-    if (level && level !== "—") requirements.push(`Jenjang: ${level}`);
-    if (provider) requirements.push(`Instansi: ${provider}`);
-
-    items.push({
-      id: stableId([title, provider, deadlineDate, description.slice(0, 120)]),
-      title,
-      description,
-      requirements,
-      level,
-      provider,
-      deadlineDate: deadlineDate || null,
-      deadlineAt,
-      daysLeft,
-      status,
-      statusLabel,
-      sourceUrl: LPDP_OPEN_SCHOLARSHIPS_SOURCE_URL,
-    });
-  }
-
-  return items;
+  return flattenLpdpProgramRows(arr).map(({ category, program }) =>
+    mapProgramRow(category, program),
+  );
 }
 
 async function fetchLpdpOpenScholarshipsFromUpstream(): Promise<
