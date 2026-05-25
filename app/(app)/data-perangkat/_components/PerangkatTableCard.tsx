@@ -1,14 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { EntityTableCard } from "@/components/app/patterns";
 import { calculateAge } from "@/utils";
 import { Edit, Eye, Trash2 } from "lucide-react";
 import type { OfficialRow } from "../_lib/types";
@@ -36,114 +28,119 @@ export function PerangkatTableCard(props: PerangkatTableCardProps) {
   } = props;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Daftar Perangkat Desa</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          {isLoading
-            ? "Memuat data perangkat..."
-            : `Menampilkan ${rows.length} dari ${totalPerangkat} perangkat desa`}
-        </p>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="w-12.5">#</TableHead>
-                <TableHead>Nama</TableHead>
-                <TableHead>NIK</TableHead>
-                <TableHead>Jabatan</TableHead>
-                <TableHead>Jenis Kelamin</TableHead>
-                <TableHead>Usia</TableHead>
-                <TableHead>Pendidikan</TableHead>
-                <TableHead>No. Telepon</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={10}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    {isLoading ? "Memuat data perangkat..." : "Tidak ada data yang ditemukan"}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map((perangkat, index) => (
-                  <TableRow key={perangkat.id} className="hover:bg-muted/50">
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell className="font-medium">{perangkat.name}</TableCell>
-                    <TableCell className="font-mono text-xs">{perangkat.nik}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={getPositionBadgeVariant(perangkat.position?.level || 5)}
-                      >
-                        {perangkat.position?.name ?? "Tidak Diketahui"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={perangkat.gender === "M" ? "default" : "secondary"}>
-                        {perangkat.gender === "M" ? "Laki-laki" : "Perempuan"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {perangkat.birthDate ? `${calculateAge(perangkat.birthDate)} Tahun` : "-"}
-                    </TableCell>
-                    <TableCell className="text-sm">{perangkat.education || "-"}</TableCell>
-                    <TableCell className="text-sm">{perangkat.phone || "-"}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          perangkat.status?.toLowerCase() === "active"
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {perangkat.status?.toLowerCase() === "active" ? "Aktif" : "Tidak Aktif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
-                          onClick={() => onDetail(perangkat)}
-                          disabled={isSubmittingAction}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-amber-600 hover:text-amber-600 hover:bg-amber-50"
-                          onClick={() => onEdit(perangkat)}
-                          disabled={isSubmittingAction}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => void onDelete(perangkat)}
-                          disabled={isSubmittingAction}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
+    <EntityTableCard
+      title="Daftar Perangkat Desa"
+      description={
+        isLoading
+          ? "Memuat data perangkat..."
+          : `Menampilkan ${rows.length} dari ${totalPerangkat} perangkat desa`
+      }
+      loading={isLoading}
+      loadingMessage="Memuat data perangkat..."
+      rows={rows}
+      rowKey={(row) => row.id}
+      columns={[
+        {
+          id: "index",
+          header: "#",
+          className: "w-12.5",
+          cell: (_row, index) => index + 1,
+        },
+        {
+          id: "name",
+          header: "Nama",
+          cell: (row) => <span className="font-medium">{row.name}</span>,
+        },
+        {
+          id: "nik",
+          header: "NIK",
+          cell: (row) => <span className="font-mono text-xs">{row.nik}</span>,
+        },
+        {
+          id: "position",
+          header: "Jabatan",
+          cell: (row) => (
+            <Badge variant={getPositionBadgeVariant(row.position?.level || 5)}>
+              {row.position?.name ?? "Tidak Diketahui"}
+            </Badge>
+          ),
+        },
+        {
+          id: "gender",
+          header: "Jenis Kelamin",
+          cell: (row) => (
+            <Badge variant={row.gender === "M" ? "default" : "secondary"}>
+              {row.gender === "M" ? "Laki-laki" : "Perempuan"}
+            </Badge>
+          ),
+        },
+        {
+          id: "age",
+          header: "Usia",
+          cell: (row) =>
+            row.birthDate ? `${calculateAge(row.birthDate)} Tahun` : "-",
+        },
+        {
+          id: "education",
+          header: "Pendidikan",
+          cell: (row) => <span className="text-sm">{row.education || "-"}</span>,
+        },
+        {
+          id: "phone",
+          header: "No. Telepon",
+          cell: (row) => <span className="text-sm">{row.phone || "-"}</span>,
+        },
+        {
+          id: "status",
+          header: "Status",
+          cell: (row) => (
+            <Badge
+              variant={
+                row.status?.toLowerCase() === "active" ? "default" : "secondary"
+              }
+            >
+              {row.status?.toLowerCase() === "active" ? "Aktif" : "Tidak Aktif"}
+            </Badge>
+          ),
+        },
+        {
+          id: "actions",
+          header: "Aksi",
+          className: "text-right",
+          cell: (row) => (
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                onClick={() => onDetail(row)}
+                disabled={isSubmittingAction}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-amber-600 hover:text-amber-600 hover:bg-amber-50"
+                onClick={() => onEdit(row)}
+                disabled={isSubmittingAction}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => void onDelete(row)}
+                disabled={isSubmittingAction}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ),
+        },
+      ]}
+      footer={
         <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-muted-foreground">Halaman 1 dari 1</p>
           <div className="flex gap-2">
@@ -155,8 +152,7 @@ export function PerangkatTableCard(props: PerangkatTableCardProps) {
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      }
+    />
   );
 }
-

@@ -14,6 +14,7 @@ import { KeuanganTabs } from "./_components/KeuanganTabs";
 import { LoadingState } from "./_components/LoadingState";
 import { SummaryCards } from "./_components/SummaryCards";
 import { useKeuangan } from "./_hooks/useKeuangan";
+import { SdgTagsManager } from "@/components/app/finance/SdgTagsManager";
 
 export default function KeuanganPage() {
   const k = useKeuangan();
@@ -34,6 +35,8 @@ export default function KeuanganPage() {
         persentaseRealisasiBelanja={k.persentaseRealisasiBelanja}
         saldoKas={k.saldoKas}
       />
+
+      <SdgTagsManager defaultYear={Number(k.selectedYear)} compact />
 
       <KeuanganTabs
         activeTab={k.activeTab}

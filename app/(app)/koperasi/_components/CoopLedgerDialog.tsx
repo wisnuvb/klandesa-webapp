@@ -84,7 +84,7 @@ export function CoopLedgerDialog({ open, onOpenChange, onSaved }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Tambah transaksi kas</DialogTitle>
         </DialogHeader>

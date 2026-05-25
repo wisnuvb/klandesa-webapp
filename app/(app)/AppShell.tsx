@@ -6,63 +6,18 @@ import { useSession } from "next-auth/react";
 import { isRegionalAccount } from "@/lib/regional-session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { getModuleById } from "@/lib/modules/registry";
 import { Toaster } from "sonner";
 
-// Map route keys to page metadata
+// Map route keys to page metadata — urutan mengikuti sidebar & alur operasional desa
 const pageConfig = {
+  // --- Desa: Ringkasan ---
   dashboard: {
     title: "Dashboard",
     subtitle: "Ringkasan informasi dan statistik desa",
   },
-  mitra: {
-    title: "Dashboard Mitra",
-    subtitle: "Ringkasan aktivitas dan prospek Anda",
-  },
-  "mitra/referral": {
-    title: "Kode referral",
-    subtitle: "Tautan kampanye Anda, ringkasan event dan lead inbound",
-  },
-  "mitra/prospek": {
-    title: "Prospek Desa",
-    subtitle: "Catat dan pantau status desa yang Anda prospek",
-  },
-  "mitra/desa": {
-    title: "Desa Dikelola",
-    subtitle: "Desa closing yang tertaut pada akun mitra Anda",
-  },
-  "mitra/profil": {
-    title: "Profil & Rekening",
-    subtitle: "Data mitra, rekening komisi, dan ubah password login portal",
-  },
-  "mitra/komisi": {
-    title: "Revenue & Komisi",
-    subtitle: "Ringkasan bagi hasil, grafik menurut tipe, dan ledger komisi mitra",
-  },
-  "mitra/disbursment": {
-    title: "Disbursement",
-    subtitle: "Riwayat transfer komisi oleh platform ke rekening mitra",
-  },
-  admin: {
-    title: "Admin Klandesa",
-    subtitle: "Kelola desa, mitra, dan operasional platform",
-  },
-  "admin/desa": {
-    title: "Kelola Desa",
-    subtitle: "Daftar desa dan status berlangganan",
-  },
-  "admin/mitra": {
-    title: "Kelola Mitra",
-    subtitle:
-      "Pendaftaran mitra, kode referral, akun dan bagi hasil (komisi & disbursement)",
-  },
-  "admin/blog": {
-    title: "Kelola Blog",
-    subtitle: "Buat dan publish artikel blog Klandesa",
-  },
-  profil: {
-    title: "Profil Akun",
-    subtitle: "Informasi pengguna yang sedang masuk",
-  },
+
+  // --- Desa: Data & Kependudukan ---
   "data-warga": {
     title: "Data Warga",
     subtitle: "Kelola data penduduk desa",
@@ -91,6 +46,12 @@ const pageConfig = {
     title: "Koperasi Desa",
     subtitle: "Profil, anggota, dan buku kas (pencatatan internal)",
   },
+  bumdes: {
+    title: "BUMDes",
+    subtitle: "Unit usaha desa, pembukuan, dan laporan laba rugi",
+  },
+
+  // --- Desa: Statistik ---
   statistik: {
     title: "Statistik Kependudukan",
     subtitle: "Data statistik dan demografi desa",
@@ -107,6 +68,8 @@ const pageConfig = {
     title: "Statistik Pekerjaan",
     subtitle: "Analisis jenis pekerjaan",
   },
+
+  // --- Desa: Pelayanan Surat ---
   "permohonan-warga": {
     title: "Permohonan Warga",
     subtitle: "Kelola permohonan surat dari warga",
@@ -123,10 +86,8 @@ const pageConfig = {
     title: "Pengaturan Desa",
     subtitle: "Profil desa, kontak, dan pengaturan kop surat",
   },
-  layanan: {
-    title: "Pelayanan Surat",
-    subtitle: "Kelola permohonan surat dari warga",
-  },
+
+  // --- Desa: Keuangan ---
   keuangan: {
     title: "Sistem Keuangan Desa",
     subtitle: "Pengelolaan keuangan dan laporan",
@@ -135,10 +96,8 @@ const pageConfig = {
     title: "Billing",
     subtitle: "Kelola paket, invoice, dan pembayaran",
   },
-  portal: {
-    title: "Portal Warga",
-    subtitle: "Kelola laporan dan pengaduan warga",
-  },
+
+  // --- Desa: Portal Warga ---
   "pengumuman-desa": {
     title: "Pengumuman dan Berita Desa",
     subtitle: "Kelola pengumuman dan berita untuk warga",
@@ -159,6 +118,8 @@ const pageConfig = {
     title: "Galeri Kegiatan Desa",
     subtitle: "Dokumentasi foto kegiatan dan pembangunan",
   },
+
+  // --- Desa: Operasional Perangkat ---
   absensi: {
     title: "Absensi Perangkat",
     subtitle: "Monitoring kehadiran perangkat desa",
@@ -167,6 +128,48 @@ const pageConfig = {
     title: "Check-in Absensi",
     subtitle: "Catat kehadiran lewat QR desa",
   },
+
+  // --- Desa: Kesehatan, Perencanaan & SDGs ---
+  pkk: {
+    title: "PKK & Dasawisma",
+    subtitle: "Posyandu, dasawisma, dan monitoring kesehatan keluarga",
+  },
+  sdgs: {
+    title: "Dashboard SDGs Desa",
+    subtitle: "Skor 18 goal, heatmap RT/RW, dan integrasi data modul desa",
+  },
+  rpjmdes: {
+    title: "RPJMDes",
+    subtitle: "Perencanaan pembangunan, RKP, dan usulan Musdes",
+  },
+  pertanian: {
+    title: "Pertanian",
+    subtitle: "Lahan, siklus tanam, panen, dan harga komoditas",
+  },
+  "partisipasi-rtrw": {
+    title: "Partisipasi RT/RW",
+    subtitle: "Kegiatan warga, gotong royong, dan usulan tingkat RT/RW",
+  },
+
+  // --- Desa: Integrasi, GIS & AI ---
+  "sinkronisasi-data": {
+    title: "Sinkronisasi Data",
+    subtitle: "Integrasi data dengan sistem eksternal desa",
+  },
+  "peta-infrastruktur": {
+    title: "Peta Infrastruktur",
+    subtitle: "Aset, proyek, dan titik risiko bencana pada peta desa",
+  },
+  lingkungan: {
+    title: "Lingkungan",
+    subtitle: "Bank sampah, insiden lingkungan, dan titik risiko bencana",
+  },
+  "asisten-ai": {
+    title: "Asisten AI",
+    subtitle: "Bantuan AI untuk layanan warga, SDGs, dan perencanaan desa",
+  },
+
+  // --- Desa: Arsip & Promosi ---
   arsip: {
     title: "Arsip Digital",
     subtitle: "Pengelolaan dokumen dan arsip desa",
@@ -177,23 +180,104 @@ const pageConfig = {
   },
   website: {
     title: "Website Desa",
-    subtitle: "Kelola konten website desa (Coming Soon)",
+    subtitle: "Kelola konten dan tampilan website desa",
+  },
+
+  // --- Akun ---
+  profil: {
+    title: "Profil Akun",
+    subtitle: "Informasi pengguna yang sedang masuk",
+  },
+
+  // --- Portal Mitra ---
+  mitra: {
+    title: "Dashboard Mitra",
+    subtitle: "Ringkasan aktivitas dan prospek Anda",
+  },
+  "mitra/referral": {
+    title: "Kode referral",
+    subtitle: "Tautan kampanye Anda, ringkasan event dan lead inbound",
+  },
+  "mitra/prospek": {
+    title: "Prospek Desa",
+    subtitle: "Catat dan pantau status desa yang Anda prospek",
+  },
+  "mitra/desa": {
+    title: "Desa Dikelola",
+    subtitle: "Desa closing yang tertaut pada akun mitra Anda",
+  },
+  "mitra/komisi": {
+    title: "Revenue & Komisi",
+    subtitle: "Ringkasan bagi hasil, grafik menurut tipe, dan ledger komisi mitra",
+  },
+  "mitra/disbursment": {
+    title: "Disbursement",
+    subtitle: "Riwayat transfer komisi oleh platform ke rekening mitra",
+  },
+  "mitra/profil": {
+    title: "Profil & Rekening",
+    subtitle: "Data mitra, rekening komisi, dan ubah password login portal",
+  },
+
+  // --- Admin Platform ---
+  admin: {
+    title: "Admin Klandesa",
+    subtitle: "Kelola desa, mitra, dan operasional platform",
+  },
+  "admin/desa": {
+    title: "Kelola Desa",
+    subtitle: "Daftar desa dan status berlangganan",
+  },
+  "admin/mitra": {
+    title: "Kelola Mitra",
+    subtitle:
+      "Pendaftaran mitra, kode referral, akun dan bagi hasil (komisi & disbursement)",
+  },
+  "admin/blog": {
+    title: "Kelola Blog",
+    subtitle: "Buat dan publish artikel blog Klandesa",
+  },
+
+  // --- Alias legacy (route tidak aktif di sidebar) ---
+  layanan: {
+    title: "Pelayanan Surat",
+    subtitle: "Kelola permohonan surat dari warga",
+  },
+  portal: {
+    title: "Portal Warga",
+    subtitle: "Kelola laporan dan pengaduan warga",
   },
 } as const;
 
 type PageKey = keyof typeof pageConfig;
 
-function derivePageKey(pathname: string): PageKey {
+function isKnownPageKey(key: string): key is PageKey {
+  return key in pageConfig || getModuleById(key) != null;
+}
+
+function resolvePageMeta(pageId: string): { title: string; subtitle: string } {
+  const known = pageConfig[pageId as PageKey];
+  if (known) return known;
+
+  const mod = getModuleById(pageId);
+  if (mod) {
+    return { title: mod.label, subtitle: `Modul ${mod.label}` };
+  }
+
+  return pageConfig.dashboard;
+}
+
+function derivePageKey(pathname: string): string {
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0) return "dashboard";
 
   // Try two-level path first (e.g. statistik/gender)
-  const twoLevel = segments.slice(0, 2).join("/") as PageKey;
-  if (twoLevel in pageConfig) return twoLevel;
+  const twoLevel = segments.slice(0, 2).join("/");
+  if (isKnownPageKey(twoLevel)) return twoLevel;
 
   // Fallback to first segment
-  const oneLevel = segments[0] as PageKey;
-  if (oneLevel in pageConfig) return oneLevel;
+  const oneLevel = segments[0];
+  if (isKnownPageKey(oneLevel)) return oneLevel;
 
   return "dashboard";
 }
@@ -203,7 +287,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
 
-  const [activePage, setActivePage] = useState<PageKey>("dashboard");
+  const [activePage, setActivePage] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -248,12 +332,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname, router, session, sessionStatus]);
 
   const { title, subtitle } = useMemo(
-    () => pageConfig[activePage],
+    () => resolvePageMeta(activePage),
     [activePage],
   );
 
   const handlePageChange = (page: string) => {
-    setActivePage(page as PageKey);
+    setActivePage(page);
     const targetPath = page.startsWith("/") ? page : `/${page}`;
     router.push(targetPath);
   };

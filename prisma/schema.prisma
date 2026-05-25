@@ -86,7 +86,21 @@ model Village {
   partnerCommissionEntries PartnerCommissionEntry[]
   websiteDomains         WebsiteDomain[]
   cooperative            Cooperative?
+  bumdes                 Bumdes?
   socialBenefitPrograms  SocialBenefitProgram[]
+  dasawisma              Dasawisma[]
+  posyanduSessions       PosyanduSession[]
+  rpjmdesPlans           RpjmdesPlan[]
+  musdesProposals        MusdesProposal[]
+  farmPlots              FarmPlot[]
+  rtRwActivities         RtRwActivity[]
+  communityProposals     CommunityProposal[]
+  integrationSyncLogs    IntegrationSyncLog[]
+  villageAssets          VillageAsset[]
+  infrastructureProjects InfrastructureProject[]
+  wasteBanks             WasteBank[]
+  environmentalIncidents EnvironmentalIncident[]
+  disasterPoints         DisasterPoint[]
 
   @@index([code])
   @@index([isActive])
@@ -250,6 +264,7 @@ model User {
   respondedContacts      Contact[]                @relation("ContactRespondedBy")
   cooperativeMemberLinks CooperativeMember[]      @relation("CoopMemberUser")
   coopLedgerCreates      CooperativeLedgerEntry[] @relation("CoopLedgerCreatedBy")
+  bumdesTransactionCreates BumdesTransaction[]  @relation("BumdesTransactionCreatedBy")
 
   @@index([villageId, role])
   @@index([email])
@@ -377,6 +392,7 @@ model Resident {
   updatedAt DateTime @updatedAt
 
   cooperativeMembers CooperativeMember[]
+  posyanduVisits     PosyanduVisit[]
 
   @@unique([villageId, nik])
   @@index([villageId, name])
@@ -801,6 +817,9 @@ model Transaction {
   // Status
   status String @default("pending") @db.VarChar(50) // pending, verified, approved, rejected
 
+  /// JSON array SDG goal IDs (1–18), e.g. [2, 8]
+  sdgGoalIds Json @default("[]")
+
   // Verification
   verifiedBy Int?
   verifiedAt DateTime?
@@ -843,6 +862,9 @@ model Budget {
 
   // Status
   status String @default("active") @db.VarChar(50) // active, completed, cancelled
+
+  /// JSON array SDG goal IDs (1–18), e.g. [2, 8]
+  sdgGoalIds Json @default("[]")
 
   // Audit
   createdBy   Int
@@ -944,6 +966,91 @@ model CooperativeLedgerEntry {
 }
 
 // ============================================
+// BUMDes - Badan Usaha Milik Desa (internal records)
+// ============================================
+
+model Bumdes {
+  id        Int     @id @default(autoincrement())
+  villageId Int     @unique
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name       String  @db.VarChar(255)
+  address    String? @db.Text
+  phone      String? @db.VarChar(50)
+  email      String? @db.VarChar(255)
+  legalNotes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  units        BumdesUnit[]
+  transactions BumdesTransaction[]
+  assets       BumdesAsset[]
+
+  @@map("bumdes")
+}
+
+model BumdesUnit {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+
+  name        String  @db.VarChar(255)
+  category    String? @db.VarChar(100)
+  description String? @db.Text
+  status      String  @default("active") @db.VarChar(50)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions BumdesTransaction[]
+
+  @@index([bumdesId, status])
+  @@map("bumdes_units")
+}
+
+model BumdesTransaction {
+  id       Int        @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes     @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+  unitId   Int
+  unit     BumdesUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  entryDate   DateTime @db.Date
+  direction   String   @db.VarChar(20) // income | expense
+  amount      Decimal  @db.Decimal(15, 2)
+  category    String   @db.VarChar(100)
+  description String?  @db.Text
+
+  createdBy   Int
+  createdUser User @relation("BumdesTransactionCreatedBy", fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bumdesId, entryDate(sort: Desc)])
+  @@index([unitId, entryDate(sort: Desc)])
+  @@map("bumdes_transactions")
+}
+
+model BumdesAsset {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+
+  name        String    @db.VarChar(255)
+  description String?   @db.Text
+  value       Decimal?  @db.Decimal(15, 2)
+  acquiredAt  DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bumdesId])
+  @@map("bumdes_assets")
+}
+
+// ============================================
 // POTENSI DESA - Village Potentials
 // ============================================
 
@@ -983,6 +1090,8 @@ model Potential {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  farmPlots FarmPlot[]
 
   @@index([villageId, category])
   @@index([villageId, status])
@@ -1868,6 +1977,427 @@ model Attendance {
   @@index([villageId, attendanceDate])
   @@index([officialId, attendanceDate])
   @@map("attendances")
+}
+
+// ============================================
+// PKK & DASAWISMA — Posyandu / kesehatan ibu & balita
+// ============================================
+
+model Dasawisma {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  rt          String @db.VarChar(10)
+  rw          String @db.VarChar(10)
+  leaderName  String @db.VarChar(255)
+  memberCount Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posyanduSessions PosyanduSession[]
+
+  @@unique([villageId, rt, rw])
+  @@index([villageId])
+  @@map("dasawisma")
+}
+
+model PosyanduSession {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  sessionDate DateTime @db.Date
+  location    String   @db.VarChar(255)
+
+  dasawismaId Int?
+  dasawisma   Dasawisma? @relation(fields: [dasawismaId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  visits PosyanduVisit[]
+
+  @@index([villageId, sessionDate(sort: Desc)])
+  @@index([dasawismaId])
+  @@map("posyandu_sessions")
+}
+
+model PosyanduVisit {
+  id        Int             @id @default(autoincrement())
+  sessionId Int
+  session   PosyanduSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  residentId Int
+  resident   Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  weightKg   Float?
+  heightCm   Float?
+  notes      String? @db.Text
+  isStunting Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, residentId])
+  @@index([residentId])
+  @@index([sessionId])
+  @@map("posyandu_visits")
+}
+
+// ============================================
+// RPJMDes — Perencanaan Pembangunan Desa
+// ============================================
+
+model RpjmdesPlan {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  title        String @db.VarChar(255)
+  periodStart  Int
+  periodEnd    Int
+  vision       String? @db.Text
+  mission      String? @db.Text
+  status       String  @default("draft") @db.VarChar(50) // draft, active, completed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities RkpdesActivity[]
+  proposals  MusdesProposal[]
+
+  @@index([villageId, status])
+  @@map("rpjmdes_plans")
+}
+
+model RkpdesActivity {
+  id     Int         @id @default(autoincrement())
+  planId Int
+  plan   RpjmdesPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  title            String   @db.VarChar(255)
+  description      String?  @db.Text
+  year             Int
+  location         String?  @db.VarChar(255)
+  estimatedBudget  Decimal? @db.Decimal(15, 2)
+  sdgGoalIds       Json     @default("[]")
+  priorityScore    Float?
+  status           String   @default("planned") @db.VarChar(50) // planned, ongoing, completed, cancelled
+  source           String   @default("internal") @db.VarChar(50) // internal, musdes_proposal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mergedFrom MusdesProposal?
+
+  @@index([planId, year])
+  @@index([planId, status])
+  @@map("rkpdes_activities")
+}
+
+model MusdesProposal {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  planId Int?
+  plan   RpjmdesPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  proposerName String  @db.VarChar(255)
+  proposerNik  String? @db.VarChar(16)
+  rt           String? @db.VarChar(10)
+  rw           String? @db.VarChar(10)
+  title        String  @db.VarChar(255)
+  description  String  @db.Text
+  sdgGoalIds   Json    @default("[]")
+  status       String  @default("submitted") @db.VarChar(50) // submitted, reviewed, approved, rejected
+  priorityScore Float?
+
+  mergedActivityId Int?            @unique
+  mergedActivity   RkpdesActivity? @relation(fields: [mergedActivityId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, status])
+  @@index([planId])
+  @@map("musdes_proposals")
+}
+
+// ============================================
+// PERTANIAN — extend Potensi Desa
+// ============================================
+
+model FarmPlot {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  potentialId Int?
+  potential   Potential? @relation(fields: [potentialId], references: [id], onDelete: SetNull)
+
+  name       String  @db.VarChar(255)
+  location   String? @db.VarChar(255)
+  areaHa     Float?
+  cropType   String? @db.VarChar(100)
+  ownerName  String? @db.VarChar(255)
+  rt         String? @db.VarChar(10)
+  rw         String? @db.VarChar(10)
+  status     String  @default("active") @db.VarChar(50)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cropCycles CropCycle[]
+
+  @@index([villageId, status])
+  @@map("farm_plots")
+}
+
+model CropCycle {
+  id     Int      @id @default(autoincrement())
+  plotId Int
+  plot   FarmPlot @relation(fields: [plotId], references: [id], onDelete: Cascade)
+
+  season            String    @db.VarChar(100)
+  cropName          String    @db.VarChar(255)
+  plantedAt         DateTime? @db.Date
+  harvestExpectedAt DateTime? @db.Date
+  status            String    @default("planted") @db.VarChar(50) // planted, growing, harvested
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  harvests HarvestRecord[]
+
+  @@index([plotId, status])
+  @@map("crop_cycles")
+}
+
+model HarvestRecord {
+  id      Int       @id @default(autoincrement())
+  cycleId Int
+  cycle   CropCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  harvestDate      DateTime @db.Date
+  quantityKg       Float?
+  qualityGrade     String?  @db.VarChar(50)
+  marketPricePerKg Decimal? @db.Decimal(15, 2)
+  notes            String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cycleId, harvestDate(sort: Desc)])
+  @@map("harvest_records")
+}
+
+// ============================================
+// RT/RW PARTISIPASI
+// ============================================
+
+model RtRwActivity {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  rt               String   @db.VarChar(10)
+  rw               String   @db.VarChar(10)
+  title            String   @db.VarChar(255)
+  description      String?  @db.Text
+  activityType     String   @db.VarChar(50) // gotong_royong, lpj, social, other
+  activityDate     DateTime @db.Date
+  participantCount Int      @default(0)
+  budgetUsed       Decimal? @db.Decimal(15, 2)
+  sdgGoalIds       Json     @default("[]")
+  status           String   @default("planned") @db.VarChar(50) // planned, done, cancelled
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, activityDate(sort: Desc)])
+  @@index([villageId, rt, rw])
+  @@map("rt_rw_activities")
+}
+
+model CommunityProposal {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  proposerName String  @db.VarChar(255)
+  rt           String? @db.VarChar(10)
+  rw           String? @db.VarChar(10)
+  title        String  @db.VarChar(255)
+  description  String  @db.Text
+  proposalType String  @default("infrastructure") @db.VarChar(50)
+  sdgGoalIds   Json    @default("[]")
+  status       String  @default("submitted") @db.VarChar(50) // submitted, reviewed, approved, rejected
+  votesCount   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, status])
+  @@map("community_proposals")
+}
+
+// ============================================
+// INTEGRASI PEMERINTAH (Phase 3)
+// ============================================
+
+model IntegrationSyncLog {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  adapterId    String  @db.VarChar(50)
+  direction    String  @db.VarChar(20)
+  status       String  @default("pending") @db.VarChar(50)
+  recordCount  Int     @default(0)
+  payloadMeta  Json?
+  errorMessage String? @db.Text
+  startedAt    DateTime @default(now())
+  finishedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, startedAt(sort: Desc)])
+  @@map("integration_sync_logs")
+}
+
+// ============================================
+// GIS & INFRASTRUKTUR (Phase 3)
+// ============================================
+
+model VillageAsset {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name        String  @db.VarChar(255)
+  assetType   String  @db.VarChar(50)
+  description String? @db.Text
+  lat         Float?
+  lng         Float?
+  rt          String? @db.VarChar(10)
+  rw          String? @db.VarChar(10)
+  condition   String  @default("good") @db.VarChar(50)
+  sdgGoalIds  Json    @default("[]")
+  status      String  @default("active") @db.VarChar(50)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  infrastructureProjects InfrastructureProject[]
+
+  @@index([villageId])
+  @@map("village_assets")
+}
+
+model InfrastructureProject {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  assetId   Int?
+  asset     VillageAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  projectType String   @db.VarChar(50)
+  budget      Decimal? @db.Decimal(15, 2)
+  lat         Float?
+  lng         Float?
+  rt          String?  @db.VarChar(10)
+  rw          String?  @db.VarChar(10)
+  sdgGoalIds  Json     @default("[]")
+  status      String   @default("planned") @db.VarChar(50)
+  startDate   DateTime? @db.Date
+  endDate     DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, status])
+  @@map("infrastructure_projects")
+}
+
+// ============================================
+// LINGKUNGAN & KEBENCANAAN (Phase 3)
+// ============================================
+
+model WasteBank {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name        String  @db.VarChar(255)
+  managerName String? @db.VarChar(255)
+  rt          String? @db.VarChar(10)
+  rw          String? @db.VarChar(10)
+  address     String? @db.Text
+  lat         Float?
+  lng         Float?
+  wasteTypes  Json    @default("[]")
+  monthlyKg   Float   @default(0)
+  status      String  @default("active") @db.VarChar(50)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId])
+  @@map("waste_banks")
+}
+
+model EnvironmentalIncident {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  title        String   @db.VarChar(255)
+  description  String?  @db.Text
+  incidentType String   @db.VarChar(50)
+  severity     String   @default("medium") @db.VarChar(50)
+  lat          Float?
+  lng          Float?
+  rt           String?  @db.VarChar(10)
+  rw           String?  @db.VarChar(10)
+  reportedAt   DateTime @default(now())
+  status       String   @default("open") @db.VarChar(50)
+  checklist    Json     @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, status])
+  @@map("environmental_incidents")
+}
+
+model DisasterPoint {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name           String  @db.VarChar(255)
+  disasterType   String  @db.VarChar(50)
+  riskLevel      String  @default("medium") @db.VarChar(50)
+  lat            Float?
+  lng            Float?
+  rt             String? @db.VarChar(10)
+  rw             String? @db.VarChar(10)
+  notes          String? @db.Text
+  evacuationPlan String? @db.Text
+  lastCheckedAt  DateTime?
+  status         String  @default("monitored") @db.VarChar(50)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, riskLevel])
+  @@map("disaster_points")
 }
 
 // ============================================

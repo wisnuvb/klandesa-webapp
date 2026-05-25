@@ -5,6 +5,8 @@ import type { Village } from "@prisma/client";
 import { getApiSession } from "@/lib/api-session";
 import { isRegionalAccount } from "@/lib/regional-session";
 import { prisma } from "@/lib/prisma";
+import { resolveApiPermission } from "@/lib/permissions/api-route-map";
+import { requirePermissionResponse } from "@/lib/permissions/require-permission";
 
 export function jsonUnauthorized(message = "Unauthorized") {
   return NextResponse.json({ error: message }, { status: 401 });
@@ -77,6 +79,16 @@ export async function requireVillageApiContext(
     session.user.villageCode !== village.code
   ) {
     return { ok: false, response: jsonForbidden("Konteks desa tidak cocok") };
+  }
+
+  const apiPerm = resolveApiPermission(req.nextUrl.pathname, req.method);
+  if (apiPerm) {
+    const permErr = requirePermissionResponse(
+      session,
+      apiPerm.resource,
+      apiPerm.action,
+    );
+    if (permErr) return { ok: false, response: permErr };
   }
 
   return {

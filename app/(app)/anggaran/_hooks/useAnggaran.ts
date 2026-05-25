@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import type { BudgetFormData, VillageBudget } from "../_lib/types";
@@ -11,7 +11,6 @@ import {
   getTotalRealization,
   getUniqueYears,
 } from "../_lib/calculations";
-import { mockData } from "../_lib/mockData";
 
 function defaultFormData(): BudgetFormData {
   return {
@@ -46,11 +45,36 @@ export function useAnggaran() {
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<VillageBudget | null>(null);
   const [formData, setFormData] = useState<BudgetFormData>(() => defaultFormData());
+  const [data, setData] = useState<VillageBudget[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const uniqueYears = useMemo(() => getUniqueYears(mockData), []);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/finance/village-budgets");
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error ?? "Gagal memuat data anggaran");
+      }
+      setData(Array.isArray(json.data) ? json.data : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memuat data anggaran");
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const uniqueYears = useMemo(() => getUniqueYears(data), [data]);
   const latestData = useMemo(
-    () => getLatestBudgetByYear(mockData, uniqueYears),
-    [uniqueYears],
+    () => getLatestBudgetByYear(data, uniqueYears),
+    [data, uniqueYears],
   );
 
   const totalRealization = useMemo(
@@ -64,13 +88,13 @@ export function useAnggaran() {
   );
 
   const filteredData = useMemo(() => {
-    return mockData.filter((budget) => {
+    return data.filter((budget) => {
       const matchesSearch = budget.year.toString().includes(searchQuery);
       const matchesYear =
         filterYear === "all" || budget.year.toString() === filterYear;
       return matchesSearch && matchesYear;
     });
-  }, [filterYear, searchQuery]);
+  }, [data, filterYear, searchQuery]);
 
   const handleViewDetail = (budget: VillageBudget) => {
     setSelectedBudget(budget);
@@ -104,7 +128,9 @@ export function useAnggaran() {
   };
 
   const handleSubmit = () => {
-    toast.success("Data anggaran berhasil disimpan");
+    toast.info(
+      "Penyimpanan detail anggaran tahunan akan terhubung ke modul Keuangan pada iterasi berikutnya.",
+    );
     setShowFormDialog(false);
     setFormData(defaultFormData());
   };
@@ -122,7 +148,10 @@ export function useAnggaran() {
   };
 
   return {
-    data: mockData,
+    data,
+    loading,
+    error,
+    reload: loadData,
     uniqueYears,
     latestData,
     totalRealization,
@@ -151,4 +180,3 @@ export function useAnggaran() {
     handleDelete,
   };
 }
-

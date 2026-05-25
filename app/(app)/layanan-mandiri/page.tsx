@@ -375,7 +375,7 @@ export default function LayananMandiriPage() {
       )}
 
       <Dialog open={keyDialogOpen} onOpenChange={setKeyDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Kiosk Key</DialogTitle>
             <DialogDescription>

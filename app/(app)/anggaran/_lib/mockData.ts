@@ -1,5 +1,6 @@
 import type { VillageBudget } from "./types";
 
+/** @deprecated Data mock — halaman anggaran kini fetch `/api/finance/village-budgets`. */
 export const mockData: VillageBudget[] = [
   {
     id: 1,
@@ -29,33 +30,4 @@ export const mockData: VillageBudget[] = [
     created_at: "2024-10-12 10:11:34",
     updated_at: "2024-10-12 10:11:34",
   },
-  {
-    id: 2,
-    village_id: 2,
-    year: 2023,
-    revenue: 900000000,
-    government_fund: 450000000,
-    district_fund: 90000000,
-    province_fund: 180000000,
-    local_income: 250000000,
-    community_contribution: 30000000,
-    private_sector_contribution: 0,
-    total_expenditure: 820000000,
-    infrastructure_realization: 180000000,
-    health_realization: 150000000,
-    education_realization: 60000000,
-    agriculture_realization: 55000000,
-    social_realization: 40000000,
-    employee_realization: 335000000,
-    employee_budget: 400000000,
-    infrastructure_budget: 200000000,
-    health_budget: 170000000,
-    education_budget: 65000000,
-    agriculture_budget: 60000000,
-    social_budget: 45000000,
-    remaining_budget: 80000000,
-    created_at: "2023-01-10 08:00:00",
-    updated_at: "2023-12-20 16:30:00",
-  },
 ];
-

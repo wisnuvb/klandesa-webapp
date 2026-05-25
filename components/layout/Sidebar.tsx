@@ -5,21 +5,10 @@ import {
   Wallet,
   FileText,
   UserCircle,
-  BarChart3,
-  Clock,
-  Archive,
-  ShoppingBag,
-  Sprout,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
   X,
-  Megaphone,
-  MessageCircle,
-  AlertCircle,
-  Image,
-  Settings2,
-  Monitor,
   Landmark,
   HeartHandshake,
   Share2,
@@ -31,6 +20,7 @@ import type { Session } from "next-auth";
 import { hasPartnerPortalAccess } from "@/lib/partner-session";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 import { useCooperativeNav } from "@/components/providers/CooperativeNavProvider";
+import { buildVillageSidebarMenu } from "@/lib/modules/sidebar-menu";
 import { useMemo, useState } from "react";
 
 interface MenuItem {
@@ -134,184 +124,6 @@ const PLATFORM_SIDEBAR_MENU: MenuItem[] = [
   },
 ];
 
-const BASE_SIDEBAR_MENU: MenuItem[] = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: Home,
-    path: "/dashboard",
-  },
-  {
-    id: "data",
-    label: "Data",
-    icon: Users,
-    children: [
-      {
-        id: "data-warga",
-        label: "Warga",
-        icon: Users,
-        path: "/data-warga",
-      },
-      {
-        id: "data-kk",
-        label: "Kartu Keluarga",
-        icon: Users,
-        path: "/data-kk",
-      },
-      {
-        id: "data-perangkat",
-        label: "Perangkat Desa",
-        icon: Users,
-        path: "/data-perangkat",
-      },
-      {
-        id: "data-jabatan",
-        label: "Jabatan",
-        icon: Users,
-        path: "/data-jabatan",
-      },
-      {
-        id: "potensi",
-        label: "Potensi",
-        icon: Sprout,
-        path: "/potensi",
-      },
-      {
-        id: "anggaran",
-        label: "Anggaran",
-        icon: Wallet,
-        path: "/anggaran",
-      },
-    ],
-  },
-  {
-    id: "statistik",
-    label: "Statistik",
-    icon: BarChart3,
-    path: "/statistik",
-  },
-  {
-    id: "pelayanan",
-    label: "Pelayanan Surat",
-    icon: FileText,
-    children: [
-      {
-        id: "permohonan-warga",
-        label: "Permohonan Warga",
-        icon: FileText,
-        path: "/permohonan-warga",
-      },
-      {
-        id: "layanan-mandiri",
-        label: "Layanan Mandiri",
-        icon: Monitor,
-        path: "/layanan-mandiri",
-      },
-      {
-        id: "layanan-surat",
-        label: "Layanan Surat",
-        icon: FileText,
-        path: "/layanan-surat",
-      },
-      {
-        id: "pengaturan-desa",
-        label: "Pengaturan Desa",
-        icon: Settings2,
-        path: "/pengaturan-desa",
-      },
-    ],
-  },
-  {
-    id: "keuangan",
-    label: "Sistem Keuangan",
-    icon: Wallet,
-    path: "/keuangan",
-  },
-  {
-    id: "billing",
-    label: "Billing",
-    icon: Wallet,
-    path: "/billing",
-  },
-  {
-    id: "portal",
-    label: "Portal Warga",
-    icon: UserCircle,
-    children: [
-      {
-        id: "pengumuman-desa",
-        label: "Pengumuman",
-        icon: Megaphone,
-        path: "/pengumuman-desa",
-      },
-      {
-        id: "forum-diskusi",
-        label: "Forum Diskusi",
-        icon: MessageCircle,
-        path: "/forum-diskusi",
-      },
-      {
-        id: "pengaduan-masyarakat",
-        label: "Aduan Warga",
-        icon: AlertCircle,
-        path: "/pengaduan-masyarakat",
-      },
-      {
-        id: "bantuan-program-keluarga",
-        label: "Bansos & PKH",
-        icon: HeartHandshake,
-        path: "/bantuan-program-keluarga",
-      },
-      {
-        id: "galeri-desa",
-        label: "Galeri Desa",
-        icon: Image,
-        path: "/galeri-desa",
-      },
-    ],
-  },
-  {
-    id: "absensi",
-    label: "Absensi Perangkat",
-    icon: Clock,
-    path: "/absensi",
-  },
-  {
-    id: "arsip",
-    label: "Arsip Digital",
-    icon: Archive,
-    path: "/arsip",
-  },
-  {
-    id: "ukm",
-    label: "Produk UKM",
-    icon: ShoppingBag,
-    path: "/ukm",
-  },
-];
-
-function withKoperasiMenuItem(items: MenuItem[], include: boolean): MenuItem[] {
-  return items.map((item) => {
-    if (item.id !== "data" || !item.children) return item;
-    const filtered = item.children.filter((c) => c.id !== "koperasi");
-    if (!include) {
-      return { ...item, children: filtered };
-    }
-    return {
-      ...item,
-      children: [
-        ...filtered,
-        {
-          id: "koperasi",
-          label: "Koperasi",
-          icon: Landmark,
-          path: "/koperasi",
-        },
-      ],
-    };
-  });
-}
-
 interface SidebarProps {
   activePage: string;
   onPageChange: (page: string) => void;
@@ -351,10 +163,10 @@ export function Sidebar({
       return PARTNER_SIDEBAR_MENU;
     }
     if (hasDualPartnerPortal) {
-      const base = withKoperasiMenuItem(
-        BASE_SIDEBAR_MENU,
-        Boolean(!coopNavLoading && access?.showCoopMenu),
-      );
+      const base = buildVillageSidebarMenu({
+        role: user?.role,
+        includeKoperasi: Boolean(!coopNavLoading && access?.showCoopMenu),
+      }) as MenuItem[];
       const partnerChildren = PARTNER_SIDEBAR_MENU.map((item) => ({ ...item }));
       return [
         ...base,
@@ -369,10 +181,10 @@ export function Sidebar({
     if (access?.cooperativeOnlyNav) {
       return COOPERATIVE_ONLY_SIDEBAR_MENU;
     }
-    return withKoperasiMenuItem(
-      BASE_SIDEBAR_MENU,
-      Boolean(!coopNavLoading && access?.showCoopMenu),
-    );
+    return buildVillageSidebarMenu({
+      role: user?.role,
+      includeKoperasi: Boolean(!coopNavLoading && access?.showCoopMenu),
+    }) as MenuItem[];
   }, [
     access?.cooperativeOnlyNav,
     access?.showCoopMenu,
@@ -380,6 +192,7 @@ export function Sidebar({
     hasDualPartnerPortal,
     isPartner,
     isPlatform,
+    user?.role,
   ]);
 
   const toggleExpand = (id: string) => {

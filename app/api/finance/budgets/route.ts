@@ -6,6 +6,7 @@ import { authOptions } from "@/auth";
 import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { requireVillagePermissionResponse } from "@/lib/access-policy";
 import { resolveFinanceWriteVillage } from "@/lib/finance-village-context";
 
 function generateBudgetCode(category: string, year: number) {
@@ -55,6 +56,40 @@ async function assertBudgetVillageAccess(
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
+export async function GET(req: NextRequest) {
+  try {
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+
+    const { village } = loaded.ctx;
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
+
+    const yearParam = req.nextUrl.searchParams.get("year");
+    const year = yearParam ? parseInt(yearParam, 10) : undefined;
+
+    const budgets = await prisma.budget.findMany({
+      where: {
+        villageId: village.id,
+        ...(Number.isFinite(year) ? { year } : {}),
+      },
+      orderBy: [{ year: "desc" }, { id: "desc" }],
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: toJSONSafe(budgets),
+    });
+  } catch (err) {
+    console.error("GET /api/finance/budgets error:", err);
+    return NextResponse.json(
+      { error: "Gagal memuat anggaran" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
@@ -65,6 +100,14 @@ export async function POST(req: NextRequest) {
     const resolved = await resolveFinanceWriteVillage(req, body as { villageId?: unknown });
     if (!resolved.ok) return resolved.response;
     const { village, userId } = resolved;
+
+    const session = await getApiSession(req);
+    const createPermErr = requireVillagePermissionResponse(
+      session,
+      "finance",
+      "create",
+    );
+    if (createPermErr) return createPermErr;
 
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
@@ -87,7 +130,6 @@ export async function POST(req: NextRequest) {
 
     const budgetCode = generateBudgetCode(category, Number(year));
 
-    const session = await getApiSession(req);
     const creatorIdRaw =
       userId != null && Number.isFinite(userId)
         ? userId
@@ -150,6 +192,14 @@ export async function PUT(req: NextRequest) {
 
     const authErr = await assertBudgetVillageAccess(req, currentBudget.villageId, body);
     if (authErr) return authErr;
+
+    const session = await getApiSession(req);
+    const updatePermErr = requireVillagePermissionResponse(
+      session,
+      "finance",
+      "update",
+    );
+    if (updatePermErr) return updatePermErr;
 
     const village = await prisma.village.findUnique({
       where: { id: currentBudget.villageId },

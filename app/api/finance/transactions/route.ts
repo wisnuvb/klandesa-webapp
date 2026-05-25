@@ -18,6 +18,72 @@ function generateTransactionNumber(type: string, date: Date) {
   return `${prefix}-${year}-${month}-${random}`;
 }
 
+export async function GET(req: NextRequest) {
+  try {
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+
+    const { village } = loaded.ctx;
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
+
+    const yearParam = req.nextUrl.searchParams.get("year");
+    const typeParam = req.nextUrl.searchParams.get("type");
+    const year = yearParam ? parseInt(yearParam, 10) : undefined;
+
+    const where: {
+      villageId: number;
+      type?: string;
+      transactionDate?: { gte: Date; lt: Date };
+    } = { villageId: village.id };
+
+    if (typeParam === "income" || typeParam === "expense") {
+      where.type = typeParam;
+    }
+
+    if (Number.isFinite(year)) {
+      where.transactionDate = {
+        gte: new Date(`${year}-01-01`),
+        lt: new Date(`${(year as number) + 1}-01-01`),
+      };
+    }
+
+    const rows = await prisma.transaction.findMany({
+      where,
+      orderBy: [{ transactionDate: "desc" }, { id: "desc" }],
+      take: 300,
+      select: {
+        id: true,
+        transactionNumber: true,
+        transactionDate: true,
+        type: true,
+        category: true,
+        description: true,
+        amount: true,
+        sdgGoalIds: true,
+        status: true,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: toJSONSafe(
+        rows.map((r) => ({
+          ...r,
+          transactionDate: r.transactionDate.toISOString(),
+        })),
+      ),
+    });
+  } catch (err) {
+    console.error("GET /api/finance/transactions error:", err);
+    return NextResponse.json(
+      { error: "Gagal memuat transaksi" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);

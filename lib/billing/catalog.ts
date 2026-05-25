@@ -122,3 +122,13 @@ export function arsipStorageLimitForDesaTierGb(tier: DesaPackageTier): number {
   const addonTier = mapDesaTierToAddonTier(tier);
   return BILLING_CATALOG.arsip.tiers[addonTier].storageGb;
 }
+
+/** Add-on modul SDGs / Phase 3 — referensi packaging (checkout terpisah). */
+export const SDGS_MODULE_ADDONS = {
+  bumdes: { tier: "starter/pro", label: "BUMDes + QRIS" },
+  pkk: { tier: "starter", label: "PKK / Dasawisma" },
+  sdgs: { tier: "profesional+", label: "Dashboard SDGs + RPJMDes" },
+  integrations: { tier: "enterprise", label: "Hub data pemerintah" },
+  gis: { tier: "enterprise", label: "Peta & infrastruktur" },
+  ai_assistant: { tier: "add-on", label: "AI credits per desa" },
+} as const;

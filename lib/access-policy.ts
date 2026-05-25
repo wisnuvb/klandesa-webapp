@@ -1,7 +1,13 @@
 import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
 import { isRegionalAccount } from "@/lib/regional-session";
-import { jsonForbidden } from "@/lib/api-village-context";
+import {
+  canVillageUser,
+  normalizeVillageRole,
+  requirePermissionResponse,
+  type PermissionAction,
+  type PermissionResource,
+} from "@/lib/permissions";
 
 /** User desa (bukan akun regional) dengan sesi yang punya id numerik. */
 export function canAccessVillageApp(session: Session | null): boolean {
@@ -24,8 +30,16 @@ export function requireVillageRole(
 export function requireVillageAdminResponse(
   session: Session | null,
 ): NextResponse | null {
-  if (!requireVillageRole(session, ["admin"])) {
-    return jsonForbidden();
-  }
-  return null;
+  return requirePermissionResponse(session, "settings", "update");
 }
+
+/** Cek permission terpusat untuk API desa. */
+export function requireVillagePermissionResponse(
+  session: Session | null,
+  resource: PermissionResource,
+  action: PermissionAction,
+): NextResponse | null {
+  return requirePermissionResponse(session, resource, action);
+}
+
+export { canVillageUser, normalizeVillageRole };
