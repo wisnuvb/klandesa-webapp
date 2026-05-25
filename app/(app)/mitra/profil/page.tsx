@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
+import { Eye, EyeOff, Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { hasPartnerPortalAccess } from "@/lib/partner-session";
 
 type PartnerMe = {
   partner: {
@@ -30,6 +34,12 @@ function extractErrorMessage(value: unknown): string | null {
 }
 
 export default function MitraProfilPage() {
+  const { data: session } = useSession();
+  const portalOk = useMemo(
+    () => hasPartnerPortalAccess(session as Session | null),
+    [session],
+  );
+
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
@@ -61,9 +71,30 @@ export default function MitraProfilPage() {
     [bank.accountName, bank.accountNumber, bank.bankName],
   );
 
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdOk, setPwdOk] = useState<string | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [showCurPw, setShowCurPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfPw, setShowConfPw] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+  });
+
+  const canChangePassword =
+    passwordForm.current.length > 0 &&
+    passwordForm.next.length >= 8 &&
+    passwordForm.next === passwordForm.confirm;
+
   useEffect(() => {
     let mounted = true;
     const load = async () => {
+      if (!portalOk) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         setError(null);
@@ -110,7 +141,7 @@ export default function MitraProfilPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [portalOk]);
 
   const saveProfile = async () => {
     if (!canSaveProfile) return;
@@ -165,6 +196,54 @@ export default function MitraProfilPage() {
       setSavingBank(false);
     }
   };
+
+  const savePassword = async () => {
+    if (!canChangePassword) return;
+    try {
+      setSavingPassword(true);
+      setPwdError(null);
+      setPwdOk(null);
+      const res = await fetch("/api/partner/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profile.name.trim(),
+          phone: profile.phone.trim() || null,
+          region: profile.region.trim() || null,
+          currentPassword: passwordForm.current,
+          newPassword: passwordForm.next,
+          confirmPassword: passwordForm.confirm,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!res.ok) {
+        throw new Error(data?.error || "Gagal mengubah password");
+      }
+      setPasswordForm({ current: "", next: "", confirm: "" });
+      setPwdOk("Password berhasil diubah.");
+    } catch (e) {
+      setPwdError(e instanceof Error ? e.message : "Gagal mengubah password");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  if (!portalOk) {
+    return (
+      <div className="p-4 md:p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Profil tidak tersedia</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Halaman ini hanya untuk akun dengan akses portal mitra.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -285,6 +364,109 @@ export default function MitraProfilPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Lock className="h-4 w-4" />
+            Ubah password login portal
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 max-w-lg">
+          <p className="text-sm text-muted-foreground">
+            Password dipakai saat Anda login sebagai mitra dengan email mitra Anda. Minimal 8
+            karakter.
+          </p>
+          <div className="space-y-1">
+            <div className="text-sm font-medium">Password saat ini</div>
+            <div className="relative">
+              <Input
+                className="pr-10"
+                type={showCurPw ? "text" : "password"}
+                autoComplete="current-password"
+                value={passwordForm.current}
+                onChange={(e) =>
+                  setPasswordForm((p) => ({ ...p, current: e.target.value }))
+                }
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-md"
+                aria-label={showCurPw ? "Sembunyikan" : "Tampilkan"}
+                onClick={() => setShowCurPw((v) => !v)}
+              >
+                {showCurPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-sm font-medium">Password baru</div>
+            <div className="relative">
+              <Input
+                className="pr-10"
+                type={showNewPw ? "text" : "password"}
+                autoComplete="new-password"
+                value={passwordForm.next}
+                onChange={(e) =>
+                  setPasswordForm((p) => ({ ...p, next: e.target.value }))
+                }
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-md"
+                aria-label={showNewPw ? "Sembunyikan" : "Tampilkan"}
+                onClick={() => setShowNewPw((v) => !v)}
+              >
+                {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-sm font-medium">Konfirmasi password baru</div>
+            <div className="relative">
+              <Input
+                className="pr-10"
+                type={showConfPw ? "text" : "password"}
+                autoComplete="new-password"
+                value={passwordForm.confirm}
+                onChange={(e) =>
+                  setPasswordForm((p) => ({ ...p, confirm: e.target.value }))
+                }
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-md"
+                aria-label={showConfPw ? "Sembunyikan" : "Tampilkan"}
+                onClick={() => setShowConfPw((v) => !v)}
+              >
+                {showConfPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          {pwdError ? (
+            <div className="text-sm text-red-600" role="alert">
+              {pwdError}
+            </div>
+          ) : pwdOk ? (
+            <div className="text-sm text-green-700" role="status">
+              {pwdOk}
+            </div>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={
+              loading || savingPassword || !canChangePassword
+            }
+            onClick={() => void savePassword()}
+          >
+            {savingPassword ? "Menyimpan…" : "Simpan password baru"}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -176,11 +176,13 @@ function AdminMitraPageInner() {
       );
       const data = (await res.json().catch(() => null)) as {
         error?: string;
-        tempPassword?: string;
+        tempPassword?: string | null;
+        approveInfo?: string | null;
       } | null;
       if (!res.ok) throw new Error(data?.error || "Gagal approve");
-      setApprovedPassword(data?.tempPassword ?? null);
       await load();
+      setApprovedPassword(data?.tempPassword ?? null);
+      setActionOk(data?.approveInfo ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal approve");
     } finally {

@@ -4,6 +4,8 @@ import {
   parseAppsScriptWebAppUrl,
   postAppsScriptWebhook,
 } from "@/lib/apps-script-webhook";
+import { hashPassword } from "@/lib/auth";
+import { validatePartnerPasswordPlain } from "@/lib/partner/password-policy";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -35,6 +37,8 @@ export async function POST(req: NextRequest) {
           region?: string;
           message?: string;
           website?: string;
+          password?: string;
+          confirmPassword?: string;
         }
       | null;
 
@@ -47,6 +51,8 @@ export async function POST(req: NextRequest) {
     const phone = String(body?.phone ?? "").trim();
     const region = String(body?.region ?? "").trim();
     const message = String(body?.message ?? "").trim();
+    const password = String(body?.password ?? "");
+    const confirmPassword = String(body?.confirmPassword ?? "");
 
     if (!name || !email || !phone || !region || !message) {
       return NextResponse.json(
@@ -69,6 +75,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pesan terlalu panjang" }, { status: 400 });
     }
 
+    if (!password) {
+      return NextResponse.json(
+        { error: "Password wajib diisi untuk login portal mitra setelah disetujui." },
+        { status: 400 },
+      );
+    }
+    if (password !== confirmPassword) {
+      return NextResponse.json(
+        { error: "Konfirmasi password tidak sama." },
+        { status: 400 },
+      );
+    }
+    const pwErr = validatePartnerPasswordPlain(password);
+    if (pwErr) {
+      return NextResponse.json({ error: pwErr }, { status: 400 });
+    }
+
+    const passwordHash = await hashPassword(password);
+
     const forwardedFor = req.headers.get("x-forwarded-for") || "";
     const ipAddress = forwardedFor.split(",")[0]?.trim() || null;
     const userAgent = req.headers.get("user-agent") || null;
@@ -80,6 +105,7 @@ export async function POST(req: NextRequest) {
         phone,
         region,
         message,
+        passwordHash,
         source: "karir",
         meta: {
           ipAddress,

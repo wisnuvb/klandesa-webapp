@@ -34,6 +34,7 @@ export async function POST(
       region: true,
       status: true,
       meta: true,
+      passwordHash: true,
     },
   });
 
@@ -50,38 +51,73 @@ export async function POST(
     );
   }
 
-  const tempPassword = generateTempPassword();
-  const hashed = await hashPassword(tempPassword);
+  /** Hanya ada jika mitra baru & pendaftar tidak punya hash (data lama). */
+  let tempPassword: string | null = null;
+  /** Penjelasan singkat untuk admin (tanpa menyebut password). */
+  let approveInfo: string;
+
   const approvedAt = new Date().toISOString();
 
-  const result = await prisma.$transaction(async (tx) => {
+  const { partnerRow } = await prisma.$transaction(async (tx) => {
     const existing = await tx.partner.findUnique({
       where: { email: application.email },
       select: { id: true },
     });
 
-    const partner = existing
-      ? await tx.partner.update({
-          where: { id: existing.id },
-          data: {
-            status: "active",
-            name: application.name,
-            phone: application.phone,
-            region: application.region,
-          },
-          select: { id: true },
-        })
-      : await tx.partner.create({
-          data: {
-            email: application.email,
-            password: hashed,
-            name: application.name,
-            phone: application.phone,
-            region: application.region,
-            status: "active",
-          },
-          select: { id: true },
-        });
+    let row: { id: number };
+
+    if (existing) {
+      row = await tx.partner.update({
+        where: { id: existing.id },
+        data: {
+          status: "active",
+          name: application.name,
+          phone: application.phone,
+          region: application.region,
+          ...(application.passwordHash
+            ? { password: application.passwordHash }
+            : {}),
+        },
+        select: { id: true },
+      });
+      if (application.passwordHash) {
+        approveInfo =
+          "Password dari formulir pendaftaran diterapkan ke akun mitra yang sudah ada.";
+      } else {
+        approveInfo =
+          "Email ini sudah terdaftar sebagai mitra — password login tidak diubah.";
+      }
+    } else if (application.passwordHash) {
+      row = await tx.partner.create({
+        data: {
+          email: application.email,
+          password: application.passwordHash,
+          name: application.name,
+          phone: application.phone,
+          region: application.region,
+          status: "active",
+        },
+        select: { id: true },
+      });
+      approveInfo =
+        "Mitra memakai password yang dibuatnya saat mengisi formulir pendaftaran.";
+    } else {
+      tempPassword = generateTempPassword();
+      const hashed = await hashPassword(tempPassword);
+      row = await tx.partner.create({
+        data: {
+          email: application.email,
+          password: hashed,
+          name: application.name,
+          phone: application.phone,
+          region: application.region,
+          status: "active",
+        },
+        select: { id: true },
+      });
+      approveInfo =
+        "Pendaftar tidak punya kata sandi tersimpan (data lama) — gunakan password sementara di bawah.";
+    }
 
     const prevMeta =
       application.meta && typeof application.meta === "object"
@@ -90,7 +126,7 @@ export async function POST(
     const nextMeta = {
       ...(prevMeta as Record<string, unknown> | null),
       approvedAt,
-      partnerId: partner.id,
+      partnerId: row.id,
       approvedBy: auth.admin.email,
     };
 
@@ -100,13 +136,18 @@ export async function POST(
       select: { id: true },
     });
 
-    await ensurePartnerCommissionRule(tx, partner.id);
+    await ensurePartnerCommissionRule(tx, row.id);
 
-    return partner;
+    return { partnerRow: row };
   });
 
   return NextResponse.json(
-    { ok: true, partnerId: result.id, tempPassword },
+    {
+      ok: true,
+      partnerId: partnerRow.id,
+      tempPassword,
+      approveInfo,
+    },
     { status: 200 },
   );
 }

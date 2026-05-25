@@ -6,7 +6,10 @@ import {
   ArrowRight,
   Briefcase,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Handshake,
+  Lock,
   MapPin,
   MessageSquare,
   Send,
@@ -46,7 +49,7 @@ const steps = [
   {
     step: "1",
     title: "Daftar",
-    text: "Isi formulir singkat: kontak, wilayah cakupan, dan latar belakang Anda.",
+    text: "Isi formulir lengkap dengan password untuk akses portal mitra — tim akan menghubungi Anda.",
   },
   {
     step: "2",
@@ -87,22 +90,39 @@ export default function MitraPage() {
     phone: "",
     region: "",
     message: "",
+    password: "",
+    confirmPassword: "",
     website: "",
   });
+  const [showPw, setShowPw] = React.useState(false);
+  const [showPw2, setShowPw2] = React.useState(false);
   const [isSubmitted, setIsSubmitted] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+    if (formData.password !== formData.confirmPassword) {
+      setSubmitError("Konfirmasi password tidak sama.");
+      return;
+    }
     try {
       setIsSubmitting(true);
-      setSubmitError(null);
 
       const res = await fetch("/api/partner-applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          region: formData.region,
+          message: formData.message,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          website: formData.website,
+        }),
       });
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
@@ -116,6 +136,8 @@ export default function MitraPage() {
         phone: "",
         region: "",
         message: "",
+        password: "",
+        confirmPassword: "",
         website: "",
       });
     } catch (err) {
@@ -318,6 +340,7 @@ export default function MitraPage() {
                     type="tel"
                     required
                     maxLength={40}
+                    autoComplete="tel"
                     className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0d9488]/30 focus:border-[#0d9488] outline-none text-gray-900"
                     value={formData.phone}
                     onChange={(e) =>
@@ -325,6 +348,99 @@ export default function MitraPage() {
                     }
                   />
                 </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                    <Lock className="w-4 h-4 shrink-0 text-[#0d9488]" />
+                    Password akun portal mitra
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Setelah pendaftaran disetujui admin, Anda login ke{" "}
+                    <span className="font-medium">portal mitra</span> dengan email dan password ini.
+                    Minimal 8 karakter.
+                  </p>
+                  <div>
+                    <label
+                      htmlFor="partner-password"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="partner-password"
+                        type={showPw ? "text" : "password"}
+                        required
+                        minLength={8}
+                        maxLength={128}
+                        autoComplete="new-password"
+                        aria-describedby="partner-password-hint"
+                        className="w-full pl-4 pr-12 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0d9488]/30 focus:border-[#0d9488] outline-none text-gray-900"
+                        value={formData.password}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            password: e.target.value,
+                          }))
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488]"
+                        onClick={() => setShowPw((v) => !v)}
+                        aria-label={showPw ? "Sembunyikan password" : "Tampilkan password"}
+                      >
+                        {showPw ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                    <p id="partner-password-hint" className="sr-only">
+                      Minimal 8 karakter, maksimal 128 karakter
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="partner-password-confirm"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Konfirmasi password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="partner-password-confirm"
+                        type={showPw2 ? "text" : "password"}
+                        required
+                        minLength={8}
+                        maxLength={128}
+                        autoComplete="new-password"
+                        className="w-full pl-4 pr-12 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0d9488]/30 focus:border-[#0d9488] outline-none text-gray-900"
+                        value={formData.confirmPassword}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            confirmPassword: e.target.value,
+                          }))
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488]"
+                        onClick={() => setShowPw2((v) => !v)}
+                        aria-label={showPw2 ? "Sembunyikan konfirmasi" : "Tampilkan konfirmasi"}
+                      >
+                        {showPw2 ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label
                     htmlFor="partner-region"

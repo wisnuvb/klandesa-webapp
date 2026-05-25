@@ -32,7 +32,7 @@ const pageConfig = {
   },
   "mitra/profil": {
     title: "Profil & Rekening",
-    subtitle: "Perbarui profil dan rekening untuk pengiriman komisi",
+    subtitle: "Data mitra, rekening komisi, dan ubah password login portal",
   },
   "mitra/komisi": {
     title: "Revenue & Komisi",

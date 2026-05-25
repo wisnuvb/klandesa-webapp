@@ -28,6 +28,22 @@ export function getStoredReferralCode(): string | null {
   return normalizeClientReferralCode(window.localStorage.getItem(REFERRAL_STORAGE_KEY));
 }
 
+/**
+ * Kode referral untuk aksi klien: prioritas `ref` di URL, lalu localStorage.
+ * Jika ada di URL, disimpan ke localStorage tanpa memicu event `page_view`
+ * (beda dengan `captureReferralFromUrl`).
+ */
+export function getEffectiveReferralCode(refQueryParam: string | null | undefined): string | null {
+  const fromUrl = normalizeClientReferralCode(refQueryParam);
+  if (fromUrl) {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(REFERRAL_STORAGE_KEY, fromUrl);
+    }
+    return fromUrl;
+  }
+  return getStoredReferralCode();
+}
+
 export async function trackReferralClient(
   action: string,
   payload: {

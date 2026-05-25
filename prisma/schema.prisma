@@ -1445,6 +1445,9 @@ model PartnerApplication {
   region  String @db.VarChar(200)
   message String @db.Text
 
+  /// Hash bcrypt kata sandi login mitra yang dipilih pendatang (buat akun baru / update saat approve).
+  passwordHash String? @db.VarChar(255)
+
   status String @default("NEW") @db.VarChar(30)
   source String @default("karir") @db.VarChar(50)
   meta   Json?
