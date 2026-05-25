@@ -2,6 +2,7 @@ import { PrismaClient, Prisma, CoopAppRole } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { catalogRowsForSeed } from "../lib/mail/catalogTemplates";
 import { mergeTemplateCapabilities } from "../lib/website-engine/feature-capabilities";
+import { ensurePartnerCommissionRule } from "../lib/partner/commission";
 
 const prisma = new PrismaClient();
 
@@ -79,6 +80,129 @@ async function main() {
       console.log("✓ Platform admin updated:", email, "(password from env)");
     } else {
       console.log("✓ Platform admin updated:", email, "password:", password);
+    }
+  });
+
+  const mitraSeedOk = await trySeedStep("Mitra demo + kode referral", async () => {
+    const email =
+      process.env.SEED_PARTNER_EMAIL?.trim() || "mitra@klandesa.local";
+    const name =
+      process.env.SEED_PARTNER_NAME?.trim() || "Mitra Uji (seed)";
+    const passEnv = process.env.SEED_PARTNER_PASSWORD?.trim() || "";
+    const password = passEnv !== "" ? passEnv : "mitra123456";
+    const region =
+      process.env.SEED_PARTNER_REGION?.trim() || "Jawa Barat (seed)";
+
+    let code = (process.env.SEED_REFERRAL_CODE?.trim() || "SEEDMITRA")
+      .toUpperCase()
+      .replace(/[^A-Z0-9_-]/g, "");
+    if (!code) code = "SEEDMITRA";
+    code = code.slice(0, 40);
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const partner = await prisma.partner.upsert({
+      where: { email },
+      create: {
+        email,
+        password: hashed,
+        name,
+        phone: "081200000001",
+        region,
+        status: "active",
+      },
+      update: {
+        password: hashed,
+        name,
+        region,
+        status: "active",
+      },
+    });
+
+    await ensurePartnerCommissionRule(prisma, partner.id);
+
+    const linkedToThisPartner = await prisma.referralCode.findFirst({
+      where: { partnerId: partner.id },
+    });
+
+    if (!linkedToThisPartner) {
+      const taken = await prisma.referralCode.findUnique({
+        where: { code },
+      });
+      if (taken && taken.partnerId != null && taken.partnerId !== partner.id) {
+        const fallback = `MITRA${partner.id}`.slice(0, 40);
+        console.warn(
+          `⚠ Kode referral "${code}" dipakai mitra lain — memakai "${fallback}" untuk seed ini.`,
+        );
+        code = fallback;
+      }
+
+      const rowByCode = await prisma.referralCode.findUnique({
+        where: { code },
+      });
+
+      if (rowByCode) {
+        await prisma.referralCode.update({
+          where: { id: rowByCode.id },
+          data: {
+            partnerId: partner.id,
+            ownerEmail: email,
+            ownerName: name,
+            ownerPhone: partner.phone,
+            status: "active",
+            label: rowByCode.label.startsWith("Seed")
+              ? rowByCode.label
+              : `Seed — ${name}`,
+          },
+        });
+      } else {
+        await prisma.referralCode.create({
+          data: {
+            code,
+            label: `Seed — ${name}`,
+            ownerName: name,
+            ownerEmail: email,
+            ownerPhone: partner.phone,
+            status: "active",
+            landingPath: "/tim",
+            partnerId: partner.id,
+          },
+        });
+      }
+    } else {
+      await prisma.referralCode.update({
+        where: { id: linkedToThisPartner.id },
+        data: {
+          ownerEmail: email,
+          ownerName: name,
+          ownerPhone: partner.phone ?? "081200000001",
+          status: "active",
+        },
+      });
+    }
+
+    const refRow = await prisma.referralCode.findFirst({
+      where: { partnerId: partner.id },
+      select: { code: true },
+    });
+    const refCode = refRow?.code ?? code;
+
+    if (passEnv !== "") {
+      console.log(
+        "✓ Mitra seed:",
+        email,
+        "(password dari env) — login /mitra · ?ref=",
+        refCode,
+      );
+    } else {
+      console.log(
+        "✓ Mitra seed:",
+        email,
+        "password:",
+        password,
+        "— login /mitra · ?ref=",
+        refCode,
+      );
     }
   });
 
@@ -913,6 +1037,16 @@ async function main() {
 
   console.log("\n✅ Seeding completed successfully!\n");
   console.log("📊 Summary:");
+  const platformEmail =
+    process.env.PLATFORM_ADMIN_EMAIL?.trim() || "platform-admin@klandesa.local";
+  console.log(
+    `  • Super admin (platform): ${platformEmail} — password: ${process.env.PLATFORM_ADMIN_PASSWORD?.trim() ? "(dari env PLATFORM_ADMIN_PASSWORD)" : "admin123456"} — /admin`,
+  );
+  console.log(
+    mitraSeedOk
+      ? `  • Mitra (seed): ${process.env.SEED_PARTNER_EMAIL?.trim() || "mitra@klandesa.local"} — password default mitra123456 kecuali SEED_PARTNER_PASSWORD di-set — lihat log "✓ Mitra seed" untuk kode ?ref=`
+      : `  • Mitra (seed): dilewati (skema tidak lengkap — lihat peringatan di atas)`,
+  );
   console.log(`  • Village: ${village.code} - ${village.name}`);
   console.log(`  • Village 2: ${village2.code} - ${village2.name}`);
   console.log(`  • User admin: ${user.email} (Password: 123456)`);

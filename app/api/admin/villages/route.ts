@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { accrueClosingCommissionInTx } from "@/lib/partner/commission";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
+import { suggestReferralAcquisitionSource } from "@/lib/partner/referral-acquisition-source";
 
 function readLimit(req: NextRequest): number {
   const raw = req.nextUrl.searchParams.get("limit");
@@ -102,7 +103,13 @@ export async function PATCH(req: NextRequest) {
 
   const village = await prisma.village.findUnique({
     where: villageId != null ? { id: Math.floor(villageId) } : { code: villageCode },
-    select: { id: true, code: true, name: true, acquiredByPartnerId: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      email: true,
+      acquiredByPartnerId: true,
+    },
   });
   if (!village) {
     return NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 });
@@ -123,6 +130,20 @@ export async function PATCH(req: NextRequest) {
   const resolvedPartnerId =
     partnerId == null ? null : Math.floor(partnerId);
 
+  let mergedAcquisitionSource = acquisitionSource;
+  if (resolvedPartnerId != null) {
+    const suggested = await suggestReferralAcquisitionSource(
+      resolvedPartnerId,
+      {
+        name: village.name,
+        email: village.email ?? null,
+      },
+    );
+    if (suggested != null) {
+      mergedAcquisitionSource = suggested;
+    }
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
     const row = await tx.village.update({
       where: { id: village.id },
@@ -132,7 +153,7 @@ export async function PATCH(req: NextRequest) {
           : {
               acquiredByPartnerId: resolvedPartnerId,
               acquiredAt: new Date(),
-              acquisitionSource,
+              acquisitionSource: mergedAcquisitionSource.slice(0, 50),
             },
       select: {
         id: true,

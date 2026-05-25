@@ -20,6 +20,14 @@ export function isPartnerAccount(session: Session | null): boolean {
   return u.accountType === "partner";
 }
 
+/** Akses portal /mitra untuk akun Partner murni atau akun desa dengan mitra tertaut. */
+export function hasPartnerPortalAccess(session: Session | null): boolean {
+  if (!session?.user) return false;
+  if (isPartnerAccount(session)) return true;
+  const u = session.user as Session["user"] & { partnerId?: number };
+  return typeof u.partnerId === "number" && Number.isFinite(u.partnerId) && u.partnerId > 0;
+}
+
 export type ParsedPartnerSession = {
   partnerId: number;
   email: string;
@@ -28,14 +36,33 @@ export type ParsedPartnerSession = {
 
 export function getPartnerSession(session: Session | null): ParsedPartnerSession | null {
   if (!session?.user) return null;
-  const pid = parsePartnerIdFromSessionUserId(session.user.id);
-  if (pid == null) return null;
+
   const u = session.user as Session["user"] & {
     accountType?: string;
     email?: string | null;
     name?: string | null;
+    partnerId?: number;
   };
+
+  const fromVillage =
+    u.accountType === "village" &&
+    typeof u.partnerId === "number" &&
+    Number.isFinite(u.partnerId) &&
+    u.partnerId > 0;
+
+  if (fromVillage) {
+    return {
+      partnerId: u.partnerId,
+      email: u.email ?? "",
+      name: u.name ?? "",
+    };
+  }
+
   if (u.accountType !== "partner") return null;
+
+  const pid = parsePartnerIdFromSessionUserId(session.user.id);
+  if (pid == null) return null;
+
   return {
     partnerId: pid,
     email: u.email ?? "",

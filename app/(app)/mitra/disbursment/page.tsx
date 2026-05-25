@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet } from "lucide-react";
 import { formatIdr } from "@/lib/billing/catalog";
+import { hasPartnerPortalAccess } from "@/lib/partner-session";
 
 type DisbursementItem = {
   id: string;
@@ -60,7 +62,7 @@ function formatDt(value: string | null): string {
 
 export default function MitraDisbursementsPage() {
   const { data: session } = useSession();
-  const isPartner = session?.user?.accountType === "partner";
+  const portalOk = hasPartnerPortalAccess(session as Session | null);
 
   const [rows, setRows] = useState<DisbursementRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,14 +91,14 @@ export default function MitraDisbursementsPage() {
     };
   }, []);
 
-  if (!isPartner) {
+  if (!portalOk) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Akun tidak valid</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Halaman ini hanya untuk akun mitra.
+          Halaman ini hanya bagi pengguna dengan akses portal mitra (akun mitra atau desa tertaut referral).
         </CardContent>
       </Card>
     );

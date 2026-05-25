@@ -167,6 +167,7 @@ providers.push(
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
             accountType: "village" as const,
+            partnerId: (data.user as { partnerId?: number }).partnerId,
             villageId: data.user.village?.id,
             villageCode: data.user.village?.code,
             village: data.user.village
@@ -292,7 +293,7 @@ export const authOptions: NextAuthOptions = {
           token.village = undefined;
           token.regionalScope = undefined;
         } else {
-          token.partnerId = undefined;
+          token.partnerId = (user as { partnerId?: number }).partnerId;
           token.villageId = (user as any).villageId;
           token.villageCode = (user as any).villageCode;
           token.village = (user as any).village;

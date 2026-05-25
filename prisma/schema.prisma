@@ -173,11 +173,16 @@ model ReferralCode {
   landingPath String  @default("/tim") @db.VarChar(120)
   notes       String? @db.Text
 
+  /// Mitra operasional (komisi/desab) satu-satu dengan satu kode referral aktif di UI.
+  partnerId Int?
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+
   events ReferralEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([partnerId])
   @@index([status])
   @@map("referral_codes")
 }
@@ -1473,6 +1478,7 @@ model Partner {
   commissionRule    PartnerCommissionRule?
   commissionEntries PartnerCommissionEntry[]
   disbursements     PartnerDisbursement[]
+  referralCode      ReferralCode?
 
   @@index([status])
   @@map("partners")

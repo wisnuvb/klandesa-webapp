@@ -1,13 +1,14 @@
 import "@/env";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword, generateTokens } from "@/lib/auth";
+import { verifyPassword, generateTokens, type JwtTokenPayloadVillage } from "@/lib/auth";
 import {
   REGIONAL_ROLE_KABUPATEN,
   REGIONAL_ROLE_KECAMATAN,
   normalizeLocationKey,
 } from "@/lib/regional-policy";
 import type { RegionalScope } from "@/lib/regional-session";
+import { resolveLinkedPartnerIdForVillageEmail } from "@/lib/partner/resolve-linked-partner";
 
 function buildRegionalScopeFromUser(user: {
   role: string;
@@ -77,13 +78,17 @@ export async function POST(request: NextRequest) {
         data: { lastLogin: new Date() },
       });
 
-      const { accessToken, refreshToken } = generateTokens({
+      const linkedPartnerId = await resolveLinkedPartnerIdForVillageEmail(user.email);
+
+      const tokenPayload: JwtTokenPayloadVillage = {
         id: user.id,
         email: user.email,
         role: user.role,
         villageId: user.villageId,
         accountType: "village",
-      });
+        ...(linkedPartnerId != null ? { partnerId: linkedPartnerId } : {}),
+      };
+      const { accessToken, refreshToken } = generateTokens(tokenPayload);
 
       return NextResponse.json({
         accountType: "village",
@@ -92,6 +97,7 @@ export async function POST(request: NextRequest) {
           email: user.email,
           name: user.name,
           role: user.role,
+          ...(linkedPartnerId != null ? { partnerId: linkedPartnerId } : {}),
           village: {
             id: user.village.id,
             code: user.village.code,

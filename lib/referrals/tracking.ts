@@ -39,6 +39,86 @@ export function firstIp(req: NextRequest): string | null {
   return req.headers.get("x-real-ip");
 }
 
+function normalizeDigitsPhone(value: unknown): string | null {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (digits.length < 9 || digits.length > 18) return null;
+  return digits.slice(0, 40);
+}
+
+async function upsertProspectFromReferralEvent(
+  client: PrismaLike,
+  partnerId: number,
+  input: ReferralEventInput,
+) {
+  const action = String(input.action || "").toLowerCase();
+  if (action !== "register_submit" && action !== "contact_submit") {
+    return;
+  }
+
+  const phone = normalizeDigitsPhone(input.phone);
+  const picNameRaw =
+    typeof input.name === "string" ? input.name.trim().slice(0, 255) : "";
+  const villageLabelRaw =
+    typeof input.villageName === "string" && input.villageName.trim()
+      ? input.villageName.trim()
+      : picNameRaw || "Lead referral";
+
+  const existing = phone
+    ? await client.partnerProspect.findFirst({
+        where: { partnerId, picPhone: phone },
+        select: { id: true, notes: true },
+      })
+    : await client.partnerProspect.findFirst({
+        where: {
+          partnerId,
+          villageName: villageLabelRaw.slice(0, 255),
+          ...(picNameRaw ? { picName: picNameRaw } : {}),
+        },
+        select: { id: true, notes: true },
+      });
+
+  const inboundNote = [
+    `[referral:${action}]`,
+    picNameRaw || null,
+    phone ? `tel:${phone}` : null,
+    typeof input.email === "string" && input.email.trim()
+      ? `email:${input.email.trim()}`
+      : null,
+    `subj:${(input.subject && input.subject.trim()) || "-"}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  if (existing) {
+    const mergedNotes = `${existing.notes ? `${existing.notes}\n` : ""}${new Date().toISOString()} ${inboundNote}`.slice(
+      0,
+      8000,
+    );
+    await client.partnerProspect.update({
+      where: { id: existing.id },
+      data: {
+        lastContactAt: new Date(),
+        notes: mergedNotes,
+      },
+    });
+    return;
+  }
+
+  await client.partnerProspect.create({
+    data: {
+      partnerId,
+      villageName: villageLabelRaw.slice(0, 255),
+      picName: picNameRaw || null,
+      picPhone: phone,
+      province: null,
+      district: null,
+      regency: null,
+      status: "BARU",
+      notes: `${new Date().toISOString()} ${inboundNote}`.slice(0, 8000),
+    },
+  });
+}
+
 export async function trackReferralEvent(
   req: NextRequest,
   input: ReferralEventInput,
@@ -49,11 +129,11 @@ export async function trackReferralEvent(
 
   const referralCode = await client.referralCode.findUnique({
     where: { code },
-    select: { id: true, status: true },
+    select: { id: true, status: true, partnerId: true },
   });
 
   const isActive = referralCode?.status === "active";
-  return client.referralEvent.create({
+  const created = await client.referralEvent.create({
     data: {
       referralCodeId: isActive ? referralCode.id : null,
       codeSnapshot: code,
@@ -70,4 +150,21 @@ export async function trackReferralEvent(
     },
     select: { id: true },
   });
+
+  const partnerId = referralCode?.partnerId ?? null;
+  const actionNorm = String(input.action || "").toLowerCase();
+  if (
+    partnerId != null &&
+    isActive &&
+    (actionNorm === "register_submit" ||
+      actionNorm === "contact_submit")
+  ) {
+    try {
+      await upsertProspectFromReferralEvent(client, partnerId, input);
+    } catch (e) {
+      console.warn("[referral] gagal sinkron PartnerProspect:", e);
+    }
+  }
+
+  return created;
 }

@@ -45,7 +45,14 @@ export function SignInForm() {
         if (freshSession?.user) {
           const u = freshSession.user as {
             accountType?: string;
+            partnerId?: number;
           };
+          const hasPartnerPortal =
+            u.accountType === "partner" ||
+            (u.accountType === "village" &&
+              typeof u.partnerId === "number" &&
+              Number.isFinite(u.partnerId) &&
+              u.partnerId > 0);
           const defaultDest =
             u.accountType === "regional"
               ? "/wilayah"
@@ -58,7 +65,7 @@ export function SignInForm() {
             callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
               ? callbackUrl
               : defaultDest;
-          const safe =
+          let safe =
             u.accountType === "regional" && next.startsWith("/dashboard")
               ? "/wilayah"
               : u.accountType === "partner" && next.startsWith("/dashboard")
@@ -66,6 +73,13 @@ export function SignInForm() {
                 : u.accountType === "platform" && !next.startsWith("/admin")
                   ? "/admin"
                   : next;
+          if (
+            u.accountType === "village" &&
+            next.startsWith("/mitra") &&
+            !hasPartnerPortal
+          ) {
+            safe = "/dashboard";
+          }
           window.location.assign(safe);
         } else {
           setError("Sesi tidak terbaca. Coba refresh halaman.");

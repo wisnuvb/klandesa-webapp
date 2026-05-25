@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { INVOKE_PATHNAME_HEADER } from "@/lib/middleware-headers";
 import { isRegionalAccount } from "@/lib/regional-session";
-import { isPartnerAccount } from "@/lib/partner-session";
+import { isPartnerAccount, hasPartnerPortalAccess } from "@/lib/partner-session";
 import { isPlatformAccount } from "@/lib/platform-session";
 import { AppLayoutClient } from "./AppLayoutClient";
 import type { Metadata } from "next";
@@ -59,7 +59,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       redirect("/mitra");
     }
   } else {
-    if (isWilayah || isMitra || isAdmin) {
+    if (isWilayah || isAdmin) {
+      redirect("/dashboard");
+    }
+    if (isMitra && !hasPartnerPortalAccess(session)) {
       redirect("/dashboard");
     }
   }

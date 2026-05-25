@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { normalizeReferralCode } from "@/lib/referrals/tracking";
+import { provisionPartnerFromReferralCodeTx } from "@/lib/partner/provision";
 
 function readLimit(req: NextRequest): number {
   const raw = req.nextUrl.searchParams.get("limit");
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
       landingPath: true,
       notes: true,
       createdAt: true,
+      partnerId: true,
       _count: { select: { events: true } },
       events: {
         orderBy: { createdAt: "desc" },
@@ -118,22 +120,53 @@ export async function POST(req: NextRequest) {
   }
 
   const status = String(body?.status ?? "active").trim() || "active";
+  const normalizedStatus = status.slice(0, 30);
   const landingPath = String(body?.landingPath ?? "/tim").trim() || "/tim";
 
-  const created = await prisma.referralCode.create({
-    data: {
-      code,
-      label,
-      ownerName: String(body?.ownerName ?? "").trim() || null,
-      ownerPhone: String(body?.ownerPhone ?? "").trim() || null,
-      ownerEmail: String(body?.ownerEmail ?? "").trim() || null,
-      commission: String(body?.commission ?? "").trim() || null,
-      status: status.slice(0, 30),
-      landingPath: landingPath.slice(0, 120),
-      notes: String(body?.notes ?? "").trim() || null,
-    },
-    select: { id: true, code: true },
-  });
+  const ownerEmail = String(body?.ownerEmail ?? "").trim().toLowerCase().slice(0, 254) || null;
+  if (/^active$/i.test(normalizedStatus) && ownerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) {
+    return NextResponse.json(
+      { error: "Email pemilik referral tidak valid untuk menautkan ke mitra" },
+      { status: 400 },
+    );
+  }
+  if (/^active$/i.test(normalizedStatus) && !ownerEmail) {
+    return NextResponse.json(
+      { error: "Email pemilik wajib diisi agar mitra bisa login portal /mitra dengan akun desa yang sama" },
+      { status: 400 },
+    );
+  }
 
-  return NextResponse.json({ ok: true, referralCode: created }, { status: 201 });
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const row = await tx.referralCode.create({
+        data: {
+          code,
+          label,
+          ownerName: String(body?.ownerName ?? "").trim() || null,
+          ownerPhone: String(body?.ownerPhone ?? "").trim() || null,
+          ownerEmail: ownerEmail ?? null,
+          commission: String(body?.commission ?? "").trim() || null,
+          status: normalizedStatus,
+          landingPath: landingPath.slice(0, 120),
+          notes: String(body?.notes ?? "").trim() || null,
+        },
+        select: { id: true, code: true, status: true },
+      });
+      if (String(row.status).toLowerCase() === "active") {
+        await provisionPartnerFromReferralCodeTx(tx, row.id);
+      }
+      return row;
+    });
+
+    const withPartner = await prisma.referralCode.findUnique({
+      where: { id: created.id },
+      select: { id: true, code: true, partnerId: true },
+    });
+
+    return NextResponse.json({ ok: true, referralCode: withPartner ?? created }, { status: 201 });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Gagal membuat referral + mitra";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
 }

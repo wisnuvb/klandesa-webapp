@@ -18,6 +18,10 @@ const pageConfig = {
     title: "Dashboard Mitra",
     subtitle: "Ringkasan aktivitas dan prospek Anda",
   },
+  "mitra/referral": {
+    title: "Kode referral",
+    subtitle: "Tautan kampanye Anda, ringkasan event dan lead inbound",
+  },
   "mitra/prospek": {
     title: "Prospek Desa",
     subtitle: "Catat dan pantau status desa yang Anda prospek",
@@ -48,11 +52,8 @@ const pageConfig = {
   },
   "admin/mitra": {
     title: "Kelola Mitra",
-    subtitle: "Pendaftaran mitra, akun mitra, dan aktivasi",
-  },
-  "admin/referral": {
-    title: "Referral",
-    subtitle: "Kode referral, tracking lead, dan dasar komisi",
+    subtitle:
+      "Pendaftaran mitra, kode referral, akun dan bagi hasil (komisi & disbursement)",
   },
   "admin/blog": {
     title: "Kelola Blog",

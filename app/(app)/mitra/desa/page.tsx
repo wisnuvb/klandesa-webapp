@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 import Link from "next/link";
 import { StatsCard } from "@/components/app/StatsCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Landmark, ShieldCheck } from "lucide-react";
+import { hasPartnerPortalAccess } from "@/lib/partner-session";
 
 type VillageRow = {
   id: number;
@@ -34,7 +36,10 @@ function formatDate(value: string | null): string {
 
 export default function MitraDesaPage() {
   const { data: session } = useSession();
-  const isPartner = session?.user?.accountType === "partner";
+  const portalOk = useMemo(
+    () => hasPartnerPortalAccess(session as Session | null),
+    [session],
+  );
 
   const [total, setTotal] = useState(0);
   const [villages, setVillages] = useState<VillageRow[]>([]);
@@ -70,14 +75,14 @@ export default function MitraDesaPage() {
     return { active, inactive };
   }, [villages]);
 
-  if (!isPartner) {
+  if (!portalOk) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Akun tidak valid</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Halaman ini hanya untuk akun mitra.
+          Halaman ini hanya bagi pengguna dengan akses portal mitra (akun mitra atau desa tertaut referral).
         </CardContent>
       </Card>
     );

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 import Link from "next/link";
 import { StatsCard } from "@/components/app/StatsCard";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { formatIdr } from "@/lib/billing/catalog";
+import { hasPartnerPortalAccess } from "@/lib/partner-session";
 
 type SummaryResponse = {
   totals?: {
@@ -79,7 +81,10 @@ function fmtDate(iso: string): string {
 
 export default function MitraKomisiPage() {
   const { data: session } = useSession();
-  const isPartner = session?.user?.accountType === "partner";
+  const portalOk = useMemo(
+    () => hasPartnerPortalAccess(session as Session | null),
+    [session],
+  );
 
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [commissions, setCommissions] = useState<CommissionRow[]>([]);
@@ -142,14 +147,14 @@ export default function MitraKomisiPage() {
 
   const t = summary?.totals;
 
-  if (!isPartner) {
+  if (!portalOk) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Akun tidak valid</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Halaman ini hanya untuk akun mitra.
+          Halaman ini hanya bagi pengguna dengan akses portal mitra (akun mitra atau desa tertaut referral).
         </CardContent>
       </Card>
     );

@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, UserCircle, Wallet, Landmark } from "lucide-react";
+import { Users, UserCircle, Wallet, Landmark, Megaphone } from "lucide-react";
+import { hasPartnerPortalAccess } from "@/lib/partner-session";
 
 type SummaryTotals = {
   accrued: number;
@@ -44,7 +46,16 @@ type PartnerProspect = {
 
 export default function MitraDashboardPage() {
   const { data: session } = useSession();
-  const isPartner = session?.user?.accountType === "partner";
+  const portalOk = useMemo(
+    () => hasPartnerPortalAccess(session as Session | null),
+    [session],
+  );
+
+  type ReferralBrief = {
+    linked: boolean;
+    totalEvents: number;
+    registerSubmit: number;
+  };
 
   const [me, setMe] = useState<PartnerMe | null>(null);
   const [prospects, setProspects] = useState<PartnerProspect[]>([]);
@@ -55,6 +66,10 @@ export default function MitraDashboardPage() {
     return name ? name : "Mitra";
   }, [session?.user?.name]);
 
+  const [referralBrief, setReferralBrief] = useState<ReferralBrief | null>(
+    null,
+  );
+
   const [totalVillages, setTotalVillages] = useState<number | null>(null);
   const [summary, setSummary] = useState<SummaryTotals | null>(null);
 
@@ -62,11 +77,13 @@ export default function MitraDashboardPage() {
     let mounted = true;
     const load = async () => {
       try {
-        const [meRes, prosRes, vilRes, sumRes] = await Promise.all([
+        const [meRes, prosRes, vilRes, sumRes, refRes] =
+          await Promise.all([
           fetch("/api/partner/me", { cache: "no-store" }),
           fetch("/api/partner/prospects?limit=5", { cache: "no-store" }),
           fetch("/api/partner/villages?limit=1", { cache: "no-store" }),
           fetch("/api/partner/commissions/summary", { cache: "no-store" }),
+          fetch("/api/partner/referral", { cache: "no-store" }),
         ]);
         if (!mounted) return;
 
@@ -93,6 +110,28 @@ export default function MitraDashboardPage() {
           } | null;
           if (d?.totals) setSummary(d.totals);
         }
+
+        if (refRes.ok) {
+          const d = (await refRes.json().catch(() => null)) as {
+            referralCode?: unknown;
+            summary?: {
+              totalEvents?: number;
+              registerSubmit?: number;
+            };
+          } | null;
+          const linked = d?.referralCode != null;
+          setReferralBrief({
+            linked,
+            totalEvents:
+              typeof d?.summary?.totalEvents === "number"
+                ? d.summary.totalEvents
+                : 0,
+            registerSubmit:
+              typeof d?.summary?.registerSubmit === "number"
+                ? d.summary.registerSubmit
+                : 0,
+          });
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -105,7 +144,7 @@ export default function MitraDashboardPage() {
 
   const disbursementHref = "/mitra/disbursment";
 
-  if (!isPartner) {
+  if (!portalOk) {
     return (
       <div className="p-4 md:p-6">
         <Card>
@@ -113,7 +152,7 @@ export default function MitraDashboardPage() {
             <CardTitle>Akun tidak valid</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Halaman ini hanya untuk akun mitra.
+            Halaman ini hanya bagi pengguna dengan akses portal mitra (akun mitra atau desa tertaut referral).
           </CardContent>
         </Card>
       </div>
@@ -139,6 +178,9 @@ export default function MitraDashboardPage() {
             <Link href="/mitra/desa">Desa dikelola</Link>
           </Button>
           <Button asChild variant="outline" className="flex-1 min-w-[120px] md:flex-initial md:w-auto">
+            <Link href="/mitra/referral">Kode referral</Link>
+          </Button>
+          <Button asChild variant="outline" className="flex-1 min-w-[120px] md:flex-initial md:w-auto">
             <Link href="/mitra/komisi">Komisi</Link>
           </Button>
           <Button asChild variant="outline" className="flex-1 min-w-[120px] md:flex-initial md:w-auto">
@@ -150,7 +192,7 @@ export default function MitraDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 md:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Prospek terbaru</CardTitle>
@@ -174,6 +216,43 @@ export default function MitraDashboardPage() {
             <p className="text-xs text-muted-foreground">
               <Link className="text-primary underline-offset-2 hover:underline" href="/mitra/desa">
                 Pantau desa closing
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Referral</CardTitle>
+            <Megaphone className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-2xl font-semibold text-muted-foreground">…</div>
+            ) : referralBrief === null ? (
+              <div className="text-sm text-muted-foreground">
+                Tidak bisa memuat data referral sekarang.
+              </div>
+            ) : referralBrief.linked === false ? (
+              <div className="text-sm text-muted-foreground">
+                Mitra Anda belum punya kode. Hubungi admin.
+              </div>
+            ) : (
+              <>
+                <div className="text-lg font-semibold leading-tight">
+                  {referralBrief?.totalEvents ?? 0} event
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Submit daftar: {referralBrief?.registerSubmit ?? 0}
+                </p>
+              </>
+            )}
+            <p className="text-xs pt-2">
+              <Link
+                href="/mitra/referral"
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                Detail kode &amp; event
               </Link>
             </p>
           </CardContent>

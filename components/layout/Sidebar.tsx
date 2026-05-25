@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
+import type { Session } from "next-auth";
+import { hasPartnerPortalAccess } from "@/lib/partner-session";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 import { useCooperativeNav } from "@/components/providers/CooperativeNavProvider";
 import { useMemo, useState } from "react";
@@ -66,6 +68,12 @@ const PARTNER_SIDEBAR_MENU: MenuItem[] = [
     label: "Dashboard",
     icon: Home,
     path: "/mitra",
+  },
+  {
+    id: "mitra/referral",
+    label: "Kode referral",
+    icon: Share2,
+    path: "/mitra/referral",
   },
   {
     id: "mitra/prospek",
@@ -117,12 +125,6 @@ const PLATFORM_SIDEBAR_MENU: MenuItem[] = [
     label: "Kelola Mitra",
     icon: HeartHandshake,
     path: "/admin/mitra",
-  },
-  {
-    id: "admin/referral",
-    label: "Referral",
-    icon: Share2,
-    path: "/admin/referral",
   },
   {
     id: "admin/blog",
@@ -336,12 +338,33 @@ export function Sidebar({
   const isPlatform =
     user?.accountType === "platform" || userId.startsWith("pl:");
 
+  const hasDualPartnerPortal = useMemo(() => {
+    if (isPartner || isPlatform || access?.cooperativeOnlyNav) return false;
+    return hasPartnerPortalAccess(user as Session | null);
+  }, [access?.cooperativeOnlyNav, isPartner, isPlatform, user]);
+
   const visibleMenuItems = useMemo(() => {
     if (isPlatform) {
       return PLATFORM_SIDEBAR_MENU;
     }
     if (isPartner) {
       return PARTNER_SIDEBAR_MENU;
+    }
+    if (hasDualPartnerPortal) {
+      const base = withKoperasiMenuItem(
+        BASE_SIDEBAR_MENU,
+        Boolean(!coopNavLoading && access?.showCoopMenu),
+      );
+      const partnerChildren = PARTNER_SIDEBAR_MENU.map((item) => ({ ...item }));
+      return [
+        ...base,
+        {
+          id: "portal-mitra",
+          label: "Portal Mitra",
+          icon: HeartHandshake,
+          children: partnerChildren,
+        },
+      ];
     }
     if (access?.cooperativeOnlyNav) {
       return COOPERATIVE_ONLY_SIDEBAR_MENU;
@@ -350,7 +373,14 @@ export function Sidebar({
       BASE_SIDEBAR_MENU,
       Boolean(!coopNavLoading && access?.showCoopMenu),
     );
-  }, [access, coopNavLoading, isPartner, isPlatform]);
+  }, [
+    access?.cooperativeOnlyNav,
+    access?.showCoopMenu,
+    coopNavLoading,
+    hasDualPartnerPortal,
+    isPartner,
+    isPlatform,
+  ]);
 
   const toggleExpand = (id: string) => {
     // Accordion behavior - only one can be open at a time

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PartnerFinancePanel } from "./_components/PartnerFinancePanel";
+import { AdminReferralSection } from "./_components/AdminReferralSection";
 
 type PartnerApplicationRow = {
   id: string;
@@ -46,7 +48,35 @@ function formatProspectSummary(byStatus: Record<string, number>): string {
   return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
 }
 
-export default function AdminMitraPage() {
+function AdminMitraTabs({ tab }: { tab: "manage" | "referral" }) {
+  const router = useRouter();
+  return (
+    <div className="flex flex-wrap gap-2 pt-2">
+      <Button
+        type="button"
+        size="sm"
+        variant={tab === "manage" ? "default" : "outline"}
+        onClick={() => router.replace("/admin/mitra")}
+      >
+        Pendaftaran &amp; akun
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant={tab === "referral" ? "default" : "outline"}
+        onClick={() => router.replace("/admin/mitra?tab=referral")}
+      >
+        Kode referral &amp; event
+      </Button>
+    </div>
+  );
+}
+
+function AdminMitraPageInner() {
+  const searchParams = useSearchParams();
+  const tab =
+    searchParams.get("tab") === "referral" ? "referral" : "manage";
+
   const [q, setQ] = useState("");
   const query = useMemo(() => q.trim(), [q]);
 
@@ -210,10 +240,14 @@ export default function AdminMitraPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-base">Kelola mitra</CardTitle>
           <div className="text-sm text-muted-foreground">
-            Pendaftaran mitra (lead) dan akun mitra yang sudah aktif.
+            {tab === "referral"
+              ? "Kelola kode referral, tautan kampanye, dan ringkasan event."
+              : "Pendaftaran mitra (lead) dan akun mitra yang sudah aktif."}
           </div>
+          <AdminMitraTabs tab={tab} />
         </CardHeader>
-        <CardContent className="space-y-3">
+        {tab === "manage" ? (
+          <CardContent className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
               value={q}
@@ -250,16 +284,21 @@ export default function AdminMitraPage() {
             </div>
           ) : null}
         </CardContent>
+        ) : null}
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Pendaftaran mitra</CardTitle>
-          <div className="text-sm text-muted-foreground">
-            {loading ? "Memuat…" : `${applications.length} item`}
-          </div>
-        </CardHeader>
-        <CardContent>
+      {tab === "referral" ? (
+        <AdminReferralSection />
+      ) : (
+        <>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Pendaftaran mitra</CardTitle>
+              <div className="text-sm text-muted-foreground">
+                {loading ? "Memuat…" : `${applications.length} item`}
+              </div>
+            </CardHeader>
+            <CardContent>
           {loading ? (
             <div className="text-sm text-muted-foreground">Memuat…</div>
           ) : applications.length === 0 ? (
@@ -303,10 +342,10 @@ export default function AdminMitraPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card>
+          <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Akun mitra</CardTitle>
           <div className="text-sm text-muted-foreground">
@@ -401,6 +440,20 @@ export default function AdminMitraPage() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
+  );
+}
+
+export default function AdminMitraPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-muted-foreground">Memuat…</div>
+      }
+    >
+      <AdminMitraPageInner />
+    </Suspense>
   );
 }

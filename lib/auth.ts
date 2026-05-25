@@ -23,6 +23,8 @@ export type JwtTokenPayloadVillage = {
   role: string;
   villageId: number;
   accountType?: "village";
+  /** Jika ada, user desa bisa juga membuka portal /mitra untuk mitra tertaut */
+  partnerId?: number;
 };
 
 export type JwtTokenPayloadRegional = {
