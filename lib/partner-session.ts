@@ -52,7 +52,7 @@ export function getPartnerSession(session: Session | null): ParsedPartnerSession
 
   if (fromVillage) {
     return {
-      partnerId: u.partnerId,
+      partnerId: u.partnerId ?? 0,
       email: u.email ?? "",
       name: u.name ?? "",
     };
