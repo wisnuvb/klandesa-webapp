@@ -51,14 +51,13 @@ export async function POST(
     );
   }
 
-  /** Hanya ada jika mitra baru & pendaftar tidak punya hash (data lama). */
-  let tempPassword: string | null = null;
-  /** Penjelasan singkat untuk admin (tanpa menyebut password). */
-  let approveInfo: string;
-
   const approvedAt = new Date().toISOString();
 
-  const { partnerRow } = await prisma.$transaction(async (tx) => {
+  const { partnerRow, tempPassword, approveInfo } = await prisma.$transaction(async (tx) => {
+    /** Hanya ada jika mitra baru & pendaftar tidak punya hash (data lama). */
+    let tempPassword: string | null = null;
+    /** Penjelasan singkat untuk admin (tanpa menyebut password). */
+    let approveInfo!: string;
     const existing = await tx.partner.findUnique({
       where: { email: application.email },
       select: { id: true },
@@ -138,7 +137,7 @@ export async function POST(
 
     await ensurePartnerCommissionRule(tx, row.id);
 
-    return { partnerRow: row };
+    return { partnerRow: row, tempPassword, approveInfo };
   });
 
   return NextResponse.json(
