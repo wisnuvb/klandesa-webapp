@@ -22,16 +22,8 @@ export async function suggestReferralAcquisitionSource(
       referralCodeId: rc.id,
       action: "register_submit",
       OR: [
-        ...(name
-          ? [
-              {
-                villageName: { equals: name, mode: "insensitive" as const },
-              },
-            ]
-          : []),
-        ...(email && email.includes("@")
-          ? [{ email: { equals: email, mode: "insensitive" as const } }]
-          : []),
+        ...(name ? [{ villageName: { equals: name } }] : []),
+        ...(email && email.includes("@") ? [{ email: { equals: email } }] : []),
       ],
     },
   });
