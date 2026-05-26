@@ -7,7 +7,7 @@ export function GovernanceStrip() {
     <section className="py-14 md:py-18 bg-linear-to-br from-[#f8fafc] to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center mb-10">
-          Tata kelola cocok pemerintahan desa
+          Tata kelola terbaik untuk pemerintahan desa
         </h2>
         <div className="grid md:grid-cols-3 gap-6">
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
