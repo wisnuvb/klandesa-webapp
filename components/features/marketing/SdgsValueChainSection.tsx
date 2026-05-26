@@ -17,11 +17,11 @@ export function SdgsValueChainSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-            Alur nilai satu platform
+            Alur platform operasional desa
           </h2>
           <p className="text-gray-600">
             Klandesa menghubungkan operasional desa dengan pilar SDGs dan
-            kesiapan interoperabilitas, tanpa aplikasi pisah-pisah.
+            kesiapan interoperabilitas dalam satu platform.
           </p>
         </div>
         <div className="flex flex-col lg:flex-row lg:items-stretch gap-4">
