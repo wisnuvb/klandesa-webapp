@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { badgeLabelForStatus } from "@/lib/marketing/modules";
 import type { MarketingModuleItem } from "@/lib/marketing/modules";
 
 type Props = {
@@ -19,11 +20,11 @@ export function ModuleHighlightStrip({
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-              Modul Pilihan
+              Fitur unggulan
             </h2>
             <p className="text-gray-600 max-w-xl">
-              Diferensiator terkuat platform: jalur dari data hingga ekspor
-              interoperability dengan format pemerintah.
+              Fitur yang paling sering jadi alasan desa dan pemda memilih Klandesa—dari
+              operasional harian, perencanaan SDGs, hingga unduhan format Kemendesa.
             </p>
           </div>
           <Link
@@ -46,14 +47,17 @@ export function ModuleHighlightStrip({
                 </h3>
                 {m.status === "beta" && (
                   <span className="shrink-0 text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-medium">
-                    Early Access
+                    {badgeLabelForStatus(m.status)}
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-600 line-clamp-3 mb-3">
                 {m.marketingDescription}
               </p>
-              <Link href="/platform" className="text-xs font-medium text-[#0d9488] hover:underline">
+              <Link
+                href="/platform"
+                className="text-xs font-medium text-[#0d9488] hover:underline"
+              >
                 Detail →
               </Link>
             </div>

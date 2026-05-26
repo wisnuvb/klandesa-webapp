@@ -76,18 +76,18 @@ export function HeroSection({
 
         <p className="text-lg md:text-xl text-gray-600 leading-relaxed max-w-none w-full">
           Klandesa menghubungkan surat daring, APBDes dengan penanda sasaran SDGs,
-          perencanaan RPJMDes, program PKK &amp; BUMDes, serta export format interoperability
-          Kemendesa—dengan tata akses untuk perangkat dan pemda.
+          perencanaan RPJMDes, program PKK &amp; BUMDes, serta unduhan data dalam format
+          standar Kemendesa—dengan aturan akses yang jelas untuk perangkat desa dan pemda.
         </p>
 
         <div className="max-w-xl lg:max-w-2xl space-y-6">
           <div className="flex flex-wrap gap-3">
             <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-teal-100">
               <Sparkles className="w-4 h-4 text-amber-500" aria-hidden />
-              <span className="text-sm text-gray-700">Engine skor SDGs dari data hidup desa</span>
+              <span className="text-sm text-gray-700">Skor SDGs dihitung dari data operasional desa</span>
             </div>
             <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-indigo-100">
-              <span className="text-sm text-gray-700">Adapter export + audit log Kemendesa</span>
+              <span className="text-sm text-gray-700">Unduh format Kemendesa + catatan riwayat pengiriman</span>
             </div>
           </div>
 
@@ -116,8 +116,8 @@ export function HeroSection({
           </div>
 
           <div className="rounded-2xl border border-teal-100 bg-white/75 px-4 py-3 text-sm text-gray-700 max-w-md">
-            <strong className="text-[#0d9488]">Early Access:</strong> modul seperti SDGs, RPJMDes, GIS,
-            integrasi Kemendesa, dan Asisten AI sedang dibuka bertahap untuk desa pilot—hubungi CS untuk akses kontrol.
+            <strong className="text-[#0d9488]">Akses awal:</strong> modul seperti SDGs, RPJMDes, peta wilayah,
+            unduhan Kemendesa, dan Asisten AI dibuka bertahap untuk desa percontohan—hubungi tim kami untuk jadwalnya.
           </div>
         </div>
       </div>

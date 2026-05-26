@@ -9,19 +9,19 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
     {
       icon: Layers,
       number: "18",
-      label: "Sasaran SDGs dibaca engine platform",
+      label: "Tujuan SDGs dihitung dari data desa",
       color: "bg-[#6366f1]",
     },
     {
       icon: Landmark,
       number: "4",
-      label: "Adapter export Kemendesa + log audit",
+      label: "Format unduhan Kemendesa + catatan riwayat",
       color: "bg-[#0d9488]",
     },
     {
       icon: Database,
       number: "4",
-      label: "Peran utama desa terikat RBAC (admin/pemimpin/sekdes/staff)",
+      label: "Empat peran utama desa (admin, pemimpin, sekdes, staf)",
       color: "bg-[#f59e0b]",
     },
     {
@@ -45,17 +45,17 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-[#0d9488]/20 mb-4">
-            <span className="text-sm text-[#0d9488]">Komitmen produk</span>
+            <span className="text-sm text-[#0d9488]">Yang bisa Anda cek sendiri</span>
           </div>
 
           <h2 className="text-4xl md:text-5xl lg:text-6xl text-gray-900 mb-4 leading-tight">
-            Fakta struktur{' '}
+            Angka yang{' '}
             <span className="bg-gradient-to-r from-[#0d9488] to-[#6366f1] bg-clip-text text-transparent">
-              platformnya
+              bisa diverifikasi
             </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Kami mengganti angka &quot;dibuat-buat&quot; dengan indikator teknologi yang Anda dapat audit sendiri bersama demo.
+            Tanpa klaim &quot;ribuan desa&quot;—kami ajak Anda melihat struktur fitur langsung lewat demo.
           </p>
         </div>
 
@@ -90,7 +90,7 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
             <div className="text-center sm:text-left">
               <p className="text-gray-900 mb-1">Siap mencocokannya dengan paket Anda?</p>
               <p className="text-sm text-gray-600">
-                Tim kami akan memetakan modul live versus early access serta add-on penyimpanan &amp; absensi.
+                Tim kami akan menjelaskan fitur yang sudah siap pakai, yang masih akses awal, serta opsi tambahan penyimpanan dan absensi.
               </p>
             </div>
             <button

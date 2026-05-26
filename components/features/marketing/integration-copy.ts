@@ -1,4 +1,4 @@
-/** Copy integrasi konsisten antara landing tanpa mengimpor server-only. */
+/** Copy integrasi konsisten antara landing — bahasa untuk pemdes/pemda. */
 
 export type IntegrationStub = {
   id: string;
@@ -11,25 +11,25 @@ export const INTEGRATION_ADAPTERS_STUB: IntegrationStub[] = [
     id: "residents_kemendesa",
     label: "Data penduduk — format Kemendesa",
     description:
-      "Export CSV/JSON standar untuk alur seperti Prodeskel / SDGs Desa.",
+      "Unduh CSV/JSON standar untuk keperluan seperti Prodeskel atau portal SDGs Desa.",
   },
   {
     id: "apbdes_siskeudes",
-    label: "APBDes — siap konsumsi spreadsheet Siskeudes",
+    label: "APBDes — siap dibuka di spreadsheet Siskeudes",
     description:
-      "Ringkasan anggaran dari modul keuangan desa menjadi format struktur konsisten.",
+      "Ringkasan anggaran dari modul keuangan desa disusun dalam format yang konsisten.",
   },
   {
     id: "sdgs_portal",
-    label: "Ringkasan skor 18 SDGs",
+    label: "Ringkasan skor 18 tujuan SDGs",
     description:
-      "Payload JSON mencakup village profile, summary goal, serta heatmap RT/RW dari engine internal.",
+      "File JSON berisi profil desa, ringkasan capaian per tujuan, dan peta capaian per RT/RW.",
   },
   {
     id: "prodeskel",
     label: "Profil desa & potensi wilayah",
     description:
-      "Snapshot demografi KK, KK, serta potensi agregasi untuk dokumentasi wilayah.",
+      "Cuplikan demografi, KK, dan potensi wilayah untuk dokumentasi ke kabupaten.",
   },
 ];
 
@@ -38,7 +38,7 @@ export function listIntegrationAdapters(): IntegrationStub[] {
 }
 
 export const KEMENDESA_HUB_NOTE =
-  "Pada tahap ini, integrasi berfokus pada ekspor format standar, log sinkronisasi yang dapat diaudit, dan retry—bukan sinkronisasi real-time ke sistem pemerintah tanpa akses resmi.";
+  "Saat ini fokus pada unduhan format standar, catatan riwayat pengiriman, dan pengulangan jika gagal—bukan sinkron otomatis ke sistem pusat tanpa akses resmi.";
 
 export const BUILDING_NOTE =
-  "Adapter dirancang agar nanti dapat diganti dengan konektor resmi ketika kredensial API Kemendesa tersedia di tingkat desa atau kabupaten.";
+  "Format unduhan dirancang agar nanti dapat disambung ke konektor resmi ketika kredensial Kemendesa tersedia di tingkat desa atau kabupaten.";

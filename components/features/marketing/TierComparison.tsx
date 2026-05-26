@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Minus } from "lucide-react";
+import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
 
 type TierCell = "yes" | "no" | "addon" | "early";
 
@@ -12,28 +13,25 @@ interface TierComparisonRow {
   note?: string;
 }
 
-/**
- * Matriks modul vs tier tanpa nominal harga — selaras pola konsultatif sales.
- */
 const ROWS: TierComparisonRow[] = [
   {
-    capability: "Core administrasi desa",
+    capability: "Administrasi desa inti",
     starter: "yes",
     professional: "yes",
     enterprise: "yes",
   },
   {
-    capability: "Portal warga & alur permohonan surat",
+    capability: "Portal warga & permohonan surat",
     starter: "yes",
     professional: "yes",
     enterprise: "yes",
   },
   {
-    capability: "Keuangan & tagging belanja pada sasaran SDG",
+    capability: "Keuangan & penanda belanja per tujuan SDGs",
     starter: "no",
     professional: "early",
     enterprise: "early",
-    note: "Termasuk struktur tagging di bundel Profesi/Enterprise untuk early adopters.",
+    note: "Tersedia di paket Profesional/Enterprise untuk desa yang ikut program akses awal.",
   },
   {
     capability: "Dashboard SDGs & RPJMDes",
@@ -46,26 +44,25 @@ const ROWS: TierComparisonRow[] = [
     starter: "addon",
     professional: "early",
     enterprise: "yes",
-    note: "Starter dapat aktivasi bertahap sebagai add-on; Profesional saat roadmap early access dibuka.",
+    note: "Paket Starter bisa menambah fitur ini; paket Profesional dibuka bertahap per wilayah.",
   },
   {
-    capability: "Adapter export & log audit integrasi Kemendesa",
+    capability: "Unduhan format Kemendesa + catatan riwayat",
     starter: "no",
     professional: "no",
     enterprise: "early",
     note:
-      "Fokus export schema yang sudah dokumentasikan bersama Anda—bukan janji sinkron real-time ilegal tanpa akses sistim resmi.",
+      "Unduh data dalam format standar—bukan janji sinkron otomatis ke sistem pusat tanpa akses resmi.",
   },
   {
-    capability: "GIS lingkungan & asisten AI",
+    capability: "Peta wilayah & Asisten AI",
     starter: "no",
     professional: "addon",
     enterprise: "early",
-    note:
-      "Modul sensitif wilayah & AI bisa ditambahkan di Profesi; Enterprise membundel akses eksploratif terkontrol.",
+    note: "Bisa ditambahkan di paket Profesional; paket Enterprise menggabungkannya untuk pilot wilayah.",
   },
   {
-    capability: "Lane regional / multi-desa",
+    capability: "Pantau banyak desa (kabupaten/kecamatan)",
     starter: "no",
     professional: "no",
     enterprise: "yes",
@@ -82,14 +79,14 @@ function TierCellBadge({ tier }: { tier: TierCell }) {
       );
     case "addon":
       return (
-        <span className="text-xs md:text-sm font-semibold uppercase tracking-wide text-amber-700">
-          Add-on
+        <span className="text-xs md:text-sm font-semibold text-amber-700">
+          Tambahan
         </span>
       );
     case "early":
       return (
         <span className="inline-flex items-center rounded-full border border-[#6366f1]/40 bg-[#6366f1]/10 px-2.5 py-1 text-[11px] font-semibold text-[#4338ca]">
-          Early access
+          {EARLY_ACCESS_LABEL}
         </span>
       );
     default:
@@ -107,14 +104,14 @@ export function TierComparison() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-10 md:mb-12 space-y-3">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#0d9488]">
-            Pemetaan modul tanpa nominal
+            Perbandingan paket
           </p>
           <h2 className="text-3xl md:text-4xl text-gray-900">
             Apa yang termasuk untuk tiap jenjang paket?
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Tidak ada angka rupiah publik — tim kami memetakan modul hidup versus early access,
-            serta add-on penyimpanan &amp; presensi bersama struktur APBDes Anda.
+            Tanpa angka rupiah di website—tim kami menjelaskan fitur yang sudah siap pakai,
+            yang masih akses awal, dan opsi tambahan penyimpanan atau absensi sesuai APBDes Anda.
           </p>
         </div>
 
@@ -124,7 +121,7 @@ export function TierComparison() {
               <thead>
                 <tr className="bg-gray-900/95 text-white text-sm uppercase tracking-wide">
                   <th scope="col" className="px-4 md:px-6 py-4 font-semibold">
-                    Kemampuan
+                    Fitur
                   </th>
                   <th scope="col" className="px-4 md:px-6 py-4 text-center font-semibold">
                     Starter
@@ -170,9 +167,9 @@ export function TierComparison() {
             </table>
           </div>
           <div className="px-6 py-4 bg-white/80 backdrop-blur text-xs md:text-sm text-gray-600 border-t border-gray-100">
-            <strong className="text-gray-900">Legenda:</strong> tanda ✓ menyatakan inclusi utama; badge{" "}
-            <span className="font-semibold text-[#4338ca]">Early access</span> menjelaskan jalur pra-GA atau beta
-            bergantung kesiapan wilayah; opsi tambahan bermuatan komersial dijabarkan pada call konsultatif.
+            <strong className="text-gray-900">Legenda:</strong> tanda ✓ = termasuk paket; badge{" "}
+            <span className="font-semibold text-[#4338ca]">{EARLY_ACCESS_LABEL}</span> = fitur uji coba
+            dibuka bertahap; <em>Tambahan</em> = bisa diaktifkan dengan biaya terpisah setelah konsultasi.
           </div>
         </div>
       </div>

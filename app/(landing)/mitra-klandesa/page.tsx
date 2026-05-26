@@ -191,20 +191,19 @@ export default function MitraPage() {
       <div className="px-4 sm:px-6 lg:px-8 py-12 md:py-16 max-w-7xl mx-auto -mt-3 relative z-10">
         <div className="rounded-2xl border border-[#0d9488]/25 bg-emerald-50/80 backdrop-blur-sm p-8 md:p-10 mb-12 shadow-sm">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4">
-            Jual infrastruktur modul, bukan satu fitur punggung
+            Jual paket lengkap, bukan fitur satuan
           </h2>
           <p className="text-gray-700 leading-relaxed mb-6">
-            Klandesa memposisikan diri sebagai <strong className="font-semibold text-gray-900">platform operasional desa berbasis SDGs</strong>
-            dengan register modul konsisten antara produk dan marketing—mulai dari data warga, surat daring, APBDes tagging
-            sasaran, hingga export dokumentasi interoperability. Pemda besar dan konsultan wilayah dapat menyusun kombinasi
-            modul serta add-on (GIS, PKK, BUMDes, AI, integrasi dokumentasi pusat) sehingga paket bagi hasil mitra Anda
-            mengikuti tier Starter / Profesional / Enterprise secara transparan.
+            Klandesa adalah <strong className="font-semibold text-gray-900">platform operasional desa berbasis SDGs</strong>
+            —dari data warga, surat daring, APBDes bertanda tujuan pembangunan, hingga unduhan format Kemendesa.
+            Pemda dan konsultan wilayah bisa menyusun kombinasi fitur (peta, PKK, BUMDes, AI) dengan paket Starter,
+            Profesional, atau Enterprise yang transparan untuk bagi hasil mitra Anda.
           </p>
           <Link
             href="/platform"
             className="inline-flex items-center gap-2 text-[#0d9488] font-semibold underline-offset-4 hover:underline"
           >
-            Buka daftar modul platform
+            Lihat daftar fitur
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -268,7 +267,7 @@ export default function MitraPage() {
 
         <div
           id="daftar-mitra"
-          className="scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-6 md:p-10 shadow-sm"
+          className="scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-6 md:p-10 shadow-sm w-fit mx-auto"
         >
           <div className="max-w-xl mx-auto">
             <h2 className="text-2xl font-semibold text-gray-900 text-center mb-2">

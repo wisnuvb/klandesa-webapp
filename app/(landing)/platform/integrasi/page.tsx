@@ -13,15 +13,15 @@ export default function PlatformIntegrasiPage() {
   const adapters = listIntegrationAdapters();
   return (
     <article className="max-w-3xl mx-auto px-4 py-20 md:py-28">
-      <p className="text-sm font-medium text-[#0d9488] mb-2">Hub data Kemendesa</p>
+      <p className="text-sm font-medium text-[#0d9488] mb-2">Laporan ke Kemendesa</p>
       <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-        Integrasi &amp; interoperability
+        Unduhan format standar
       </h1>
       <p className="text-gray-600 mb-4">{BUILDING_NOTE}</p>
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 mb-8">
         {KEMENDESA_HUB_NOTE}
       </div>
-      <h2 className="text-lg font-semibold text-gray-900 mb-3">Adaptor saat ini</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-3">Jenis unduhan yang tersedia</h2>
       <ul className="space-y-3 mb-10">
         {adapters.map((a) => (
           <li
@@ -34,14 +34,14 @@ export default function PlatformIntegrasiPage() {
         ))}
       </ul>
       <p className="text-sm text-gray-500 mb-8">
-        Detail teknis operasional: lihat dokumentasi repo internal atau hubungi CS
-        untuk alur SSO/aplikikasi setelah akses Kemendesa tersedia pada desa Anda.
+        Butuh penjelasan lebih rinci atau akses resmi Kemendesa sudah tersedia di wilayah Anda?
+        Hubungi tim kami untuk panduan langkah demi langkah.
       </p>
       <Link
         href="/platform"
         className="text-[#0d9488] font-medium hover:underline"
       >
-        ← Semua modul platform
+        ← Semua fitur aplikasi
       </Link>
     </article>
   );

@@ -1,5 +1,6 @@
 import { VILLAGE_MODULE_REGISTRY } from "@/lib/modules/registry";
 import type { ModuleDefinition, ModuleStatus } from "@/lib/modules/registry";
+import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
 
 export type MarketingAudience = "desa" | "pemda" | "both";
 
@@ -64,48 +65,48 @@ export const MARKETING_MODULE_COPY: Partial<Record<string, string>> = {
     "Administrasi penduduk dan KK terpusat untuk keputusan desa berbasis data.",
   "data-kk": "Kelola Kartu Keluarga dan struktur KK selaras data warga.",
   "data-perangkat": "Susunan perangkat desa lengkap untuk tata pemerintahan.",
-  "data-jabatan": "Master jabatan desa konsisten untuk surat dan pelaporan.",
+  "data-jabatan": "Daftar jabatan desa konsisten untuk surat dan pelaporan.",
   potensi: "Potensi wilayah desa menjadi dasar pembangunan dan SDGs.",
   anggaran: "Perencanaan anggaran desa dengan penanda tujuan SDGs.",
   koperasi: "Operasional koperasi desa sebagai pilar ekonomi lokal.",
-  bumdes: "Pembukuan unit usaha BUMDes sebagai entitas terpisah dari APBDes (early access).",
+  bumdes: "Pembukuan unit usaha BUMDes terpisah dari APBDes (akses awal).",
   statistik: "Ringkasan indikator desa mendukung kebijakan dan laporan wilayah.",
   "permohonan-warga": "Alur permohonan surat daring dengan status transparan.",
-  "layanan-mandiri": "Warga atau admin input layanan secara mandiri terstruktur.",
-  "layanan-surat": "Template dan numerik surat resmi konsisten untuk desa.",
-  "pengaturan-desa": "Preferensi dan profil desa termasuk pengaturan integrasi.",
-  keuangan: "Kas/APBDes, transaksi, dan pelaporan keuangan; tagging belanja SDGs.",
+  "layanan-mandiri": "Warga atau admin mengisi layanan secara mandiri dan terstruktur.",
+  "layanan-surat": "Template dan nomor surat resmi konsisten untuk desa.",
+  "pengaturan-desa": "Profil dan preferensi desa, termasuk pengaturan pertukaran data.",
+  keuangan: "Kas/APBDes, transaksi, dan pelaporan keuangan dengan penanda belanja SDGs.",
   "pengumuman-desa": "Kanal komunikasi resmi antara pemdes dan masyarakat.",
-  "forum-diskusi": "Ruangan aspirasi kolektif warga moderated.",
+  "forum-diskusi": "Ruangan aspirasi warga dengan moderasi perangkat desa.",
   "pengaduan-masyarakat": "Aduan dapat dilacak demi akuntabilitas pelayanan.",
-  "bantuan-program-keluarga": "Pencatatan penerima program sosial mendukung SDG tanpa menyalahgunakan data.",
+  "bantuan-program-keluarga": "Pencatatan penerima program sosial mendukung SDGs tanpa menyalahgunakan data.",
   "galeri-desa": "Arsip foto kegiatan desa untuk komunikasi dan transparansi.",
-  absensi: "Presensi perangkat; opsional add-on GPS radius.",
+  absensi: "Presensi perangkat; opsional dengan penanda lokasi kantor desa.",
   pkk:
-    "PKK Dasawisma, posyandu, dan indikators kesehatan yang terhubung skor SDGs (early access).",
+    "PKK Dasawisma, posyandu, dan indikator kesehatan terhubung skor SDGs (akses awal).",
   sdgs:
-    "Skoring 18 tujuan SDGs dari data operasional desa serta heatmap RT/RW (early access).",
+    "Skor 18 tujuan SDGs dari data operasional desa dan peta capaian per RT/RW (akses awal).",
   rpjmdes:
-    "Rencana pembangunan, RKPDes, dan usulan Musdes dengan bobot SDGs (early access).",
-  pertanian: "Plot lahan, siklus tanam, panen; referensi harga komoditas (early access).",
+    "Rencana pembangunan, RKPDes, dan usulan Musdes dengan bobot SDGs (akses awal).",
+  pertanian: "Plot lahan, siklus tanam, panen; referensi harga komoditas (akses awal).",
   "partisipasi-rtrw":
-    "Kegiatan dan usulan warga tingkat RT/RW dengan tagging SDGs (early access).",
+    "Kegiatan dan usulan warga tingkat RT/RW dengan penanda SDGs (akses awal).",
   "sinkronisasi-data":
-    "Export standar Kemendesa: penduduk, APBDes/Siskeudes-format, portal SDGs, Prodeskel + log sinkron (early access).",
+    "Unduh data dalam format standar Kemendesa: penduduk, APBDes, portal SDGs, Prodeskel—plus catatan riwayat pengiriman (akses awal).",
   "peta-infrastruktur":
-    "Aset dan proyek infrastruktur digabung pada peta desa serta heatmap SDGs RT/RW (early access).",
+    "Aset dan proyek infrastruktur pada peta desa serta peta capaian SDGs per RT/RW (akses awal).",
   lingkungan:
-    "Bank sampah, insiden lingkungan dengan checklist peringatan, titik bahaya bencana (early access).",
+    "Bank sampah, insiden lingkungan, dan titik bahaya bencana (akses awal).",
   "asisten-ai":
-    "Asisten teks mendukung analisa SDGs, draf RPJMDes, FAQ warga konsumsi kredit AI per user (early access).",
-  arsip: "Dokumen desa berskema folder; penyimpanan dibatasi paket desa atau add-on arsip.",
+    "Asisten teks untuk ringkasan SDGs, draf RPJMDes, dan FAQ warga (akses awal, kuota per pengguna).",
+  arsip: "Dokumen desa dalam folder terstruktur; kapasitas mengikuti paket desa.",
   ukm: "Katalog dan promosi UKM desa meningkatkan ekonomi lokal.",
   website:
-    "Situs profesional satu domain dengan mesin tema Klandesa ketika aktivasi paket mendukung.",
+    "Situs resmi desa satu domain ketika paket desa Anda mendukung.",
 };
 
 const DEFAULT_FALLBACK_DESCRIPTION =
-  "Modul aplikasi desa dalam ekosistem Klandesa untuk operasional terpadu.";
+  "Bagian aplikasi desa dalam Klandesa untuk operasional terpadu.";
 
 export function describeModule(mod: ModuleDefinition): string {
   return (
@@ -149,6 +150,6 @@ export function getFlagshipMarketingModules(limit = 8): MarketingModuleItem[] {
 }
 
 export function badgeLabelForStatus(status: ModuleStatus): string | null {
-  if (status === "beta") return "Early Access";
+  if (status === "beta") return EARLY_ACCESS_LABEL;
   return null;
 }

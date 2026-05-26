@@ -7,8 +7,8 @@ const STEPS = [
   { title: "Data operasional", body: "Warga, KK, APBDes/kas desa." },
   { title: "Perencanaan", body: "RPJMDes, usulan Musdes berbobot SDGs." },
   { title: "Program lapangan", body: "PKK, BUMDes, pertanian, kegiatan RT/RW." },
-  { title: "Pengukuran SDGs", body: "18 goal dari data nyata plus heatmap RT/RW." },
-  { title: "Interoperabilitas", body: "Export standar + log untuk Kemendesa." },
+  { title: "Pengukuran SDGs", body: "18 tujuan dari data nyata plus peta capaian per RT/RW." },
+  { title: "Laporan ke Kemendesa", body: "Unduh format standar + catatan riwayat pengiriman." },
 ];
 
 export function SdgsValueChainSection() {
@@ -20,8 +20,8 @@ export function SdgsValueChainSection() {
             Alur platform operasional desa
           </h2>
           <p className="text-gray-600">
-            Klandesa menghubungkan operasional desa dengan pilar SDGs dan
-            kesiapan interoperabilitas dalam satu platform.
+            Klandesa menghubungkan operasional desa, perencanaan SDGs, dan
+            kesiapan laporan ke format Kemendesa dalam satu aplikasi.
           </p>
         </div>
         <div className="flex flex-col lg:flex-row lg:items-stretch gap-4">
@@ -45,7 +45,7 @@ export function SdgsValueChainSection() {
             href="/platform/sdgs"
             className="inline-flex items-center rounded-xl bg-[#0d9488] px-6 py-3 text-white text-sm font-medium hover:bg-[#0f766e] transition-colors"
           >
-            Pelajari stack SDGs
+            Pelajari fitur SDGs & RPJMDes
           </Link>
         </div>
       </div>

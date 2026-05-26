@@ -16,7 +16,7 @@ export function IntegrationStrip() {
         <div className="grid lg:grid-cols-2 gap-10 items-center">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-              Siap interoperability Kemendesa
+              Unduhan format Kemendesa
             </h2>
             <p className="text-gray-600 mb-4">{BUILDING_NOTE}</p>
             <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
@@ -26,7 +26,7 @@ export function IntegrationStrip() {
               href="/platform/integrasi"
               className="text-[#0d9488] font-medium hover:underline"
             >
-              Detail integrasi dan format ekspor →
+              Detail unduhan dan format laporan →
             </Link>
           </div>
           <ul className="space-y-3">

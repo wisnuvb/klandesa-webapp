@@ -7,16 +7,16 @@ const withoutKlandesa = [
   "Laporan SDGs dan RPJM tidak terhubung langsung dari data administrasi aktual.",
   "APBDes dan program lapangan (PKK, BUMDes) berjalan di spreadsheet terpisah.",
   "Pemda kesulitan memverifikasi data tanpa struktur akses konsisten lintas operator desa.",
-  "Export interoperability ke format Kemendesa harus menyalin manual berulang.",
+  "Unduh laporan ke format Kemendesa harus disalin manual berulang.",
   "Peta pembangunan & risiko wilayah tidak sama dengan skor pembangunan masyarakat.",
 ];
 
 const withKlandesa = [
   "Skor 18 sasaran dibentuk langsung oleh data penduduk + program + APBDes Anda.",
   "RPJMDes, kegiatan, dan usulan warga menggunakan konteks sasaran pembangunan yang sama.",
-  "RBAC jelas bagi admin/Kades/Sekdes/staf serta jalur wilayah untuk pemda.",
-  "Adaptor export membawa schema standar + log sinkron bagi audit Pemdes/Pemkab.",
-  "Heatmap wilayah + modul spasial menghubungkan indikator dengan geografi desa.",
+  "Hak akses jelas untuk admin, Kades, Sekdes, staf—plus tampilan khusus pemda untuk banyak desa.",
+  "Unduhan format standar Kemendesa disertai catatan riwayat untuk audit pemdes/pemkab.",
+  "Peta capaian per RT/RW dan modul wilayah menghubungkan indikator dengan geografi desa.",
 ];
 
 export function BenefitsSection() {
@@ -35,13 +35,13 @@ export function BenefitsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-[#0d9488]/20 mb-4">
-            <span className="text-sm text-[#0d9488]">Perbandingan nilai tambah</span>
+            <span className="text-sm text-[#0d9488]">Manfaat nyata</span>
           </div>
 
           <h2 className="text-4xl md:text-5xl lg:text-6xl text-gray-900 mb-4 leading-tight">
-            Mengapa bergeser menuju{" "}
+            Mengapa memilih{" "}
             <span className="bg-gradient-to-r from-[#0d9488] to-[#6366f1] bg-clip-text text-transparent">
-              platform ini?
+              Klandesa?
             </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -91,8 +91,8 @@ export function BenefitsSection() {
                   <Check className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-2xl text-white">Dengan ekosistem Klandesa</h3>
-                  <p className="text-sm text-white/80">Operasional + SDGs bersama API</p>
+                  <h3 className="text-2xl text-white">Dengan Klandesa</h3>
+                  <p className="text-sm text-white/80">Operasional + SDGs dalam satu aplikasi</p>
                 </div>
               </div>
 
@@ -120,17 +120,17 @@ export function BenefitsSection() {
         </div>
 
         <div className="text-center mt-12 space-y-3">
-          <p className="text-gray-600">Butuh rincian teknologi modul Anda?</p>
+          <p className="text-gray-600">Ingin tahu fitur mana yang cocok untuk desa Anda?</p>
           <button
             type="button"
             className="cursor-pointer bg-gradient-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-4 rounded-xl hover:shadow-xl transition-all hover:scale-105 shadow-lg"
             onClick={() => setShowRegistration(true)}
           >
-            Mulai diskusi onboarding
+            Mulai diskusi dengan tim kami
           </button>
           <div>
             <Link href="/demo" className="text-[#0d9488] text-sm font-medium hover:underline mx-4">
-              Coba sandbox demo
+              Coba akun demo
             </Link>
           </div>
         </div>

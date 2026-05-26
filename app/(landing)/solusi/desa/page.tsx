@@ -7,19 +7,19 @@ export const metadata: Metadata = getLandingPageMetadata("solusiDesa");
 const points = [
   {
     title: "Operasional harian satu login",
-    body: "Warga, KK, surat daring, pengumuman, bansos PKH yang tercatat, dan sistem keuangan/APBDes terpadu dalam RBAC untuk admin, Sekdes, Kades, serta staf.",
+    body: "Data warga, KK, surat daring, pengumuman, pencatatan bansos, dan keuangan/APBDes dalam satu aplikasi—dengan hak akses berbeda untuk admin, Sekdes, Kades, dan staf.",
   },
   {
     title: "Program lapangan ada jejaknya",
-    body: "PKK Dasawisma, posyandu; BUMDes terpisah lane keuangan; pertanian serta kegiatan RT/RW—all menuju pembacaan dampak pembangunan, bukan lembaran terpisah.",
+    body: "PKK Dasawisma, posyandu, BUMDes, pertanian, dan kegiatan RT/RW tercatat terhubung—bukan lembar kerja terpisah tanpa hubungan ke pembangunan desa.",
   },
   {
     title: "SDGs menjadi kompas pembangunan",
-    body: "Ringkasan 18 sasaran serta heatmap wilayah membantu Anda memutus subsidi program yang tepat sasaran bersama stakeholder desa.",
+    body: "Ringkasan 18 tujuan dan peta capaian per RT/RW membantu menentukan program yang tepat sasaran bersama BPD dan warga.",
   },
   {
-    title: "Berani berpilot bersama Early Access",
-    body: "Modul SDGs lanjutan serta Asisten AI memakai kredit per pengguna — buka akses secara bertahap bersama Customer Success tim Klandesa.",
+    title: "Bersedia jadi desa percontohan",
+    body: "Fitur SDGs lanjutan dan Asisten AI dibuka bertahap bersama tim pendamping Klandesa—bukan dijanjikan sekaligus tanpa pelatihan.",
   },
 ];
 
@@ -30,8 +30,8 @@ export default function SolusiDesaPage() {
         Untuk Pemerintah Desa &amp; perangkatnya
       </h1>
       <p className="text-gray-600 text-lg mb-10">
-        Klandesa menghidupkan jargon &quot;SATU DESA SATU PLATFORM&quot;: administrasi yang
-        rapi serta pelaporan SDGs yang bisa dipertanggungjawabkan.
+        Klandesa membantu desa merapikan administrasi sekaligus menyiapkan laporan
+        SDGs dari data yang sudah Anda kelola sehari-hari.
       </p>
       <div className="space-y-6 mb-12">
         {points.map((p) => (
@@ -52,7 +52,7 @@ export default function SolusiDesaPage() {
           href="/platform"
           className="inline-flex rounded-xl border border-gray-200 px-6 py-3 text-sm font-medium hover:bg-gray-50"
         >
-          Lihat Modul Platform
+          Lihat semua fitur
         </Link>
       </div>
     </article>

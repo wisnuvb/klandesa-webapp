@@ -10,16 +10,16 @@ export function AboutSection() {
       icon: Layers,
       title: 'Rantai pembangunan',
       description:
-        'Menghubungkan data warga/APBDes, RPJMDes, program lapangan seperti PKK & BUMDes, hingga skor SDGs 18 sasaran serta export format interoperability.',
+        'Menghubungkan data warga dan APBDes, perencanaan RPJMDes, program PKK & BUMDes, hingga skor 18 tujuan SDGs dan unduhan format Kemendesa.',
       bgColor: 'bg-gradient-to-br from-purple-50 to-purple-100',
       iconColor: 'text-purple-600',
       borderColor: 'border-purple-400',
     },
     {
       icon: Database,
-      title: 'Governance akses nyata',
+      title: 'Hak akses per jabatan',
       description:
-        'Role admin desa dibedakan dari Sekdes maupun kepala desa; API utama dilengkapi matriks permission sehingga setiap akses bisa dipertanggungjawabkan.',
+        'Admin, Kepala Desa, Sekretaris, dan staf melihat menu yang berbeda—setiap tindakan tercatat agar akuntabilitas terjaga.',
       bgColor: 'bg-gradient-to-br from-orange-50 to-orange-100',
       iconColor: 'text-orange-600',
       borderColor: 'border-orange-400',
@@ -28,16 +28,16 @@ export function AboutSection() {
       icon: Landmark,
       title: 'Siap Pemda lintas wilayah',
       description:
-        'Skenario monitoring kabupaten/kecamatan, export ke format Kemendesa, spasial pembangunan, tanpa mengharuskan akses sensitif secara manual ilegal pada setiap desa.',
+        'Pantau banyak desa dari kabupaten/kecamatan, unduh format Kemendesa, dan baca peta pembangunan—tanpa harus mengakses setiap desa secara manual.',
       bgColor: 'bg-gradient-to-br from-teal-50 to-teal-100',
       iconColor: 'text-teal-600',
       borderColor: 'border-teal-400',
     },
     {
       icon: Rocket,
-      title: 'Rilis modular & cepat berevolusi',
+      title: 'Lebih dari 30 fitur, satu aplikasi',
       description:
-        'Lebih dari 30 struktur aplikasi mencakup inti administratif dan modul early access baru—marketing dan produk menggunakan registri sama agar konsisten.',
+        'Administrasi inti sudah siap pakai; fitur SDGs dan peta wilayah dibuka bertahap—daftar fitur di website sama dengan yang ada di aplikasi desa Anda.',
       bgColor: 'bg-gradient-to-br from-blue-50 to-blue-100',
       iconColor: 'text-blue-600',
       borderColor: 'border-blue-400',
@@ -68,9 +68,8 @@ export function AboutSection() {
             </h2>
 
             <p className="text-gray-600 leading-relaxed">
-              Kami bukan lagi sekadar formulir daring: Klandesa adalah stack produk bagi
-              desa pemerintah yang kini harus menghubungkan operasional, perencanaan,
-              serta pelaporan SDGs secara berkelanjutan.
+              Klandesa bukan sekadar formulir daring: satu aplikasi untuk operasional
+              harian, perencanaan pembangunan, dan pelaporan SDGs desa.
             </p>
 
             <p className="pt-2">
@@ -86,18 +85,18 @@ export function AboutSection() {
                 href="/platform"
                 className="text-sm font-medium text-[#6366f1] hover:underline inline-flex items-center gap-1"
               >
-                Lihat katalog platform
+                Lihat daftar fitur
               </Link>
             </p>
 
             <div className="grid grid-cols-2 gap-4 pt-4">
               <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <div className="text-2xl text-[#0d9488] mb-1">30+</div>
-                <div className="text-sm text-gray-600">Struktur modul aplikasi</div>
+                <div className="text-sm text-gray-600">Bagian fitur aplikasi</div>
               </div>
               <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <div className="text-2xl text-[#6366f1] mb-1">18</div>
-                <div className="text-sm text-gray-600">Sasaran dalam engine SDGs</div>
+                <div className="text-sm text-gray-600">Tujuan SDGs terbaca sistem</div>
               </div>
             </div>
           </div>

@@ -29,18 +29,18 @@ export default function PricingPage() {
       name: "Starter",
       icon: Sparkles,
       description:
-        "Fondasi operasional desa: administrasi, portal warga, dan surat — tanpa menyalakan stack SDGs lanjutan.",
+        "Fondasi operasional desa: administrasi, portal warga, dan surat—tanpa fitur SDGs lanjutan.",
       popular: false,
       features: [
-        { name: "Core administrasi data warga & struktur pemerintahan", included: true },
+        { name: "Administrasi data warga & struktur pemerintahan", included: true },
         { name: "Portal layanan & permohonan surat digital", included: true },
-        { name: "Akses web responsif (tanpa aplikasi seluler standalone)", included: true },
-        { name: "Penyimpanan & kuota pengguna dibahas di proposal", included: true },
-        { name: "Pelatihan daring & dokumentasi mandiri", included: true },
-        { name: "Dukungan email & kanal chat utama", included: true },
-        { name: "Modul dashboard SDGs, RPJMDes, keuangan bertagging SDGs", included: false },
-        { name: "Adapter export & workflow audit integrasi Kemendesa", included: false },
-        { name: "Lane regional atau multi-desa", included: false },
+        { name: "Akses web responsif (tanpa aplikasi seluler terpisah)", included: true },
+        { name: "Penyimpanan & jumlah pengguna dibahas di proposal", included: true },
+        { name: "Pelatihan daring & panduan mandiri", included: true },
+        { name: "Dukungan email & chat", included: true },
+        { name: "Dashboard SDGs, RPJMDes, keuangan bertanda SDGs", included: false },
+        { name: "Unduhan format Kemendesa dengan catatan riwayat", included: false },
+        { name: "Pantau banyak desa (kabupaten/kecamatan)", included: false },
       ],
       cta: "Konsultasi Gratis",
       highlight: "Untuk Desa Kecil",
@@ -50,26 +50,26 @@ export default function PricingPage() {
       name: "Profesional",
       icon: Zap,
       description:
-        "Menyalakan jalur profesional untuk desa aktif dengan early access SDGs stack, tagging keuangan, dan onboarding prioritas.",
+        "Untuk desa aktif: fitur SDGs dan penanda belanja, dengan pendampingan prioritas saat persiapan awal.",
       popular: true,
       features: [
-        { name: "Semua jangkauan Starter", included: true },
+        { name: "Semua fitur paket Starter", included: true },
         {
-          name: "Dashboard SDGs, RPJMDes, keuangan + tagging sasaran SDG (Early Access)",
+          name: "Dashboard SDGs, RPJMDes, keuangan + penanda sasaran SDGs (akses awal)",
           included: true,
         },
-        { name: "Laporan & insight operasional terperinci", included: true },
-        { name: "Program PKK / BUMDes dapat diaktifkan dengan add-on", included: true },
+        { name: "Laporan & ringkasan operasional lebih lengkap", included: true },
+        { name: "Program PKK / BUMDes bisa ditambahkan", included: true },
         {
-          name: "GIS wilayah & AI assistant bisa ditambahkan sebagai add-on",
+          name: "Peta wilayah & Asisten AI bisa ditambahkan",
           included: true,
         },
-        { name: "Dukungan prioritas (email, chat, telpon kerja)", included: true },
+        { name: "Dukungan prioritas (email, chat, telepon jam kerja)", included: true },
         {
-          name: "Branding khusus atau domain pemerintahan — dinegosiasikan per kebijakan infrastruktur IT desa/pemda",
+          name: "Tampilan khusus atau domain desa—disesuaikan kebijakan IT desa/pemda",
           included: true,
         },
-        { name: "Adapter interoperability Kemendesa penuh (enterprise-only)", included: false },
+        { name: "Unduhan Kemendesa lengkap (khusus paket Enterprise)", included: false },
       ],
       cta: "Jadwalkan Demo",
       highlight: "Paling Populer",
@@ -79,15 +79,15 @@ export default function PricingPage() {
       name: "Enterprise",
       icon: Crown,
       description:
-        "Skala wilayah: beberapa desa, governance ketat, integrasi dokumentasi pusat beserta SLA yang dapat dinegosiasikan.",
+        "Untuk kabupaten/kecamatan: banyak desa, hak akses ketat, unduhan Kemendesa, dan dukungan khusus yang dinegosiasikan.",
       popular: false,
       features: [
-        { name: "Lintas paket profesional ditambahkan lane wilayah & multi-akun pemda", included: true },
-        { name: "Adapter export & dokumentasi integrasi Kemendesa (Early Access)", included: true },
-        { name: "Bundling modul sensitif wilayah, AI exploratif, serta API terkontrol", included: true },
-        { name: "Custom workflow & migrasi awal data dibantu bersama tim teknis", included: true },
-        { name: "Pelatihan lapangan/on-site serta change management menyusul struktur wilayah", included: true },
-        { name: "SLA serta dedicated success manager sesuai perjanjian resmi", included: true },
+        { name: "Semua fitur Profesional plus tampilan lintas desa untuk pemda", included: true },
+        { name: "Unduhan & panduan format Kemendesa (akses awal)", included: true },
+        { name: "Paket peta wilayah, Asisten AI, dan akses teknis terkontrol", included: true },
+        { name: "Bantuan pemindahan data awal bersama tim teknis", included: true },
+        { name: "Pelatihan lapangan dan pendampingan perubahan di wilayah Anda", included: true },
+        { name: "Janji layanan & penanggung jawab khusus sesuai perjanjian", included: true },
       ],
       cta: "Hubungi Sales",
       highlight: "Skala wilayah",
@@ -180,8 +180,8 @@ export default function PricingPage() {
             </h1>
 
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Paket konsultatif menyesuaikan modul hidup versus early access, add-on wilayah, serta kebutuhan
-              interoperabilitas tanpa mempublikasikan nominal di web.
+              Paket disesuaikan fitur yang diaktifkan, add-on wilayah, dan kebutuhan
+              laporan Kemendesa—tanpa mempublikasikan nominal di web.
             </p>
 
             {/* Trust Badge */}
@@ -195,7 +195,7 @@ export default function PricingPage() {
               <div className="w-px h-6 bg-gray-300 hidden sm:block"></div>
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-[#0d9488]" />
-                <span className="text-sm text-gray-700">Program pilot &amp; early access wilayah</span>
+                <span className="text-sm text-gray-700">Program desa percontohan &amp; akses awal</span>
               </div>
               <div className="w-px h-6 bg-gray-300 hidden sm:block"></div>
               <div className="flex items-center gap-2">

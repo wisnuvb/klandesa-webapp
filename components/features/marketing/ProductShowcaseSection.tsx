@@ -16,11 +16,11 @@ export function ProductShowcaseSection() {
             Cuplikan antarmuka
           </p>
           <h2 className="text-3xl md:text-4xl text-gray-900">
-            Dari scoring SDGs sampai eksplor wilayah & AI
+            Cuplikan layar aplikasi
           </h2>
           <p className="text-lg text-gray-600">
-            Visual berikut memadukan layout nyata aplikasi menjadi mockup struktural staging—agar tim Anda bisa
-            membayangkan alir data tanpa ketergantungan pada foto stok generik.
+            Gambaran tampilan unduhan Kemendesa, peta wilayah, asisten AI, dan RPJMDes—
+            supaya Anda bisa membayangkan alur kerja sebelum demo resmi.
           </p>
         </div>
 
@@ -29,7 +29,7 @@ export function ProductShowcaseSection() {
             <header className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-2.5">
               <span className="text-[11px] font-medium uppercase text-gray-500">Integrasi Kemendesa</span>
               <span className="text-[11px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full font-medium">
-                CSV / JSON • log audit
+                CSV / JSON • catatan riwayat
               </span>
             </header>
             <div className="p-4 space-y-2 font-mono text-[11px] text-gray-600 flex-1">
@@ -42,16 +42,16 @@ export function ProductShowcaseSection() {
                 <span className="text-gray-400">validasi struktur…</span>
               </div>
               <div className="rounded-lg bg-gray-900 text-gray-300 px-3 py-2 leading-relaxed">
-                <span className="text-[#86efac]">audit ›</span> admin_desa menyetujui paket eksport —
-                checksum tercatat
+                <span className="text-[#86efac]">catatan ›</span> admin desa menyetujui paket unduhan —
+                waktu dan petugas tercatat
               </div>
             </div>
           </article>
 
           <article className="rounded-3xl border border-gray-100 bg-linear-to-br from-white to-teal-50/40 shadow-lg overflow-hidden flex flex-col">
             <header className="flex items-center justify-between border-b border-gray-100 bg-white/95 px-4 py-2.5">
-              <span className="text-[11px] font-semibold text-gray-800">GIS & Lingkungan</span>
-              <span className="text-[11px] text-[#4338ca]">heatmap RT/RW</span>
+              <span className="text-[11px] font-semibold text-gray-800">Peta & lingkungan</span>
+              <span className="text-[11px] text-[#4338ca]">peta capaian RT/RW</span>
             </header>
             <div className="relative flex-1 min-h-[180px] p-4">
               <div className="absolute inset-4 rounded-2xl bg-linear-to-br from-slate-200 to-sky-100 border border-white shadow-inner flex items-center justify-center">
@@ -83,8 +83,7 @@ export function ProductShowcaseSection() {
                 Rangkuman capaian SDG 11 dari data infrastuktur minggu ini?
               </div>
               <div className="mr-auto max-w-[90%] rounded-2xl rounded-tl-sm bg-white border border-gray-100 px-3 py-2 text-gray-800 leading-snug shadow-sm">
-                Tiga RW menunjuk indikator jalan baru; lampirkan foto geotagging untuk dokumentasi APBDes tagging
-                9.c.
+                Tiga RW menunjuk indikator jalan baru; lampirkan foto lokasi untuk dokumentasi belanja APBDes.
               </div>
             </div>
           </article>

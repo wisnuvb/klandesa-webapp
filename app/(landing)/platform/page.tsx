@@ -13,8 +13,7 @@ export default function PlatformPage() {
           <p className="text-sm text-white/85 mb-3">Katalog produk</p>
           <h1 className="text-3xl md:text-5xl font-bold mb-3">Platform Klandesa</h1>
           <p className="text-white/90 max-w-2xl mx-auto text-sm md:text-base">
-            Modul di bawah diselaraskan dengan registri produk sehingga narasi marketing
-            dengan fitur yang Anda deploy.
+            Daftar fitur di bawah ini sama dengan yang tersedia di aplikasi Klandesa untuk desa Anda.
           </p>
         </div>
       </div>

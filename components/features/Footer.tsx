@@ -143,8 +143,7 @@ export function Footer() {
               </Link>
               <h3 className="text-2xl mb-2">Klandesa</h3>
               <p className="text-gray-400 leading-relaxed">
-                Platform operasional desa berbasis SDGs untuk administrasi, perencanaan, program pembangunan, dan interoperabilitas
-                dokumentasi—dengan modul konsisten antara produk dan marketing.
+                Platform operasional desa berbasis SDGs untuk administrasi, perencanaan, program pembangunan, dan unduhan laporan ke format Kemendesa.
               </p>
             </div>
 

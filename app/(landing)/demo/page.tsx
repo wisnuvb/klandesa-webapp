@@ -32,7 +32,7 @@ const quickStartSteps = [
   {
     title: "Eksplor menu utama",
     description:
-      "Coba modul utama, pantau jalur layanan surat-warga, dan gambaran stack SDGs—di lingkungan demo terkontrol.",
+      "Coba fitur utama, alur surat warga, dan gambaran dashboard SDGs—di akun demo terkontrol.",
   },
 ];
 

@@ -6,20 +6,20 @@ export const metadata: Metadata = getLandingPageMetadata("solusiPemda");
 
 const points = [
   {
-    title: "Tata kelola akses peran",
-    body: "Matriks permission desa memisahkan apa yang boleh dibaca Sekdes dibanding kepala desa—API otomatis memverifikasi aksi konsisten dengan hukum akses aplikasi Anda.",
+    title: "Hak akses per jabatan",
+    body: "Sekdes, Kades, dan staf desa melihat menu yang berbeda—setiap perubahan data penting dapat dilacak untuk keperluan audit internal.",
   },
   {
-    title: "Komparabilitas Kemendesa (export-ready)",
-    body: "Schema CSV/JSON standar bagi penduduk, APBDes-compatible export, paket portal SDGs, serta ringkasan Prodeskel—ditambah audit trail sink.",
+    title: "Format laporan siap Kemendesa",
+    body: "Unduh data penduduk, ringkasan APBDes, paket portal SDGs, dan cuplikan Prodeskel dalam format CSV/JSON standar—plus catatan kapan data diunduh.",
   },
   {
-    title: "Konteks spasial untuk perencanaan",
-    body: "Peta infrastruktur, titiko risiko lingkungan, dan heatmap SDGs menghubungkan capaian indikator dengan geografis wilayah desa dampingan.",
+    title: "Peta untuk perencanaan",
+    body: "Infrastruktur, titik risiko lingkungan, dan peta capaian SDGs membantu membaca prioritas pembangunan per wilayah desa.",
   },
   {
-    title: "Insinyur regional & multi-dinas",
-    body: "Akun regional kabupaten/kecamatan memfasilitasi supervisi wilayah tanpa memaksakan akses transaksi sensitif secara tidak terkontrol pada setiap desa.",
+    title: "Pantau banyak desa",
+    body: "Akun kabupaten/kecamatan untuk supervisi tanpa harus masuk ke setiap transaksi sensitif di tingkat desa secara sembarangan.",
   },
 ];
 
@@ -30,8 +30,8 @@ export default function SolusiPemdaPage() {
         Untuk Pemerintah Daerah &amp; provinsi pembina
       </h1>
       <p className="text-gray-600 text-lg mb-10">
-        Digitalisasi desa harus bisa diaudit serta diselaraskan dengan instrumen pusat —
-        itu inti valuasi enterprise Klandesa, bukan sekadar formulir daring.
+        Digitalisasi desa harus bisa dipertanggungjawabkan dan selaras dengan
+        instrumen pusat—bukan sekadar mengganti formulir kertas dengan formulir online.
       </p>
       <div className="space-y-6 mb-12">
         {points.map((p) => (
@@ -46,7 +46,7 @@ export default function SolusiPemdaPage() {
           href="/platform/integrasi"
           className="inline-flex rounded-xl bg-[#0d9488] px-6 py-3 text-white text-sm font-medium hover:bg-[#0f766e]"
         >
-          Rincian integrasi format
+          Format unduhan Kemendesa
         </Link>
         <Link
           href="/mitra-klandesa"

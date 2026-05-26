@@ -14,20 +14,20 @@ export function GovernanceStrip() {
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
               <Shield className="w-6 h-6" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">RBAC peran desa</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">Hak akses per jabatan</h3>
             <p className="text-sm text-gray-600">
-              Admin desa, Kepala Desa, Sekretaris, dan staf mempunyai ruang akses
-              berbeda; API utama dilindungi matriks permission terpusat.
+              Admin desa, Kepala Desa, Sekretaris, dan staf melihat menu yang berbeda—
+              siapa mengubah apa dapat dilacak.
             </p>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
               <Layers className="w-6 h-6" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Multi-lane</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">Ruang kerja terpisah</h3>
             <p className="text-sm text-gray-600">
-              Jalur aplikasi untuk desa, koperasi, BUMDes, regional, serta admin
-              platform terpisah agar tidak tercampur data maupun akses.
+              Aplikasi desa, koperasi, BUMDes, dan tampilan kabupaten/kecamatan
+              tidak tercampur—data dan akses tetap terpisah.
             </p>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
@@ -36,9 +36,8 @@ export function GovernanceStrip() {
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">Keamanan cloud</h3>
             <p className="text-sm text-gray-600">
-              Infrastruktur terkelola penyedia cloud pada layer transport dan
-              storage standar industri—tanpa mengklaim kemampuan kriptografi tertentu
-              kecuali disediakan secara terbuka di produk klien.
+              Infrastruktur online dengan praktik keamanan standar industri—
+              koneksi aman (HTTPS) dan cadangan data sesuai kebijakan operasional kami.
             </p>
           </div>
         </div>

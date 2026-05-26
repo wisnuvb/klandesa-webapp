@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
+import { badgeLabelForStatus } from "@/lib/marketing/modules";
 import type { MarketingAudience, MarketingModuleItem } from "@/lib/marketing/modules";
 
 type Props = { modules: MarketingModuleItem[] };
@@ -38,12 +40,12 @@ export function ModuleCatalog({ modules }: Props) {
     <div className="px-4 sm:px-6 lg:px-8 py-12 md:py-16 max-w-7xl mx-auto">
       <div className="mb-10">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-          Platform & modul
+          Fitur aplikasi desa
         </h1>
         <p className="text-gray-600 max-w-3xl">
-          Daftar modul mengikuti produk aktual. Modul bertanda{" "}
-          <span className="font-medium text-amber-800">Early Access</span> masih
-          dalam tahap beta fitur di lingkungan desa.
+          Daftar ini sama dengan fitur di aplikasi Klandesa. Yang bertanda{" "}
+          <span className="font-medium text-amber-800">{EARLY_ACCESS_LABEL}</span> masih
+          dalam tahap uji coba di desa percontohan.
         </p>
       </div>
 
@@ -83,7 +85,7 @@ export function ModuleCatalog({ modules }: Props) {
               <h2 className="font-semibold text-gray-900">{m.label}</h2>
               {m.status === "beta" && (
                 <span className="shrink-0 text-[10px] uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold tracking-wide">
-                  Early Access
+                  {badgeLabelForStatus(m.status)}
                 </span>
               )}
             </div>
@@ -128,7 +130,7 @@ export function ModuleCatalog({ modules }: Props) {
           href="/platform/sdgs"
           className="text-[#0d9488] font-medium hover:underline"
         >
-          ← Stack SDGs & RPJMDes
+          ← Fitur SDGs & RPJMDes
         </Link>
         <Link
           href="/platform/integrasi"

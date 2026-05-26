@@ -84,15 +84,15 @@ export function LoginModal({ onClose }: LoginModalProps) {
     },
     {
       icon: Zap,
-      title: "Satu akses banyak modul",
+      title: "Satu login, banyak fitur",
       description:
-        "Data warga hingga jalur RPJMDes dan integrasi dokumentasi bisa dijangkau setelah Anda masuk.",
+        "Data warga, surat, RPJMDes, dan unduhan Kemendesa bisa diakses setelah Anda masuk.",
     },
     {
       icon: Users,
-      title: "Struktur peran yang jelas",
+      title: "Hak akses per jabatan",
       description:
-        "RBAC desa konsisten antara marketing dan produk sehingga kepatuhan akses bisa diaudit.",
+        "Admin, Kades, Sekdes, dan staf melihat menu yang berbeda—sesuai tugas masing-masing.",
     },
   ];
 
@@ -289,8 +289,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
                   Platform operasional desa berbasis SDGs
                 </h3>
                 <p className="text-white/90 mb-8 text-lg">
-                  Susun perjalanan data desa—from administrasi sampai ekspor format Kemendesa—tanpa bergantung
-                  pada narasi sosial palsu semata angka besar.
+                  Dari administrasi harian sampai unduhan laporan Kemendesa—satu aplikasi untuk pemerintahan desa modern.
                 </p>
 
                 <div className="space-y-6">
@@ -316,16 +315,16 @@ export function LoginModal({ onClose }: LoginModalProps) {
 
                 <dl className="mt-10 grid gap-4 sm:grid-cols-3 text-white/90">
                   <div className="rounded-2xl border border-white/20 bg-white/5 p-4">
-                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Mesin sasaran SDGs</dt>
-                    <dd className="text-base font-semibold text-white leading-snug">18 sasaran dapat diaudit dari data live</dd>
+                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Tujuan SDGs</dt>
+                    <dd className="text-base font-semibold text-white leading-snug">18 tujuan dihitung dari data operasional desa</dd>
                   </div>
                   <div className="rounded-2xl border border-white/20 bg-white/5 p-4">
-                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Peran utama</dt>
-                    <dd className="text-base font-semibold text-white leading-snug">Empat struktur akses utama desa konsisten secara produk</dd>
+                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Peran desa</dt>
+                    <dd className="text-base font-semibold text-white leading-snug">Admin, pemimpin, sekdes, dan staf—akses berbeda</dd>
                   </div>
                   <div className="rounded-2xl border border-white/20 bg-white/5 p-4">
-                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Interoperabilitas</dt>
-                    <dd className="text-base font-semibold text-white leading-snug">Berlapis dokumentasi eksport bersama jejaring audit aplikasi</dd>
+                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Laporan Kemendesa</dt>
+                    <dd className="text-base font-semibold text-white leading-snug">Unduhan format standar dengan catatan riwayat</dd>
                   </div>
                 </dl>
               </div>

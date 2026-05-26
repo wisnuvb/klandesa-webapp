@@ -15,13 +15,13 @@ export function AudiencePickerSection() {
       href: "/solusi/pemerintah-daerah",
       icon: Landmark,
       title: "Pemerintah Daerah",
-      desc: "Tata kelola lintas desa, pelaporan SDGs Desa, dan interoperabilitas data.",
+      desc: "Pantau banyak desa, laporan SDGs, dan unduhan format Kemendesa.",
     },
     {
       href: "/mitra-klandesa",
       icon: Handshake,
       title: "Program Mitra",
-      desc: "Skala digitalisasi desa bersama struktur paket Starter–Enterprise.",
+      desc: "Bantu desa go digital dengan paket Starter hingga Enterprise yang jelas.",
     },
   ];
 
@@ -36,7 +36,7 @@ export function AudiencePickerSection() {
             </span>
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Satu platform, tiga cara memakai narasi sesuai peran Anda.
+            Satu platform—pilih penjelasan sesuai peran Anda.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
