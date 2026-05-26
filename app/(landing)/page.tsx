@@ -1,27 +1,13 @@
-"use client";
-
-import React from "react";
-import { AboutSection } from "@/components/features/AboutSection";
-import { BenefitsSection } from "@/components/features/BenefitsSection";
-import { CTASection } from "@/components/features/CTASection";
-import { HeroSection } from "@/components/features/HeroSection";
-import { StatsSection } from "@/components/features/StatsSection";
-import { RegistrationModal } from "@/components/features/RegistrationModal";
-import { ContactModal } from "@/components/features/ContactModal";
+import type { Metadata } from "next";
+import { LandingHome } from "@/components/features/LandingHome";
+import { getFlagshipMarketingModules } from "@/lib/marketing/modules";
 import { getMainSiteOrigin } from "@/lib/seo/url";
-import { trackReferralClient } from "@/lib/referrals/client";
+import { getLandingPageMetadata } from "@/lib/seo/landing-pages";
+
+export const metadata: Metadata = getLandingPageMetadata("home");
 
 export default function HomePage() {
-  const [showRegistration, setShowRegistration] = React.useState(false);
-  const [showContact, setShowContact] = React.useState(false);
-  const openRegistration = () => {
-    void trackReferralClient("register_open");
-    setShowRegistration(true);
-  };
-  const openContact = () => {
-    void trackReferralClient("contact_open", { subject: "hubungi_cs" });
-    setShowContact(true);
-  };
+  const flagshipModules = getFlagshipMarketingModules(8);
   const siteOrigin = getMainSiteOrigin();
   const organizationJsonLd = {
     "@context": "https://schema.org",
@@ -49,20 +35,7 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
 
-      <HeroSection onRegisterClick={openRegistration} />
-      <AboutSection />
-      <BenefitsSection />
-      <StatsSection onRegisterClick={openRegistration} />
-      <CTASection
-        onRegisterClick={openRegistration}
-        onContactClick={openContact}
-      />
-
-      {showRegistration && (
-        <RegistrationModal onClose={() => setShowRegistration(false)} />
-      )}
-
-      {showContact && <ContactModal onClose={() => setShowContact(false)} />}
+      <LandingHome flagshipModules={flagshipModules} />
     </>
   );
 }

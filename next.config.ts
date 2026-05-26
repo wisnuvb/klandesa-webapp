@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: "/fitur", destination: "/platform", permanent: true },
+    ];
+  },
+
   /* config options here */
   // Enable experimental features for subdomain routing
   images: {

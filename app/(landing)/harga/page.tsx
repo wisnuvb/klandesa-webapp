@@ -2,6 +2,7 @@
 
 import { ContactModal } from "@/components/features/ContactModal";
 import { RegistrationModal } from "@/components/features/RegistrationModal";
+import { TierComparison } from "@/components/features/marketing/TierComparison";
 import {
   Check,
   X,
@@ -28,23 +29,18 @@ export default function PricingPage() {
       name: "Starter",
       icon: Sparkles,
       description:
-        "Solusi dasar untuk desa kecil yang ingin memulai transformasi digital",
+        "Fondasi operasional desa: administrasi, portal warga, dan surat — tanpa menyalakan stack SDGs lanjutan.",
       popular: false,
       features: [
-        { name: "Hingga 5 admin", included: true },
-        { name: "Storage 5 GB", included: true },
-        { name: "Manajemen data penduduk", included: true },
-        { name: "Surat-menyurat digital", included: true },
-        { name: "Dashboard statistik dasar", included: true },
-        { name: "Mobile app basic", included: true },
-        { name: "Support email & chat", included: true },
-        { name: "Training online", included: true },
-        { name: "Laporan bulanan otomatis", included: false },
-        // { name: "Integrasi WhatsApp notifikasi", included: false },
-        { name: "Custom branding", included: false },
-        { name: "API access", included: false },
-        { name: "Priority support 24/7", included: false },
-        { name: "On-site training", included: false },
+        { name: "Core administrasi data warga & struktur pemerintahan", included: true },
+        { name: "Portal layanan & permohonan surat digital", included: true },
+        { name: "Akses web responsif (tanpa aplikasi seluler standalone)", included: true },
+        { name: "Penyimpanan & kuota pengguna dibahas di proposal", included: true },
+        { name: "Pelatihan daring & dokumentasi mandiri", included: true },
+        { name: "Dukungan email & kanal chat utama", included: true },
+        { name: "Modul dashboard SDGs, RPJMDes, keuangan bertagging SDGs", included: false },
+        { name: "Adapter export & workflow audit integrasi Kemendesa", included: false },
+        { name: "Lane regional atau multi-desa", included: false },
       ],
       cta: "Konsultasi Gratis",
       highlight: "Untuk Desa Kecil",
@@ -54,23 +50,26 @@ export default function PricingPage() {
       name: "Profesional",
       icon: Zap,
       description:
-        "Paket lengkap untuk desa menengah dengan fitur advanced dan dukungan premium",
+        "Menyalakan jalur profesional untuk desa aktif dengan early access SDGs stack, tagging keuangan, dan onboarding prioritas.",
       popular: true,
       features: [
-        { name: "Hingga 15 admin", included: true },
-        { name: "Storage 20 GB", included: true },
-        { name: "Semua fitur Starter", included: true },
-        { name: "Dashboard analytics lengkap", included: true },
-        { name: "Laporan bulanan otomatis", included: true },
-        // { name: "Integrasi WhatsApp notifikasi", included: true },
-        { name: "Custom domain (.desa.id)", included: true },
-        { name: "Mobile app premium (android)", included: true },
-        { name: "QR code & barcode scanner", included: true },
-        { name: "E-signature digital", included: true },
-        { name: "Priority support (email, chat, phone)", included: true },
-        { name: "Training online & dokumentasi lengkap", included: true },
-        { name: "Custom branding", included: false },
-        { name: "On-site training", included: false },
+        { name: "Semua jangkauan Starter", included: true },
+        {
+          name: "Dashboard SDGs, RPJMDes, keuangan + tagging sasaran SDG (Early Access)",
+          included: true,
+        },
+        { name: "Laporan & insight operasional terperinci", included: true },
+        { name: "Program PKK / BUMDes dapat diaktifkan dengan add-on", included: true },
+        {
+          name: "GIS wilayah & AI assistant bisa ditambahkan sebagai add-on",
+          included: true,
+        },
+        { name: "Dukungan prioritas (email, chat, telpon kerja)", included: true },
+        {
+          name: "Branding khusus atau domain pemerintahan — dinegosiasikan per kebijakan infrastruktur IT desa/pemda",
+          included: true,
+        },
+        { name: "Adapter interoperability Kemendesa penuh (enterprise-only)", included: false },
       ],
       cta: "Jadwalkan Demo",
       highlight: "Paling Populer",
@@ -80,27 +79,19 @@ export default function PricingPage() {
       name: "Enterprise",
       icon: Crown,
       description:
-        "Solusi kustom untuk desa besar dan kecamatan dengan kebutuhan spesifik",
+        "Skala wilayah: beberapa desa, governance ketat, integrasi dokumentasi pusat beserta SLA yang dapat dinegosiasikan.",
       popular: false,
       features: [
-        { name: "Admin unlimited", included: true },
-        { name: "Storage 100 GB", included: true },
-        { name: "Semua fitur Profesional", included: true },
-        { name: "Custom branding & white-label", included: true },
-        { name: "Multi-desa management dashboard", included: true },
-        { name: "Custom mobile app development", included: true },
-        { name: "API access unlimited", included: true },
-        // { name: "Dedicated account manager", included: true },
-        { name: "Priority support (phone, chat, email)", included: true },
-        { name: "On-site training & implementasi", included: true },
-        { name: "Custom development sesuai kebutuhan", included: true },
-        { name: "Data migration assistance", included: true },
-        { name: "SLA guarantee 99.9%", included: true },
-        { name: "Konsultasi IT strategy", included: true },
+        { name: "Lintas paket profesional ditambahkan lane wilayah & multi-akun pemda", included: true },
+        { name: "Adapter export & dokumentasi integrasi Kemendesa (Early Access)", included: true },
+        { name: "Bundling modul sensitif wilayah, AI exploratif, serta API terkontrol", included: true },
+        { name: "Custom workflow & migrasi awal data dibantu bersama tim teknis", included: true },
+        { name: "Pelatihan lapangan/on-site serta change management menyusul struktur wilayah", included: true },
+        { name: "SLA serta dedicated success manager sesuai perjanjian resmi", included: true },
       ],
       cta: "Hubungi Sales",
-      highlight: "Fitur Maksimal",
-      badge: "Untuk desa besar",
+      highlight: "Skala wilayah",
+      badge: "Kabupaten / lintas desa",
     },
   ];
 
@@ -123,7 +114,7 @@ export default function PricingPage() {
     {
       question: "Apakah data desa kami aman?",
       answer:
-        "Sangat aman! Kami menggunakan enkripsi SSL 256-bit, backup otomatis harian, dan server yang memenuhi standar keamanan data pemerintahan. Data desa Anda sepenuhnya terlindungi.",
+        "Kami menerapkan praktik keamanan cloud standar: koneksi HTTPS, kontrol akses berbasis peran, cadangan berkala, serta jejak audit operasional. Detail teknis dan kebutuhan compliance khusus dibahas di sesi arsitektur bersama tim IT/wilayah Anda.",
     },
     {
       question: "Apakah tersedia demo atau trial?",
@@ -137,7 +128,7 @@ export default function PricingPage() {
     {
       question: "Apakah bisa custom development untuk kebutuhan khusus?",
       answer:
-        "Ya, untuk paket Enterprise kami menyediakan custom development sesuai kebutuhan spesifik desa Anda. Termasuk custom mobile app, white-label solution, dan integrasi dengan sistem existing.",
+        "Ya. Paket Enterprise memungkinkan perluasan modul aplikasi sesuai kebutuhan operasional: integrasi baru, penyempurnaan alur wilayah, serta pendamping migrasi awal—setelah penilaian arsitektur yang jelas dengan tim IT wilayah Anda.",
     },
     {
       question: "Berapa lama proses implementasi?",
@@ -189,8 +180,8 @@ export default function PricingPage() {
             </h1>
 
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Solusi yang dirancang khusus untuk kebutuhan desa di Indonesia.
-              Hubungi kami untuk konsultasi dan penawaran terbaik.
+              Paket konsultatif menyesuaikan modul hidup versus early access, add-on wilayah, serta kebutuhan
+              interoperabilitas tanpa mempublikasikan nominal di web.
             </p>
 
             {/* Trust Badge */}
@@ -204,9 +195,7 @@ export default function PricingPage() {
               <div className="w-px h-6 bg-gray-300 hidden sm:block"></div>
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-[#0d9488]" />
-                <span className="text-sm text-gray-700">
-                  500+ Desa Terdaftar
-                </span>
+                <span className="text-sm text-gray-700">Program pilot &amp; early access wilayah</span>
               </div>
               <div className="w-px h-6 bg-gray-300 hidden sm:block"></div>
               <div className="flex items-center gap-2">
@@ -270,7 +259,7 @@ export default function PricingPage() {
                       </p>
                       <ul className="text-sm text-gray-700 space-y-1 mb-4">
                         <li>• Jumlah penduduk desa</li>
-                        <li>• Fitur yang dibutuhkan</li>
+                        <li>• Modul utama dan add-on yang diaktivasi</li>
                         <li>• Budget APBDes</li>
                       </ul>
                       <button
@@ -334,151 +323,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Comparison Table */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl text-gray-900 mb-4">
-              Perbandingan Lengkap Paket
-            </h2>
-            <p className="text-lg text-gray-600">
-              Lihat detail fitur dari setiap paket untuk memilih yang terbaik
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-gray-200">
-                  <th className="text-left py-4 px-6 text-gray-900">Fitur</th>
-                  <th className="text-center py-4 px-6 text-gray-900">
-                    Starter
-                  </th>
-                  <th className="text-center py-4 px-6 bg-[#0d9488]/5 text-gray-900">
-                    Profesional
-                    <div className="text-xs text-[#0d9488] mt-1">Populer</div>
-                  </th>
-                  <th className="text-center py-4 px-6 text-gray-900">
-                    Enterprise
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {[
-                  {
-                    category: "Pengguna & Akses",
-                    items: [
-                      {
-                        name: "Jumlah Admin",
-                        values: ["5 admin", "15 admin", "Unlimited"],
-                      },
-                      {
-                        name: "Multi-user collaboration",
-                        values: ["✓", "✓", "✓"],
-                      },
-                      {
-                        name: "Role & permission management",
-                        values: ["Basic", "Advanced", "Custom"],
-                      },
-                    ],
-                  },
-                  {
-                    category: "Storage & Data",
-                    items: [
-                      {
-                        name: "Storage space",
-                        values: ["5 GB", "20 GB", "100 GB"],
-                      },
-                      {
-                        name: "Backup otomatis",
-                        values: ["Mingguan", "Harian", "Real-time"],
-                      },
-                      { name: "Data export", values: ["✓", "✓", "✓"] },
-                    ],
-                  },
-                  {
-                    category: "Fitur Utama",
-                    items: [
-                      {
-                        name: "Manajemen data penduduk",
-                        values: ["Basic", "Lengkap", "Advanced"],
-                      },
-                      {
-                        name: "Surat-menyurat digital",
-                        values: ["✓", "Unlimited", "Unlimited"],
-                      },
-                      {
-                        name: "Dashboard & analytics",
-                        values: ["Basic", "Advanced", "Custom"],
-                      },
-                      { name: "Laporan otomatis", values: ["—", "✓", "✓"] },
-                      {
-                        name: "Mobile app access",
-                        values: ["Basic", "Premium", "Premium+Custom"],
-                      },
-                    ],
-                  },
-                  {
-                    category: "Integrasi & API",
-                    items: [
-                      { name: "WhatsApp notifikasi", values: ["—", "✓", "✓"] },
-                      { name: "API access", values: ["—", "—", "Unlimited"] },
-                      { name: "Custom integration", values: ["—", "—", "✓"] },
-                      { name: "White-label solution", values: ["—", "—", "✓"] },
-                    ],
-                  },
-                  {
-                    category: "Support & Training",
-                    items: [
-                      { name: "Email & chat support", values: ["✓", "✓", "✓"] },
-                      {
-                        name: "Phone support",
-                        values: ["—", "Jam kerja", "Prioritas"],
-                      },
-                      { name: "Online training", values: ["✓", "✓", "✓"] },
-                      { name: "On-site training", values: ["—", "—", "✓"] },
-                      // {
-                      //   name: "Dedicated account manager",
-                      //   values: ["—", "—", "✓"],
-                      // },
-                    ],
-                  },
-                ].map((section, sectionIdx) => (
-                  <React.Fragment key={sectionIdx}>
-                    <tr className="bg-gray-50">
-                      <td
-                        colSpan={4}
-                        className="py-3 px-6 text-sm text-gray-900"
-                      >
-                        {section.category}
-                      </td>
-                    </tr>
-                    {section.items.map((item, itemIdx) => (
-                      <tr
-                        key={itemIdx}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="py-3 px-6 text-sm text-gray-600">
-                          {item.name}
-                        </td>
-                        <td className="py-3 px-6 text-sm text-gray-900 text-center">
-                          {item.values[0]}
-                        </td>
-                        <td className="py-3 px-6 text-sm text-gray-900 text-center bg-[#0d9488]/5">
-                          {item.values[1]}
-                        </td>
-                        <td className="py-3 px-6 text-sm text-gray-900 text-center">
-                          {item.values[2]}
-                        </td>
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      <TierComparison />
 
       {/* FAQ Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-linear-to-br from-gray-50 to-white">
@@ -553,8 +398,7 @@ export default function PricingPage() {
             Siap Memulai Transformasi Digital?
           </h2>
           <p className="text-xl text-white/90 mb-8">
-            Bergabunglah dengan 500+ desa yang telah merasakan kemudahan bersama
-            Klandesa
+            Diskusikan pilot desa percontohan atau paket wilayah bersama tim produk &amp; customer success kami.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

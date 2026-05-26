@@ -32,7 +32,7 @@ const quickStartSteps = [
   {
     title: "Eksplor menu utama",
     description:
-      "Coba alur administrasi, pantau data, dan lihat bagaimana layanan warga diproses end-to-end.",
+      "Coba modul utama, pantau jalur layanan surat-warga, dan gambaran stack SDGs—di lingkungan demo terkontrol.",
   },
 ];
 
@@ -91,10 +91,10 @@ export default function DemoPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/fitur"
+                href="/platform"
                 className="inline-flex items-center rounded-xl border border-white/30 px-5 py-3 text-sm text-white transition hover:bg-white/10"
               >
-                Lihat Ringkasan Fitur
+                Lihat Katalog Platform
               </Link>
             </div>
           </div>

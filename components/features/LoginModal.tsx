@@ -78,18 +78,21 @@ export function LoginModal({ onClose }: LoginModalProps) {
   const features = [
     {
       icon: Shield,
-      title: "Keamanan Terjamin",
-      description: "Data Anda terenkripsi dengan standar keamanan tinggi",
+      title: "Keamanan praktik cloud",
+      description:
+        "Koneksi HTTPS, kontrol peran aplikasi, dan backup sesuai kebijakan operasional kami.",
     },
     {
       icon: Zap,
-      title: "Akses Cepat",
-      description: "Login sekali untuk mengakses semua layanan desa",
+      title: "Satu akses banyak modul",
+      description:
+        "Data warga hingga jalur RPJMDes dan integrasi dokumentasi bisa dijangkau setelah Anda masuk.",
     },
     {
       icon: Users,
-      title: "Terpercaya",
-      description: "Dipercaya oleh 100,000+ pengguna di seluruh Indonesia",
+      title: "Struktur peran yang jelas",
+      description:
+        "RBAC desa konsisten antara marketing dan produk sehingga kepatuhan akses bisa diaudit.",
     },
   ];
 
@@ -283,11 +286,11 @@ export function LoginModal({ onClose }: LoginModalProps) {
 
               <div className="relative z-10">
                 <h3 className="text-3xl text-white mb-4">
-                  Platform Digitalisasi Terbaik untuk Desa
+                  Platform operasional desa berbasis SDGs
                 </h3>
                 <p className="text-white/90 mb-8 text-lg">
-                  Bergabunglah dengan ribuan desa yang telah bertransformasi
-                  digital
+                  Susun perjalanan data desa—from administrasi sampai ekspor format Kemendesa—tanpa bergantung
+                  pada narasi sosial palsu semata angka besar.
                 </p>
 
                 <div className="space-y-6">
@@ -311,21 +314,20 @@ export function LoginModal({ onClose }: LoginModalProps) {
                   ))}
                 </div>
 
-                {/* Stats */}
-                <div className="mt-8 grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl text-white mb-1">100K+</div>
-                    <div className="text-white/70 text-sm">Pengguna</div>
+                <dl className="mt-10 grid gap-4 sm:grid-cols-3 text-white/90">
+                  <div className="rounded-2xl border border-white/20 bg-white/5 p-4">
+                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Mesin sasaran SDGs</dt>
+                    <dd className="text-base font-semibold text-white leading-snug">18 sasaran dapat diaudit dari data live</dd>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl text-white mb-1">500+</div>
-                    <div className="text-white/70 text-sm">Desa</div>
+                  <div className="rounded-2xl border border-white/20 bg-white/5 p-4">
+                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Peran utama</dt>
+                    <dd className="text-base font-semibold text-white leading-snug">Empat struktur akses utama desa konsisten secara produk</dd>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl text-white mb-1">99.9%</div>
-                    <div className="text-white/70 text-sm">Uptime</div>
+                  <div className="rounded-2xl border border-white/20 bg-white/5 p-4">
+                    <dt className="text-xs uppercase tracking-wide text-white/60 mb-2">Interoperabilitas</dt>
+                    <dd className="text-base font-semibold text-white leading-snug">Berlapis dokumentasi eksport bersama jejaring audit aplikasi</dd>
                   </div>
-                </div>
+                </dl>
               </div>
             </div>
           </div>

@@ -3,7 +3,11 @@ import { buildLandingSeo } from "@/lib/seo/landing";
 
 export type LandingPageSeoKey =
   | "home"
-  | "fitur"
+  | "platform"
+  | "platformSdgs"
+  | "platformIntegrasi"
+  | "solusiDesa"
+  | "solusiPemda"
   | "harga"
   | "harga-pangan"
   | "beasiswa"
@@ -25,50 +29,92 @@ export type LandingPageSeoConfig = {
 const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   home: {
     pathname: "/",
-    title: "Klandesa - Aplikasi Desa Digital Indonesia",
+    title: "Klandesa — Platform Operasional Desa Berbasis SDGs",
     description:
-      "Platform digital untuk desa di Indonesia: administrasi, layanan masyarakat, keuangan, dan website desa dalam satu sistem yang efisien.",
+      "Satu sistem untuk administrasi desa, RPJMDes, program PKK/BUMDes, dashboard 18 sasaran SDGs, peta wilayah, serta export format interoperability Kemendesa.",
     keywords: [
-      "aplikasi desa",
+      "platform SDGs desa",
+      "aplikasi desa terintegrasi",
       "digitalisasi desa",
+      "RPJMDes digital",
+      "integrasi kemendesa",
       "sistem informasi desa",
-      "administrasi desa",
-      "layanan masyarakat desa",
-      "website desa",
       "klandesa",
     ],
     robots: "index, follow",
   },
-  fitur: {
-    pathname: "/fitur",
+  platform: {
+    pathname: "/platform",
     title:
-      "Fitur Klandesa — Digitalisasi Desa: Data Warga, Surat, Keuangan & Portal",
+      "Platform Klandesa — Modul Administrasi, SDGs, Integrasi Kemendesa & Early Access",
     description:
-      "Daftar fitur Klandesa: manajemen data penduduk, layanan surat online, sistem keuangan desa, portal warga, statistik & dashboard, website desa, absensi perangkat, arsip digital, UKM, dan notifikasi—platform all-in-one untuk administrasi desa.",
+      "Katalog modul aplikasi desa dari data hingga RPJMDes, dashboard SDGs, integrasi Kemendesa, GIS, dan asisten AI. Modul bertanda Early Access bersifat beta.",
     keywords: [
-      "fitur aplikasi desa",
-      "sistem informasi desa",
-      "layanan surat desa online",
-      "keuangan desa digital",
-      "portal warga desa",
-      "dashboard statistik desa",
-      "website desa",
-      "arsip digital desa",
-      "digitalisasi desa",
+      "modul aplikasi desa",
+      "platform sdgs desa",
+      "integrasi kemendesa",
+      "rpjm des digital",
+      "katalog klandesa",
+    ],
+    robots: "index, follow",
+  },
+  platformSdgs: {
+    pathname: "/platform/sdgs",
+    title:
+      "Stack SDGs Desa — Skor 18 Tujuan, RPJMDes & Tagging Keuangan | Klandesa",
+    description:
+      "Gambaran Dashboard SDGs: skor dari data operasional, RPJMDes, tagging APBDes/kas, heatmap RT/RW—pendukung keputusan yang terpisah dari validasi hukum Kemendesa.",
+    keywords: [
+      "sdgs desa digital",
+      "rpjm digital",
+      "tagging APBDes SDGs",
       "klandesa",
     ],
+    robots: "index, follow",
+  },
+  platformIntegrasi: {
+    pathname: "/platform/integrasi",
+    title:
+      "Integrasi Kemendesa — Export Penduduk, APBDes-format, Portal SDGs, Prodeskel | Klandesa",
+    description:
+      "Adapter interoperability dengan export CSV/JSON, log audit, dan positioning jujur: bukan sync real-time tanpa akses resmi.",
+    keywords: [
+      "export kemendesa",
+      "interop desa digital",
+      "siskeudes csv",
+      "prodeskel",
+      "klandesa",
+    ],
+    robots: "index, follow",
+  },
+  solusiDesa: {
+    pathname: "/solusi/desa",
+    title:
+      "Solusi untuk Desa — Operasional & SDGs dalam Satu Platform | Klandesa",
+    description:
+      "Nilai bagi Kades, Sekdes, perangkat: administrasi satu login, PKK/BUMDes, heatmap pembangunan, dan early access untuk modul mutakhir.",
+    keywords: ["aplikasi desa", "digitalisasi pemerintahan desa", "sdgs", "klandesa"],
+    robots: "index, follow",
+  },
+  solusiPemda: {
+    pathname: "/solusi/pemerintah-daerah",
+    title:
+      "Untuk Pemda — Tata Kelola, Export Kemendesa & Lintas Desa | Klandesa",
+    description:
+      "Governance akses RBAC, export format interoperability, spasial pembangunan, akun wilayah—digitalisasi desa untuk skala kabupaten/kecamatan.",
+    keywords: ["monitoring sdgs wilayah", "tata kelola aplikasi desa", "pemda", "klandesa"],
     robots: "index, follow",
   },
   harga: {
     pathname: "/harga",
-    title: "Harga Klandesa - Paket Digitalisasi Desa",
+    title: "Harga Klandesa — Paket konsultatif & pemetaan modul",
     description:
-      "Lihat paket Klandesa untuk kebutuhan desa: starter, profesional, hingga enterprise dengan dukungan implementasi dan pelatihan.",
+      "Starter, Profesional, dan Enterprise dijelaskan sebagai kemampuan modul (tanpa angka publik). Bandingkan matriks, lalu jadwalkan konsultasi untuk kuota wilayah.",
     keywords: [
-      "harga aplikasi desa",
-      "paket sistem desa",
-      "biaya digitalisasi desa",
-      "paket klandesa",
+      "paket aplikasi desa",
+      "harga konsultatif klandesa",
+      "tier SDGs desa",
+      "enterprise digital desa",
     ],
     robots: "index, follow",
   },
@@ -203,8 +249,10 @@ export const LEGAL_SITEMAP_PATHS = [
 
 const SITEMAP_PRIORITY: Partial<Record<string, number>> = {
   "/": 1,
-  "/fitur": 0.9,
+  "/platform": 0.95,
   "/harga": 0.9,
+  "/solusi/desa": 0.82,
+  "/solusi/pemerintah-daerah": 0.82,
   "/harga-pangan": 0.85,
   "/beasiswa": 0.85,
   "/cek-bantuan-program": 0.85,

@@ -17,28 +17,56 @@ export function Footer() {
   // const navigate = useNavigate();
   const router = useRouter();
 
-  const footerLinks = {
-    product: [
-      { name: "Fitur", path: "/fitur", type: "route" },
-      { name: "Harga", path: "/harga", type: "route" },
-      { name: "Harga Pangan", path: "/harga-pangan", type: "route" },
-      { name: "Manfaat", href: "#manfaat", type: "hash" },
-      { name: "Statistik", href: "#statistik", type: "hash" },
-      { name: "Demo", path: "/demo", type: "route" },
-    ],
-    company: [
-      { name: "Tentang Kami", href: "#tentang", type: "hash" },
-      { name: "Tim Kami", path: "/tim", type: "route" },
-      { name: "Blog", path: "/blog", type: "route" },
-      { name: "Karir", path: "/karir", type: "route" },
-      { name: "Kontak", href: "#kontak", type: "hash" },
-    ],
-    legal: [
-      { name: "Privacy Policy", path: "/privacy-policy", type: "route" },
-      { name: "Terms of Service", path: "/terms-of-service", type: "route" },
-      { name: "Cookie Policy", path: "/cookie-policy", type: "route" },
-    ],
-  };
+  const footerSections: {
+    title: string;
+    links: ({ name: string; path: string; type: "route" } | { name: string; href: string; type: "hash" })[];
+  }[] = [
+    {
+      title: "Platform",
+      links: [
+        { name: "Semua modul", path: "/platform", type: "route" },
+        { name: "SDGs & RPJMDes", path: "/platform/sdgs", type: "route" },
+        { name: "Integrasi Kemendesa", path: "/platform/integrasi", type: "route" },
+        { name: "Harga & paket", path: "/harga", type: "route" },
+        { name: "Demo", path: "/demo", type: "route" },
+        { name: "Statistik beranda", href: "#statistik", type: "hash" },
+        { name: "Manfaat beranda", href: "#manfaat", type: "hash" },
+      ],
+    },
+    {
+      title: "Solusi",
+      links: [
+        { name: "Untuk desa", path: "/solusi/desa", type: "route" },
+        { name: "Untuk pemda", path: "/solusi/pemerintah-daerah", type: "route" },
+        { name: "Program mitra", path: "/mitra-klandesa", type: "route" },
+      ],
+    },
+    {
+      title: "Layanan publik",
+      links: [
+        { name: "Beasiswa", path: "/beasiswa", type: "route" },
+        { name: "Harga pangan", path: "/harga-pangan", type: "route" },
+        { name: "Cek bansos program", path: "/cek-bantuan-program", type: "route" },
+      ],
+    },
+  ];
+
+  const companyLinks: (
+    | { name: string; path: string; type: "route" }
+    | { name: string; href: string; type: "hash" }
+  )[] = [
+    { name: "Tentang Kami", href: "#tentang", type: "hash" },
+    { name: "Tim Kami", path: "/tim", type: "route" },
+    { name: "Blog", path: "/blog", type: "route" },
+    { name: "Karir", path: "/karir", type: "route" },
+    { name: "Kontak", href: "#kontak", type: "hash" },
+  ];
+
+  const legalLinks: { name: string; path: string; type: "route" }[] = [
+    { name: "Privacy Policy", path: "/privacy-policy", type: "route" },
+    { name: "Terms of Service", path: "/terms-of-service", type: "route" },
+    { name: "Cookie Policy", path: "/cookie-policy", type: "route" },
+  ];
 
   const handleLinkClick = (link: {
     href?: string;
@@ -92,7 +120,7 @@ export function Footer() {
           className="absolute inset-0"
           style={{
             backgroundImage:
-              "linear-linear(rgba(255,255,255,0.1) 1px, transparent 1px), linear-linear(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+              "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
             backgroundSize: "50px 50px",
           }}
         ></div>
@@ -115,8 +143,8 @@ export function Footer() {
               </Link>
               <h3 className="text-2xl mb-2">Klandesa</h3>
               <p className="text-gray-400 leading-relaxed">
-                Platform digitalisasi desa yang membantu transformasi digital
-                untuk desa-desa di Indonesia.
+                Platform operasional desa berbasis SDGs untuk administrasi, perencanaan, program pembangunan, dan interoperabilitas
+                dokumentasi—dengan modul konsisten antara produk dan marketing.
               </p>
             </div>
 
@@ -140,22 +168,31 @@ export function Footer() {
           {/* Product Links */}
           <div>
             <h4 className="text-lg mb-6 relative inline-block">
-              Produk
+              Platform & solusi
               <div className="absolute -bottom-2 left-0 w-12 h-1 bg-linear-to-r from-[#0d9488] to-transparent rounded-full"></div>
             </h4>
-            <ul className="space-y-3">
-              {footerLinks.product.map((link, index) => (
-                <li key={index}>
-                  <button
-                    onClick={() => handleLinkClick(link)}
-                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group cursor-pointer"
-                  >
-                    <span className="w-0 group-hover:w-2 h-0.5 bg-[#0d9488] transition-all duration-300 rounded-full"></span>
-                    {link.name}
-                  </button>
-                </li>
+            <div className="space-y-6">
+              {footerSections.map((section) => (
+                <div key={section.title}>
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-400 mb-2">
+                    {section.title}
+                  </p>
+                  <ul className="space-y-2">
+                    {section.links.map((link) => (
+                      <li key={link.name}>
+                        <button
+                          onClick={() => handleLinkClick(link)}
+                          className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group cursor-pointer text-left"
+                        >
+                          <span className="w-0 group-hover:w-2 h-0.5 bg-[#0d9488] transition-all duration-300 rounded-full shrink-0" />
+                          {link.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
 
           {/* Company Links */}
@@ -165,7 +202,7 @@ export function Footer() {
               <div className="absolute -bottom-2 left-0 w-12 h-1 bg-linear-to-r from-[#6366f1] to-transparent rounded-full"></div>
             </h4>
             <ul className="space-y-3">
-              {footerLinks.company.map((link, index) => (
+              {companyLinks.map((link, index) => (
                 <li key={index}>
                   <button
                     onClick={() => handleLinkClick(link)}
@@ -238,7 +275,7 @@ export function Footer() {
 
           {/* Legal Links */}
           <div className="flex flex-wrap gap-6 justify-center">
-            {footerLinks.legal.map((link, index) => (
+            {legalLinks.map((link, index) => (
               <Link
                 key={index}
                 href={link.path}

@@ -97,7 +97,7 @@ function LandingLoginContent() {
           <div className="mt-8 space-y-3 text-sm text-slate-200">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-4 w-4 text-teal-300" />
-              Autentikasi aman dengan sesi terenkripsi
+              Koneksi aman HTTPS (TLS) untuk proses masuk Anda
             </div>
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-4 w-4 text-teal-300" />

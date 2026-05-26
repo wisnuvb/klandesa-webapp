@@ -29,10 +29,30 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
 
   const navItems: NavItem[] = [
     { name: "Beranda", href: "/", type: "route" },
-    { name: "Fitur", href: "/fitur", type: "route" },
+    {
+      name: "Solusi",
+      children: [
+        { name: "Untuk Desa", href: "/solusi/desa", type: "route" },
+        {
+          name: "Untuk Pemerintah Daerah",
+          href: "/solusi/pemerintah-daerah",
+          type: "route",
+        },
+        { name: "Program Mitra", href: "/mitra-klandesa", type: "route" },
+      ],
+    },
+    {
+      name: "Platform",
+      children: [
+        { name: "Demo langsung", href: "/demo", type: "route" },
+        { name: "Semua Modul", href: "/platform", type: "route" },
+        { name: "SDGs & RPJMDes", href: "/platform/sdgs", type: "route" },
+        { name: "Integrasi Kemendesa", href: "/platform/integrasi", type: "route" },
+      ],
+    },
     { name: "Harga", href: "/harga", type: "route" },
     {
-      name: "Layanan Warga",
+      name: "Layanan Publik",
       children: [
         { name: "Beasiswa", href: "/beasiswa", type: "route" },
         { name: "Harga Pangan", href: "/harga-pangan", type: "route" },
@@ -77,37 +97,43 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
     setIsMenuOpen(false);
   };
 
+  const navBtnClass =
+    "text-gray-700 hover:text-[#0d9488] transition-colors whitespace-nowrap rounded-lg hover:bg-gray-50 cursor-pointer text-sm font-medium px-2.5 py-2 lg:px-3";
+
+  const navTriggerClass =
+    "text-gray-700 hover:text-[#0d9488] transition-colors whitespace-nowrap rounded-lg hover:bg-gray-50 cursor-pointer inline-flex items-center gap-0.5 text-sm font-medium px-2.5 py-2 lg:px-3 shrink-0";
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 md:h-20">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3 min-h-16 md:min-h-[4.25rem] py-1">
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center group"
+            className="flex items-center group shrink-0 mr-1"
             onClick={() => window.scrollTo(0, 0)}
           >
             <KlandesaLogo />
           </Link>
 
-          {/* Navigation Links - Desktop */}
-          <div className="hidden md:flex items-center space-x-0">
+          {/* Navigation Links - Desktop (rapat proporsional, tidak wrap) */}
+          <div className="hidden md:flex flex-1 items-center justify-center min-w-0 gap-0.5 lg:gap-1">
             {navItems.map((item) => {
               if ("children" in item) {
                 return (
                   <DropdownMenu key={item.name}>
                     <DropdownMenuTrigger asChild>
-                      <button className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 rounded-lg hover:bg-gray-50 cursor-pointer inline-flex items-center gap-1">
-                        {item.name}
-                        <ChevronDown className="w-4 h-4" />
+                      <button type="button" className={navTriggerClass}>
+                        <span>{item.name}</span>
+                        <ChevronDown className="w-3.5 h-3.5 opacity-70" aria-hidden />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="min-w-56">
+                    <DropdownMenuContent align="start" className="min-w-52">
                       {item.children.map((c) => (
                         <DropdownMenuItem
                           key={c.name}
                           onSelect={() => handleNavClick(c.href, c.type)}
-                          className="text-sm sm:text-base"
+                          className="text-sm"
                         >
                           {c.name}
                         </DropdownMenuItem>
@@ -120,8 +146,9 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
               return (
                 <button
                   key={item.name}
+                  type="button"
                   onClick={() => handleNavClick(item.href, item.type)}
-                  className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                  className={navBtnClass}
                 >
                   {item.name}
                 </button>
@@ -129,17 +156,19 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
             })}
           </div>
 
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Auth Buttons — zona terpisah agar tidak “mengambang” jauh dari nav */}
+          <div className="hidden md:flex items-center shrink-0 gap-2 pl-4 ml-2 border-l border-gray-200/90">
             <button
+              type="button"
               onClick={onLoginClick}
-              className="text-gray-700 hover:text-[#0d9488] transition-colors px-4 py-2 cursor-pointer"
+              className="text-gray-700 hover:text-[#0d9488] transition-colors whitespace-nowrap px-3 py-2 text-sm font-medium cursor-pointer rounded-lg hover:bg-gray-50"
             >
               Masuk
             </button>
             <button
+              type="button"
               onClick={() => onRegisterClick()}
-              className="bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-2.5 rounded-lg hover:shadow-lg transition-all hover:scale-105 cursor-pointer"
+              className="bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white whitespace-nowrap px-4 py-2.5 rounded-lg text-sm font-semibold hover:shadow-md transition-all cursor-pointer"
             >
               Daftar Sekarang
             </button>
@@ -147,8 +176,9 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
 
           {/* Mobile Menu Button */}
           <button
+            type="button"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+            className="md:hidden ml-auto p-2 text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
           >
             {isMenuOpen ? (
               <X className="w-6 h-6" />

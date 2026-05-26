@@ -188,7 +188,27 @@ export default function MitraPage() {
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 lg:px-8 py-12 md:py-16 max-w-7xl mx-auto -mt-12 relative z-10">
+      <div className="px-4 sm:px-6 lg:px-8 py-12 md:py-16 max-w-7xl mx-auto -mt-3 relative z-10">
+        <div className="rounded-2xl border border-[#0d9488]/25 bg-emerald-50/80 backdrop-blur-sm p-8 md:p-10 mb-12 shadow-sm">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4">
+            Jual infrastruktur modul, bukan satu fitur punggung
+          </h2>
+          <p className="text-gray-700 leading-relaxed mb-6">
+            Klandesa memposisikan diri sebagai <strong className="font-semibold text-gray-900">platform operasional desa berbasis SDGs</strong>
+            dengan register modul konsisten antara produk dan marketing—mulai dari data warga, surat daring, APBDes tagging
+            sasaran, hingga export dokumentasi interoperability. Pemda besar dan konsultan wilayah dapat menyusun kombinasi
+            modul serta add-on (GIS, PKK, BUMDes, AI, integrasi dokumentasi pusat) sehingga paket bagi hasil mitra Anda
+            mengikuti tier Starter / Profesional / Enterprise secara transparan.
+          </p>
+          <Link
+            href="/platform"
+            className="inline-flex items-center gap-2 text-[#0d9488] font-semibold underline-offset-4 hover:underline"
+          >
+            Buka daftar modul platform
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-6 mb-16">
           {benefits.map((item) => (
             <div

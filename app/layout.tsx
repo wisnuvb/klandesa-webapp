@@ -24,19 +24,18 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://klandesa.com";
 
 export const metadata: Metadata = {
   title: {
-    default: "Klandesa - Aplikasi Desa Digital Indonesia",
+    default: "Klandesa — Platform Operasional Desa Berbasis SDGs",
     template: "%s | Klandesa",
   },
   description:
-    "Klandesa adalah platform digital untuk desa di Indonesia. Kelola administrasi, layanan masyarakat, keuangan, dan website desa dalam satu sistem yang modern, efisien, dan transparan.",
+    "Klandesa: platform operasional desa berbasis SDGs—administrasi, RPJMDes, integrasi format Kemendesa, dan modul program warga dalam satu sistem.",
   keywords: [
-    "aplikasi desa",
+    "platform SDGs desa",
+    "aplikasi desa terintegrasi",
     "digitalisasi desa",
+    "integrasi kemendesa",
+    "RPJMDes digital",
     "sistem informasi desa",
-    "administrasi desa digital",
-    "layanan masyarakat desa",
-    "keuangan desa",
-    "website desa",
     "klandesa",
   ],
   authors: [{ name: "Klandesa", url: siteUrl }],
@@ -47,23 +46,23 @@ export const metadata: Metadata = {
     locale: "id_ID",
     url: siteUrl,
     siteName: "Klandesa",
-    title: "Klandesa - Aplikasi Desa Digital Indonesia",
+    title: "Klandesa — Platform Operasional Desa Berbasis SDGs",
     description:
-      "Platform digital lengkap untuk desa di Indonesia. Administrasi lebih mudah, layanan lebih cepat, masyarakat lebih terlayani.",
+      "Platform operasional desa berbasis SDGs—administrasi, RPJMDes, program PKK/BUMDes, integrasi dokumentasi Kemendesa, satu sistem untuk desa dan pemda.",
     images: [
       {
         url: "/images/og-klandesa.png",
         width: 1200,
         height: 630,
-        alt: "Klandesa - Aplikasi Desa Digital Indonesia",
+        alt: "Klandesa — Platform operasional desa berbasis SDGs",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klandesa - Aplikasi Desa Digital Indonesia",
+    title: "Klandesa — Platform Operasional Desa Berbasis SDGs",
     description:
-      "Platform digital lengkap untuk desa di Indonesia. Administrasi lebih mudah, layanan lebih cepat, masyarakat lebih terlayani.",
+      "Administrasi sampai laporan SDGs: RPJMDes, integrasi dokumentasi Kemendesa, dan modul program dalam satu platform.",
     images: ["/images/og-klandesa.png"],
   },
   robots: {
