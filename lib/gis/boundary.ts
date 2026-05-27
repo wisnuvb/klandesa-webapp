@@ -13,15 +13,13 @@ const coordSchema = z.tuple([
   z.number().min(-90).max(90),
 ]);
 
+const ringSchema = z
+  .array(coordSchema)
+  .min(4, "Batas desa minimal 3 titik (poligon tertutup)");
+
 const polygonSchema = z.object({
   type: z.literal("Polygon"),
-  coordinates: z
-    .array(
-      z
-        .array(coordSchema)
-        .min(4, "Batas desa minimal 3 titik (poligon tertutup)"),
-    )
-    .length(1),
+  coordinates: z.tuple([ringSchema]),
 });
 
 export function parseBoundaryPolygon(
