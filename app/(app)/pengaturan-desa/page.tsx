@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -20,7 +20,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Combobox } from "@/components/ui/combobox";
 import type { VillageMailSettingsFields } from "@/lib/mail/letterFormSnapshot";
+import { PROVINSI_CODES } from "@/lib/pangan/match-region";
+import { extractArray } from "@/lib/pangan/region-master";
+
+type KabKotaOption = { kode_kab_kota: string; nama_kab_kota: string };
 
 type VillageProfilePayload = {
   id: number;
@@ -29,6 +34,7 @@ type VillageProfilePayload = {
   district: string;
   regency: string;
   province: string;
+  wilayah: { kode_provinsi: string; kode_kab_kota: string };
   address: string;
   postalCode: string;
   phone: string;
@@ -54,8 +60,11 @@ export default function PengaturanDesaPage() {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [district, setDistrict] = useState("");
-  const [regency, setRegency] = useState("");
-  const [province, setProvince] = useState("");
+  const [kodeProvinsi, setKodeProvinsi] = useState("");
+  const [kodeKabKota, setKodeKabKota] = useState("");
+  const [kabkota, setKabkota] = useState<KabKotaOption[]>([]);
+  const [loadingKab, setLoadingKab] = useState(false);
+  const pendingKabRef = useRef<string | null>(null);
   const [address, setAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,9 +87,12 @@ export default function PengaturanDesaPage() {
       setCode(data.code);
       setName(data.name);
       setDistrict(data.district);
-      setRegency(data.regency);
-      setProvince(data.province);
       setAddress(data.address);
+      const prov = data.wilayah?.kode_provinsi ?? "";
+      const kab = data.wilayah?.kode_kab_kota ?? "";
+      pendingKabRef.current = kab || null;
+      setKodeProvinsi(prov);
+      setKodeKabKota(kab);
       setPostalCode(data.postalCode);
       setPhone(data.phone);
       setEmail(data.email);
@@ -99,6 +111,66 @@ export default function PengaturanDesaPage() {
     load();
   }, [load]);
 
+  const loadKabkota = useCallback(async (kodeProv: string) => {
+    if (!kodeProv) {
+      setKabkota([]);
+      return [];
+    }
+    setLoadingKab(true);
+    try {
+      const res = await fetch(`/api/pangan/kab-kota/${encodeURIComponent(kodeProv)}`, {
+        cache: "no-store",
+      });
+      const json = (await res.json().catch(() => null)) as { data?: unknown } | null;
+      const rows = extractArray<KabKotaOption>(json?.data);
+      setKabkota(rows);
+      const pending = pendingKabRef.current;
+      if (pending && rows.some((k) => k.kode_kab_kota === pending)) {
+        setKodeKabKota(pending);
+        pendingKabRef.current = null;
+      }
+      return rows;
+    } catch {
+      setKabkota([]);
+      return [];
+    } finally {
+      setLoadingKab(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!kodeProvinsi) {
+      setKabkota([]);
+      return;
+    }
+    void loadKabkota(kodeProvinsi);
+  }, [kodeProvinsi, loadKabkota]);
+
+  const provinsiOptions = useMemo(
+    () =>
+      PROVINSI_CODES.map((p) => ({
+        value: p.kode_provinsi,
+        label: p.nama_provinsi,
+        keywords: p.nama_provinsi,
+      })),
+    [],
+  );
+
+  const kabOptions = useMemo(
+    () =>
+      kabkota.map((k) => ({
+        value: k.kode_kab_kota,
+        label: k.nama_kab_kota,
+        keywords: k.nama_kab_kota,
+      })),
+    [kabkota],
+  );
+
+  const selectedProvLabel =
+    PROVINSI_CODES.find((p) => p.kode_provinsi === kodeProvinsi)?.nama_provinsi ?? "";
+  const selectedKabLabel =
+    kabkota.find((k) => k.kode_kab_kota === kodeKabKota)?.nama_kab_kota ?? "";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -109,8 +181,10 @@ export default function PengaturanDesaPage() {
         body: JSON.stringify({
           name,
           district,
-          regency,
-          province,
+          wilayah: {
+            kode_provinsi: kodeProvinsi,
+            kode_kab_kota: kodeKabKota,
+          },
           address,
           postalCode,
           phone,
@@ -165,7 +239,9 @@ export default function PengaturanDesaPage() {
               <div>
                 <CardTitle>Identitas & wilayah</CardTitle>
                 <CardDescription>
-                  Muncul di kop surat sebagai kabupaten, kecamatan, dan nama desa.
+                  Provinsi dan kabupaten/kota dari daftar resmi Kemendag (untuk harga
+                  komoditas & konsistensi data). Kecamatan tetap diisi manual untuk kop
+                  surat.
                 </CardDescription>
               </div>
             </div>
@@ -182,31 +258,53 @@ export default function PengaturanDesaPage() {
                   placeholder="Contoh: Desa Suka Maju"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="regency">Kabupaten / Kota</Label>
-                <Input
-                  id="regency"
-                  value={regency}
-                  onChange={(e) => setRegency(e.target.value)}
-                  required
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Provinsi</Label>
+                <Combobox
+                  value={kodeProvinsi}
+                  onValueChange={(v) => {
+                    setKodeProvinsi(v);
+                    setKodeKabKota("");
+                    pendingKabRef.current = null;
+                  }}
+                  options={provinsiOptions}
+                  placeholder="Pilih provinsi"
+                  searchPlaceholder="Cari provinsi..."
+                  disabled={loading}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Kabupaten / Kota</Label>
+                <Combobox
+                  value={kodeKabKota}
+                  onValueChange={setKodeKabKota}
+                  options={kabOptions}
+                  placeholder={
+                    !kodeProvinsi
+                      ? "Pilih provinsi dulu"
+                      : loadingKab
+                        ? "Memuat daftar kab/kota..."
+                        : "Pilih kabupaten/kota"
+                  }
+                  searchPlaceholder="Cari kabupaten/kota..."
+                  disabled={!kodeProvinsi || loadingKab || loading}
+                />
+                {kodeProvinsi && kodeKabKota && selectedKabLabel ? (
+                  <p className="text-xs text-muted-foreground">
+                    Tersimpan di kop surat sebagai:{" "}
+                    <span className="font-medium">{selectedKabLabel}</span>
+                    {selectedProvLabel ? `, ${selectedProvLabel}` : ""}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="district">Kecamatan</Label>
                 <Input
                   id="district"
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
                   required
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="province">Provinsi</Label>
-                <Input
-                  id="province"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                  required
+                  placeholder="Contoh: Kecamatan Selogiri"
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">

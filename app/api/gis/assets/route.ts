@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { requireVillageApiContext } from "@/lib/api-village-context";
-import { prisma } from "@/lib/prisma";
+import { assetSearchWhere } from "@/lib/gis/list-query";
 import { parseVillageAssetInput } from "@/lib/gis/schemas";
+import { parseListQuery } from "@/lib/pkk/list-query";
+import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -35,6 +38,26 @@ function serializeAsset(a: {
   };
 }
 
+const ASSET_SORT_KEYS = new Set([
+  "name",
+  "assetType",
+  "condition",
+  "rt",
+  "rw",
+  "lat",
+  "lng",
+]);
+
+function assetOrderBy(
+  sortKey: string | undefined,
+  sortOrder: "asc" | "desc",
+): Prisma.VillageAssetOrderByWithRelationInput[] {
+  if (sortKey && ASSET_SORT_KEYS.has(sortKey)) {
+    return [{ [sortKey]: sortOrder }];
+  }
+  return [{ name: "asc" }];
+}
+
 export async function GET(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);
@@ -45,12 +68,27 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const rows = await prisma.villageAsset.findMany({
-      where: { villageId: village.id },
-      orderBy: [{ name: "asc" }],
-    });
+    const q = parseListQuery(req);
+    const searchFilter = assetSearchWhere(q.search);
+    const where: Prisma.VillageAssetWhereInput = {
+      villageId: village.id,
+      ...(searchFilter ?? {}),
+    };
 
-    return NextResponse.json({ rows: rows.map(serializeAsset) });
+    const [total, rows] = await prisma.$transaction([
+      prisma.villageAsset.count({ where }),
+      prisma.villageAsset.findMany({
+        where,
+        orderBy: assetOrderBy(q.sortKey, q.sortOrder),
+        skip: q.skip,
+        take: q.pageSize,
+      }),
+    ]);
+
+    return NextResponse.json({
+      rows: rows.map(serializeAsset),
+      total,
+    });
   } catch (e) {
     console.error("GET /api/gis/assets", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

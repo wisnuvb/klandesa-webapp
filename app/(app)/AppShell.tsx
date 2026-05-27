@@ -11,29 +11,31 @@ import { Toaster } from "sonner";
 
 // Map route keys to page metadata — urutan mengikuti sidebar & alur operasional desa
 const pageConfig = {
-  // --- Desa: Ringkasan ---
+  // --- Ringkasan ---
   dashboard: {
     title: "Dashboard",
     subtitle: "Ringkasan informasi dan statistik desa",
   },
 
-  // --- Desa: Data & Kependudukan ---
+  // --- Data master: Kependudukan ---
   "data-warga": {
     title: "Data Warga",
     subtitle: "Kelola data penduduk desa",
   },
   "data-kk": {
-    title: "Data Kartu Keluarga",
-    subtitle: "Kelola data kartu keluarga",
+    title: "Kartu Keluarga",
+    subtitle: "Kelola data kartu keluarga (KK)",
   },
   "data-perangkat": {
-    title: "Data Perangkat Desa",
+    title: "Perangkat Desa",
     subtitle: "Kelola data perangkat dan staf desa",
   },
   "data-jabatan": {
-    title: "Data Jabatan",
+    title: "Struktur Jabatan",
     subtitle: "Kelola struktur jabatan perangkat desa",
   },
+
+  // --- Data master: Profil & ekonomi ---
   potensi: {
     title: "Potensi Desa",
     subtitle: "Informasi potensi dan sumber daya desa",
@@ -44,17 +46,15 @@ const pageConfig = {
   },
   koperasi: {
     title: "Koperasi Desa",
-    subtitle: "Profil, anggota, dan buku kas (pencatatan internal)",
+    subtitle: "Profil, anggota, dan buku kas koperasi",
   },
   bumdes: {
     title: "BUMDes",
     subtitle: "Unit usaha desa, pembukuan, dan laporan laba rugi",
   },
-
-  // --- Desa: Statistik ---
   statistik: {
-    title: "Statistik Kependudukan",
-    subtitle: "Data statistik dan demografi desa",
+    title: "Statistik Penduduk",
+    subtitle: "Data statistik dan demografi kependudukan",
   },
   "statistik/gender": {
     title: "Statistik Jenis Kelamin",
@@ -62,64 +62,54 @@ const pageConfig = {
   },
   "statistik/pendidikan": {
     title: "Statistik Pendidikan",
-    subtitle: "Analisis tingkat pendidikan",
+    subtitle: "Analisis tingkat pendidikan penduduk",
   },
   "statistik/pekerjaan": {
     title: "Statistik Pekerjaan",
-    subtitle: "Analisis jenis pekerjaan",
+    subtitle: "Analisis jenis pekerjaan penduduk",
   },
 
-  // --- Desa: Pelayanan Surat ---
+  // --- Operasional: Layanan surat ---
   "permohonan-warga": {
-    title: "Permohonan Warga",
+    title: "Antrian Permohonan",
     subtitle: "Kelola permohonan surat dari warga",
   },
   "layanan-mandiri": {
-    title: "Layanan Mandiri",
+    title: "Kiosk Mandiri",
     subtitle: "Konfigurasi kiosk layanan mandiri untuk warga",
   },
   "layanan-surat": {
-    title: "Layanan Surat",
+    title: "Template Surat",
     subtitle: "Buat dan kelola template surat desa",
   },
-  "pengaturan-desa": {
-    title: "Pengaturan Desa",
-    subtitle: "Profil desa, kontak, dan pengaturan kop surat",
-  },
-
-  // --- Desa: Keuangan ---
   keuangan: {
-    title: "Sistem Keuangan Desa",
-    subtitle: "Pengelolaan keuangan dan laporan",
-  },
-  billing: {
-    title: "Billing",
-    subtitle: "Kelola paket, invoice, dan pembayaran",
+    title: "Keuangan Desa",
+    subtitle: "Pencatatan keuangan, laporan, dan realisasi anggaran",
   },
 
-  // --- Desa: Portal Warga ---
+  // --- Operasional: Portal warga ---
   "pengumuman-desa": {
-    title: "Pengumuman dan Berita Desa",
+    title: "Pengumuman & Berita",
     subtitle: "Kelola pengumuman dan berita untuk warga",
   },
   "forum-diskusi": {
-    title: "Forum Diskusi Warga",
+    title: "Forum Diskusi",
     subtitle: "Platform diskusi dan komunikasi warga",
   },
   "pengaduan-masyarakat": {
-    title: "Pengaduan Masyarakat",
-    subtitle: "Kelola laporan dan pengaduan warga",
+    title: "Pengaduan Warga",
+    subtitle: "Kelola laporan dan pengaduan masyarakat",
   },
   "bantuan-program-keluarga": {
-    title: "Bantuan Sosial & Program Keluarga",
-    subtitle: "Kelola program desa dan penerima untuk cek publik NIK",
+    title: "Bansos & Program",
+    subtitle: "Kelola program bantuan sosial dan penerima manfaat",
   },
   "galeri-desa": {
-    title: "Galeri Kegiatan Desa",
-    subtitle: "Dokumentasi foto kegiatan dan pembangunan",
+    title: "Galeri Kegiatan",
+    subtitle: "Dokumentasi foto kegiatan dan pembangunan desa",
   },
 
-  // --- Desa: Operasional Perangkat ---
+  // --- Operasional: Program lapangan ---
   absensi: {
     title: "Absensi Perangkat",
     subtitle: "Monitoring kehadiran perangkat desa",
@@ -128,30 +118,34 @@ const pageConfig = {
     title: "Check-in Absensi",
     subtitle: "Catat kehadiran lewat QR desa",
   },
-
-  // --- Desa: Kesehatan, Perencanaan & SDGs ---
   pkk: {
-    title: "PKK & Dasawisma",
+    title: "PKK & Posyandu",
     subtitle: "Posyandu, dasawisma, dan monitoring kesehatan keluarga",
-  },
-  sdgs: {
-    title: "Dashboard SDGs Desa",
-    subtitle: "Skor 18 goal, heatmap RT/RW, dan integrasi data modul desa",
-  },
-  rpjmdes: {
-    title: "RPJMDes",
-    subtitle: "Perencanaan pembangunan, RKP, dan usulan Musdes",
   },
   pertanian: {
     title: "Pertanian",
     subtitle: "Lahan, siklus tanam, panen, dan harga komoditas",
   },
   "partisipasi-rtrw": {
-    title: "Partisipasi RT/RW",
-    subtitle: "Kegiatan warga, gotong royong, dan usulan tingkat RT/RW",
+    title: "Kegiatan RT/RW",
+    subtitle: "Gotong royong, kegiatan warga, dan usulan tingkat RT/RW",
+  },
+  lingkungan: {
+    title: "Lingkungan Hidup",
+    subtitle: "Bank sampah, insiden lingkungan, dan titik risiko bencana",
   },
 
-  // --- Desa: Integrasi, GIS & AI ---
+  // --- Perencanaan & SDGs ---
+  sdgs: {
+    title: "Skor SDGs Desa",
+    subtitle: "Skor 18 goal, heatmap RT/RW, dan integrasi data modul desa",
+  },
+  rpjmdes: {
+    title: "RPJMDes",
+    subtitle: "Perencanaan pembangunan, RKP, dan usulan Musdes",
+  },
+
+  // --- Peta & integrasi ---
   "sinkronisasi-data": {
     title: "Sinkronisasi Data",
     subtitle: "Integrasi data dengan sistem eksternal desa",
@@ -160,27 +154,33 @@ const pageConfig = {
     title: "Peta Infrastruktur",
     subtitle: "Aset, proyek, dan titik risiko bencana pada peta desa",
   },
-  lingkungan: {
-    title: "Lingkungan",
-    subtitle: "Bank sampah, insiden lingkungan, dan titik risiko bencana",
-  },
   "asisten-ai": {
     title: "Asisten AI",
     subtitle: "Bantuan AI untuk layanan warga, SDGs, dan perencanaan desa",
   },
 
-  // --- Desa: Arsip & Promosi ---
+  // --- Konten & promosi ---
   arsip: {
     title: "Arsip Digital",
     subtitle: "Pengelolaan dokumen dan arsip desa",
   },
   ukm: {
-    title: "Produk UKM",
+    title: "Katalog UMKM",
     subtitle: "Katalog produk UMKM desa",
   },
   website: {
     title: "Website Desa",
     subtitle: "Kelola konten dan tampilan website desa",
+  },
+
+  // --- Pengaturan & langganan ---
+  "pengaturan-desa": {
+    title: "Profil & Kop Surat",
+    subtitle: "Profil desa, kontak, dan pengaturan kop surat",
+  },
+  billing: {
+    title: "Langganan & Billing",
+    subtitle: "Kelola paket langganan, invoice, dan pembayaran",
   },
 
   // --- Akun ---

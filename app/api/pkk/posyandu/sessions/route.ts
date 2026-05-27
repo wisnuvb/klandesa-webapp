@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
-import { prisma } from "@/lib/prisma";
+import { parseListQuery, sessionSearchWhere } from "@/lib/pkk/list-query";
 import { parsePosyanduSessionInput } from "@/lib/pkk/schemas";
+import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+
+const SORT_KEYS = new Set(["sessionDate", "location", "visitCount"]);
+
+function sessionOrderBy(
+  sortKey: string | undefined,
+  sortOrder: "asc" | "desc",
+): Prisma.PosyanduSessionOrderByWithRelationInput[] {
+  if (sortKey === "visitCount") {
+    return [{ visits: { _count: sortOrder } }];
+  }
+  if (sortKey && SORT_KEYS.has(sortKey) && sortKey !== "visitCount") {
+    return [{ [sortKey]: sortOrder }];
+  }
+  return [{ sessionDate: "desc" }, { id: "desc" }];
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,14 +34,26 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const sessions = await prisma.posyanduSession.findMany({
-      where: { villageId: village.id },
-      orderBy: [{ sessionDate: "desc" }, { id: "desc" }],
-      include: {
-        dasawisma: { select: { id: true, rt: true, rw: true, leaderName: true } },
-        _count: { select: { visits: true } },
-      },
-    });
+    const q = parseListQuery(req);
+    const searchFilter = sessionSearchWhere(q.search);
+    const where: Prisma.PosyanduSessionWhereInput = {
+      villageId: village.id,
+      ...(searchFilter ?? {}),
+    };
+
+    const [total, sessions] = await prisma.$transaction([
+      prisma.posyanduSession.count({ where }),
+      prisma.posyanduSession.findMany({
+        where,
+        orderBy: sessionOrderBy(q.sortKey, q.sortOrder),
+        skip: q.skip,
+        take: q.pageSize,
+        include: {
+          dasawisma: { select: { id: true, rt: true, rw: true, leaderName: true } },
+          _count: { select: { visits: true } },
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       rows: sessions.map((s) => ({
@@ -44,6 +73,7 @@ export async function GET(req: NextRequest) {
         visitCount: s._count.visits,
         createdAt: s.createdAt.toISOString(),
       })),
+      total,
     });
   } catch (e) {
     console.error("GET /api/pkk/posyandu/sessions", e);

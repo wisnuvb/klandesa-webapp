@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { parseGisSettings } from "@/lib/gis/boundary";
 import { collectVillageMetrics } from "@/lib/sdgs/collect-metrics";
 import { computeSdgsDashboard } from "@/lib/sdgs/scoring-engine";
 import {
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
       ]);
 
     const dashboard = computeSdgsDashboard(metrics, idmVillageCode);
+    const { boundary } = parseGisSettings(village.settings);
 
     const center =
       village.absensiOfficeLat != null && village.absensiOfficeLng != null
@@ -74,6 +76,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       center,
+      boundary,
       markers,
       heatmap: dashboard.heatmap,
       stats: {

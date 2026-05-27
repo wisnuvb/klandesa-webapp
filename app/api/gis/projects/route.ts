@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { requireVillageApiContext } from "@/lib/api-village-context";
-import { prisma } from "@/lib/prisma";
+import { projectSearchWhere } from "@/lib/gis/list-query";
 import {
   parseInfrastructureProjectInput,
   parseOptionalDate,
 } from "@/lib/gis/schemas";
+import { parseListQuery } from "@/lib/pkk/list-query";
+import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -44,6 +47,25 @@ function serializeProject(p: {
   };
 }
 
+const PROJECT_SORT_KEYS = new Set([
+  "title",
+  "projectType",
+  "status",
+  "budget",
+  "startDate",
+  "endDate",
+]);
+
+function projectOrderBy(
+  sortKey: string | undefined,
+  sortOrder: "asc" | "desc",
+): Prisma.InfrastructureProjectOrderByWithRelationInput[] {
+  if (sortKey && PROJECT_SORT_KEYS.has(sortKey)) {
+    return [{ [sortKey]: sortOrder }];
+  }
+  return [{ createdAt: "desc" }];
+}
+
 export async function GET(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);
@@ -54,12 +76,27 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const rows = await prisma.infrastructureProject.findMany({
-      where: { villageId: village.id },
-      orderBy: [{ createdAt: "desc" }],
-    });
+    const q = parseListQuery(req);
+    const searchFilter = projectSearchWhere(q.search);
+    const where: Prisma.InfrastructureProjectWhereInput = {
+      villageId: village.id,
+      ...(searchFilter ?? {}),
+    };
 
-    return NextResponse.json({ rows: rows.map(serializeProject) });
+    const [total, rows] = await prisma.$transaction([
+      prisma.infrastructureProject.count({ where }),
+      prisma.infrastructureProject.findMany({
+        where,
+        orderBy: projectOrderBy(q.sortKey, q.sortOrder),
+        skip: q.skip,
+        take: q.pageSize,
+      }),
+    ]);
+
+    return NextResponse.json({
+      rows: rows.map(serializeProject),
+      total,
+    });
   } catch (e) {
     console.error("GET /api/gis/projects", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

@@ -101,6 +101,7 @@ model Village {
   wasteBanks             WasteBank[]
   environmentalIncidents EnvironmentalIncident[]
   disasterPoints         DisasterPoint[]
+  aiAssistantThreads     AiAssistantThread[]
 
   @@index([code])
   @@index([isActive])
@@ -265,6 +266,7 @@ model User {
   cooperativeMemberLinks CooperativeMember[]      @relation("CoopMemberUser")
   coopLedgerCreates      CooperativeLedgerEntry[] @relation("CoopLedgerCreatedBy")
   bumdesTransactionCreates BumdesTransaction[]  @relation("BumdesTransactionCreatedBy")
+  aiAssistantThreads       AiAssistantThread[]
 
   @@index([villageId, role])
   @@index([email])
@@ -2044,6 +2046,43 @@ model PosyanduVisit {
   @@index([residentId])
   @@index([sessionId])
   @@map("posyandu_visits")
+}
+
+// ============================================
+// ASISTEN AI — Riwayat percakapan per pengguna desa
+// ============================================
+
+model AiAssistantThread {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  mode  String @db.VarChar(50)
+  title String @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages AiAssistantMessage[]
+
+  @@index([villageId, userId, updatedAt(sort: Desc)])
+  @@map("ai_assistant_threads")
+}
+
+model AiAssistantMessage {
+  id       Int               @id @default(autoincrement())
+  threadId Int
+  thread   AiAssistantThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  role    String @db.VarChar(20)
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([threadId, createdAt])
+  @@map("ai_assistant_messages")
 }
 
 // ============================================

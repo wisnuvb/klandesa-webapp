@@ -57,6 +57,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/gis", resource: "gis" },
   { prefix: "/api/lingkungan", resource: "lingkungan" },
   { prefix: "/api/ai/village-assistant", resource: "ai_assistant" },
+  { prefix: "/api/ai/threads", resource: "ai_assistant" },
   { prefix: "/api/notifications", resource: "statistics" },
   { prefix: "/api/ai/credit", resource: "settings" },
 ];

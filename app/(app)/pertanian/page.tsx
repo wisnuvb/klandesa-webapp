@@ -440,7 +440,7 @@ export default function PertanianPage() {
                   </div>
                 ) : hargaRows.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Tidak ada data harga. Pastikan provinsi/kabupaten di Pengaturan Desa sudah benar.
+                    Tidak ada data harga. Pilih provinsi dan kabupaten/kota di Pengaturan Desa.
                   </p>
                 ) : (
                   <Table>

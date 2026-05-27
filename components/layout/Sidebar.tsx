@@ -46,7 +46,7 @@ const COOPERATIVE_ONLY_SIDEBAR_MENU: MenuItem[] = [
   },
   {
     id: "billing",
-    label: "Billing",
+    label: "Langganan & Billing",
     icon: Wallet,
     path: "/billing",
   },

@@ -158,11 +158,12 @@ export function DataTable<T extends Record<string, any>>({
   }, [fetchData, page, pageSize, sortKey, sortOrder, debouncedSearch, filters]);
 
   useEffect(() => {
-    // Reset to first page when search or filters change
-    if (page !== 1) {
-      setPage(1);
-    }
-  }, [debouncedSearch, filtersKey, page]);
+    setPage(1);
+  }, [debouncedSearch, filtersKey]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [sortKey, sortOrder]);
 
   useEffect(() => {
     void doFetch();
@@ -339,8 +340,11 @@ export function DataTable<T extends Record<string, any>>({
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
+                    aria-disabled={page <= 1}
+                    className={cn(page <= 1 && "pointer-events-none opacity-50")}
                     onClick={(e) => {
                       e.preventDefault();
+                      if (page <= 1) return;
                       setPage((p) => Math.max(1, p - 1));
                     }}
                   />
@@ -370,8 +374,13 @@ export function DataTable<T extends Record<string, any>>({
                 <PaginationItem>
                   <PaginationNext
                     href="#"
+                    aria-disabled={page >= totalPages}
+                    className={cn(
+                      page >= totalPages && "pointer-events-none opacity-50",
+                    )}
                     onClick={(e) => {
                       e.preventDefault();
+                      if (page >= totalPages) return;
                       setPage((p) => Math.min(totalPages, p + 1));
                     }}
                   />

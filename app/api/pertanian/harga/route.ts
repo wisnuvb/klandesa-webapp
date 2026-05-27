@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
-import { matchKabKotaCode, matchProvinceCode } from "@/lib/pangan/match-region";
+import { resolveWilayahCodesForVillage } from "@/lib/village/wilayah-settings";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -48,39 +48,24 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    let kodeProvinsi = req.nextUrl.searchParams.get("kode_provinsi") ?? "";
-    let kodeKabKota = req.nextUrl.searchParams.get("kode_kab_kota") ?? "";
+    const resolved = await resolveWilayahCodesForVillage(village, {
+      kode_provinsi: req.nextUrl.searchParams.get("kode_provinsi") ?? undefined,
+      kode_kab_kota: req.nextUrl.searchParams.get("kode_kab_kota") ?? undefined,
+    });
 
-    if (!kodeProvinsi) {
-      kodeProvinsi = matchProvinceCode(village.province) ?? "";
-    }
-
-    if (kodeProvinsi && !kodeKabKota) {
-      try {
-        const kabRes = await fetch(
-          `${req.nextUrl.origin}/api/pangan/kab-kota/${encodeURIComponent(kodeProvinsi)}`,
-          { cache: "no-store" },
-        );
-        const kabJson = (await kabRes.json()) as {
-          data?: { kode_kab_kota: string; nama_kab_kota: string }[];
-        };
-        const kabList = Array.isArray(kabJson.data) ? kabJson.data : [];
-        kodeKabKota = matchKabKotaCode(village.regency, kabList) ?? "";
-      } catch {
-        /* ignore */
-      }
-    }
-
-    if (!kodeProvinsi || !kodeKabKota) {
+    if (!resolved) {
       return NextResponse.json(
         {
           error:
-            "Kode wilayah belum bisa ditentukan otomatis. Isi provinsi/kabupaten di Pengaturan Desa atau kirim kode_provinsi & kode_kab_kota.",
+            "Kode wilayah belum lengkap. Pilih provinsi dan kabupaten/kota di Pengaturan Desa (menu Identitas & wilayah).",
           village: { province: village.province, regency: village.regency },
         },
         { status: 400 },
       );
     }
+
+    const kodeProvinsi = resolved.kode_provinsi;
+    const kodeKabKota = resolved.kode_kab_kota;
 
     const tanggal =
       req.nextUrl.searchParams.get("tanggal") ??

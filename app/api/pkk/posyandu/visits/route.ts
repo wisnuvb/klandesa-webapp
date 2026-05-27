@@ -1,11 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
-import { prisma } from "@/lib/prisma";
+import { parseListQuery, visitSearchWhere } from "@/lib/pkk/list-query";
 import { parsePosyanduVisitInput } from "@/lib/pkk/schemas";
+import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+
+const SORT_KEYS = new Set([
+  "sessionDate",
+  "residentName",
+  "weightKg",
+  "heightCm",
+  "createdAt",
+]);
+
+function visitOrderBy(
+  sortKey: string | undefined,
+  sortOrder: "asc" | "desc",
+): Prisma.PosyanduVisitOrderByWithRelationInput[] {
+  if (sortKey === "residentName") {
+    return [{ resident: { name: sortOrder } }];
+  }
+  if (sortKey === "sessionDate") {
+    return [{ session: { sessionDate: sortOrder } }];
+  }
+  if (sortKey && SORT_KEYS.has(sortKey)) {
+    return [{ [sortKey]: sortOrder }];
+  }
+  return [{ createdAt: "desc" }];
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,13 +45,12 @@ export async function GET(req: NextRequest) {
 
     const sessionIdParam = req.nextUrl.searchParams.get("sessionId");
     const stuntingOnly = req.nextUrl.searchParams.get("stunting") === "1";
+    const q = parseListQuery(req);
+    const searchFilter = visitSearchWhere(q.search);
 
-    const where: {
-      session: { villageId: number };
-      sessionId?: number;
-      isStunting?: boolean;
-    } = {
+    const where: Prisma.PosyanduVisitWhereInput = {
       session: { villageId: village.id },
+      ...(searchFilter ?? {}),
     };
 
     if (sessionIdParam) {
@@ -40,20 +65,25 @@ export async function GET(req: NextRequest) {
       where.isStunting = true;
     }
 
-    const visits = await prisma.posyanduVisit.findMany({
-      where,
-      orderBy: [{ createdAt: "desc" }],
-      include: {
-        resident: { select: { id: true, name: true, nik: true, rt: true, rw: true } },
-        session: {
-          select: {
-            id: true,
-            sessionDate: true,
-            location: true,
+    const [total, visits] = await prisma.$transaction([
+      prisma.posyanduVisit.count({ where }),
+      prisma.posyanduVisit.findMany({
+        where,
+        orderBy: visitOrderBy(q.sortKey, q.sortOrder),
+        skip: q.skip,
+        take: q.pageSize,
+        include: {
+          resident: { select: { id: true, name: true, nik: true, rt: true, rw: true } },
+          session: {
+            select: {
+              id: true,
+              sessionDate: true,
+              location: true,
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
 
     return NextResponse.json({
       rows: visits.map((v) => ({
@@ -72,6 +102,7 @@ export async function GET(req: NextRequest) {
         isStunting: v.isStunting,
         createdAt: v.createdAt.toISOString(),
       })),
+      total,
     });
   } catch (e) {
     console.error("GET /api/pkk/posyandu/visits", e);

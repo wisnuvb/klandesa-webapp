@@ -3,23 +3,28 @@ import {
   AlertCircle,
   Archive,
   BarChart3,
+  Bot,
+  ClipboardList,
   Clock,
   FileText,
   HeartHandshake,
   Home,
   Image,
   Landmark,
+  Leaf,
+  Map as MapIcon,
   Megaphone,
   MessageCircle,
   Monitor,
+  RefreshCw,
   Settings2,
   ShoppingBag,
   Sprout,
+  Target,
   Users,
   Wallet,
   Store,
   Heart,
-  Target,
 } from "lucide-react";
 import { getAllowedActions } from "@/lib/permissions/matrix";
 import { normalizeVillageRole, type VillageRole } from "@/lib/permissions/roles";
@@ -48,9 +53,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   "permohonan-warga": FileText,
   "layanan-mandiri": Monitor,
   "layanan-surat": FileText,
-  "pengaturan-desa": Settings2,
   keuangan: Wallet,
-  billing: Wallet,
   "pengumuman-desa": Megaphone,
   "forum-diskusi": MessageCircle,
   "pengaduan-masyarakat": AlertCircle,
@@ -58,10 +61,31 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   "galeri-desa": Image,
   absensi: Clock,
   pkk: Heart,
+  pertanian: Sprout,
+  "partisipasi-rtrw": Users,
+  lingkungan: Leaf,
   sdgs: Target,
+  rpjmdes: ClipboardList,
+  "peta-infrastruktur": MapIcon,
+  "sinkronisasi-data": RefreshCw,
+  "asisten-ai": Bot,
   arsip: Archive,
   ukm: ShoppingBag,
   website: Monitor,
+  "pengaturan-desa": Settings2,
+  billing: Wallet,
+};
+
+const GROUP_ICONS: Record<string, LucideIcon> = {
+  kependudukan: Users,
+  "profil-ekonomi": Landmark,
+  "layanan-surat": FileText,
+  "portal-warga": Megaphone,
+  operasional: Clock,
+  perencanaan: Target,
+  integrasi: MapIcon,
+  promosi: Archive,
+  pengaturan: Settings2,
 };
 
 function canReadModule(role: VillageRole, permission: PermissionResource): boolean {
@@ -69,7 +93,11 @@ function canReadModule(role: VillageRole, permission: PermissionResource): boole
 }
 
 function resolveIcon(moduleId: string, group?: string): LucideIcon {
-  return MODULE_ICONS[moduleId] ?? (group === "data" ? Users : FileText);
+  return (
+    MODULE_ICONS[moduleId] ??
+    (group ? GROUP_ICONS[group] : undefined) ??
+    FileText
+  );
 }
 
 function buildGroupedItems(
@@ -101,7 +129,7 @@ function buildGroupedItems(
       group = {
         id: mod.group,
         label: mod.groupLabel ?? mod.group,
-        icon: resolveIcon(mod.id, mod.group),
+        icon: GROUP_ICONS[mod.group] ?? resolveIcon(mod.id, mod.group),
         children: [],
       };
       groups.set(mod.group, group);

@@ -7,13 +7,11 @@ import {
   Download,
   Heart,
   Loader2,
-  Trash2,
   Users,
 } from "lucide-react";
 import { AsyncState, ListPageToolbar, MetricGrid } from "@/components/app/patterns";
 import { Can } from "@/components/permissions/Can";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -30,17 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import {
+  DasawismaDataTable,
+  PosyanduSessionsDataTable,
+  StuntingResidentsDataTable,
+  StuntingVisitsDataTable,
+  type DasawismaRow,
+  type SessionRow,
+} from "./_components/PkkTableCards";
 
 type PkkStats = {
   balitaStunting: number;
@@ -49,47 +47,6 @@ type PkkStats = {
   dasawismaCount: number;
   posyanduSessionsThisMonth: number;
   stuntingFromVisits: number;
-};
-
-type DasawismaRow = {
-  id: number;
-  rt: string;
-  rw: string;
-  leaderName: string;
-  memberCount: number;
-  sessionCount: number;
-};
-
-type SessionRow = {
-  id: number;
-  sessionDate: string;
-  location: string;
-  dasawismaId: number | null;
-  dasawisma: { label: string } | null;
-  visitCount: number;
-};
-
-type VisitRow = {
-  id: number;
-  sessionId: number;
-  sessionDate: string;
-  sessionLocation: string;
-  residentId: number;
-  residentName: string;
-  residentNik: string;
-  weightKg: number | null;
-  heightCm: number | null;
-  isStunting: boolean;
-  notes: string | null;
-};
-
-type StuntingResident = {
-  id: number;
-  name: string;
-  nik: string;
-  rt: string | null;
-  rw: string | null;
-  birthDate: string;
 };
 
 type ResidentOption = {
@@ -113,11 +70,10 @@ export default function PkkPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<PkkStats | null>(null);
-  const [stuntingResidents, setStuntingResidents] = useState<StuntingResident[]>([]);
-  const [dasawisma, setDasawisma] = useState<DasawismaRow[]>([]);
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [visits, setVisits] = useState<VisitRow[]>([]);
+  const [dasawismaOptions, setDasawismaOptions] = useState<DasawismaRow[]>([]);
+  const [sessionOptions, setSessionOptions] = useState<SessionRow[]>([]);
   const [residents, setResidents] = useState<ResidentOption[]>([]);
+  const [tableRefreshKey, setTableRefreshKey] = useState(0);
 
   const [dasDialog, setDasDialog] = useState(false);
   const [sessionDialog, setSessionDialog] = useState(false);
@@ -139,37 +95,58 @@ export default function PkkPage() {
     isStunting: false,
   });
 
+  const bumpTables = useCallback(() => {
+    setTableRefreshKey((k) => k + 1);
+  }, []);
+
+  const loadFormOptions = useCallback(async () => {
+    try {
+      const [dasRes, sessRes] = await Promise.all([
+        fetchJson<{ rows: DasawismaRow[]; total: number }>(
+          "/api/pkk/dasawisma?page=1&pageSize=500",
+        ),
+        fetchJson<{ rows: SessionRow[]; total: number }>(
+          "/api/pkk/posyandu/sessions?page=1&pageSize=500",
+        ),
+      ]);
+      setDasawismaOptions(dasRes.rows);
+      setSessionOptions(sessRes.rows);
+    } catch {
+      /* dialog tetap bisa dibuka; opsi diisi ulang saat berikutnya */
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [statsRes, dasRes, sessRes, visitRes, resRes] = await Promise.all([
-        fetchJson<{ stats: PkkStats; stuntingResidents: StuntingResident[] }>("/api/pkk/stats"),
-        fetchJson<{ rows: DasawismaRow[] }>("/api/pkk/dasawisma"),
-        fetchJson<{ rows: SessionRow[] }>("/api/pkk/posyandu/sessions"),
-        fetchJson<{ rows: VisitRow[] }>("/api/pkk/posyandu/visits?stunting=1"),
+      const [statsRes, resRes] = await Promise.all([
+        fetchJson<{ stats: PkkStats }>("/api/pkk/stats"),
         fetchJson<{ rows: Array<{ id: number; name: string; nik: string }> }>(
           "/api/residents?page=1&pageSize=200",
         ),
       ]);
       setStats(statsRes.stats);
-      setStuntingResidents(statsRes.stuntingResidents);
-      setDasawisma(dasRes.rows);
-      setSessions(sessRes.rows);
-      setVisits(visitRes.rows);
       setResidents(
         resRes.rows.map((r) => ({ id: r.id, name: r.name, nik: r.nik })),
       );
+      await loadFormOptions();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat data PKK");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadFormOptions]);
 
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (sessionDialog || visitDialog) {
+      void loadFormOptions();
+    }
+  }, [sessionDialog, visitDialog, loadFormOptions]);
 
   const metricItems = useMemo(
     () => [
@@ -225,6 +202,7 @@ export default function PkkPage() {
       setDasDialog(false);
       setDasForm({ rt: "", rw: "", leaderName: "", memberCount: "0" });
       await loadAll();
+      bumpTables();
       await appAlert({ title: "Berhasil", description: "Dasawisma ditambahkan." });
     } catch (e) {
       await appAlert({
@@ -255,6 +233,7 @@ export default function PkkPage() {
         dasawismaId: "",
       });
       await loadAll();
+      bumpTables();
       await appAlert({ title: "Berhasil", description: "Sesi posyandu ditambahkan." });
     } catch (e) {
       await appAlert({
@@ -291,6 +270,7 @@ export default function PkkPage() {
         isStunting: false,
       });
       await loadAll();
+      bumpTables();
       await appAlert({ title: "Berhasil", description: "Kunjungan posyandu tercatat." });
     } catch (e) {
       await appAlert({
@@ -311,6 +291,7 @@ export default function PkkPage() {
     try {
       await fetchJson(`/api/pkk/dasawisma/${id}`, { method: "DELETE" });
       await loadAll();
+      bumpTables();
       await appAlert({ title: "Berhasil", description: "Dasawisma dihapus." });
     } catch (e) {
       await appAlert({
@@ -367,52 +348,11 @@ export default function PkkPage() {
               />
             </Can>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Daftar Dasawisma</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dasawisma.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Belum ada data dasawisma.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>RT/RW</TableHead>
-                        <TableHead>Ketua</TableHead>
-                        <TableHead>Anggota</TableHead>
-                        <TableHead>Sesi Posyandu</TableHead>
-                        <TableHead className="text-right">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {dasawisma.map((d) => (
-                        <TableRow key={d.id}>
-                          <TableCell>
-                            RT {d.rt} / RW {d.rw}
-                          </TableCell>
-                          <TableCell>{d.leaderName}</TableCell>
-                          <TableCell>{d.memberCount}</TableCell>
-                          <TableCell>{d.sessionCount}</TableCell>
-                          <TableCell className="text-right">
-                            <Can resource="pkk" action="delete">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                disabled={saving}
-                                onClick={() => void handleDeleteDasawisma(d.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </Can>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            <DasawismaDataTable
+              tableRefreshKey={tableRefreshKey}
+              saving={saving}
+              onDelete={handleDeleteDasawisma}
+            />
           </TabsContent>
 
           <TabsContent value="posyandu" className="space-y-4">
@@ -425,109 +365,12 @@ export default function PkkPage() {
               </div>
             </Can>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Sesi Posyandu</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {sessions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Belum ada sesi posyandu.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tanggal</TableHead>
-                        <TableHead>Lokasi</TableHead>
-                        <TableHead>Dasawisma</TableHead>
-                        <TableHead>Kunjungan</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sessions.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell>{s.sessionDate}</TableCell>
-                          <TableCell>{s.location}</TableCell>
-                          <TableCell>{s.dasawisma?.label ?? "—"}</TableCell>
-                          <TableCell>{s.visitCount}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            <PosyanduSessionsDataTable tableRefreshKey={tableRefreshKey} />
           </TabsContent>
 
           <TabsContent value="stunting" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Balita Stunting (data warga)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {stuntingResidents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Tidak ada warga dengan flag stunting.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nama</TableHead>
-                        <TableHead>NIK</TableHead>
-                        <TableHead>RT/RW</TableHead>
-                        <TableHead>Tgl Lahir</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {stuntingResidents.map((r) => (
-                        <TableRow key={r.id}>
-                          <TableCell>{r.name}</TableCell>
-                          <TableCell>{r.nik}</TableCell>
-                          <TableCell>
-                            {r.rt && r.rw ? `RT ${r.rt} / RW ${r.rw}` : "—"}
-                          </TableCell>
-                          <TableCell>{r.birthDate}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Kunjungan Posyandu — Stunting</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {visits.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Belum ada kunjungan dengan flag stunting.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tanggal Sesi</TableHead>
-                        <TableHead>Warga</TableHead>
-                        <TableHead>Berat (kg)</TableHead>
-                        <TableHead>Tinggi (cm)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {visits.map((v) => (
-                        <TableRow key={v.id}>
-                          <TableCell>{v.sessionDate}</TableCell>
-                          <TableCell>{v.residentName}</TableCell>
-                          <TableCell>{v.weightKg ?? "—"}</TableCell>
-                          <TableCell>{v.heightCm ?? "—"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            <StuntingResidentsDataTable tableRefreshKey={tableRefreshKey} />
+            <StuntingVisitsDataTable tableRefreshKey={tableRefreshKey} />
           </TabsContent>
         </Tabs>
 
@@ -632,7 +475,7 @@ export default function PkkPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Tidak terkait</SelectItem>
-                    {dasawisma.map((d) => (
+                    {dasawismaOptions.map((d) => (
                       <SelectItem key={d.id} value={String(d.id)}>
                         RT {d.rt} / RW {d.rw} — {d.leaderName}
                       </SelectItem>
@@ -673,7 +516,7 @@ export default function PkkPage() {
                     <SelectValue placeholder="Pilih sesi" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sessions.map((s) => (
+                    {sessionOptions.map((s) => (
                       <SelectItem key={s.id} value={String(s.id)}>
                         {s.sessionDate} — {s.location}
                       </SelectItem>

@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
-import { prisma } from "@/lib/prisma";
+import { dasawismaSearchWhere, parseListQuery } from "@/lib/pkk/list-query";
 import { parseDasawismaInput } from "@/lib/pkk/schemas";
+import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+
+const SORT_KEYS = new Set(["rt", "rw", "leaderName", "memberCount", "sessionCount"]);
+
+function dasawismaOrderBy(
+  sortKey: string | undefined,
+  sortOrder: "asc" | "desc",
+): Prisma.DasawismaOrderByWithRelationInput[] {
+  if (sortKey === "sessionCount") {
+    return [{ posyanduSessions: { _count: sortOrder } }];
+  }
+  if (sortKey && SORT_KEYS.has(sortKey) && sortKey !== "sessionCount") {
+    return [{ [sortKey]: sortOrder }];
+  }
+  return [{ rw: "asc" }, { rt: "asc" }];
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,13 +34,25 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const rows = await prisma.dasawisma.findMany({
-      where: { villageId: village.id },
-      orderBy: [{ rw: "asc" }, { rt: "asc" }],
-      include: {
-        _count: { select: { posyanduSessions: true } },
-      },
-    });
+    const q = parseListQuery(req);
+    const searchFilter = dasawismaSearchWhere(q.search);
+    const where: Prisma.DasawismaWhereInput = {
+      villageId: village.id,
+      ...(searchFilter ?? {}),
+    };
+
+    const [total, rows] = await prisma.$transaction([
+      prisma.dasawisma.count({ where }),
+      prisma.dasawisma.findMany({
+        where,
+        orderBy: dasawismaOrderBy(q.sortKey, q.sortOrder),
+        skip: q.skip,
+        take: q.pageSize,
+        include: {
+          _count: { select: { posyanduSessions: true } },
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       rows: rows.map((d) => ({
@@ -36,6 +65,7 @@ export async function GET(req: NextRequest) {
         createdAt: d.createdAt.toISOString(),
         updatedAt: d.updatedAt.toISOString(),
       })),
+      total,
     });
   } catch (e) {
     console.error("GET /api/pkk/dasawisma", e);

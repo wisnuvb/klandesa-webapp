@@ -6,6 +6,14 @@ import {
   mergeMailSectionIntoVillageSettings,
   parseMailSettings,
 } from "@/lib/mail/letterFormSnapshot";
+import {
+  inferWilayahCodesFromText,
+  isValidWilayahCodes,
+  mergeWilayahIntoVillageSettings,
+  parseWilayahSettings,
+  resolveWilayahLabelsFromCodes,
+  type VillageWilayahCodes,
+} from "@/lib/village/wilayah-settings";
 
 type VillageIntegrationSettings = {
   idmVillageCode: string;
@@ -59,6 +67,13 @@ export async function GET(req: NextRequest) {
 
     const mail = parseMailSettings(village.settings);
     const integrations = parseIntegrationSettings(village.settings);
+    let wilayah = parseWilayahSettings(village.settings);
+    if (!isValidWilayahCodes(wilayah)) {
+      wilayah = await inferWilayahCodesFromText(
+        village.province,
+        village.regency,
+      );
+    }
 
     return NextResponse.json({
       id: village.id,
@@ -67,6 +82,7 @@ export async function GET(req: NextRequest) {
       district: village.district,
       regency: village.regency,
       province: village.province,
+      wilayah,
       address: village.address,
       postalCode: village.postalCode ?? "",
       phone: village.phone ?? "",
@@ -105,23 +121,51 @@ export async function PUT(req: NextRequest) {
       logoUrl,
       mail,
       integrations,
+      wilayah: wilayahBody,
     } = body ?? {};
 
     const n = typeof name === "string" ? name.trim() : "";
     const d = typeof district === "string" ? district.trim() : "";
-    const r = typeof regency === "string" ? regency.trim() : "";
-    const p = typeof province === "string" ? province.trim() : "";
     const a = typeof address === "string" ? address.trim() : "";
 
-    if (!n || !d || !r || !p || !a) {
+    let wilayahCodes: VillageWilayahCodes = { kode_provinsi: "", kode_kab_kota: "" };
+    if (wilayahBody && typeof wilayahBody === "object" && !Array.isArray(wilayahBody)) {
+      const w = wilayahBody as Record<string, unknown>;
+      wilayahCodes = {
+        kode_provinsi: String(w.kode_provinsi ?? "").trim(),
+        kode_kab_kota: String(w.kode_kab_kota ?? "").trim(),
+      };
+    }
+
+    if (!n || !d || !a) {
       return NextResponse.json(
         {
-          error:
-            "Nama desa, kecamatan, kabupaten, provinsi, dan alamat wajib diisi",
+          error: "Nama desa, kecamatan, dan alamat wajib diisi",
         },
         { status: 400 },
       );
     }
+
+    if (!isValidWilayahCodes(wilayahCodes)) {
+      return NextResponse.json(
+        {
+          error:
+            "Pilih provinsi dan kabupaten/kota dari daftar resmi (Kemendag).",
+        },
+        { status: 400 },
+      );
+    }
+
+    const labels = await resolveWilayahLabelsFromCodes(wilayahCodes);
+    if (!labels) {
+      return NextResponse.json(
+        { error: "Kombinasi provinsi dan kabupaten/kota tidak valid." },
+        { status: 400 },
+      );
+    }
+
+    const p = labels.province;
+    const r = labels.regency;
 
     if (!mail || typeof mail !== "object" || Array.isArray(mail)) {
       return NextResponse.json(
@@ -171,6 +215,11 @@ export async function PUT(req: NextRequest) {
             ).trim(),
           });
 
+    const withWilayah = mergeWilayahIntoVillageSettings(
+      withIntegrations,
+      wilayahCodes,
+    );
+
     await prisma.village.update({
       where: { id: village.id },
       data: {
@@ -189,7 +238,7 @@ export async function PUT(req: NextRequest) {
           typeof website === "string" && website.trim() ? website.trim() : null,
         logoUrl:
           typeof logoUrl === "string" && logoUrl.trim() ? logoUrl.trim() : null,
-        settings: withIntegrations as Prisma.InputJsonValue,
+        settings: withWilayah as Prisma.InputJsonValue,
       },
     });
 
