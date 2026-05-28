@@ -126,7 +126,8 @@ export async function POST(req: NextRequest) {
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const ctx = await buildVillageAssistantContext(village.id);
+    const userName = session?.user?.name || session?.user?.email?.split("@")[0];
+    const ctx = await buildVillageAssistantContext(village.id, userName);
     const system = buildSystemPrompt(mode, ctx);
 
     const model = resolveAiModel(body?.model, OPENROUTER_MODELS.gpt4oMini);

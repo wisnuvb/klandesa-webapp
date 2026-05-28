@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bot,
+  CreditCard,
   History,
   Loader2,
   MessageSquarePlus,
+  Mic,
   PanelLeftClose,
+  Plus,
   Send,
+  Settings,
   Sparkles,
   Trash2,
   User,
@@ -25,7 +29,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import Image from "next/image";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -43,6 +56,23 @@ const MODES = [
   { id: "sdgs_analysis", label: "Analisa SDGs" },
   { id: "rpjmdes_draft", label: "Draft RPJMDes" },
   { id: "program_recommendation", label: "Rekomendasi Program" },
+] as const;
+
+const AI_MODELS = [
+  { id: "gpt4oMini", label: "GPT-4o Mini" },
+  { id: "geminiFlash", label: "Gemini Flash" },
+  { id: "claudeHaiku", label: "Claude Haiku" },
+  { id: "grok41Fast", label: "Grok 4.1 Fast" },
+  { id: "nemotron3Nano", label: "Nemotron 3 Nano" },
+  { id: "deepseekR1tChimera", label: "Deepseek R1t Chimera" },
+  { id: "qwen3Coder", label: "Qwen 3 Coder" },
+] as const;
+
+const CREDIT_PACKAGES = [
+  { id: "pkg50", credits: 50, price: 50000, label: "50 Kredit", desc: "~50 pertanyaan" },
+  { id: "pkg100", credits: 100, price: 90000, label: "100 Kredit", desc: "~100 pertanyaan" },
+  { id: "pkg250", credits: 250, price: 200000, label: "250 Kredit", desc: "Paling populer" },
+  { id: "pkg500", credits: 500, price: 350000, label: "500 Kredit", desc: "Hemat 30%" },
 ] as const;
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -69,6 +99,7 @@ export default function AsistenAiPage() {
   const { appConfirm } = useAppDialogs();
   const [credits, setCredits] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("citizen_faq");
+  const [model, setModel] = useState<string>("gpt4oMini");
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
@@ -78,6 +109,10 @@ export default function AsistenAiPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(true);
+  const [topupOpen, setTopupOpen] = useState(false);
+  const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"VA" | "EWALLET" | null>(null);
+  const [thinkingStep, setThinkingStep] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const loadCredits = useCallback(async () => {
@@ -162,6 +197,19 @@ export default function AsistenAiPage() {
     }
   }
 
+  async function runThinkingSteps(modelLabel: string) {
+    const steps = [
+      "Menganalisa pertanyaan dan konteks desa…",
+      `Memproses dengan ${modelLabel}…`,
+      "Menyusun balasan yang relevan…",
+    ];
+    for (const step of steps) {
+      setThinkingStep(step);
+      await new Promise((r) => setTimeout(r, 650));
+    }
+    setThinkingStep(null);
+  }
+
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
@@ -172,6 +220,11 @@ export default function AsistenAiPage() {
     const optimistic: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(optimistic);
     setLoading(true);
+
+    const currentModel = AI_MODELS.find((m) => m.id === model)?.label || "AI";
+
+    // Mulai animasi thinking realtime
+    void runThinkingSteps(currentModel);
 
     try {
       const data = await fetchJson<{
@@ -184,6 +237,7 @@ export default function AsistenAiPage() {
         body: JSON.stringify({
           message: text,
           mode,
+          model,
           threadId: activeThreadId,
         }),
       });
@@ -197,8 +251,10 @@ export default function AsistenAiPage() {
     } catch (e) {
       setMessages(prevMessages);
       setError(e instanceof Error ? e.message : "Gagal mengirim pesan");
+      setThinkingStep(null);
     } finally {
       setLoading(false);
+      setThinkingStep(null);
     }
   }
 
@@ -224,7 +280,7 @@ export default function AsistenAiPage() {
   const modeLocked = activeThreadId != null;
 
   return (
-    <div className="space-y-6 p-4 md:p-6 container mx-auto">
+    <div className="space-y-6 mx-auto">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
@@ -236,9 +292,38 @@ export default function AsistenAiPage() {
             Riwayat tersimpan per akun Anda.
           </p>
         </div>
-        <Badge variant="secondary" className="text-sm">
-          Kredit: {credits ?? "…"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-sm">
+            Kredit: {credits ?? "…"}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              setSelectedPkg(null);
+              setPaymentMethod(null);
+              setTopupOpen(true);
+            }}
+          >
+            <CreditCard className="h-3.5 w-3.5" /> Top Up
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              const key = prompt("Masukkan OpenRouter API Key Anda (BYOK):", "");
+              if (key !== null) {
+                // Simpan di state & localStorage untuk demo
+                localStorage.setItem("byok_api_key", key.trim());
+                alert(key.trim() ? "BYOK key disimpan. (Backend integration menyusul)" : "BYOK dinonaktifkan.");
+              }
+            }}
+          >
+            <Settings className="h-3.5 w-3.5" /> BYOK
+          </Button>
+        </div>
       </div>
 
       <div
@@ -248,7 +333,7 @@ export default function AsistenAiPage() {
         )}
       >
         {historyOpen ? (
-          <Card className="h-fit lg:max-h-[calc(100vh-12rem)] flex flex-col min-w-0">
+          <Card className="h-fit lg:max-h-[calc(100vh-12rem)] flex flex-col min-w-0 lg:sticky lg:top-4">
             <CardHeader className="pb-2 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base">Riwayat</CardTitle>
@@ -333,7 +418,7 @@ export default function AsistenAiPage() {
         ) : null}
 
         <Card className="min-w-0">
-          <CardHeader className="pb-3">
+          <CardHeader>
             <div className="flex flex-wrap items-center gap-3">
               {!historyOpen ? (
                 <Button
@@ -365,6 +450,18 @@ export default function AsistenAiPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AI_MODELS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {modeLocked ? (
                 <span className="text-xs text-muted-foreground">
                   Mode mengikuti percakapan yang dibuka
@@ -372,8 +469,8 @@ export default function AsistenAiPage() {
               ) : null}
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+          <CardContent className="flex flex-col min-h-[600px]">
+            <div className="flex flex-wrap gap-2 mb-2">
               {(suggestions[mode] ?? []).map((s) => (
                 <Button
                   key={s}
@@ -389,7 +486,12 @@ export default function AsistenAiPage() {
               ))}
             </div>
 
-            <div className="min-h-[320px] max-h-[480px] overflow-y-auto rounded-lg border bg-muted/20 p-4 space-y-3">
+            <div
+              className={cn(
+                "flex-1 min-h-0 overflow-y-auto rounded-lg border bg-muted/20 p-4 space-y-3",
+                messages.length === 0 && "flex items-center justify-center",
+              )}
+            >
               {messagesLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -397,10 +499,13 @@ export default function AsistenAiPage() {
                 </div>
               ) : null}
               {!messagesLoading && messages.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Mulai percakapan baru atau pilih riwayat di sebelah kiri. Setiap
-                  balasan otomatis disimpan.
-                </p>
+                <div className="text-center max-w-md">
+                  <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-medium">Selamat datang di Asisten Desa AI</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Mulai percakapan baru atau pilih riwayat di sebelah kiri.
+                  </p>
+                </div>
               )}
               {!messagesLoading &&
                 messages.map((m, i) => {
@@ -425,7 +530,8 @@ export default function AsistenAiPage() {
                         {isUser ? (
                           <User className="h-4 w-4" />
                         ) : (
-                          <Bot className="h-4 w-4" />
+                          // <Bot className="h-4 w-4" />
+                          <Image src="/images/logo-single.png" alt="Asisten Desa AI" width={16} height={16} />
                         )}
                       </div>
                       <div
@@ -454,7 +560,7 @@ export default function AsistenAiPage() {
                   </div>
                   <div className="flex items-center gap-2 rounded-2xl rounded-tl-md border bg-card px-3.5 py-2.5 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Asisten mengetik…
+                    {thinkingStep || "Asisten mengetik…"}
                   </div>
                 </div>
               )}
@@ -463,35 +569,139 @@ export default function AsistenAiPage() {
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <div className="flex gap-2">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Tulis pertanyaan…"
-                rows={2}
-                disabled={loading || messagesLoading}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void send();
-                  }
-                }}
-              />
-              <Button
-                className="shrink-0"
-                disabled={loading || messagesLoading || !input.trim()}
-                onClick={() => void send()}
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
+            <div
+              className={cn(
+                "mt-auto pt-4",
+                messages.length > 0 && "sticky bottom-0 bg-card pb-1",
+              )}
+            >
+              <div className="text-xs text-muted-foreground mb-1.5 px-1">
+                Model: {AI_MODELS.find((m) => m.id === model)?.label} · 1 kredit per pesan
+              </div>
+              <div className="flex items-end gap-2 rounded-3xl border bg-background px-3 py-2 shadow-sm">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 h-9 w-9 rounded-full"
+                  onClick={() => alert("Fitur lampirkan file akan datang")}
+                  disabled={loading}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <Textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Tanyakan apa saja"
+                  rows={1}
+                  className="flex-1 resize-y min-h-[36px] max-h-[120px] border-0! border-none bg-transparent px-0 py-1.5 focus-visible:ring-0"
+                  disabled={loading || messagesLoading}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 h-9 w-9 rounded-full"
+                  onClick={() => alert("Voice input akan segera tersedia")}
+                  disabled={loading}
+                >
+                  <Mic className="h-4 w-4" />
+                </Button>
+                <Button
+                  className="shrink-0 rounded-full h-9 w-9"
+                  disabled={loading || messagesLoading || !input.trim()}
+                  onClick={() => void send()}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={topupOpen} onOpenChange={setTopupOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Top Up Kredit AI</DialogTitle>
+            <DialogDescription>
+              Pilih paket kredit. Biaya dasar AI ~Rp 25–30 per pertanyaan (GPT-4o / Claude Haiku).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <p className="text-sm font-medium mb-2">Pilih Paket</p>
+              <div className="grid grid-cols-2 gap-2">
+                {CREDIT_PACKAGES.map((pkg) => (
+                  <button
+                    key={pkg.id}
+                    onClick={() => setSelectedPkg(pkg.id)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition",
+                      selectedPkg === pkg.id
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "hover:bg-muted",
+                    )}
+                  >
+                    <div className="font-semibold">{pkg.label}</div>
+                    <div className="text-xs text-muted-foreground">{pkg.desc}</div>
+                    <div className="mt-1 text-lg font-bold text-primary">
+                      Rp {pkg.price.toLocaleString("id-ID")}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-2">Metode Pembayaran (LinkQu)</p>
+              <div className="flex gap-2">
+                {(["VA", "EWALLET"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setPaymentMethod(m)}
+                    className={cn(
+                      "flex-1 rounded-xl border py-3 text-sm font-medium transition",
+                      paymentMethod === m
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "hover:bg-muted",
+                    )}
+                  >
+                    {m === "VA" ? "Virtual Account" : "E-Wallet (DANA/OVO)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setTopupOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              disabled={!selectedPkg || !paymentMethod}
+              onClick={() => {
+                const pkg = CREDIT_PACKAGES.find((p) => p.id === selectedPkg);
+                alert(
+                  `Top-up ${pkg?.credits} kredit via ${paymentMethod} (Rp ${pkg?.price.toLocaleString("id-ID")}) akan diproses LinkQu.\n\n(Integrasi backend & callback menyusul)`,
+                );
+                setTopupOpen(false);
+              }}
+            >
+              Bayar Sekarang
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

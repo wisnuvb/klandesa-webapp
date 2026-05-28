@@ -24,8 +24,10 @@ export function createVillageMap({
     style: createOsmRasterStyle(),
     center: [view.lng, view.lat],
     zoom: 13,
-    attributionControl: { compact: true },
+    attributionControl: false,
   });
+
+  map.addControl(new maplibregl.AttributionControl({ compact: true }));
 
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 

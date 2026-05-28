@@ -584,7 +584,6 @@ export function LayananSurat() {
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open);
-          // Tutup mode edit tanpa menyimpan harus menghapus id surat yang diedit dari state agar penyimpanan berikutnya tidak PATCH surat lain.
           if (!open && editingLetterId != null) {
             resetForm();
           }
