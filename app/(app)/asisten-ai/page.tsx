@@ -59,20 +59,64 @@ const MODES = [
 ] as const;
 
 const AI_MODELS = [
+  { id: "nemotron3Nano", label: "Nemotron 3 Nano" },
+  {
+    id: "nvidia/nemotron-3-super-120b-a12b:free",
+    label: "Nemotron 3 Super 120B",
+  },
+  {
+    id: "z-ai/glm-4.5-air:free",
+    label: "GLM 4.5 Air",
+  },
+  {
+    id: "deepseek/deepseek-chat:free",
+    label: "DeepSeek V3 (Free)",
+  },
+  {
+    id: "google/gemini-2.0-flash-exp:free",
+    label: "Gemini Flash 2.0 (Free)",
+  },
+  {
+    id: "meta-llama/llama-3.3-70b-instruct:free",
+    label: "Llama 3.3 70B (Free)",
+  },
   { id: "gpt4oMini", label: "GPT-4o Mini" },
   { id: "geminiFlash", label: "Gemini Flash" },
   { id: "claudeHaiku", label: "Claude Haiku" },
   { id: "grok41Fast", label: "Grok 4.1 Fast" },
-  { id: "nemotron3Nano", label: "Nemotron 3 Nano" },
   { id: "deepseekR1tChimera", label: "Deepseek R1t Chimera" },
   { id: "qwen3Coder", label: "Qwen 3 Coder" },
 ] as const;
 
 const CREDIT_PACKAGES = [
-  { id: "pkg50", credits: 50, price: 50000, label: "50 Kredit", desc: "~50 pertanyaan" },
-  { id: "pkg100", credits: 100, price: 90000, label: "100 Kredit", desc: "~100 pertanyaan" },
-  { id: "pkg250", credits: 250, price: 200000, label: "250 Kredit", desc: "Paling populer" },
-  { id: "pkg500", credits: 500, price: 350000, label: "500 Kredit", desc: "Hemat 30%" },
+  {
+    id: "pkg50",
+    credits: 50,
+    price: 50000,
+    label: "50 Kredit",
+    desc: "~50 pertanyaan",
+  },
+  {
+    id: "pkg100",
+    credits: 100,
+    price: 90000,
+    label: "100 Kredit",
+    desc: "~100 pertanyaan",
+  },
+  {
+    id: "pkg250",
+    credits: 250,
+    price: 200000,
+    label: "250 Kredit",
+    desc: "Paling populer",
+  },
+  {
+    id: "pkg500",
+    credits: 500,
+    price: 350000,
+    label: "500 Kredit",
+    desc: "Hemat 30%",
+  },
 ] as const;
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -99,7 +143,7 @@ export default function AsistenAiPage() {
   const { appConfirm } = useAppDialogs();
   const [credits, setCredits] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("citizen_faq");
-  const [model, setModel] = useState<string>("gpt4oMini");
+  const [model, setModel] = useState<string>("nemotron3Nano");
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
@@ -111,7 +155,9 @@ export default function AsistenAiPage() {
   const [historyOpen, setHistoryOpen] = useState(true);
   const [topupOpen, setTopupOpen] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"VA" | "EWALLET" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"VA" | "EWALLET" | null>(
+    null,
+  );
   const [thinkingStep, setThinkingStep] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -127,7 +173,9 @@ export default function AsistenAiPage() {
   const loadThreads = useCallback(async () => {
     setThreadsLoading(true);
     try {
-      const data = await fetchJson<{ threads: ThreadSummary[] }>("/api/ai/threads");
+      const data = await fetchJson<{ threads: ThreadSummary[] }>(
+        "/api/ai/threads",
+      );
       setThreads(data.threads);
     } catch {
       setThreads([]);
@@ -217,7 +265,10 @@ export default function AsistenAiPage() {
     setInput("");
     setError(null);
     const prevMessages = messages;
-    const optimistic: ChatMessage[] = [...messages, { role: "user", content: text }];
+    const optimistic: ChatMessage[] = [
+      ...messages,
+      { role: "user", content: text },
+    ];
     setMessages(optimistic);
     setLoading(true);
 
@@ -243,7 +294,10 @@ export default function AsistenAiPage() {
       });
 
       setActiveThreadId(data.threadId);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.reply },
+      ]);
       if (typeof data.remainingCredits === "number") {
         setCredits(data.remainingCredits);
       }
@@ -288,8 +342,8 @@ export default function AsistenAiPage() {
             Asisten Desa AI
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Analisa SDGs, draft RPJMDes, rekomendasi program, dan FAQ layanan warga.
-            Riwayat tersimpan per akun Anda.
+            Analisa SDGs, draft RPJMDes, rekomendasi program, dan FAQ layanan
+            warga. Riwayat tersimpan per akun Anda.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -313,11 +367,18 @@ export default function AsistenAiPage() {
             size="sm"
             className="gap-1.5"
             onClick={() => {
-              const key = prompt("Masukkan OpenRouter API Key Anda (BYOK):", "");
+              const key = prompt(
+                "Masukkan OpenRouter API Key Anda (BYOK):",
+                "",
+              );
               if (key !== null) {
                 // Simpan di state & localStorage untuk demo
                 localStorage.setItem("byok_api_key", key.trim());
-                alert(key.trim() ? "BYOK key disimpan. (Backend integration menyusul)" : "BYOK dinonaktifkan.");
+                alert(
+                  key.trim()
+                    ? "BYOK key disimpan. (Backend integration menyusul)"
+                    : "BYOK dinonaktifkan.",
+                );
               }
             }}
           >
@@ -501,7 +562,9 @@ export default function AsistenAiPage() {
               {!messagesLoading && messages.length === 0 && (
                 <div className="text-center max-w-md">
                   <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-lg font-medium">Selamat datang di Asisten Desa AI</p>
+                  <p className="text-lg font-medium">
+                    Selamat datang di Asisten Desa AI
+                  </p>
                   <p className="text-sm text-muted-foreground mt-2">
                     Mulai percakapan baru atau pilih riwayat di sebelah kiri.
                   </p>
@@ -531,7 +594,12 @@ export default function AsistenAiPage() {
                           <User className="h-4 w-4" />
                         ) : (
                           // <Bot className="h-4 w-4" />
-                          <Image src="/images/logo-single.png" alt="Asisten Desa AI" width={16} height={16} />
+                          <Image
+                            src="/images/logo-single.png"
+                            alt="Asisten Desa AI"
+                            width={16}
+                            height={16}
+                          />
                         )}
                       </div>
                       <div
@@ -576,7 +644,8 @@ export default function AsistenAiPage() {
               )}
             >
               <div className="text-xs text-muted-foreground mb-1.5 px-1">
-                Model: {AI_MODELS.find((m) => m.id === model)?.label} · 1 kredit per pesan
+                Model: {AI_MODELS.find((m) => m.id === model)?.label} · 1 kredit
+                per pesan
               </div>
               <div className="flex items-end gap-2 rounded-3xl border bg-background px-3 py-2 shadow-sm">
                 <Button
@@ -633,7 +702,8 @@ export default function AsistenAiPage() {
           <DialogHeader>
             <DialogTitle>Top Up Kredit AI</DialogTitle>
             <DialogDescription>
-              Pilih paket kredit. Biaya dasar AI ~Rp 25–30 per pertanyaan (GPT-4o / Claude Haiku).
+              Pilih paket kredit. Biaya dasar AI ~Rp 25–30 per pertanyaan
+              (GPT-4o / Claude Haiku).
             </DialogDescription>
           </DialogHeader>
 
@@ -653,7 +723,9 @@ export default function AsistenAiPage() {
                     )}
                   >
                     <div className="font-semibold">{pkg.label}</div>
-                    <div className="text-xs text-muted-foreground">{pkg.desc}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {pkg.desc}
+                    </div>
                     <div className="mt-1 text-lg font-bold text-primary">
                       Rp {pkg.price.toLocaleString("id-ID")}
                     </div>
@@ -663,7 +735,9 @@ export default function AsistenAiPage() {
             </div>
 
             <div>
-              <p className="text-sm font-medium mb-2">Metode Pembayaran (LinkQu)</p>
+              <p className="text-sm font-medium mb-2">
+                Metode Pembayaran (LinkQu)
+              </p>
               <div className="flex gap-2">
                 {(["VA", "EWALLET"] as const).map((m) => (
                   <button

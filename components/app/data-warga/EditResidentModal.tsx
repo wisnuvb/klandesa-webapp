@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { removeEmptyFields } from "@/utils";
 import {
@@ -20,6 +20,7 @@ import {
   FormSelect,
   FormDateInput,
   FormNumberInput,
+  FormCombobox,
 } from "@/components/ui/form-fields";
 import {
   BLOOD_TYPE_OPTIONS,
@@ -28,7 +29,14 @@ import {
   KK_RELATIONSHIP_STATUS,
   MARITAL_STATUS_OPTIONS,
   RELIGION_OPTIONS,
+  NATIONALITY_OPTIONS,
+  DISABILITY_OPTIONS,
+  CONTRACEPTION_OPTIONS,
+  HOUSE_OWNERSHIP_OPTIONS,
+  DESIL_OPTIONS,
+  COUNTRY_CODE_OPTIONS,
 } from "@/utils/constants/user";
+import { ImageAssetModal } from "@/components/ImageAssetModal";
 import { Resident } from "@prisma/client";
 
 interface EditResidentModalProps {
@@ -48,6 +56,7 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { isSubmitting, dirtyFields },
   } = useForm<Resident>({
     defaultValues: resident || undefined,
@@ -56,6 +65,11 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
   const isPregnantVal = useWatch({ control, name: "isPregnant" });
   const isAliveBool = String(isAliveVal) === "true";
   const isPregnantBool = !!isPregnantVal;
+
+  const [mediaModalOpen, setMediaModalOpen] = useState(false);
+  const [activeMediaField, setActiveMediaField] = useState<
+    keyof Resident | null
+  >(null);
 
   // Reset form when resident changes
   useEffect(() => {
@@ -74,6 +88,9 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
           : undefined,
         // Convert boolean to string for select
         isAlive: String(resident.isAlive) as any,
+        disabilityId: (resident.disabilityId
+          ? String(resident.disabilityId)
+          : undefined) as any,
       });
     }
   }, [resident, open, reset]);
@@ -89,6 +106,11 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
         // Convert string back to boolean for isAlive
         if (key === "isAlive") {
           value = value === "true" || value === true;
+        }
+
+        // Convert string back to number for disabilityId
+        if (key === "disabilityId") {
+          value = value ? Number(value) : null;
         }
 
         acc[key as keyof Resident] = value;
@@ -135,415 +157,483 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
   if (!resident) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">Edit Data Warga</DialogTitle>
-          <DialogDescription>
-            Ubah informasi data warga. Field dengan tanda * wajib diisi.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto z-50">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Edit Data Warga</DialogTitle>
+            <DialogDescription>
+              Ubah informasi data warga. Field dengan tanda * wajib diisi.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Identitas Diri */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">
-              Identitas Diri
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                name="name"
-                control={control}
-                label="Nama Lengkap"
-                placeholder="Nama lengkap"
-                maxLength={255}
-                required
-              />
-              <FormInput
-                name="nik"
-                control={control}
-                label="NIK"
-                placeholder="16 digit NIK"
-                maxLength={16}
-                className="font-mono"
-                required
-              />
-              <FormInput
-                name="kk"
-                control={control}
-                label="No. Kartu Keluarga"
-                placeholder="16 digit No. KK"
-                maxLength={16}
-                className="font-mono"
-              />
-              <FormSelect
-                name="gender"
-                control={control}
-                label="Jenis Kelamin"
-                placeholder="Pilih jenis kelamin"
-                options={[
-                  { value: "M", label: "Laki-laki" },
-                  { value: "F", label: "Perempuan" },
-                ]}
-                required
-              />
-              <FormInput
-                name="birthplace"
-                control={control}
-                label="Tempat Lahir"
-                placeholder="Tempat lahir"
-                maxLength={255}
-                required
-              />
-              <FormDateInput
-                name="birthDate"
-                control={control}
-                label="Tanggal Lahir"
-                required
-              />
-              <FormSelect
-                name="religion"
-                control={control}
-                label="Agama"
-                placeholder="Pilih agama"
-                options={RELIGION_OPTIONS}
-              />
-              <FormSelect
-                name="bloodType"
-                control={control}
-                label="Golongan Darah"
-                placeholder="Pilih golongan darah"
-                options={BLOOD_TYPE_OPTIONS}
-              />
-              <FormInput
-                name="nationality"
-                control={control}
-                label="Kewarganegaraan"
-                placeholder="Kewarganegaraan"
-                maxLength={50}
-              />
-            </div>
-          </div>
-
-          {/* Status & Keluarga */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">
-              Status & Keluarga
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormSelect
-                name="maritalStatus"
-                control={control}
-                label="Status Perkawinan"
-                placeholder="Pilih status perkawinan"
-                options={MARITAL_STATUS_OPTIONS}
-              />
-              <FormSelect
-                name="familyRole"
-                control={control}
-                label="Status Hubungan Dalam KK"
-                placeholder="Pilih status hubungan"
-                options={KK_RELATIONSHIP_STATUS}
-              />
-            </div>
-          </div>
-
-          {/* Pendidikan & Pekerjaan */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">
-              Pendidikan & Pekerjaan
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormSelect
-                name="education"
-                control={control}
-                label="Pendidikan Terakhir"
-                placeholder="Pilih pendidikan"
-                options={EDUCATION_OPTIONS}
-              />
-              <FormSelect
-                name="occupation"
-                control={control}
-                label="Pekerjaan"
-                placeholder="Pilih pekerjaan"
-                options={JOB_OPTIONS}
-              />
-            </div>
-          </div>
-
-          {/* Alamat */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">Alamat</h3>
-            <div className="grid grid-cols-1 gap-4">
-              <FormInput
-                name="address"
-                control={control}
-                label="Alamat Lengkap"
-                placeholder="Alamat lengkap"
-                required
-              />
-              <div className="grid grid-cols-3 gap-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Identitas Diri */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">
+                Identitas Diri
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormInput
-                  name="rt"
+                  name="name"
                   control={control}
-                  label="RT"
-                  placeholder="001"
-                  maxLength={10}
+                  label="Nama Lengkap"
+                  placeholder="Nama lengkap"
+                  maxLength={255}
+                  required
                 />
                 <FormInput
-                  name="rw"
+                  name="nik"
                   control={control}
-                  label="RW"
-                  placeholder="002"
-                  maxLength={10}
+                  label="NIK"
+                  placeholder="16 digit NIK"
+                  maxLength={16}
+                  className="font-mono"
+                  required
                 />
                 <FormInput
-                  name="hamlet"
+                  name="kk"
                   control={control}
-                  label="Dusun"
-                  placeholder="Nama dusun"
-                  maxLength={100}
+                  label="No. Kartu Keluarga"
+                  placeholder="16 digit No. KK"
+                  maxLength={16}
+                  className="font-mono"
+                />
+                <FormSelect
+                  name="gender"
+                  control={control}
+                  label="Jenis Kelamin"
+                  placeholder="Pilih jenis kelamin"
+                  options={[
+                    { value: "M", label: "Laki-laki" },
+                    { value: "F", label: "Perempuan" },
+                  ]}
+                  required
+                />
+                <FormInput
+                  name="birthplace"
+                  control={control}
+                  label="Tempat Lahir"
+                  placeholder="Tempat lahir"
+                  maxLength={255}
+                  required
+                />
+                <FormDateInput
+                  name="birthDate"
+                  control={control}
+                  label="Tanggal Lahir"
+                  required
+                />
+                <FormSelect
+                  name="religion"
+                  control={control}
+                  label="Agama"
+                  placeholder="Pilih agama"
+                  options={RELIGION_OPTIONS}
+                />
+                <FormSelect
+                  name="bloodType"
+                  control={control}
+                  label="Golongan Darah"
+                  placeholder="Pilih golongan darah"
+                  options={BLOOD_TYPE_OPTIONS}
+                />
+                <FormSelect
+                  name="nationality"
+                  control={control}
+                  label="Kewarganegaraan"
+                  placeholder="Pilih kewarganegaraan"
+                  options={NATIONALITY_OPTIONS}
                 />
               </div>
             </div>
-          </div>
 
-          {/* Kontak */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">Kontak</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                name="phone"
-                control={control}
-                label="No. Telepon"
-                type="tel"
-                placeholder="08123456789"
-                maxLength={20}
-              />
-              <FormInput
-                name="email"
-                control={control}
-                label="Email"
-                type="email"
-                placeholder="email@example.com"
-                maxLength={255}
-              />
+            {/* Status & Keluarga */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">
+                Status & Keluarga
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormSelect
+                  name="maritalStatus"
+                  control={control}
+                  label="Status Perkawinan"
+                  placeholder="Pilih status perkawinan"
+                  options={MARITAL_STATUS_OPTIONS}
+                />
+                <FormSelect
+                  name="familyRole"
+                  control={control}
+                  label="Status Hubungan Dalam KK"
+                  placeholder="Pilih status hubungan"
+                  options={KK_RELATIONSHIP_STATUS}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Status Kependudukan */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">
-              Status Kependudukan
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormSelect
-                name="isAlive"
-                control={control}
-                label="Status"
-                options={[
-                  { value: "true", label: "Hidup" },
-                  { value: "false", label: "Meninggal" },
-                ]}
-              />
-              <FormDateInput
-                name="moveDate"
-                control={control}
-                label="Tanggal Pindah"
-              />
-              <FormDateInput
-                name="deathDate"
-                control={control}
-                label="Tanggal Meninggal"
-                disabled={isAliveBool}
-              />
+            {/* Pendidikan & Pekerjaan */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">
+                Pendidikan & Pekerjaan
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormSelect
+                  name="education"
+                  control={control}
+                  label="Pendidikan Terakhir"
+                  placeholder="Pilih pendidikan"
+                  options={EDUCATION_OPTIONS}
+                />
+                <FormSelect
+                  name="occupation"
+                  control={control}
+                  label="Pekerjaan"
+                  placeholder="Pilih pekerjaan"
+                  options={JOB_OPTIONS}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Keluarga */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">Keluarga</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                name="fatherNik"
-                control={control}
-                label="NIK Ayah"
-                placeholder="16 digit"
-                maxLength={16}
-                className="font-mono"
-              />
-              <FormInput
-                name="fatherName"
-                control={control}
-                label="Nama Ayah"
-                placeholder="Nama ayah"
-                maxLength={255}
-              />
-              <FormInput
-                name="motherNik"
-                control={control}
-                label="NIK Ibu"
-                placeholder="16 digit"
-                maxLength={16}
-                className="font-mono"
-              />
-              <FormInput
-                name="motherName"
-                control={control}
-                label="Nama Ibu"
-                placeholder="Nama ibu"
-                maxLength={255}
-              />
+            {/* Alamat */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Alamat</h3>
+              <div className="grid grid-cols-1 gap-4">
+                <FormInput
+                  name="address"
+                  control={control}
+                  label="Alamat Lengkap"
+                  placeholder="Alamat lengkap"
+                  required
+                />
+                <div className="grid grid-cols-3 gap-4">
+                  <FormInput
+                    name="rt"
+                    control={control}
+                    label="RT"
+                    placeholder="001"
+                    maxLength={10}
+                  />
+                  <FormInput
+                    name="rw"
+                    control={control}
+                    label="RW"
+                    placeholder="002"
+                    maxLength={10}
+                  />
+                  <FormInput
+                    name="hamlet"
+                    control={control}
+                    label="Dusun"
+                    placeholder="Nama dusun"
+                    maxLength={100}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Kesehatan & Sosial */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">
-              Kesehatan & Sosial
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormNumberInput
-                name="disabilityId"
-                control={control}
-                label="ID Disabilitas"
-                placeholder="Kode disabilitas"
-              />
-              <FormInput
-                name="otherDisability"
-                control={control}
-                label="Disabilitas Lainnya"
-                placeholder="Keterangan"
-                maxLength={255}
-              />
-              <FormDateInput
-                name="datePregnant"
-                control={control}
-                label="Tanggal Hamil"
-                disabled={!isPregnantBool}
-              />
-              <FormInput
-                name="contraception"
-                control={control}
-                label="Kontrasepsi"
-                placeholder="IUD, Suntik, dll"
-              />
-              <FormNumberInput
-                name="height"
-                control={control}
-                label="Tinggi Badan (cm)"
-                placeholder="170"
-              />
-              <FormNumberInput
-                name="weight"
-                control={control}
-                label="Berat Badan (kg)"
-                placeholder="60"
-              />
-              <FormNumberInput
-                name="income"
-                control={control}
-                label="Pendapatan"
-                placeholder="0"
-              />
+            {/* Kontak */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Kontak</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormInput
+                  name="phone"
+                  control={control}
+                  label="No. Telepon"
+                  type="tel"
+                  placeholder="08123456789"
+                  maxLength={20}
+                />
+                <FormInput
+                  name="email"
+                  control={control}
+                  label="Email"
+                  type="email"
+                  placeholder="email@example.com"
+                  maxLength={255}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Media */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">Media</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                name="cover"
-                control={control}
-                label="Cover URL"
-                placeholder="https://..."
-              />
-              <FormInput
-                name="coverThumb"
-                control={control}
-                label="Cover Thumb URL"
-                placeholder="https://..."
-              />
-              <FormInput
-                name="photo"
-                control={control}
-                label="Foto URL"
-                placeholder="https://..."
-              />
-              <FormInput
-                name="photoThumb"
-                control={control}
-                label="Foto Thumb URL"
-                placeholder="https://..."
-              />
+            {/* Status Kependudukan */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">
+                Status Kependudukan
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormSelect
+                  name="isAlive"
+                  control={control}
+                  label="Status"
+                  options={[
+                    { value: "true", label: "Hidup" },
+                    { value: "false", label: "Meninggal" },
+                  ]}
+                />
+                <FormDateInput
+                  name="moveDate"
+                  control={control}
+                  label="Tanggal Pindah"
+                />
+                <FormDateInput
+                  name="deathDate"
+                  control={control}
+                  label="Tanggal Meninggal"
+                  disabled={isAliveBool}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Lainnya */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold border-b pb-2">Lainnya</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                name="countryCode"
-                control={control}
-                label="Kode Negara"
-                placeholder="ID"
-                maxLength={10}
-              />
-              <FormInput
-                name="tempIdNumber"
-                control={control}
-                label="NIK Sementara"
-                placeholder="NIK sementara"
-                maxLength={20}
-              />
-              <FormInput
-                name="tempRt"
-                control={control}
-                label="RT Sementara"
-                placeholder="RT sementara"
-                maxLength={10}
-              />
-              <FormInput
-                name="houseOwnership"
-                control={control}
-                label="Kepemilikan Rumah"
-                placeholder="Milik sendiri, sewa, dll"
-                maxLength={100}
-              />
-              <FormInput
-                name="desil"
-                control={control}
-                label="Desil"
-                placeholder="Desil ekonomi"
-                maxLength={50}
-              />
+            {/* Keluarga */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Keluarga</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormInput
+                  name="fatherNik"
+                  control={control}
+                  label="NIK Ayah"
+                  placeholder="16 digit"
+                  maxLength={16}
+                  className="font-mono"
+                />
+                <FormInput
+                  name="fatherName"
+                  control={control}
+                  label="Nama Ayah"
+                  placeholder="Nama ayah"
+                  maxLength={255}
+                />
+                <FormInput
+                  name="motherNik"
+                  control={control}
+                  label="NIK Ibu"
+                  placeholder="16 digit"
+                  maxLength={16}
+                  className="font-mono"
+                />
+                <FormInput
+                  name="motherName"
+                  control={control}
+                  label="Nama Ibu"
+                  placeholder="Nama ibu"
+                  maxLength={255}
+                />
+              </div>
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Menyimpan...
-                </>
-              ) : (
-                "Simpan Perubahan"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            {/* Kesehatan & Sosial */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">
+                Kesehatan & Sosial
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormSelect
+                  name="disabilityId"
+                  control={control}
+                  label="ID Disabilitas"
+                  placeholder="Pilih jenis disabilitas"
+                  options={DISABILITY_OPTIONS}
+                />
+                <FormInput
+                  name="otherDisability"
+                  control={control}
+                  label="Disabilitas Lainnya"
+                  placeholder="Keterangan"
+                  maxLength={255}
+                />
+                <FormDateInput
+                  name="datePregnant"
+                  control={control}
+                  label="Tanggal Hamil"
+                  disabled={!isPregnantBool}
+                />
+                <FormSelect
+                  name="contraception"
+                  control={control}
+                  label="Kontrasepsi"
+                  placeholder="Pilih kontrasepsi"
+                  options={CONTRACEPTION_OPTIONS}
+                />
+                <FormNumberInput
+                  name="height"
+                  control={control}
+                  label="Tinggi Badan (cm)"
+                  placeholder="170"
+                />
+                <FormNumberInput
+                  name="weight"
+                  control={control}
+                  label="Berat Badan (kg)"
+                  placeholder="60"
+                />
+                <FormNumberInput
+                  name="income"
+                  control={control}
+                  label="Pendapatan"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* Media */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Media</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <FormInput
+                    name="cover"
+                    control={control}
+                    label="Cover URL"
+                    placeholder="https://..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMediaField("cover");
+                      setMediaModalOpen(true);
+                    }}
+                    className="absolute right-2 top-8 p-1.5 bg-muted rounded-md hover:bg-muted/80 transition-colors"
+                    title="Pilih gambar"
+                  >
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <div className="relative">
+                  <FormInput
+                    name="coverThumb"
+                    control={control}
+                    label="Cover Thumb URL"
+                    placeholder="https://..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMediaField("coverThumb");
+                      setMediaModalOpen(true);
+                    }}
+                    className="absolute right-2 top-8 p-1.5 bg-muted rounded-md hover:bg-muted/80 transition-colors"
+                    title="Pilih gambar"
+                  >
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <div className="relative">
+                  <FormInput
+                    name="photo"
+                    control={control}
+                    label="Foto URL"
+                    placeholder="https://..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMediaField("photo");
+                      setMediaModalOpen(true);
+                    }}
+                    className="absolute right-2 top-8 p-1.5 bg-muted rounded-md hover:bg-muted/80 transition-colors"
+                    title="Pilih gambar"
+                  >
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <div className="relative">
+                  <FormInput
+                    name="photoThumb"
+                    control={control}
+                    label="Foto Thumb URL"
+                    placeholder="https://..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMediaField("photoThumb");
+                      setMediaModalOpen(true);
+                    }}
+                    className="absolute right-2 top-8 p-1.5 bg-muted rounded-md hover:bg-muted/80 transition-colors"
+                    title="Pilih gambar"
+                  >
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Lainnya */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Lainnya</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormCombobox
+                  name="countryCode"
+                  control={control}
+                  label="Kode Negara"
+                  placeholder="Pilih kode negara"
+                  options={COUNTRY_CODE_OPTIONS}
+                />
+                <FormInput
+                  name="tempIdNumber"
+                  control={control}
+                  label="NIK Sementara"
+                  placeholder="NIK sementara"
+                  maxLength={20}
+                />
+                <FormInput
+                  name="tempRt"
+                  control={control}
+                  label="RT Sementara"
+                  placeholder="RT sementara"
+                  maxLength={10}
+                />
+                <FormSelect
+                  name="houseOwnership"
+                  control={control}
+                  label="Kepemilikan Rumah"
+                  placeholder="Pilih kepemilikan rumah"
+                  options={HOUSE_OWNERSHIP_OPTIONS}
+                />
+                <FormSelect
+                  name="desil"
+                  control={control}
+                  label="Desil"
+                  placeholder="Pilih desil"
+                  options={DESIL_OPTIONS}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Batal
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  "Simpan Perubahan"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ImageAssetModal
+        isOpen={mediaModalOpen}
+        onClose={() => setMediaModalOpen(false)}
+        onSelectImage={(url) => {
+          if (activeMediaField) {
+            setValue(activeMediaField, url as any, { shouldDirty: true });
+          }
+          setMediaModalOpen(false);
+          setActiveMediaField(null);
+        }}
+      />
+    </>
   );
 };

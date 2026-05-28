@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -13,6 +14,7 @@ import {
   HardDrive
 } from 'lucide-react';
 import { useAppDialogs } from '@/components/providers/AppDialogProvider';
+import Image from 'next/image';
 
 interface ImageAsset {
   id: string;
@@ -141,19 +143,17 @@ export function ImageAssetModal({ isOpen, onClose, onSelectImage }: ImageAssetMo
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+    <DialogPrimitive.Root open={isOpen} onOpenChange={onClose}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Content
+          className="fixed left-[50%] top-[50%] z-[100] translate-x-[-50%] translate-y-[-50%] w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl bg-white flex flex-col outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={onClose}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-teal-100">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-linear-to-r from-teal-50 to-teal-100">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center">
                 <ImageIcon className="w-5 h-5 text-white" />
@@ -259,11 +259,13 @@ export function ImageAssetModal({ isOpen, onClose, onSelectImage }: ImageAssetMo
                     onClick={() => handleSelectImage(asset)}
                   >
                     {/* Image */}
-                    <div className="aspect-[4/3] bg-gray-100">
-                      <img
+                    <div className="aspect-4/3 bg-gray-100">
+                      <Image
                         src={asset.url}
                         alt={asset.name}
                         className="w-full h-full object-cover"
+                        width={100}
+                        height={100}
                       />
                     </div>
 
@@ -277,7 +279,7 @@ export function ImageAssetModal({ isOpen, onClose, onSelectImage }: ImageAssetMo
                     )}
 
                     {/* Info Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 translate-y-full group-hover:translate-y-0 transition-transform">
+                    <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-3 translate-y-full group-hover:translate-y-0 transition-transform">
                       <p className="text-white text-xs font-medium truncate mb-1">
                         {asset.name}
                       </p>
@@ -325,8 +327,8 @@ export function ImageAssetModal({ isOpen, onClose, onSelectImage }: ImageAssetMo
               </button>
             </div>
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

@@ -154,10 +154,67 @@ export const BLOOD_TYPE_OPTIONS: Record<string, string> = {
 };
 
 export const DISABILITY_OPTIONS: Record<string, string> = {
-  "Cacat Fisik": "Cacat Fisik",
-  "Cacat Netra/Buta": "Cacat Netra/Buta",
-  "Cacat Rungu/Wicara": "Cacat Rungu/Wicara",
-  "Cacat Mental/Jiwa": "Cacat Mental/Jiwa",
-  "Cacat Fisik dan Mental": "Cacat Fisik dan Mental",
-  "Cacat Lainnya": "Cacat Lainnya",
+  "1": "1 - Cacat Fisik",
+  "2": "2 - Cacat Netra/Buta",
+  "3": "3 - Cacat Rungu/Wicara",
+  "4": "4 - Cacat Mental/Jiwa",
+  "5": "5 - Cacat Fisik dan Mental",
+  "6": "6 - Cacat Lainnya",
 };
+
+export const NATIONALITY_OPTIONS: Record<string, string> = {
+  WNI: "WNI",
+  WNA: "WNA",
+};
+
+export const CONTRACEPTION_OPTIONS: Record<string, string> = {
+  "Tidak Memakai": "Tidak Memakai",
+  IUD: "IUD",
+  Suntik: "Suntik",
+  Pil: "Pil",
+  Kondom: "Kondom",
+  Implan: "Implan",
+  "Steril/Pemerahan": "Steril/Pemerahan",
+  Lainnya: "Lainnya",
+};
+
+export const HOUSE_OWNERSHIP_OPTIONS: Record<string, string> = {
+  "Milik Sendiri": "Milik Sendiri",
+  Sewa: "Sewa",
+  Kontrak: "Kontrak",
+  Menumpang: "Menumpang",
+  Dinas: "Dinas",
+  Lainnya: "Lainnya",
+};
+
+export const DESIL_OPTIONS: Record<string, string> = {
+  "1": "1",
+  "2": "2",
+  "3": "3",
+  "4": "4",
+  "5": "5",
+  "6": "6",
+  "7": "7",
+  "8": "8",
+  "9": "9",
+  "10": "10",
+};
+
+export const COUNTRY_CODE_OPTIONS = [
+  { value: "ID", label: "Indonesia (ID)" },
+  { value: "MY", label: "Malaysia (MY)" },
+  { value: "SG", label: "Singapura (SG)" },
+  { value: "TH", label: "Thailand (TH)" },
+  { value: "PH", label: "Filipina (PH)" },
+  { value: "VN", label: "Vietnam (VN)" },
+  { value: "AU", label: "Australia (AU)" },
+  { value: "US", label: "Amerika Serikat (US)" },
+  { value: "JP", label: "Jepang (JP)" },
+  { value: "KR", label: "Korea Selatan (KR)" },
+  { value: "CN", label: "Tiongkok (CN)" },
+  { value: "IN", label: "India (IN)" },
+  { value: "GB", label: "Inggris (GB)" },
+  { value: "DE", label: "Jerman (DE)" },
+  { value: "FR", label: "Prancis (FR)" },
+  { value: "NL", label: "Belanda (NL)" },
+];

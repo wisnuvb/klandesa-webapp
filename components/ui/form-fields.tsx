@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 
 interface FormFieldWrapperProps {
   label: string;
@@ -127,7 +128,7 @@ export function FormSelect<T extends FieldValues>({
             </SelectTrigger>
             <SelectContent>
               {optionsArray.map((option) => (
-                <SelectItem key={option.label} value={option.label}>
+                <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
               ))}
@@ -145,6 +146,21 @@ interface FormDateInputProps<T extends FieldValues> {
   label: string;
   required?: boolean;
   disabled?: boolean;
+}
+
+function toDateInputValue(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") {
+    // already a date string, return first 10 chars (YYYY-MM-DD)
+    return value.slice(0, 10);
+  }
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return "";
 }
 
 export function FormDateInput<T extends FieldValues>({
@@ -166,7 +182,7 @@ export function FormDateInput<T extends FieldValues>({
         >
           <Input
             {...field}
-            value={(field.value as string) ?? ""}
+            value={toDateInputValue(field.value)}
             type="date"
             disabled={disabled}
           />
@@ -219,6 +235,49 @@ export function FormNumberInput<T extends FieldValues>({
             min={min}
             max={max}
             disabled={disabled}
+          />
+        </FormFieldWrapper>
+      )}
+    />
+  );
+}
+
+interface FormComboboxProps<T extends FieldValues> {
+  name: Path<T>;
+  control: Control<T>;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  options: ComboboxOption[];
+  disabled?: boolean;
+}
+
+export function FormCombobox<T extends FieldValues>({
+  name,
+  control,
+  label,
+  placeholder,
+  required,
+  options,
+  disabled,
+}: FormComboboxProps<T>) {
+  return (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState }) => (
+        <FormFieldWrapper
+          label={label}
+          required={required}
+          error={fieldState.error?.message}
+        >
+          <Combobox
+            value={(field.value as string) ?? ""}
+            onValueChange={field.onChange}
+            options={options}
+            placeholder={placeholder || "Pilih..."}
+            disabled={disabled}
+            allowClear
           />
         </FormFieldWrapper>
       )}
