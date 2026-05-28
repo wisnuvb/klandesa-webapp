@@ -69,16 +69,16 @@ const AI_MODELS = [
     label: "GLM 4.5 Air",
   },
   {
-    id: "deepseek/deepseek-chat:free",
-    label: "DeepSeek V3 (Free)",
+    id: "deepseek/deepseek-v4-flash:free",
+    label: "DeepSeek V4 Flash",
   },
   {
-    id: "google/gemini-2.0-flash-exp:free",
-    label: "Gemini Flash 2.0 (Free)",
+    id: "moonshotai/kimi-k2.6:free",
+    label: "Kimi K2.6",
   },
   {
-    id: "meta-llama/llama-3.3-70b-instruct:free",
-    label: "Llama 3.3 70B (Free)",
+    id: "qwen/qwen3-next-80b-a3b-instruct:free",
+    label: "Qwen 3 Next 80B A3B",
   },
   { id: "gpt4oMini", label: "GPT-4o Mini" },
   { id: "geminiFlash", label: "Gemini Flash" },
