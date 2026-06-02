@@ -260,6 +260,28 @@ async function prepareCheckoutLineItems(
         },
       });
     }
+  } else if (input.productType === "ai_credits") {
+    const credits = Number(input.planCode);
+    if (!Number.isFinite(credits) || credits <= 0) {
+      throw new Error("Jumlah kredit tidak valid");
+    }
+    const amountPerCredit = 1000; // Rp 1.000 per kredit
+    const totalAmount = normalizeMoney(credits * amountPerCredit);
+    lineItems.push({
+      name: `Top Up Kredit AI (${credits} kredit)`,
+      description: "Kredit untuk Asisten Desa AI",
+      quantity: 1,
+      unitAmount: totalAmount,
+      totalAmount,
+      metadata: {
+        kind: "ai_credits",
+        credits,
+        userId:
+          input.metadata && typeof input.metadata === "object"
+            ? (input.metadata as Record<string, unknown>).userId
+            : undefined,
+      },
+    });
   } else {
     throw new Error("Produk belum didukung");
   }
@@ -541,6 +563,27 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
         where: { id: invoice.villageId },
         data: { absensiGpsAddonActive: true },
       });
+    }
+
+    if (invoice.productType === "ai_credits") {
+      const meta =
+        invoice.metadata && typeof invoice.metadata === "object"
+          ? (invoice.metadata as Record<string, unknown>)
+          : null;
+      const targetUserId = meta?.userId ? Number(meta.userId) : null;
+      const creditsToAdd = meta?.credits ? Number(meta.credits) : null;
+
+      if (
+        targetUserId &&
+        creditsToAdd != null &&
+        Number.isFinite(creditsToAdd) &&
+        creditsToAdd > 0
+      ) {
+        await tx.user.update({
+          where: { id: targetUserId },
+          data: { aiCredits: { increment: creditsToAdd } },
+        });
+      }
     }
 
     if (invoice.productType === "website") {

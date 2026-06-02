@@ -3,7 +3,8 @@ export type BillingProductType =
   | "absensi"
   | "absensi_gps_addon"
   | "arsip"
-  | "website";
+  | "website"
+  | "ai_credits";
 
 /** Satu-satunya planCode untuk checkout add-on GPS di LinkQu / invoice. */
 export const ABSENSI_GPS_ADDON_PLAN_CODE = "default" as const;

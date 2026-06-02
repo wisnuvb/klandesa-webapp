@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Bot,
   CreditCard,
@@ -90,31 +91,31 @@ const AI_MODELS = [
 
 const CREDIT_PACKAGES = [
   {
-    id: "pkg50",
-    credits: 50,
-    price: 50000,
-    label: "50 Kredit",
-    desc: "~50 pertanyaan",
-  },
-  {
-    id: "pkg100",
-    credits: 100,
-    price: 90000,
-    label: "100 Kredit",
-    desc: "~100 pertanyaan",
-  },
-  {
-    id: "pkg250",
+    id: "pkg1",
     credits: 250,
-    price: 200000,
+    price: 50000,
     label: "250 Kredit",
+    desc: "~250 pertanyaan",
+  },
+  {
+    id: "pkg2",
+    credits: 500,
+    price: 90000,
+    label: "500 Kredit",
+    desc: "~500 pertanyaan",
+  },
+  {
+    id: "pkg3",
+    credits: 1333,
+    price: 200000,
+    label: "1333 Kredit",
     desc: "Paling populer",
   },
   {
-    id: "pkg500",
-    credits: 500,
+    id: "pkg4",
+    credits: 2500,
     price: 350000,
-    label: "500 Kredit",
+    label: "2500 Kredit",
     desc: "Hemat 30%",
   },
 ] as const;
@@ -158,6 +159,17 @@ export default function AsistenAiPage() {
   const [paymentMethod, setPaymentMethod] = useState<"VA" | "EWALLET" | null>(
     null,
   );
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [invoiceData, setInvoiceData] = useState<{
+    partnerReff: string;
+    status: string;
+    amount: number;
+    vaNumber?: string | null;
+    qrImageUrl?: string | null;
+    paymentUrl?: string | null;
+    qrContent?: string | null;
+    expiresAt?: Date | null;
+  } | null>(null);
   const [thinkingStep, setThinkingStep] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -697,82 +709,223 @@ export default function AsistenAiPage() {
         </Card>
       </div>
 
-      <Dialog open={topupOpen} onOpenChange={setTopupOpen}>
+      <Dialog open={topupOpen} onOpenChange={(open) => { setTopupOpen(open); if (!open) setInvoiceData(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Top Up Kredit AI</DialogTitle>
             <DialogDescription>
-              Pilih paket kredit. Biaya dasar AI ~Rp 25–30 per pertanyaan
-              (GPT-4o / Claude Haiku).
+              Pilih paket kredit. Biaya per pertanyaan
+              memerlukan 1 kredit.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div>
-              <p className="text-sm font-medium mb-2">Pilih Paket</p>
-              <div className="grid grid-cols-2 gap-2">
-                {CREDIT_PACKAGES.map((pkg) => (
-                  <button
-                    key={pkg.id}
-                    onClick={() => setSelectedPkg(pkg.id)}
-                    className={cn(
-                      "rounded-xl border p-3 text-left transition",
-                      selectedPkg === pkg.id
-                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                        : "hover:bg-muted",
-                    )}
-                  >
-                    <div className="font-semibold">{pkg.label}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {pkg.desc}
-                    </div>
-                    <div className="mt-1 text-lg font-bold text-primary">
-                      Rp {pkg.price.toLocaleString("id-ID")}
-                    </div>
-                  </button>
-                ))}
+          {!invoiceData ? (
+            <div className="space-y-4 py-2">
+              <div>
+                <p className="text-sm font-medium mb-2">Pilih Paket</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {CREDIT_PACKAGES.map((pkg) => (
+                    <button
+                      key={pkg.id}
+                      onClick={() => setSelectedPkg(pkg.id)}
+                      className={cn(
+                        "rounded-xl border p-3 text-left transition",
+                        selectedPkg === pkg.id
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "hover:bg-muted",
+                      )}
+                    >
+                      <div className="font-semibold">{pkg.label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {pkg.desc}
+                      </div>
+                      <div className="mt-1 text-lg font-bold text-primary">
+                        Rp {pkg.price.toLocaleString("id-ID")}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div>
-              <p className="text-sm font-medium mb-2">
-                Metode Pembayaran (LinkQu)
-              </p>
-              <div className="flex gap-2">
-                {(["VA", "EWALLET"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setPaymentMethod(m)}
-                    className={cn(
-                      "flex-1 rounded-xl border py-3 text-sm font-medium transition",
-                      paymentMethod === m
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "hover:bg-muted",
-                    )}
-                  >
-                    {m === "VA" ? "Virtual Account" : "E-Wallet (DANA/OVO)"}
-                  </button>
-                ))}
+              <div>
+                <p className="text-sm font-medium mb-2">
+                  Metode Pembayaran (LinkQu)
+                </p>
+                <div className="flex gap-2">
+                  {(["VA", "EWALLET"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setPaymentMethod(m)}
+                      className={cn(
+                        "flex-1 rounded-xl border py-3 text-sm font-medium transition",
+                        paymentMethod === m
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "hover:bg-muted",
+                      )}
+                    >
+                      {m === "VA" ? "Virtual Account" : "E-Wallet (DANA/OVO)"}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              {invoiceData.status === "paid" ? (
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <p className="font-semibold text-lg">Pembayaran Berhasil!</p>
+                  <p className="text-sm text-muted-foreground">
+                    Kredit AI telah ditambahkan ke akun Anda.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-xl border p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Total Bayar</span>
+                      <span className="font-bold text-lg">Rp {invoiceData.amount.toLocaleString("id-ID")}</span>
+                    </div>
+                    {invoiceData.vaNumber && (
+                      <div className="space-y-1">
+                        <span className="text-sm text-muted-foreground">Nomor VA</span>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm font-mono">
+                            {invoiceData.vaNumber}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (invoiceData.vaNumber) {
+                                void navigator.clipboard.writeText(invoiceData.vaNumber);
+                                toast.success("Nomor VA disalin");
+                              }
+                            }}
+                          >
+                            Salin
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {invoiceData.qrImageUrl && (
+                      <div className="space-y-1 text-center">
+                        <span className="text-sm text-muted-foreground">Scan QRIS</span>
+                        <Image
+                          src={invoiceData.qrImageUrl}
+                          alt="QRIS"
+                          className="mx-auto rounded-lg border"
+                          width={200}
+                          height={200}
+                        />
+                      </div>
+                    )}
+                    {invoiceData.paymentUrl && !invoiceData.vaNumber && !invoiceData.qrImageUrl && (
+                      <div className="text-center">
+                        <a
+                          href={invoiceData.paymentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary underline"
+                        >
+                          Buka halaman pembayaran
+                        </a>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground text-center">
+                      Invoice: {invoiceData.partnerReff}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Status pembayaran akan diperbarui otomatis. Tutup dialog ini jika sudah membayar.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setTopupOpen(false)}>
-              Batal
-            </Button>
-            <Button
-              disabled={!selectedPkg || !paymentMethod}
-              onClick={() => {
-                const pkg = CREDIT_PACKAGES.find((p) => p.id === selectedPkg);
-                alert(
-                  `Top-up ${pkg?.credits} kredit via ${paymentMethod} (Rp ${pkg?.price.toLocaleString("id-ID")}) akan diproses LinkQu.\n\n(Integrasi backend & callback menyusul)`,
-                );
-                setTopupOpen(false);
-              }}
-            >
-              Bayar Sekarang
-            </Button>
+            {!invoiceData ? (
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={() => setTopupOpen(false)}>
+                  Batal
+                </Button>
+                <Button
+                  disabled={!selectedPkg || !paymentMethod || checkoutLoading}
+                  onClick={async () => {
+                    const pkg = CREDIT_PACKAGES.find((p) => p.id === selectedPkg);
+                    if (!pkg || !paymentMethod) return;
+                    setCheckoutLoading(true);
+                    try {
+                      const result = await fetchJson<{
+                        ok: boolean;
+                        invoice: {
+                          partnerReff: string;
+                          status: string;
+                          amount: number;
+                          vaNumber?: string | null;
+                          qrImageUrl?: string | null;
+                          paymentUrl?: string | null;
+                          qrContent?: string | null;
+                          expiresAt?: string | null;
+                        };
+                      }>("/api/ai/topup", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          packageId: selectedPkg,
+                          paymentMethod: paymentMethod.toLowerCase(),
+                        }),
+                      });
+                      if (result.ok && result.invoice) {
+                        setInvoiceData({
+                          ...result.invoice,
+                          expiresAt: result.invoice.expiresAt ? new Date(result.invoice.expiresAt) : null,
+                        });
+                        loadCredits();
+                        // Start polling for status
+                        const interval = setInterval(async () => {
+                          try {
+                            const poll = await fetchJson<{
+                              ok: boolean;
+                              invoice?: { status: string; paidAt?: string | null };
+                              credits?: number;
+                            }>(`/api/ai/topup/status?ref=${encodeURIComponent(result.invoice.partnerReff)}`);
+                            if (poll.ok && poll.invoice?.status === "paid") {
+                              setInvoiceData((prev) => prev ? { ...prev, status: "paid" } : prev);
+                              if (poll.credits != null) setCredits(poll.credits);
+                              clearInterval(interval);
+                            }
+                          } catch {
+                            // ignore polling errors
+                          }
+                        }, 5000);
+                        // Stop polling after 10 minutes
+                        setTimeout(() => clearInterval(interval), 10 * 60 * 1000);
+                      } else {
+                        toast.error("Gagal membuat transaksi");
+                      }
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Gagal membuat transaksi");
+                    } finally {
+                      setCheckoutLoading(false);
+                    }
+                  }}
+                >
+                  {checkoutLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Bayar Sekarang"
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={() => { setTopupOpen(false); setInvoiceData(null); }}>
+                Tutup
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -13,6 +13,21 @@ function firstIp(req: NextRequest): string | null {
   return req.headers.get("x-real-ip");
 }
 
+function resolveContactEmail(email: string, phone: string): string | null {
+  if (email) return email;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length >= 8) return `kontak+${digits}@inbound.klandesa.id`;
+  return null;
+}
+
+function normalizeContactSource(value: unknown): string {
+  const raw = String(value ?? "landing")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+  return (raw || "landing").slice(0, 50);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => null)) as
@@ -24,20 +39,30 @@ export async function POST(req: NextRequest) {
           message?: string;
           referralCode?: string;
           sourcePath?: string;
+          source?: string;
         }
       | null;
 
     const name = String(body?.name ?? "").trim();
-    const email = String(body?.email ?? "").trim();
+    const emailInput = String(body?.email ?? "").trim();
     const phone = String(body?.phone ?? "").trim();
     const subject = String(body?.subject ?? "").trim();
     const message = String(body?.message ?? "").trim();
     const referralCode = normalizeReferralCode(body?.referralCode);
     const sourcePath = String(body?.sourcePath ?? "/").trim();
+    const source = normalizeContactSource(body?.source);
+    const email = resolveContactEmail(emailInput, phone);
 
-    if (!name || !email || !subject || !message) {
+    if (!name || !subject || !message) {
       return NextResponse.json(
-        { error: "name, email, subject, message wajib diisi" },
+        { error: "name, subject, message wajib diisi" },
+        { status: 400 }
+      );
+    }
+
+    if (!email) {
+      return NextResponse.json(
+        { error: "email atau nomor telepon wajib diisi" },
         { status: 400 }
       );
     }
@@ -49,7 +74,7 @@ export async function POST(req: NextRequest) {
         phone: phone || null,
         subject,
         message,
-        source: "landing",
+        source,
         ipAddress: firstIp(req),
         userAgent: req.headers.get("user-agent"),
       },

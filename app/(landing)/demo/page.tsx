@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DemoContactSection } from "@/components/features/demo/DemoContactSection";
 import {
   ArrowRight,
   CheckCircle2,
@@ -96,6 +97,12 @@ export default function DemoPage() {
               >
                 Lihat Katalog Platform
               </Link>
+              <a
+                href="#hubungi-tim"
+                className="inline-flex items-center rounded-xl border border-white/30 px-5 py-3 text-sm text-white transition hover:bg-white/10"
+              >
+                Minta Dihubungi
+              </a>
             </div>
           </div>
 
@@ -209,6 +216,8 @@ export default function DemoPage() {
           </div>
         </div>
       </section>
+
+      <DemoContactSection />
     </main>
   );
 }
