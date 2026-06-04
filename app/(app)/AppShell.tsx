@@ -168,10 +168,10 @@ const pageConfig = {
     title: "Katalog UMKM",
     subtitle: "Katalog produk UMKM desa",
   },
-  website: {
-    title: "Website Desa",
-    subtitle: "Kelola konten dan tampilan website desa",
-  },
+  // website: {
+  //   title: "Website Desa",
+  //   subtitle: "Kelola konten dan tampilan website desa",
+  // },
 
   // --- Pengaturan & langganan ---
   "pengaturan-desa": {

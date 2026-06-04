@@ -2,6 +2,9 @@ import React from "react";
 import {
   CheckCircle,
   Clock,
+  Facebook,
+  Instagram,
+  Linkedin,
   Mail,
   MapPin,
   Phone,
@@ -16,6 +19,24 @@ import { getStoredReferralCode } from "@/lib/referrals/client";
 interface ContactModalProps {
   onClose: () => void;
 }
+
+const socialMedia = [
+  {
+    icon: Facebook,
+    href: "https://www.facebook.com/klandesacom",
+    label: "Facebook",
+  },
+  {
+    icon: Instagram,
+    href: "https://www.instagram.com/klandesa/",
+    label: "Instagram",
+  },
+  {
+    icon: Linkedin,
+    href: "https://www.linkedin.com/company/klandesa",
+    label: "LinkedIn",
+  },
+] as const;
 
 export function ContactModal({ onClose }: ContactModalProps) {
   const [formData, setFormData] = React.useState({
@@ -86,7 +107,7 @@ export function ContactModal({ onClose }: ContactModalProps) {
     {
       icon: Mail,
       title: "Email",
-      info: "wisnuvb@gmail.com",
+      info: "info@klandesa.com",
       description: "Respon dalam 24 jam",
     },
     {
@@ -208,18 +229,21 @@ export function ContactModal({ onClose }: ContactModalProps) {
                 <div className="mt-6">
                   <p className="text-white/80 text-sm mb-3">Ikuti Kami</p>
                   <div className="flex gap-3">
-                    {["facebook", "twitter", "instagram", "linkedin"].map(
-                      (social) => (
+                    {socialMedia.map((social) => {
+                      const Icon = social.icon;
+                      return (
                         <a
-                          key={social}
-                          href="#"
+                          key={social.label}
+                          href={social.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={social.label}
                           className="bg-white/10 backdrop-blur-sm p-3 rounded-xl hover:bg-white/20 transition-all hover:scale-110 border border-white/20"
-                          aria-label={social}
                         >
-                          <div className="w-5 h-5 bg-white/80 rounded"></div>
+                          <Icon className="h-5 w-5 text-white" aria-hidden />
                         </a>
-                      ),
-                    )}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

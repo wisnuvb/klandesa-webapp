@@ -29,65 +29,60 @@ export default function PricingPage() {
       name: "Starter",
       icon: Sparkles,
       description:
-        "Fondasi operasional desa: administrasi, portal warga, dan surat—tanpa fitur SDGs lanjutan.",
+        "Platform Klandesa lengkap untuk operasional desa—mulai cepat dengan panduan mandiri dan dukungan standar.",
       popular: false,
       features: [
-        { name: "Administrasi data warga & struktur pemerintahan", included: true },
-        { name: "Portal layanan & permohonan surat digital", included: true },
-        { name: "Akses web responsif (tanpa aplikasi seluler terpisah)", included: true },
-        { name: "Penyimpanan & jumlah pengguna dibahas di proposal", included: true },
+        { name: "Semua modul inti platform (admin, surat, SDGs, RPJMDes, keuangan)", included: true },
+        { name: "Portal warga, PKK/BUMDes, peta wilayah & Asisten AI", included: true },
+        { name: "Unduhan format Kemendesa + riwayat aktivitas", included: true },
+        { name: "Akses web responsif di HP, tablet, dan komputer", included: true },
         { name: "Pelatihan daring & panduan mandiri", included: true },
-        { name: "Dukungan email & chat", included: true },
-        { name: "Dashboard SDGs, RPJMDes, keuangan bertanda SDGs", included: false },
-        { name: "Unduhan format Kemendesa dengan catatan riwayat", included: false },
-        { name: "Pantau banyak desa (kabupaten/kecamatan)", included: false },
+        { name: "Dukungan email & chat (jam kerja)", included: true },
+        { name: "Pelatihan on-site & pendamping go-live di desa", included: false },
+        { name: "Aplikasi seluler bermerek desa (Android/iOS)", included: false },
+        { name: "Branding portal (logo, warna, subdomain/domain desa)", included: false },
+        { name: "Dashboard lintas desa untuk kabupaten/kecamatan", included: false },
       ],
       cta: "Konsultasi Gratis",
       highlight: "Untuk Desa Kecil",
-      badge: "Populer untuk pemula",
+      badge: "Mulai tanpa hambatan fitur",
     },
     {
       name: "Profesional",
       icon: Zap,
       description:
-        "Untuk desa aktif: fitur SDGs dan penanda belanja, dengan pendampingan prioritas saat persiapan awal.",
+        "Platform yang sama, plus layanan premium: branding desa, app mobile, onboarding terarah, dan dukungan prioritas.",
       popular: true,
       features: [
-        { name: "Semua fitur paket Starter", included: true },
-        {
-          name: "Dashboard SDGs, RPJMDes, keuangan + penanda sasaran SDGs (akses awal)",
-          included: true,
-        },
-        { name: "Laporan & ringkasan operasional lebih lengkap", included: true },
-        { name: "Program PKK / BUMDes bisa ditambahkan", included: true },
-        {
-          name: "Peta wilayah & Asisten AI bisa ditambahkan",
-          included: true,
-        },
+        { name: "Semua modul platform (sama seperti Starter)", included: true },
+        { name: "Pelatihan on-site ke kantor desa & pendamping go-live", included: true },
+        { name: "Migrasi data awal dibantu tim teknis", included: true },
+        { name: "Branding portal desa (logo, warna, subdomain/domain)", included: true },
+        { name: "Aplikasi seluler bermerek desa (shell Android/iOS)", included: true },
         { name: "Dukungan prioritas (email, chat, telepon jam kerja)", included: true },
-        {
-          name: "Tampilan khusus atau domain desa—disesuaikan kebijakan IT desa/pemda",
-          included: true,
-        },
-        { name: "Unduhan Kemendesa lengkap (khusus paket Enterprise)", included: false },
+        { name: "Kuota penyimpanan & pengguna lebih besar (dinegosiasikan)", included: true },
+        { name: "Integrasi SSO/sistem pemda & custom development", included: false },
+        { name: "Dashboard lintas desa + penanggung jawab enterprise", included: false },
       ],
       cta: "Jadwalkan Demo",
       highlight: "Paling Populer",
-      badge: "Rekomendasi terbaik",
+      badge: "Premium untuk satu desa",
     },
     {
       name: "Enterprise",
       icon: Crown,
       description:
-        "Untuk kabupaten/kecamatan: banyak desa, hak akses ketat, unduhan Kemendesa, dan dukungan khusus yang dinegosiasikan.",
+        "Untuk kabupaten/kecamatan: skala banyak desa, integrasi wilayah, SLA khusus, dan pengembangan sesuai kebijakan IT pemda.",
       popular: false,
       features: [
-        { name: "Semua fitur Profesional plus tampilan lintas desa untuk pemda", included: true },
-        { name: "Unduhan & panduan format Kemendesa (akses awal)", included: true },
-        { name: "Paket peta wilayah, Asisten AI, dan akses teknis terkontrol", included: true },
-        { name: "Bantuan pemindahan data awal bersama tim teknis", included: true },
-        { name: "Pelatihan lapangan dan pendampingan perubahan di wilayah Anda", included: true },
-        { name: "Janji layanan & penanggung jawab khusus sesuai perjanjian", included: true },
+        { name: "Semua modul platform untuk setiap desa di wilayah", included: true },
+        { name: "Dashboard lintas desa (kabupaten/kecamatan)", included: true },
+        { name: "Semua layanan premium Profesional per desa", included: true },
+        { name: "Aplikasi mobile custom (modul & alur disesuaikan)", included: true },
+        { name: "Integrasi/SSO dengan sistem pemda (setelah assessment)", included: true },
+        { name: "Custom development modul & rollout wilayah", included: true },
+        { name: "SLA, engineer dedicated & review berkala", included: true },
+        { name: "Pelatihan rollout wilayah & change management", included: true },
       ],
       cta: "Hubungi Sales",
       highlight: "Skala wilayah",
@@ -121,19 +116,24 @@ export default function PricingPage() {
       answer: "Ya! Kami menyediakan demo langsung baik online maupun on-site ke kantor desa. Untuk paket tertentu, kami juga menyediakan trial period agar tim desa bisa mencoba langsung sebelum berkomitmen. Silakan klik tombol chat di pojok kanan bawah untuk menghubungi kami.",
     },
     {
+      question: "Apakah paket Starter benar-benar bisa pakai semua fitur?",
+      answer:
+        "Ya. Kami sengaja tidak mengunci modul inti (administrasi, surat, SDGs, RPJMDes, keuangan, portal warga, dan lainnya) agar desa bisa langsung merasakan manfaat. Yang dibedakan antar paket adalah layanan premium: seberapa dalam pendampingan, branding, aplikasi mobile, dan skala wilayah.",
+    },
+    {
       question: "Bagaimana dengan pelatihan untuk perangkat desa?",
       answer:
-        "Semua paket sudah termasuk pelatihan. Untuk paket Starter dan Profesional tersedia pelatihan online, sedangkan paket Enterprise mendapat pelatihan on-site langsung ke desa dengan pendampingan intensif.",
+        "Starter: pelatihan daring dan panduan mandiri. Profesional: ditambah pelatihan on-site ke desa dan pendamping go-live. Enterprise: rollout wilayah, pelatihan berlapis per peran (desa–kecamatan–kabupaten), dan change management.",
     },
     {
       question: "Apakah bisa custom development untuk kebutuhan khusus?",
       answer:
-        "Ya. Paket Enterprise memungkinkan perluasan modul aplikasi sesuai kebutuhan operasional: integrasi baru, penyempurnaan alur wilayah, serta pendamping migrasi awal—setelah penilaian arsitektur yang jelas dengan tim IT wilayah Anda.",
+        "Ya, terutama di paket Enterprise: integrasi sistem pemda, modul khusus, atau alur laporan wilayah—setelah assessment bersama tim IT Anda. Profesional bisa membahas kebutuhan terbatas (misalnya branding dan app mobile bermerek desa) tanpa proyek integrasi besar.",
     },
     {
       question: "Berapa lama proses implementasi?",
       answer:
-        "Implementasi paket Starter langsung online dihari yang sama dengan pembayaran dan Profesional biasanya 1-2 minggu. Untuk paket Enterprise dengan custom development, prosesnya sekitar 1-2 bulan tergantung kompleksitas kebutuhan.",
+        "Starter: aktivasi akun bisa di hari yang sama setelah pembayaran. Profesional: biasanya 1–2 minggu dengan pendamping onboarding. Enterprise: 1–2 bulan atau lebih jika melibatkan banyak desa, integrasi pemda, atau pengembangan custom.",
     },
   ];
 
@@ -180,8 +180,9 @@ export default function PricingPage() {
             </h1>
 
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Paket disesuaikan fitur yang diaktifkan, add-on wilayah, dan kebutuhan
-              laporan Kemendesa—tanpa mempublikasikan nominal di web.
+              Semua paket membuka platform Klandesa yang sama—perbedaan ada di layanan
+              premium (onboarding, branding, aplikasi mobile, skala wilayah), bukan
+              mengunci fitur inti. Nominal disesuaikan di proposal.
             </p>
 
             {/* Trust Badge */}
