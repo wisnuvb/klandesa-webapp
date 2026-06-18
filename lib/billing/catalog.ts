@@ -4,7 +4,8 @@ export type BillingProductType =
   | "absensi_gps_addon"
   | "arsip"
   | "website"
-  | "ai_credits";
+  | "ai_credits"
+  | "module_addon";
 
 /** Satu-satunya planCode untuk checkout add-on GPS di LinkQu / invoice. */
 export const ABSENSI_GPS_ADDON_PLAN_CODE = "default" as const;
@@ -83,6 +84,18 @@ export const BILLING_CATALOG = {
   website: {
     enabled: false,
   },
+  module_addon: {
+    bumdes: { name: "BUMDes", monthlyFee: 99_000 },
+    pkk: { name: "PKK & Posyandu", monthlyFee: 79_000 },
+    sdgs: { name: "SDGs + RPJMDes", monthlyFee: 149_000 },
+    keuangan: { name: "Keuangan Desa", monthlyFee: 99_000 },
+    lingkungan: { name: "Lingkungan Hidup", monthlyFee: 79_000 },
+    pertanian: { name: "Pertanian", monthlyFee: 79_000 },
+    partisipasi_rtrw: { name: "Kegiatan RT/RW", monthlyFee: 49_000 },
+    gis: { name: "Peta Infrastruktur", monthlyFee: 199_000 },
+    integrations: { name: "Sinkronisasi Data", monthlyFee: 249_000 },
+    website: { name: "Website Desa", monthlyFee: 149_000 },
+  },
 } as const;
 
 /**
@@ -100,12 +113,16 @@ export function mapDesaTierToAddonTier(tier: DesaPackageTier): MappedDesaAddonTi
 /** Summary of desa package charge (same logic as card on billing page). */
 export function getDesaPackageCharge(
   tier: DesaPackageTier,
-  opts: { subscriptionActive: boolean; currentPlan: string | null },
+  opts: { subscriptionPaid: boolean; currentPlan: string | null },
 ) {
   const tierInfo = BILLING_CATALOG.desa_package.tiers[tier];
-  const isCurrentPlan = opts.currentPlan?.toLowerCase() === tier.toLowerCase();
-  const isUpgrade = opts.subscriptionActive && !isCurrentPlan;
-  const needsSetupFee = !opts.subscriptionActive || isUpgrade;
+  const isCurrentPlan =
+    opts.subscriptionPaid &&
+    opts.currentPlan?.toLowerCase() === tier.toLowerCase();
+  const isUpgrade =
+    opts.subscriptionPaid &&
+    opts.currentPlan?.toLowerCase() !== tier.toLowerCase();
+  const needsSetupFee = !opts.subscriptionPaid || isUpgrade;
   const totalAmount =
     needsSetupFee && tierInfo.setupFee != null
       ? tierInfo.setupFee

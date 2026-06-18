@@ -2,7 +2,8 @@
 
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { normalizeChatMarkdown } from "@/lib/ai/normalize-markdown";
+import { chatRemarkPlugins } from "@/lib/markdown/chat-plugins";
 import { cn } from "./utils";
 
 const markdownComponents: Components = {
@@ -25,7 +26,8 @@ const markdownComponents: Components = {
   h3: ({ children }) => (
     <h4 className="mb-1.5 mt-2 first:mt-0 text-sm font-semibold">{children}</h4>
   ),
-  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
   a: ({ href, children }) => (
     <a
       href={href}
@@ -82,11 +84,20 @@ type ChatMarkdownProps = {
   className?: string;
 };
 
+/**
+ * Render markdown chat via react-markdown + remark-gfm + remark-breaks.
+ * normalizeChatMarkdown hanya lapisan kompatibilitas output LLM sebelum parse.
+ */
 export function ChatMarkdown({ content, className }: ChatMarkdownProps) {
+  const normalized = normalizeChatMarkdown(content);
+
   return (
     <div className={cn("chat-markdown text-sm [&>*:first-child]:mt-0", className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-        {content}
+      <ReactMarkdown
+        remarkPlugins={chatRemarkPlugins}
+        components={markdownComponents}
+      >
+        {normalized}
       </ReactMarkdown>
     </div>
   );

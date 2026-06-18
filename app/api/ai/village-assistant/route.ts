@@ -15,11 +15,14 @@ import {
   type VillageAssistantMode,
 } from "@/lib/ai/village-assistant";
 import {
+  AI_CREDITS_CONSUMPTION_ENABLED,
+  ensureDefaultAiCredits,
+} from "@/lib/ai/credits";
+import { resolveSelectableAiModel } from "@/lib/ai/models";
+import {
   checkAiCredit,
   getAiConfig,
   getAiHeaders,
-  OPENROUTER_MODELS,
-  resolveAiModel,
 } from "@/lib/ai/openrouter";
 import {
   isVillageSubscriptionActive,
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
     const accountType = session?.user?.accountType;
     const isPlatform = accountType === "platform";
 
-    if (!isPlatform) {
+    if (!isPlatform && AI_CREDITS_CONSUMPTION_ENABLED) {
       const credit = await checkAiCredit({ userId: String(userId) });
       if (!credit.hasCredit) {
         return NextResponse.json(
@@ -130,7 +133,7 @@ export async function POST(req: NextRequest) {
     const ctx = await buildVillageAssistantContext(village.id, userName);
     const system = buildSystemPrompt(mode, ctx);
 
-    const model = resolveAiModel(body?.model, OPENROUTER_MODELS.gpt4oMini);
+    const model = resolveSelectableAiModel(body?.model);
 
     const payload = {
       model,
@@ -164,7 +167,11 @@ export async function POST(req: NextRequest) {
 
     let remaining: number | null = null;
     if (!isPlatform && userId) {
-      remaining = await deductAiCredit(userId, 1);
+      if (AI_CREDITS_CONSUMPTION_ENABLED) {
+        remaining = await deductAiCredit(userId, 1);
+      } else {
+        remaining = await ensureDefaultAiCredits(userId);
+      }
     }
 
     return NextResponse.json({

@@ -6,6 +6,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeReferralCode, trackReferralEvent } from "@/lib/referrals/tracking";
+import { requireTurnstile } from "@/lib/turnstile";
 
 function firstIp(req: NextRequest): string | null {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -40,8 +41,12 @@ export async function POST(req: NextRequest) {
           referralCode?: string;
           sourcePath?: string;
           source?: string;
+          turnstileToken?: string;
         }
       | null;
+
+    const turnstile = await requireTurnstile(req, body?.turnstileToken);
+    if (!turnstile.ok) return turnstile.response;
 
     const name = String(body?.name ?? "").trim();
     const emailInput = String(body?.email ?? "").trim();

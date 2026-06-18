@@ -8,6 +8,10 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { getModuleById } from "@/lib/modules/registry";
 import { Toaster } from "sonner";
+import { TrialBanner } from "@/components/app/TrialBanner";
+import { LarasFab } from "@/components/ai/LarasFab";
+import { shouldShowLarasFab } from "@/lib/ai/laras-access";
+import { isOnboardingFlowPath } from "@/lib/onboarding";
 
 // Map route keys to page metadata — urutan mengikuti sidebar & alur operasional desa
 const pageConfig = {
@@ -155,8 +159,8 @@ const pageConfig = {
     subtitle: "Aset, proyek, dan titik risiko bencana pada peta desa",
   },
   "asisten-ai": {
-    title: "Asisten AI",
-    subtitle: "Bantuan AI untuk layanan warga, SDGs, dan perencanaan desa",
+    title: "Asisten Desa AI",
+    subtitle: "Asisten digital perangkat desa — SDGs, RPJMDes, dan layanan warga",
   },
 
   // --- Konten & promosi ---
@@ -181,6 +185,10 @@ const pageConfig = {
   billing: {
     title: "Langganan & Billing",
     subtitle: "Kelola paket langganan, invoice, dan pembayaran",
+  },
+  onboarding: {
+    title: "Onboarding",
+    subtitle: "Persiapan awal penggunaan Klandesa",
   },
 
   // --- Akun ---
@@ -290,6 +298,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [activePage, setActivePage] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [billingBanner, setBillingBanner] = useState<{
+    phase: string;
+    daysRemaining: number | null;
+    writable: boolean;
+    active: boolean;
+    onboardingDone: boolean;
+  } | null>(null);
 
   useEffect(() => {
     setActivePage(derivePageKey(pathname));
@@ -305,23 +320,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
 
     const current = pathname || "/";
-    if (current.startsWith("/billing") || current.startsWith("/auth")) return;
+    if (current.startsWith("/auth")) return;
 
     const check = async () => {
       try {
         const res = await fetch("/api/billing/status", { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json().catch(() => null)) as {
-          subscription?: { active?: unknown };
+          subscription?: {
+            active?: boolean;
+            writable?: boolean;
+            phase?: string;
+            daysRemaining?: number | null;
+          };
+          village?: { onboardingCompletedAt?: string | null };
         } | null;
-        if (
-          !data?.subscription ||
-          typeof data.subscription.active !== "boolean"
-        ) {
+        const sub = data?.subscription;
+        if (!sub || typeof sub.active !== "boolean") return;
+
+        setBillingBanner({
+          phase: String(sub.phase ?? "inactive"),
+          daysRemaining: sub.daysRemaining ?? null,
+          writable: sub.writable !== false,
+          active: sub.active,
+          onboardingDone: Boolean(data?.village?.onboardingCompletedAt),
+        });
+
+        if (!sub.active && !current.startsWith("/billing")) {
+          router.replace("/billing");
           return;
         }
-        if (!data.subscription.active) {
-          router.replace("/billing");
+
+        if (
+          sub.active &&
+          !data?.village?.onboardingCompletedAt &&
+          !isOnboardingFlowPath(current) &&
+          !current.startsWith("/billing")
+        ) {
+          router.replace("/onboarding");
         }
       } catch {
         return;
@@ -342,6 +378,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push(targetPath);
   };
 
+  const showLarasFab =
+    sessionStatus === "authenticated" &&
+    session?.user?.accountType !== "regional" &&
+    session?.user?.accountType !== "partner" &&
+    session?.user?.accountType !== "platform" &&
+    shouldShowLarasFab(pathname);
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar
@@ -354,6 +397,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        {billingBanner && (
+          <TrialBanner
+            phase={billingBanner.phase}
+            daysRemaining={billingBanner.daysRemaining}
+            writable={billingBanner.writable}
+          />
+        )}
         <Header
           title={title}
           subtitle={subtitle}
@@ -365,6 +415,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
+      {showLarasFab ? <LarasFab /> : null}
       <Toaster />
     </div>
   );

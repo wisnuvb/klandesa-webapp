@@ -7,6 +7,7 @@ import {
 import { hashPassword } from "@/lib/auth";
 import { validatePartnerPasswordPlain } from "@/lib/partner/password-policy";
 import { prisma } from "@/lib/prisma";
+import { requireTurnstile } from "@/lib/turnstile";
 
 /**
  * Pendaftaran mitra → Google Apps Script (Web App URL).
@@ -39,8 +40,12 @@ export async function POST(req: NextRequest) {
           website?: string;
           password?: string;
           confirmPassword?: string;
+          turnstileToken?: string;
         }
       | null;
+
+    const turnstile = await requireTurnstile(req, body?.turnstileToken);
+    if (!turnstile.ok) return turnstile.response;
 
     if (body?.website && String(body.website).trim() !== "") {
       return NextResponse.json({ error: "Permintaan tidak valid" }, { status: 400 });

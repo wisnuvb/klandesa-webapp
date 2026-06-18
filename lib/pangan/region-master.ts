@@ -2,6 +2,7 @@ import { PROVINSI_CODES } from "@/lib/pangan/match-region";
 
 export type ProvinsiRow = { kode_provinsi: string; nama_provinsi: string };
 export type KabKotaRow = { kode_kab_kota: string; nama_kab_kota: string };
+export type KecamatanRow = { kode_kecamatan: string; nama_kecamatan: string };
 
 export function extractArray<T = unknown>(payload: unknown): T[] {
   if (!payload || typeof payload !== "object") return [];
@@ -46,6 +47,34 @@ export async function fetchKabKotaList(
     if (!upstream.ok) return [];
     const json = (await upstream.json().catch(() => null)) as unknown;
     return extractArray<KabKotaRow>(json);
+  } catch {
+    return [];
+  }
+}
+
+/** Kode Kemendag (4 digit, mis. 3273) → kode wilayah.id (32.73). */
+export function kemendagKabKotaToWilayahId(kodeKabKota: string): string | null {
+  const c = kodeKabKota.trim();
+  if (!/^[0-9]{4}$/.test(c)) return null;
+  return `${c.slice(0, 2)}.${c.slice(2)}`;
+}
+
+export async function fetchKecamatanList(
+  kodeKabKota: string,
+): Promise<KecamatanRow[]> {
+  const wilayahId = kemendagKabKotaToWilayahId(kodeKabKota);
+  if (!wilayahId) return [];
+
+  const url = `https://wilayah.id/api/districts/${encodeURIComponent(wilayahId)}.json`;
+
+  try {
+    const upstream = await fetch(url, { method: "GET", cache: "no-store" });
+    if (!upstream.ok) return [];
+    const json = (await upstream.json().catch(() => null)) as unknown;
+    return extractArray<{ code: string; name: string }>(json).map((row) => ({
+      kode_kecamatan: row.code,
+      nama_kecamatan: row.name,
+    }));
   } catch {
     return [];
   }

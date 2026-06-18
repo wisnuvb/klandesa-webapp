@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
+import { toast } from "sonner";
 import { CheckoutDialog } from "./_components/CheckoutDialog";
 import { DesaPackagePurchaseCard } from "./_components/DesaPackagePurchaseCard";
 import { InvoiceHistoryCard } from "./_components/InvoiceHistoryCard";
+import { ModuleCatalogCard } from "./_components/ModuleCatalogCard";
 import { SubscriptionSummaryCard } from "./_components/SubscriptionSummaryCard";
 import { useBillingStatus } from "./_hooks/useBillingStatus";
 import { useDesaPackageCheckout } from "./_hooks/useDesaPackageCheckout";
@@ -10,6 +13,35 @@ import { useDesaPackageCheckout } from "./_hooks/useDesaPackageCheckout";
 export default function Page() {
   const { loading, error, data, reload } = useBillingStatus();
   const checkout = useDesaPackageCheckout({ data, reloadBilling: reload });
+  const [moduleCheckoutLoading, setModuleCheckoutLoading] = useState<
+    string | null
+  >(null);
+
+  const subscribeModule = async (moduleCode: string) => {
+    setModuleCheckoutLoading(moduleCode);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productType: "module_addon",
+          planCode: moduleCode,
+          paymentMethod: "qris",
+        }),
+      });
+      const j = (await res.json().catch(() => null)) as {
+        error?: string;
+        invoice?: { qrImageUrl?: string; paymentUrl?: string };
+      } | null;
+      if (!res.ok) throw new Error(j?.error || "Checkout gagal");
+      toast.success("Invoice modul dibuat. Selesaikan pembayaran di riwayat invoice.");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Checkout gagal");
+    } finally {
+      setModuleCheckoutLoading(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -55,6 +87,14 @@ export default function Page() {
         copyText={checkout.copyText}
         refreshInvoiceStatus={checkout.refreshInvoiceStatus}
       />
+
+      {data?.modules && (
+        <ModuleCatalogCard
+          modules={data.modules}
+          onSubscribe={subscribeModule}
+          checkoutLoading={moduleCheckoutLoading}
+        />
+      )}
 
       <InvoiceHistoryCard invoices={data?.invoices} />
     </div>

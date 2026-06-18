@@ -82,7 +82,7 @@ export function useDesaPackageCheckout(params: {
   const chargePreview = useMemo(() => {
     if (!checkoutTier || !data) return null;
     return getDesaPackageCharge(checkoutTier, {
-      subscriptionActive: data.subscription.active,
+      subscriptionPaid: data.subscription.paid ?? false,
       currentPlan: data.subscription.plan,
     });
   }, [checkoutTier, data]);

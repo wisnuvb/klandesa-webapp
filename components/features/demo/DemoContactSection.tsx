@@ -10,6 +10,7 @@ import {
   User,
 } from "lucide-react";
 import { getStoredReferralCode } from "@/lib/referrals/client";
+import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 
 const intentOptions = [
   {
@@ -44,6 +45,10 @@ export function DemoContactSection() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = React.useState(false);
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
+  );
 
   const selectedIntent = intentOptions.find((o) => o.id === intent)!;
 
@@ -75,6 +80,10 @@ export function DemoContactSection() {
     try {
       setIsSubmitting(true);
       setSubmitError(null);
+      if (turnstileRequired && !turnstileToken) {
+        setSubmitError("Selesaikan verifikasi keamanan terlebih dahulu");
+        return;
+      }
 
       const res = await fetch("/api/contacts", {
         method: "POST",
@@ -86,6 +95,7 @@ export function DemoContactSection() {
           subject: selectedIntent.subject,
           message: messageLines.join("\n"),
           source: "demo",
+          turnstileToken,
           referralCode: getStoredReferralCode(),
           sourcePath:
             typeof window === "undefined"
@@ -300,6 +310,8 @@ export function DemoContactSection() {
                 {submitError}
               </p>
             ) : null}
+
+            <TurnstileWidget onToken={setTurnstileToken} />
 
             <button
               type="submit"

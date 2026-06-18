@@ -17,18 +17,44 @@ import {
 import { KlandesaLogo } from "./KlandesaLogo";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { getStoredReferralCode } from "@/lib/referrals/client";
+import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { Combobox } from "@/components/ui/combobox";
+import { ProvinceLogo } from "@/components/wilayah/ProvinceLogo";
+import { PROVINSI_CODES, matchProvinceCode } from "@/lib/pangan/match-region";
+import {
+  extractArray,
+  type KabKotaRow,
+  type KecamatanRow,
+} from "@/lib/pangan/region-master";
+import { signIn } from "next-auth/react";
+import { toast } from "sonner";
+import Link from "next/link";
 
 interface RegistrationModalProps {
   onClose: () => void;
+  onOpenLogin?: () => void;
 }
 
-export function RegistrationModal({ onClose }: RegistrationModalProps) {
+export function RegistrationModal({
+  onClose,
+  onOpenLogin,
+}: RegistrationModalProps) {
   const { appAlert } = useAppDialogs();
   const [step, setStep] = React.useState(1);
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(
+    null,
+  );
+  const [kodeProvinsi, setKodeProvinsi] = React.useState("");
+  const [kodeKabKota, setKodeKabKota] = React.useState("");
+  const [kodeKecamatan, setKodeKecamatan] = React.useState("");
+  const [kabkota, setKabkota] = React.useState<KabKotaRow[]>([]);
+  const [kecamatanList, setKecamatanList] = React.useState<KecamatanRow[]>([]);
+  const [loadingKab, setLoadingKab] = React.useState(false);
+  const [loadingKec, setLoadingKec] = React.useState(false);
 
   // Form data
   const [formData, setFormData] = React.useState({
@@ -44,7 +70,6 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
     emailDesa: "",
 
     // Step 3: Akun & Keamanan
-    username: "",
     password: "",
     confirmPassword: "",
 
@@ -52,6 +77,10 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
     agreeTerms: false,
     agreePrivacy: false,
   });
+
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,11 +95,26 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
           throw new Error("Konfirmasi password tidak sama");
         }
 
+        if (turnstileRequired && !turnstileToken) {
+          throw new Error("Selesaikan verifikasi keamanan terlebih dahulu");
+        }
+
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            ...formData,
+            namaKabupaten: formData.namaKabupaten,
+            namaKecamatan: formData.namaKecamatan,
+            namaDesa: formData.namaDesa,
+            provinsi: formData.provinsi,
+            namaKepala: formData.namaKepala,
+            nomorTelepon: formData.nomorTelepon,
+            emailDesa: formData.emailDesa,
+            password: formData.password,
+            confirmPassword: formData.confirmPassword,
+            agreeTerms: formData.agreeTerms,
+            agreePrivacy: formData.agreePrivacy,
+            turnstileToken,
             referralCode: getStoredReferralCode(),
             sourcePath:
               typeof window === "undefined"
@@ -85,12 +129,30 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
           throw new Error(data?.error || "Pendaftaran gagal");
         }
 
-        void appAlert({
-          title: "Pendaftaran berhasil",
-          description:
-            "Silakan login, lalu aktifkan paket di halaman Billing.",
+        const login = await signIn("credentials", {
+          email: formData.emailDesa,
+          password: formData.password,
+          turnstileToken,
+          redirect: false,
         });
+
+        if (!login?.ok) {
+          void appAlert({
+            title: "Pendaftaran berhasil",
+            description: "Silakan login untuk melanjutkan onboarding.",
+          });
+          onClose();
+          onOpenLogin?.();
+          return;
+        }
+
+        toast.success("Selamat datang! Trial Profesional 14 hari aktif.");
         onClose();
+
+        const currentHost = window.location.host;
+        const domain = currentHost.replace(/^(www\.|my\.)?/, "");
+        const appUrl = `${window.location.protocol}//my.${domain}/onboarding`;
+        window.location.href = appUrl;
       } catch (err) {
         setSubmitError(
           err instanceof Error ? err.message : "Pendaftaran gagal",
@@ -108,45 +170,126 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
     }));
   };
 
+  const resetKabKota = React.useCallback(() => {
+    setKodeKabKota("");
+    setKodeKecamatan("");
+    setKabkota([]);
+    setKecamatanList([]);
+    setFormData((prev) => ({
+      ...prev,
+      namaKabupaten: "",
+      namaKecamatan: "",
+    }));
+  }, []);
+
+  const resetKecamatan = React.useCallback(() => {
+    setKodeKecamatan("");
+    setKecamatanList([]);
+    setFormData((prev) => ({
+      ...prev,
+      namaKecamatan: "",
+    }));
+  }, []);
+
+  const loadKabkota = React.useCallback(async (kodeProv: string) => {
+    if (!kodeProv) {
+      setKabkota([]);
+      return;
+    }
+    setLoadingKab(true);
+    try {
+      const res = await fetch(
+        `/api/pangan/kab-kota/${encodeURIComponent(kodeProv)}`,
+        { cache: "no-store" },
+      );
+      const json = (await res.json().catch(() => null)) as {
+        data?: unknown;
+      } | null;
+      setKabkota(extractArray<KabKotaRow>(json?.data));
+    } catch {
+      setKabkota([]);
+    } finally {
+      setLoadingKab(false);
+    }
+  }, []);
+
+  const loadKecamatan = React.useCallback(async (kodeKab: string) => {
+    if (!kodeKab) {
+      setKecamatanList([]);
+      return;
+    }
+    setLoadingKec(true);
+    try {
+      const res = await fetch(
+        `/api/wilayah/kecamatan/${encodeURIComponent(kodeKab)}`,
+        { cache: "no-store" },
+      );
+      const json = (await res.json().catch(() => null)) as {
+        data?: unknown;
+      } | null;
+      const rows = extractArray<KecamatanRow>(json);
+      setKecamatanList(rows);
+    } catch {
+      setKecamatanList([]);
+    } finally {
+      setLoadingKec(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!kodeProvinsi) {
+      setKabkota([]);
+      return;
+    }
+    void loadKabkota(kodeProvinsi);
+  }, [kodeProvinsi, loadKabkota]);
+
+  React.useEffect(() => {
+    if (!kodeKabKota) {
+      setKecamatanList([]);
+      return;
+    }
+    void loadKecamatan(kodeKabKota);
+  }, [kodeKabKota, loadKecamatan]);
+
   const totalSteps = 3;
   const progress = (step / totalSteps) * 100;
 
-  const provinces = [
-    "Aceh",
-    "Sumatera Utara",
-    "Sumatera Barat",
-    "Riau",
-    "Jambi",
-    "Sumatera Selatan",
-    "Bengkulu",
-    "Lampung",
-    "Kepulauan Bangka Belitung",
-    "Kepulauan Riau",
-    "DKI Jakarta",
-    "Jawa Barat",
-    "Jawa Tengah",
-    "DI Yogyakarta",
-    "Jawa Timur",
-    "Banten",
-    "Bali",
-    "Nusa Tenggara Barat",
-    "Nusa Tenggara Timur",
-    "Kalimantan Barat",
-    "Kalimantan Tengah",
-    "Kalimantan Selatan",
-    "Kalimantan Timur",
-    "Kalimantan Utara",
-    "Sulawesi Utara",
-    "Sulawesi Tengah",
-    "Sulawesi Selatan",
-    "Sulawesi Tenggara",
-    "Gorontalo",
-    "Sulawesi Barat",
-    "Maluku",
-    "Maluku Utara",
-    "Papua",
-    "Papua Barat",
-  ];
+  const provinceOptions = React.useMemo(
+    () =>
+      PROVINSI_CODES.map((p) => ({
+        value: p.nama_provinsi,
+        label: p.nama_provinsi,
+        icon: (
+          <ProvinceLogo
+            kodeProvinsi={p.kode_provinsi}
+            name={p.nama_provinsi}
+            size={24}
+          />
+        ),
+      })),
+    [],
+  );
+
+  const kabOptions = React.useMemo(
+    () =>
+      kabkota.map((k) => ({
+        value: k.kode_kab_kota,
+        label: k.nama_kab_kota,
+        keywords: k.nama_kab_kota,
+      })),
+    [kabkota],
+  );
+
+  const kecamatanOptions = React.useMemo(
+    () =>
+      kecamatanList.map((k) => ({
+        value: k.kode_kecamatan,
+        label: k.nama_kecamatan,
+        keywords: k.nama_kecamatan,
+      })),
+    [kecamatanList],
+  );
 
   return (
     <div className="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300 overflow-y-auto">
@@ -263,8 +406,12 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     <Building2 className="w-6 h-6 text-[#0d9488]" />
                     Informasi Desa
                   </h3>
-                  <p className="text-gray-600 text-sm mb-6">
+                  <p className="text-gray-600 text-sm mb-4">
                     Lengkapi informasi administrasi desa Anda
+                  </p>
+                  <p className="inline-flex items-center gap-2 text-xs font-medium text-[#0f766e] bg-teal-50 border border-teal-100 rounded-full px-3 py-1">
+                    Gratis 14 hari · Paket Profesional · Tanpa Perlu Bayar
+                    Sebelumnya
                   </p>
                 </div>
 
@@ -276,22 +423,28 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     >
                       Provinsi <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      id="provinsi"
+                    <Combobox
                       value={formData.provinsi}
-                      onChange={(e) =>
-                        handleInputChange("provinsi", e.target.value)
-                      }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none appearance-none bg-white"
+                      onValueChange={(value) => {
+                        handleInputChange("provinsi", value);
+                        setKodeProvinsi(matchProvinceCode(value) ?? "");
+                        resetKabKota();
+                      }}
+                      options={provinceOptions}
+                      placeholder="Pilih Provinsi"
+                      searchPlaceholder="Cari provinsi..."
+                      emptyText="Provinsi tidak ditemukan."
+                    />
+                    <input
+                      id="provinsi"
+                      type="text"
+                      value={formData.provinsi}
+                      onChange={() => {}}
+                      className="sr-only"
+                      tabIndex={-1}
                       required
-                    >
-                      <option value="">Pilih Provinsi</option>
-                      {provinces.map((prov) => (
-                        <option key={prov} value={prov}>
-                          {prov}
-                        </option>
-                      ))}
-                    </select>
+                      aria-hidden
+                    />
                   </div>
 
                   <div>
@@ -301,16 +454,40 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     >
                       Kabupaten/Kota <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      id="namaKabupaten"
-                      value={formData.namaKabupaten}
-                      onChange={(e) =>
-                        handleInputChange("namaKabupaten", e.target.value)
+                    <Combobox
+                      value={kodeKabKota}
+                      onValueChange={(next) => {
+                        const row = kabkota.find(
+                          (k) => k.kode_kab_kota === next,
+                        );
+                        setKodeKabKota(next);
+                        handleInputChange(
+                          "namaKabupaten",
+                          row?.nama_kab_kota ?? "",
+                        );
+                        resetKecamatan();
+                      }}
+                      options={kabOptions}
+                      placeholder={
+                        !kodeProvinsi
+                          ? "Pilih provinsi dulu"
+                          : loadingKab
+                            ? "Memuat daftar kab/kota..."
+                            : "Pilih kabupaten/kota"
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
-                      placeholder="Contoh: Bandung"
+                      searchPlaceholder="Cari kabupaten/kota..."
+                      emptyText="Kabupaten/kota tidak ditemukan."
+                      disabled={!kodeProvinsi || loadingKab}
+                    />
+                    <input
+                      id="namaKabupaten"
+                      type="text"
+                      value={formData.namaKabupaten}
+                      onChange={() => {}}
+                      className="sr-only"
+                      tabIndex={-1}
                       required
+                      aria-hidden
                     />
                   </div>
 
@@ -321,16 +498,39 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     >
                       Kecamatan <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      id="namaKecamatan"
-                      value={formData.namaKecamatan}
-                      onChange={(e) =>
-                        handleInputChange("namaKecamatan", e.target.value)
+                    <Combobox
+                      value={kodeKecamatan}
+                      onValueChange={(next) => {
+                        const row = kecamatanList.find(
+                          (k) => k.kode_kecamatan === next,
+                        );
+                        setKodeKecamatan(next);
+                        handleInputChange(
+                          "namaKecamatan",
+                          row?.nama_kecamatan ?? "",
+                        );
+                      }}
+                      options={kecamatanOptions}
+                      placeholder={
+                        !kodeKabKota
+                          ? "Pilih kabupaten/kota dulu"
+                          : loadingKec
+                            ? "Memuat daftar kecamatan..."
+                            : "Pilih kecamatan"
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
-                      placeholder="Contoh: Cicalengka"
+                      searchPlaceholder="Cari kecamatan..."
+                      emptyText="Kecamatan tidak ditemukan."
+                      disabled={!kodeKabKota || loadingKec}
+                    />
+                    <input
+                      id="namaKecamatan"
+                      type="text"
+                      value={formData.namaKecamatan}
+                      onChange={() => {}}
+                      className="sr-only"
+                      tabIndex={-1}
                       required
+                      aria-hidden
                     />
                   </div>
 
@@ -458,26 +658,6 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
 
                 <div>
                   <label
-                    htmlFor="username"
-                    className="block text-sm text-gray-700 mb-2"
-                  >
-                    Username <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) =>
-                      handleInputChange("username", e.target.value)
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
-                    placeholder="username"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
                     htmlFor="password"
                     className="block text-sm text-gray-700 mb-2"
                   >
@@ -553,6 +733,8 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                   </div>
                 </div>
 
+                <TurnstileWidget className="pt-2" onToken={setTurnstileToken} />
+
                 {/* Agreements */}
                 <div className="space-y-3 pt-4">
                   <label className="flex items-start gap-3 cursor-pointer group">
@@ -567,9 +749,12 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     />
                     <span className="text-sm text-gray-600 group-hover:text-gray-900">
                       Saya setuju dengan{" "}
-                      <a href="#" className="text-[#0d9488] hover:underline">
+                      <Link
+                        href="/terms-of-service"
+                        className="text-[#0d9488] hover:underline"
+                      >
                         Syarat & Ketentuan
-                      </a>
+                      </Link>
                     </span>
                   </label>
 
@@ -585,9 +770,12 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
                     />
                     <span className="text-sm text-gray-600 group-hover:text-gray-900">
                       Saya telah membaca dan memahami{" "}
-                      <a href="#" className="text-[#0d9488] hover:underline">
+                      <Link
+                        href="/privacy-policy"
+                        className="text-[#0d9488] hover:underline"
+                      >
                         Kebijakan Privasi
-                      </a>
+                      </Link>
                     </span>
                   </label>
                 </div>
@@ -613,7 +801,10 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
               )}
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={
+                  isSubmitting ||
+                  (step === totalSteps && turnstileRequired && !turnstileToken)
+                }
                 className="flex-1 bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-6 py-3 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group"
               >
                 <span>
@@ -631,12 +822,16 @@ export function RegistrationModal({ onClose }: RegistrationModalProps) {
           {/* Login Link */}
           <p className="mt-6 text-center text-sm text-gray-600">
             Sudah punya akun?{" "}
-            <a
-              href="#"
-              className="text-[#0d9488] hover:text-[#0f766e] transition-colors"
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenLogin?.();
+              }}
+              className="text-[#0d9488] hover:text-[#0f766e] transition-colors font-medium"
             >
               Masuk di sini
-            </a>
+            </button>
           </p>
         </div>
       </div>

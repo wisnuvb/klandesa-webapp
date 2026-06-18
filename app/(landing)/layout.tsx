@@ -61,7 +61,13 @@ export default function LandingLayout({
 
         {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
         {showRegistration && (
-          <RegistrationModal onClose={() => setShowRegistration(false)} />
+          <RegistrationModal
+            onClose={() => setShowRegistration(false)}
+            onOpenLogin={() => {
+              setShowRegistration(false);
+              setShowLogin(true);
+            }}
+          />
         )}
         {showContact && <ContactModal onClose={() => setShowContact(false)} />}
         </div>

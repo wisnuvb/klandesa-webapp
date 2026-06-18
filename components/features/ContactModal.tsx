@@ -15,6 +15,7 @@ import {
 
 import { KlandesaLogo } from "./KlandesaLogo";
 import { getStoredReferralCode } from "@/lib/referrals/client";
+import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 
 interface ContactModalProps {
   onClose: () => void;
@@ -49,6 +50,10 @@ export function ContactModal({ onClose }: ContactModalProps) {
   const [isSubmitted, setIsSubmitted] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,11 +61,16 @@ export function ContactModal({ onClose }: ContactModalProps) {
       setIsSubmitting(true);
       setSubmitError(null);
 
+      if (turnstileRequired && !turnstileToken) {
+        throw new Error("Selesaikan verifikasi keamanan terlebih dahulu");
+      }
+
       const res = await fetch("/api/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          turnstileToken,
           referralCode: getStoredReferralCode(),
           sourcePath:
             typeof window === "undefined"
@@ -393,10 +403,15 @@ export function ContactModal({ onClose }: ContactModalProps) {
                       ></textarea>
                     </div>
 
+                    <TurnstileWidget className="pt-1" onToken={setTurnstileToken} />
+
                     {/* Submit Button */}
                     <button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={
+                        isSubmitting ||
+                        (turnstileRequired && !turnstileToken)
+                      }
                       className="w-full bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white py-3.5 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group"
                     >
                       <span>

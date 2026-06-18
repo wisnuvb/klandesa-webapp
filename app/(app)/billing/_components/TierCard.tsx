@@ -9,7 +9,8 @@ import {
 type TierCardProps = {
   tier: DesaPackageTier;
   currentPlan: string | null;
-  isActive: boolean;
+  subscriptionPaid: boolean;
+  subscriptionPhase?: string | null;
   onOpenCheckout: (tier: DesaPackageTier) => void;
   checkoutLoading: boolean;
 };
@@ -17,39 +18,55 @@ type TierCardProps = {
 export function TierCard({
   tier,
   currentPlan,
-  isActive,
+  subscriptionPaid,
+  subscriptionPhase,
   onOpenCheckout,
   checkoutLoading,
 }: TierCardProps) {
   const tierInfo = BILLING_CATALOG.desa_package.tiers[tier];
-  const isCurrentPlan = currentPlan?.toLowerCase() === tier.toLowerCase();
+  const planMatches =
+    currentPlan?.toLowerCase() === tier.toLowerCase();
+  const isCurrentPlan = subscriptionPaid && planMatches;
+  const isTrialPlan =
+    !subscriptionPaid &&
+    planMatches &&
+    (subscriptionPhase === "trial" || subscriptionPhase === "grace");
 
-  const isUpgrade = isActive && !isCurrentPlan;
-  const needsSetupFee = !isActive || isUpgrade;
+  const isUpgrade = subscriptionPaid && !planMatches;
+  const needsSetupFee = !subscriptionPaid || isUpgrade;
 
   const totalAmount =
     needsSetupFee && tierInfo.setupFee != null
       ? tierInfo.setupFee
       : tierInfo.annualFee;
 
-  const actionLabel =
-    isCurrentPlan && isActive ? "Perpanjang" : !isActive ? "Berlangganan" : "Upgrade";
+  const actionLabel = (() => {
+    if (subscriptionPaid && isCurrentPlan) return "Perpanjang";
+    if (subscriptionPaid) return "Upgrade";
+    if (subscriptionPhase === "trial" || subscriptionPhase === "grace") {
+      return "Upgrade";
+    }
+    return "Berlangganan";
+  })();
 
   return (
     <div className="rounded-lg border p-4 space-y-2">
       <div className="flex items-center justify-between">
         <div className="font-medium">{tierInfo.name}</div>
         {isCurrentPlan && (
-          <Badge variant={isActive ? "default" : "outline"}>
-            {isActive ? "Aktif" : "Tidak Aktif"}
-          </Badge>
+          <Badge variant="default">Aktif</Badge>
+        )}
+        {isTrialPlan && (
+          <Badge variant="secondary">Trial</Badge>
         )}
       </div>
       <div className="text-sm text-muted-foreground">
-        {!isActive ? (
-          <>Biaya awal: {formatIdr(tierInfo.setupFee || 0)}</>
-        ) : isUpgrade ? (
-          <>Biaya upgrade: {formatIdr(tierInfo.setupFee || 0)}</>
+        {needsSetupFee ? (
+          isUpgrade ? (
+            <>Biaya upgrade: {formatIdr(tierInfo.setupFee || 0)}</>
+          ) : (
+            <>Biaya awal: {formatIdr(tierInfo.setupFee || 0)}</>
+          )
         ) : (
           <>Tahunan: {formatIdr(tierInfo.annualFee)}</>
         )}
@@ -67,4 +84,3 @@ export function TierCard({
     </div>
   );
 }
-

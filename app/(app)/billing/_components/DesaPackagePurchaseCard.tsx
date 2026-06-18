@@ -74,7 +74,8 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
               key={tier}
               tier={tier}
               currentPlan={data?.subscription.plan ?? null}
-              isActive={data?.subscription.active ?? false}
+              subscriptionPaid={data?.subscription.paid ?? false}
+              subscriptionPhase={data?.subscription.phase ?? data?.subscription.status}
               onOpenCheckout={openCheckout}
               checkoutLoading={checkoutLoading || Boolean(pendingInvoice)}
             />

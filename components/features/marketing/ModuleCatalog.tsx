@@ -5,6 +5,8 @@ import Link from "next/link";
 import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
 import { badgeLabelForStatus } from "@/lib/marketing/modules";
 import type { MarketingAudience, MarketingModuleItem } from "@/lib/marketing/modules";
+import { ModuleTierBadge } from "@/components/modules/ModuleTierBadge";
+import { getModuleEntitlement } from "@/lib/modules/entitlements";
 
 type Props = { modules: MarketingModuleItem[] };
 
@@ -81,13 +83,21 @@ export function ModuleCatalog({ modules }: Props) {
             key={m.id}
             className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:border-[#0d9488]/25 transition-colors"
           >
-            <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="flex items-start justify-between gap-2 mb-3 flex-wrap">
               <h2 className="font-semibold text-gray-900">{m.label}</h2>
-              {m.status === "beta" && (
-                <span className="shrink-0 text-[10px] uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold tracking-wide">
-                  {badgeLabelForStatus(m.status)}
-                </span>
-              )}
+              <div className="flex items-center gap-1 shrink-0">
+                {getModuleEntitlement(m.id) && (
+                  <ModuleTierBadge
+                    tier={getModuleEntitlement(m.id)!.minPackageTier}
+                    size="sm"
+                  />
+                )}
+                {m.status === "beta" && (
+                  <span className="text-[10px] uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold tracking-wide">
+                    {badgeLabelForStatus(m.status)}
+                  </span>
+                )}
+              </div>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed mb-4">
               {m.marketingDescription}

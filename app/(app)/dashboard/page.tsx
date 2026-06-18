@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RecentActivity } from "@/components/app/RecentActivity";
 import { StatsCard } from "@/components/app/StatsCard";
+import { LarasDashboardCard } from "@/components/ai/LarasDashboardCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Wallet, TrendingUp, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -175,6 +176,8 @@ export default function AppDashboard() {
 
   return (
     <div className="space-y-6">
+      <LarasDashboardCard />
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard

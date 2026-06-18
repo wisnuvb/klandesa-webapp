@@ -20,6 +20,7 @@ import { signIn, signOut } from "next-auth/react";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 
 import { KlandesaLogo } from "./KlandesaLogo";
+import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 
 interface LoginModalProps {
   onClose: () => void;
@@ -30,6 +31,10 @@ export function LoginModal({ onClose }: LoginModalProps) {
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
+  );
   // Initialize hook to sync NextAuth session into Redux store
   useNextAuthSession();
 
@@ -47,6 +52,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
       const result = await signIn("credentials", {
         email: username,
         password,
+        turnstileToken,
         redirect: false,
       });
 
@@ -149,7 +155,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
                       htmlFor="username"
                       className="block text-sm text-gray-700 mb-2"
                     >
-                      Email
+                      Email desa
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -221,10 +227,15 @@ export function LoginModal({ onClose }: LoginModalProps) {
                     </a>
                   </div>
 
+                  <TurnstileWidget className="pt-1" onToken={setTurnstileToken} />
+
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={
+                      isSubmitting ||
+                      (turnstileRequired && !turnstileToken)
+                    }
                     className="w-full bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white py-3.5 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <span>{isSubmitting ? "Memproses…" : "Masuk"}</span>

@@ -7,6 +7,13 @@ import { isRegionalAccount } from "@/lib/regional-session";
 import { prisma } from "@/lib/prisma";
 import { resolveApiPermission } from "@/lib/permissions/api-route-map";
 import { requirePermissionResponse } from "@/lib/permissions/require-permission";
+import {
+  assertSubscriptionForMethod,
+  isSubscriptionExemptPath,
+  resolveSubscriptionPhaseWithTransition,
+} from "@/lib/subscription";
+import { resolveModuleIdFromApiPath } from "@/lib/modules/api-route-map";
+import { requireModuleEntitlement } from "@/lib/modules/require-module";
 
 export function jsonUnauthorized(message = "Unauthorized") {
   return NextResponse.json({ error: message }, { status: 401 });
@@ -89,6 +96,29 @@ export async function requireVillageApiContext(
       apiPerm.action,
     );
     if (permErr) return { ok: false, response: permErr };
+  }
+
+  const pathname = req.nextUrl.pathname;
+  if (!isSubscriptionExemptPath(pathname)) {
+    await resolveSubscriptionPhaseWithTransition(village.id, village);
+    const freshVillage = await prisma.village.findUnique({
+      where: { id: village.id },
+    });
+    if (freshVillage) {
+      const subErr = assertSubscriptionForMethod(freshVillage, req.method);
+      if (subErr) return { ok: false, response: subErr };
+
+      const moduleId = resolveModuleIdFromApiPath(pathname);
+      if (moduleId) {
+        const modErr = await requireModuleEntitlement(freshVillage, moduleId);
+        if (!modErr.ok) return { ok: false, response: modErr.response };
+      }
+
+      return {
+        ok: true,
+        ctx: { session, userId, village: freshVillage, dbUser },
+      };
+    }
   }
 
   return {

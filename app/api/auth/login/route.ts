@@ -9,6 +9,7 @@ import {
 } from "@/lib/regional-policy";
 import type { RegionalScope } from "@/lib/regional-session";
 import { resolveLinkedPartnerIdForVillageEmail } from "@/lib/partner/resolve-linked-partner";
+import { requireTurnstile } from "@/lib/turnstile";
 
 function buildRegionalScopeFromUser(user: {
   role: string;
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
-    const { email, password } = body;
+    const { email, password, turnstileToken } = body;
 
     if (!email || !password) {
       console.log("Missing credentials");
@@ -47,6 +48,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    const turnstile = await requireTurnstile(request, turnstileToken);
+    if (!turnstile.ok) return turnstile.response;
 
     const user = await prisma.user.findUnique({
       where: { email },

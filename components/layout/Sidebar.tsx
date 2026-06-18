@@ -22,6 +22,8 @@ import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 import { useCooperativeNav } from "@/components/providers/CooperativeNavProvider";
 import { buildVillageSidebarMenu } from "@/lib/modules/sidebar-menu";
 import { useMemo, useState } from "react";
+import { ModuleTierBadge } from "@/components/modules/ModuleTierBadge";
+import type { PackageTier } from "@/lib/modules/entitlements";
 
 interface MenuItem {
   id: string;
@@ -29,6 +31,8 @@ interface MenuItem {
   icon: React.ElementType;
   path?: string;
   children?: MenuItem[];
+  packageTier?: PackageTier;
+  locked?: boolean;
 }
 
 const COOPERATIVE_ONLY_SIDEBAR_MENU: MenuItem[] = [
@@ -249,6 +253,16 @@ export function Sidebar({
           {!isCollapsed && (
             <>
               <span className="flex-1 text-left text-sm">{item.label}</span>
+              {/* {item.packageTier &&
+                !["dashboard", "pengaturan-desa", "billing"].includes(
+                  item.id,
+                ) && (
+                  <ModuleTierBadge
+                    tier={item.packageTier}
+                    size="sm"
+                    locked={item.locked}
+                  />
+                )} */}
               {hasChildren && (
                 <motion.div
                   animate={{ rotate: isExpanded ? 0 : 0 }}

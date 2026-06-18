@@ -3,6 +3,13 @@ import { Badge } from "@/components/ui/badge";
 import type { BillingStatusResponse } from "../_lib/types";
 import { format } from "date-fns";
 
+const PHASE_LABELS: Record<string, string> = {
+  trial: "Trial Profesional",
+  grace: "Grace (Baca Saja)",
+  active: "Aktif",
+  inactive: "Tidak Aktif",
+};
+
 type SubscriptionSummaryCardProps = {
   loading: boolean;
   error: string | null;
@@ -11,6 +18,8 @@ type SubscriptionSummaryCardProps = {
 
 export function SubscriptionSummaryCard(props: SubscriptionSummaryCardProps) {
   const { loading, error, data } = props;
+  const phase = data?.subscription.phase ?? "inactive";
+  const phaseLabel = PHASE_LABELS[phase] ?? phase;
 
   return (
     <Card>
@@ -35,16 +44,27 @@ export function SubscriptionSummaryCard(props: SubscriptionSummaryCardProps) {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Paket Desa</div>
-              <div className="flex items-center gap-2">
-                <div className="font-medium">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="font-medium capitalize">
                   {data.subscription.plan ?? "-"}
                 </div>
                 <Badge
-                  variant={data.subscription.active ? "default" : "secondary"}
+                  variant={
+                    data.subscription.active
+                      ? phase === "trial"
+                        ? "secondary"
+                        : "default"
+                      : "destructive"
+                  }
                 >
-                  {data.subscription.active ? "Aktif" : "Tidak Aktif"}
+                  {phaseLabel}
                 </Badge>
               </div>
+              {data.subscription.daysRemaining != null && phase === "trial" && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  {data.subscription.daysRemaining} hari tersisa
+                </div>
+              )}
               <div className="text-sm text-muted-foreground">
                 Masa Aktif:{" "}
                 {data.subscription.expiry

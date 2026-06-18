@@ -93,6 +93,7 @@ providers.push(
     credentials: {
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
+      turnstileToken: { label: "Turnstile", type: "text" },
     },
     async authorize(credentials) {
       // Panggilan server→server ke API login: pakai NEXTAUTH_URL_INTERNAL (mis. http://127.0.0.1:2042)
@@ -111,6 +112,7 @@ providers.push(
           body: JSON.stringify({
             email: credentials?.email,
             password: credentials?.password,
+            turnstileToken: credentials?.turnstileToken,
           }),
         });
 

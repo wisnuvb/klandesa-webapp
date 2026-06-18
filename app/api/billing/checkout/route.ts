@@ -140,6 +140,7 @@ export async function POST(req: NextRequest) {
       "absensi_gps_addon",
       "arsip",
       "website",
+      "module_addon",
     ];
     if (!allowedProducts.includes(productType as BillingProductType)) {
       return NextResponse.json(

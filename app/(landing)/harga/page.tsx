@@ -43,7 +43,7 @@ export default function PricingPage() {
         { name: "Branding portal (logo, warna, subdomain/domain desa)", included: false },
         { name: "Dashboard lintas desa untuk kabupaten/kecamatan", included: false },
       ],
-      cta: "Konsultasi Gratis",
+      cta: "Mulai Trial Gratis",
       highlight: "Untuk Desa Kecil",
       badge: "Mulai tanpa hambatan fitur",
     },
@@ -113,7 +113,7 @@ export default function PricingPage() {
     },
     {
       question: "Apakah tersedia demo atau trial?",
-      answer: "Ya! Kami menyediakan demo langsung baik online maupun on-site ke kantor desa. Untuk paket tertentu, kami juga menyediakan trial period agar tim desa bisa mencoba langsung sebelum berkomitmen. Silakan klik tombol chat di pojok kanan bawah untuk menghubungi kami.",
+      answer: "Ya! Setiap desa baru mendapat trial gratis 14 hari dengan paket Profesional penuh — tanpa perlu bayar sebelumnya. Setelah trial, Anda bisa konversi ke paket berbayar atau menghubungi tim kami untuk demo on-site.",
     },
     {
       question: "Apakah paket Starter benar-benar bisa pakai semua fitur?",

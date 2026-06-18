@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  Bot,
   CreditCard,
   History,
   Loader2,
@@ -17,12 +16,26 @@ import {
   Trash2,
   User,
 } from "lucide-react";
+import { LarasAvatar } from "@/components/ai/LarasAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatMarkdown } from "@/components/ui/chat-markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/components/ui/utils";
+import { AI_CREDITS_CONSUMPTION_ENABLED } from "@/lib/ai/credits";
+import {
+  AI_MODEL_STORAGE_KEY,
+  defaultAiModelId,
+  labelForAiModel,
+  SELECTABLE_AI_MODELS,
+  type SelectableAiModelId,
+} from "@/lib/ai/models";
+import {
+  AI_ASSISTANT_NAME,
+  AI_ASSISTANT_TAGLINE,
+  AI_ASSISTANT_TITLE,
+} from "@/lib/ai/persona";
 import {
   Select,
   SelectContent,
@@ -57,36 +70,6 @@ const MODES = [
   { id: "sdgs_analysis", label: "Analisa SDGs" },
   { id: "rpjmdes_draft", label: "Draft RPJMDes" },
   { id: "program_recommendation", label: "Rekomendasi Program" },
-] as const;
-
-const AI_MODELS = [
-  { id: "nemotron3Nano", label: "Nemotron 3 Nano" },
-  {
-    id: "nvidia/nemotron-3-super-120b-a12b:free",
-    label: "Nemotron 3 Super 120B",
-  },
-  {
-    id: "z-ai/glm-4.5-air:free",
-    label: "GLM 4.5 Air",
-  },
-  {
-    id: "deepseek/deepseek-v4-flash:free",
-    label: "DeepSeek V4 Flash",
-  },
-  {
-    id: "moonshotai/kimi-k2.6:free",
-    label: "Kimi K2.6",
-  },
-  {
-    id: "qwen/qwen3-next-80b-a3b-instruct:free",
-    label: "Qwen 3 Next 80B A3B",
-  },
-  { id: "gpt4oMini", label: "GPT-4o Mini" },
-  { id: "geminiFlash", label: "Gemini Flash" },
-  { id: "claudeHaiku", label: "Claude Haiku" },
-  { id: "grok41Fast", label: "Grok 4.1 Fast" },
-  { id: "deepseekR1tChimera", label: "Deepseek R1t Chimera" },
-  { id: "qwen3Coder", label: "Qwen 3 Coder" },
 ] as const;
 
 const CREDIT_PACKAGES = [
@@ -144,7 +127,7 @@ export default function AsistenAiPage() {
   const { appConfirm } = useAppDialogs();
   const [credits, setCredits] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("citizen_faq");
-  const [model, setModel] = useState<string>("nemotron3Nano");
+  const [model, setModel] = useState<SelectableAiModelId>(defaultAiModelId());
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
@@ -200,6 +183,26 @@ export default function AsistenAiPage() {
     void loadCredits();
     void loadThreads();
   }, [loadCredits, loadThreads]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(AI_MODEL_STORAGE_KEY);
+      if (
+        stored &&
+        SELECTABLE_AI_MODELS.some((m) => m.id === stored)
+      ) {
+        setModel(stored as SelectableAiModelId);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prompt = params.get("prompt")?.trim();
+    if (prompt) setInput(prompt);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -284,7 +287,7 @@ export default function AsistenAiPage() {
     setMessages(optimistic);
     setLoading(true);
 
-    const currentModel = AI_MODELS.find((m) => m.id === model)?.label || "AI";
+    const currentModel = labelForAiModel(model);
 
     // Mulai animasi thinking realtime
     void runThinkingSteps(currentModel);
@@ -350,30 +353,37 @@ export default function AsistenAiPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-            <Bot className="h-7 w-7" />
-            Asisten Desa AI
+            <LarasAvatar size={32} />
+            {AI_ASSISTANT_TITLE}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Analisa SDGs, draft RPJMDes, rekomendasi program, dan FAQ layanan
-            warga. Riwayat tersimpan per akun Anda.
+            {AI_ASSISTANT_TAGLINE} Riwayat tersimpan per akun Anda.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-sm">
-            Kredit: {credits ?? "…"}
-          </Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              setSelectedPkg(null);
-              setPaymentMethod(null);
-              setTopupOpen(true);
-            }}
-          >
-            <CreditCard className="h-3.5 w-3.5" /> Top Up
-          </Button>
+          {AI_CREDITS_CONSUMPTION_ENABLED ? (
+            <>
+              <Badge variant="secondary" className="text-sm">
+                Kredit: {credits === 0 ? "~" : (credits ?? "…")}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  setSelectedPkg(null);
+                  setPaymentMethod(null);
+                  setTopupOpen(true);
+                }}
+              >
+                <CreditCard className="h-3.5 w-3.5" /> Top Up
+              </Button>
+            </>
+          ) : (
+            <Badge variant="secondary" className="text-sm">
+              Gratis · Nemotron 3 Nano
+            </Badge>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -523,12 +533,23 @@ export default function AsistenAiPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={model} onValueChange={setModel}>
-                <SelectTrigger className="w-[160px]">
+              <Select
+                value={model}
+                onValueChange={(value) => {
+                  const next = value as SelectableAiModelId;
+                  setModel(next);
+                  try {
+                    localStorage.setItem(AI_MODEL_STORAGE_KEY, next);
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {AI_MODELS.map((m) => (
+                  {SELECTABLE_AI_MODELS.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.label}
                     </SelectItem>
@@ -573,12 +594,13 @@ export default function AsistenAiPage() {
               ) : null}
               {!messagesLoading && messages.length === 0 && (
                 <div className="text-center max-w-md">
-                  <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <LarasAvatar size={48} className="mx-auto mb-4" />
                   <p className="text-lg font-medium">
-                    Selamat datang di Asisten Desa AI
+                    Halo! Saya {AI_ASSISTANT_NAME}
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Mulai percakapan baru atau pilih riwayat di sebelah kiri.
+                    Asisten digital untuk perangkat desa. Mulai percakapan baru
+                    atau pilih riwayat di sebelah kiri.
                   </p>
                 </div>
               )}
@@ -593,27 +615,16 @@ export default function AsistenAiPage() {
                         isUser ? "flex-row-reverse" : "flex-row",
                       )}
                     >
-                      <div
-                        className={cn(
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                          isUser
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted border",
-                        )}
-                        aria-hidden
-                      >
-                        {isUser ? (
+                      {isUser ? (
+                        <div
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                          aria-hidden
+                        >
                           <User className="h-4 w-4" />
-                        ) : (
-                          // <Bot className="h-4 w-4" />
-                          <Image
-                            src="/images/logo-single.png"
-                            alt="Asisten Desa AI"
-                            width={16}
-                            height={16}
-                          />
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <LarasAvatar size={32} className="mt-0.5" />
+                      )}
                       <div
                         className={cn(
                           "min-w-0 max-w-[min(85%,42rem)] rounded-2xl px-3.5 py-2.5 shadow-sm",
@@ -635,12 +646,10 @@ export default function AsistenAiPage() {
                 })}
               {loading && (
                 <div className="flex gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-muted">
-                    <Bot className="h-4 w-4" aria-hidden />
-                  </div>
+                  <LarasAvatar size={32} />
                   <div className="flex items-center gap-2 rounded-2xl rounded-tl-md border bg-card px-3.5 py-2.5 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {thinkingStep || "Asisten mengetik…"}
+                    {thinkingStep || `${AI_ASSISTANT_NAME} sedang mengetik…`}
                   </div>
                 </div>
               )}
@@ -655,15 +664,17 @@ export default function AsistenAiPage() {
                 messages.length > 0 && "sticky bottom-0 bg-card pb-1",
               )}
             >
-              <div className="text-xs text-muted-foreground mb-1.5 px-1">
-                Model: {AI_MODELS.find((m) => m.id === model)?.label} · 1 kredit
-                per pesan
+              <div className="text-xs text-muted-foreground mb-1.5 px-1 hidden">
+                Model: {labelForAiModel(model)}
+                {AI_CREDITS_CONSUMPTION_ENABLED
+                  ? " · 1 kredit per pesan"
+                  : " · tanpa pemotongan kredit (sementara)"}
               </div>
-              <div className="flex items-end gap-2 rounded-3xl border bg-background px-3 py-2 shadow-sm">
+              <div className="flex items-end gap-1 rounded-3xl border bg-background px-2 py-1.5 shadow-sm focus-within:ring-1 focus-within:ring-ring/40">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 h-9 w-9 rounded-full"
+                  className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                   onClick={() => alert("Fitur lampirkan file akan datang")}
                   disabled={loading}
                 >
@@ -674,7 +685,12 @@ export default function AsistenAiPage() {
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Tanyakan apa saja"
                   rows={1}
-                  className="flex-1 resize-y min-h-[36px] max-h-[120px] border-0! border-none bg-transparent px-0 py-1.5 focus-visible:ring-0"
+                  className={cn(
+                    "flex-1 min-h-9 max-h-32 resize-none !border-0 bg-transparent px-1 py-2 !shadow-none",
+                    "!rounded-none outline-none !ring-0",
+                    "focus-visible:!border-0 focus-visible:!ring-0 focus-visible:outline-none",
+                    "placeholder:text-muted-foreground",
+                  )}
                   disabled={loading || messagesLoading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -686,14 +702,15 @@ export default function AsistenAiPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 h-9 w-9 rounded-full"
+                  className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                   onClick={() => alert("Voice input akan segera tersedia")}
                   disabled={loading}
                 >
                   <Mic className="h-4 w-4" />
                 </Button>
                 <Button
-                  className="shrink-0 rounded-full h-9 w-9"
+                  size="icon"
+                  className="shrink-0 h-9 w-9 rounded-full"
                   disabled={loading || messagesLoading || !input.trim()}
                   onClick={() => void send()}
                 >
@@ -709,13 +726,18 @@ export default function AsistenAiPage() {
         </Card>
       </div>
 
-      <Dialog open={topupOpen} onOpenChange={(open) => { setTopupOpen(open); if (!open) setInvoiceData(null); }}>
+      <Dialog
+        open={topupOpen}
+        onOpenChange={(open) => {
+          setTopupOpen(open);
+          if (!open) setInvoiceData(null);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Top Up Kredit AI</DialogTitle>
             <DialogDescription>
-              Pilih paket kredit. Biaya per pertanyaan
-              memerlukan 1 kredit.
+              Pilih paket kredit. Biaya per pertanyaan memerlukan 1 kredit.
             </DialogDescription>
           </DialogHeader>
 
@@ -774,7 +796,19 @@ export default function AsistenAiPage() {
               {invoiceData.status === "paid" ? (
                 <div className="text-center py-4">
                   <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
                   </div>
                   <p className="font-semibold text-lg">Pembayaran Berhasil!</p>
                   <p className="text-sm text-muted-foreground">
@@ -785,12 +819,18 @@ export default function AsistenAiPage() {
                 <>
                   <div className="rounded-xl border p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Total Bayar</span>
-                      <span className="font-bold text-lg">Rp {invoiceData.amount.toLocaleString("id-ID")}</span>
+                      <span className="text-sm text-muted-foreground">
+                        Total Bayar
+                      </span>
+                      <span className="font-bold text-lg">
+                        Rp {invoiceData.amount.toLocaleString("id-ID")}
+                      </span>
                     </div>
                     {invoiceData.vaNumber && (
                       <div className="space-y-1">
-                        <span className="text-sm text-muted-foreground">Nomor VA</span>
+                        <span className="text-sm text-muted-foreground">
+                          Nomor VA
+                        </span>
                         <div className="flex items-center gap-2">
                           <code className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm font-mono">
                             {invoiceData.vaNumber}
@@ -800,7 +840,9 @@ export default function AsistenAiPage() {
                             variant="outline"
                             onClick={() => {
                               if (invoiceData.vaNumber) {
-                                void navigator.clipboard.writeText(invoiceData.vaNumber);
+                                void navigator.clipboard.writeText(
+                                  invoiceData.vaNumber,
+                                );
                                 toast.success("Nomor VA disalin");
                               }
                             }}
@@ -812,7 +854,9 @@ export default function AsistenAiPage() {
                     )}
                     {invoiceData.qrImageUrl && (
                       <div className="space-y-1 text-center">
-                        <span className="text-sm text-muted-foreground">Scan QRIS</span>
+                        <span className="text-sm text-muted-foreground">
+                          Scan QRIS
+                        </span>
                         <Image
                           src={invoiceData.qrImageUrl}
                           alt="QRIS"
@@ -822,24 +866,27 @@ export default function AsistenAiPage() {
                         />
                       </div>
                     )}
-                    {invoiceData.paymentUrl && !invoiceData.vaNumber && !invoiceData.qrImageUrl && (
-                      <div className="text-center">
-                        <a
-                          href={invoiceData.paymentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary underline"
-                        >
-                          Buka halaman pembayaran
-                        </a>
-                      </div>
-                    )}
+                    {invoiceData.paymentUrl &&
+                      !invoiceData.vaNumber &&
+                      !invoiceData.qrImageUrl && (
+                        <div className="text-center">
+                          <a
+                            href={invoiceData.paymentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary underline"
+                          >
+                            Buka halaman pembayaran
+                          </a>
+                        </div>
+                      )}
                     <p className="text-xs text-muted-foreground text-center">
                       Invoice: {invoiceData.partnerReff}
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Status pembayaran akan diperbarui otomatis. Tutup dialog ini jika sudah membayar.
+                    Status pembayaran akan diperbarui otomatis. Tutup dialog ini
+                    jika sudah membayar.
                   </p>
                 </>
               )}
@@ -855,7 +902,9 @@ export default function AsistenAiPage() {
                 <Button
                   disabled={!selectedPkg || !paymentMethod || checkoutLoading}
                   onClick={async () => {
-                    const pkg = CREDIT_PACKAGES.find((p) => p.id === selectedPkg);
+                    const pkg = CREDIT_PACKAGES.find(
+                      (p) => p.id === selectedPkg,
+                    );
                     if (!pkg || !paymentMethod) return;
                     setCheckoutLoading(true);
                     try {
@@ -882,7 +931,9 @@ export default function AsistenAiPage() {
                       if (result.ok && result.invoice) {
                         setInvoiceData({
                           ...result.invoice,
-                          expiresAt: result.invoice.expiresAt ? new Date(result.invoice.expiresAt) : null,
+                          expiresAt: result.invoice.expiresAt
+                            ? new Date(result.invoice.expiresAt)
+                            : null,
                         });
                         loadCredits();
                         // Start polling for status
@@ -890,12 +941,20 @@ export default function AsistenAiPage() {
                           try {
                             const poll = await fetchJson<{
                               ok: boolean;
-                              invoice?: { status: string; paidAt?: string | null };
+                              invoice?: {
+                                status: string;
+                                paidAt?: string | null;
+                              };
                               credits?: number;
-                            }>(`/api/ai/topup/status?ref=${encodeURIComponent(result.invoice.partnerReff)}`);
+                            }>(
+                              `/api/ai/topup/status?ref=${encodeURIComponent(result.invoice.partnerReff)}`,
+                            );
                             if (poll.ok && poll.invoice?.status === "paid") {
-                              setInvoiceData((prev) => prev ? { ...prev, status: "paid" } : prev);
-                              if (poll.credits != null) setCredits(poll.credits);
+                              setInvoiceData((prev) =>
+                                prev ? { ...prev, status: "paid" } : prev,
+                              );
+                              if (poll.credits != null)
+                                setCredits(poll.credits);
                               clearInterval(interval);
                             }
                           } catch {
@@ -903,12 +962,19 @@ export default function AsistenAiPage() {
                           }
                         }, 5000);
                         // Stop polling after 10 minutes
-                        setTimeout(() => clearInterval(interval), 10 * 60 * 1000);
+                        setTimeout(
+                          () => clearInterval(interval),
+                          10 * 60 * 1000,
+                        );
                       } else {
                         toast.error("Gagal membuat transaksi");
                       }
                     } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Gagal membuat transaksi");
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Gagal membuat transaksi",
+                      );
                     } finally {
                       setCheckoutLoading(false);
                     }
@@ -922,7 +988,12 @@ export default function AsistenAiPage() {
                 </Button>
               </div>
             ) : (
-              <Button onClick={() => { setTopupOpen(false); setInvoiceData(null); }}>
+              <Button
+                onClick={() => {
+                  setTopupOpen(false);
+                  setInvoiceData(null);
+                }}
+              >
                 Tutup
               </Button>
             )}

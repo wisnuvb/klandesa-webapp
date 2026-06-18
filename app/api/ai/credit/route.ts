@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiSession } from "@/lib/api-session";
 import { prisma } from "@/lib/prisma";
+import {
+  AI_CREDITS_CONSUMPTION_ENABLED,
+  DEFAULT_AI_CREDITS,
+  ensureDefaultAiCredits,
+} from "@/lib/ai/credits";
 
 export async function GET(req: NextRequest) {
   const session = await getApiSession(req);
@@ -20,11 +25,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ hasCredit: false, remaining: 0 }, { status: 200 });
   }
 
+  if (!AI_CREDITS_CONSUMPTION_ENABLED) {
+    const remaining = await ensureDefaultAiCredits(userId);
+    return NextResponse.json(
+      { hasCredit: true, remaining, consumptionEnabled: false },
+      { status: 200 },
+    );
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { aiCredits: true },
   });
 
   const remaining = typeof user?.aiCredits === "number" ? user.aiCredits : 0;
-  return NextResponse.json({ hasCredit: remaining > 0, remaining }, { status: 200 });
+  return NextResponse.json(
+    { hasCredit: remaining > 0, remaining, consumptionEnabled: true },
+    { status: 200 },
+  );
 }

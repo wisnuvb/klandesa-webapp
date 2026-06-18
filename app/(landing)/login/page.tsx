@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { getSession, signIn, signOut } from "next-auth/react";
 
 function LandingLoginContent() {
@@ -15,10 +16,18 @@ function LandingLoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
+  );
 
   const isFormInvalid = useMemo(
-    () => !email.trim() || !password.trim() || loading,
-    [email, password, loading],
+    () =>
+      !email.trim() ||
+      !password.trim() ||
+      loading ||
+      (turnstileRequired && !turnstileToken),
+    [email, password, loading, turnstileRequired, turnstileToken],
   );
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -38,6 +47,7 @@ function LandingLoginContent() {
       const result = await signIn("credentials", {
         email: email.trim(),
         password,
+        turnstileToken,
         redirect: false,
       });
 
@@ -158,6 +168,8 @@ function LandingLoginContent() {
             </div>
 
             {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+            <TurnstileWidget onToken={setTurnstileToken} />
 
             <button
               type="submit"

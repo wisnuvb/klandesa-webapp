@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import {
   ArrowRight,
   Briefcase,
@@ -99,6 +100,10 @@ export default function MitraPage() {
   const [isSubmitted, setIsSubmitted] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +114,9 @@ export default function MitraPage() {
     }
     try {
       setIsSubmitting(true);
+      if (turnstileRequired && !turnstileToken) {
+        throw new Error("Selesaikan verifikasi keamanan terlebih dahulu");
+      }
 
       const res = await fetch("/api/partner-applications", {
         method: "POST",
@@ -122,6 +130,7 @@ export default function MitraPage() {
           password: formData.password,
           confirmPassword: formData.confirmPassword,
           website: formData.website,
+          turnstileToken,
         }),
       });
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -506,9 +515,14 @@ export default function MitraPage() {
                   </p>
                 ) : null}
 
+                <TurnstileWidget onToken={setTurnstileToken} />
+
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={
+                    isSubmitting ||
+                    (turnstileRequired && !turnstileToken)
+                  }
                   className="w-full flex items-center justify-center gap-2 bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white py-3.5 rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (

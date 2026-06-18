@@ -1,3 +1,5 @@
+import type { PackageTier } from "@/lib/modules/entitlements";
+
 export type BillingStatusInvoice = {
   id: string;
   invoiceNumber: string;
@@ -17,9 +19,18 @@ export type BillingStatusInvoice = {
 };
 
 export type BillingStatusResponse = {
-  village: { id: number; code: string; name: string };
+  village: {
+    id: number;
+    code: string;
+    name: string;
+    onboardingCompletedAt?: string | null;
+  };
   subscription: {
     active: boolean;
+    writable?: boolean;
+    paid?: boolean;
+    phase?: string;
+    daysRemaining?: number | null;
     plan: string | null;
     status: string | null;
     startDate: string | null;
@@ -33,6 +44,16 @@ export type BillingStatusResponse = {
         arsipStorageLimitGb: number;
       }
     | null;
+  modules?: Record<
+    string,
+    {
+      entitled: boolean;
+      source: string | null;
+      minPackageTier: PackageTier;
+      addonMonthlyFee: number | null;
+      locked: boolean;
+    }
+  >;
   invoices: BillingStatusInvoice[];
 };
 

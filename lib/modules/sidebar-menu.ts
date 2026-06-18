@@ -3,7 +3,6 @@ import {
   AlertCircle,
   Archive,
   BarChart3,
-  Bot,
   ClipboardList,
   Clock,
   FileText,
@@ -19,6 +18,7 @@ import {
   RefreshCw,
   Settings2,
   ShoppingBag,
+  Sparkles,
   Sprout,
   Target,
   Users,
@@ -30,6 +30,8 @@ import { getAllowedActions } from "@/lib/permissions/matrix";
 import { normalizeVillageRole, type VillageRole } from "@/lib/permissions/roles";
 import type { PermissionResource } from "@/lib/permissions/resources";
 import { getNavModules, type ModuleDefinition } from "./registry";
+import { getModuleEntitlement } from "./entitlements";
+import type { PackageTier } from "./entitlements";
 
 export type SidebarMenuItem = {
   id: string;
@@ -37,6 +39,8 @@ export type SidebarMenuItem = {
   icon: LucideIcon;
   path?: string;
   children?: SidebarMenuItem[];
+  packageTier?: PackageTier;
+  locked?: boolean;
 };
 
 const MODULE_ICONS: Record<string, LucideIcon> = {
@@ -68,7 +72,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   rpjmdes: ClipboardList,
   "peta-infrastruktur": MapIcon,
   "sinkronisasi-data": RefreshCw,
-  "asisten-ai": Bot,
+  "asisten-ai": Sparkles,
   arsip: Archive,
   ukm: ShoppingBag,
   website: Monitor,
@@ -112,11 +116,13 @@ function buildGroupedItems(
   const groups = new Map<string, SidebarMenuItem>();
 
   for (const mod of visible) {
+    const ent = getModuleEntitlement(mod.id);
     const item: SidebarMenuItem = {
       id: mod.id,
       label: mod.label,
       icon: resolveIcon(mod.id, mod.group),
       path: mod.path,
+      packageTier: ent?.minPackageTier,
     };
 
     if (!mod.group) {

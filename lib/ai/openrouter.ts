@@ -9,9 +9,26 @@ export const OPENROUTER_MODELS = {
   claudeHaiku: "anthropic/claude-3.5-haiku",
   grok41Fast: "x-ai/grok-4.1-fast",
   nemotron3Nano: "nvidia/nemotron-3-nano-30b-a3b:free",
+  nemotron3Super: "nvidia/nemotron-3-super-120b-a12b:free",
   deepseekR1tChimera: "tngtech/deepseek-r1t-chimera:free",
   qwen3Coder: "qwen/qwen3-coder:free",
+  qwen3Next80bA3bInstruct:"qwen/qwen3-next-80b-a3b-instruct:free",
+  openaiOss20b:"openai/gpt-oss-20b:free",
+  nexN2Pro:"nex-agi/nex-n2-pro:free"
 } as const;
+
+/** Model free from OpenRouter that can be used (currently only tier :free). */
+export const FREE_OPENROUTER_MODELS = {
+  nemotron3Nano: OPENROUTER_MODELS.nemotron3Nano,
+  nemotron3Super: OPENROUTER_MODELS.nemotron3Super,
+  deepseekR1tChimera: OPENROUTER_MODELS.deepseekR1tChimera,
+  qwen3Coder: OPENROUTER_MODELS.qwen3Coder,
+  qwen3Next80bA3bInstruct: OPENROUTER_MODELS.qwen3Next80bA3bInstruct,
+  openaiOss20b: OPENROUTER_MODELS.openaiOss20b,
+  nexN2Pro: OPENROUTER_MODELS.nexN2Pro,
+} as const;
+
+export const DEFAULT_FREE_AI_MODEL = FREE_OPENROUTER_MODELS.nemotron3Nano;
 
 const configSchema = z.object({
   baseUrl: z.string().url(),
@@ -85,6 +102,15 @@ export function resolveAiModel(
   if (!looksLikeModelId) return fallback;
 
   return raw;
+}
+
+/** Hanya mengizinkan model gratis OpenRouter (subset legacy). */
+export function resolveFreeAiModel(input: string | null | undefined): string {
+  const resolved = resolveAiModel(input, DEFAULT_FREE_AI_MODEL);
+  const allowed = new Set(
+    Object.values(FREE_OPENROUTER_MODELS) as string[],
+  );
+  return allowed.has(resolved) ? resolved : DEFAULT_FREE_AI_MODEL;
 }
 
 export type AiCreditCheckInput = {

@@ -14,7 +14,8 @@ import {
   type DesaPackageTier,
   arsipStorageLimitForDesaTierGb,
 } from "@/lib/billing/catalog";
-import { isVillageSubscriptionActive } from "@/lib/subscription";
+import { isVillageSubscriptionReadable } from "@/lib/subscription";
+import { AI_ASSISTANT_NAME } from "@/lib/ai/persona";
 import { accrueSubscriptionCommissionInTx } from "@/lib/partner/commission";
 
 export type BillingPaymentMethod = "qris" | "va" | "ewallet";
@@ -165,7 +166,7 @@ async function prepareCheckoutLineItems(
     if (input.planCode !== ABSENSI_GPS_ADDON_PLAN_CODE) {
       throw new Error("Paket add-on GPS tidak valid");
     }
-    if (!isVillageSubscriptionActive(village)) {
+    if (!isVillageSubscriptionReadable(village)) {
       throw new Error("Langganan desa tidak aktif. Aktifkan paket desa di halaman Tagihan.");
     }
     if (village.absensiGpsAddonActive) {
@@ -269,7 +270,7 @@ async function prepareCheckoutLineItems(
     const totalAmount = normalizeMoney(credits * amountPerCredit);
     lineItems.push({
       name: `Top Up Kredit AI (${credits} kredit)`,
-      description: "Kredit untuk Asisten Desa AI",
+      description: `Kredit untuk ${AI_ASSISTANT_NAME} — Asisten Desa`,
       quantity: 1,
       unitAmount: totalAmount,
       totalAmount,
@@ -281,6 +282,23 @@ async function prepareCheckoutLineItems(
             ? (input.metadata as Record<string, unknown>).userId
             : undefined,
       },
+    });
+  } else if (input.productType === "module_addon") {
+    const code = input.planCode;
+    const tierInfo = (
+      BILLING_CATALOG.module_addon as Record<
+        string,
+        { name: string; monthlyFee: number }
+      >
+    )[code];
+    if (!tierInfo) throw new Error("Modul add-on tidak valid");
+    lineItems.push({
+      name: `Modul ${tierInfo.name}`,
+      description: "Langganan bulanan",
+      quantity: 1,
+      unitAmount: tierInfo.monthlyFee,
+      totalAmount: tierInfo.monthlyFee,
+      metadata: { kind: "module_addon_monthly", moduleCode: code },
     });
   } else {
     throw new Error("Produk belum didukung");
@@ -640,6 +658,34 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
           isActive: true,
           customDomain: isCustom ? domainValue : null,
           customization: Prisma.DbNull,
+        },
+      });
+    }
+
+    if (invoice.productType === "module_addon") {
+      const moduleCode = invoice.planCode;
+      const expiry = new Date(now);
+      expiry.setMonth(expiry.getMonth() + 1);
+
+      await tx.villageModuleSubscription.upsert({
+        where: {
+          villageId_moduleCode: {
+            villageId: invoice.villageId,
+            moduleCode,
+          },
+        },
+        create: {
+          villageId: invoice.villageId,
+          moduleCode,
+          planCode: "default",
+          status: "active",
+          startDate: now,
+          expiryDate: expiry,
+        },
+        update: {
+          status: "active",
+          startDate: now,
+          expiryDate: expiry,
         },
       });
     }

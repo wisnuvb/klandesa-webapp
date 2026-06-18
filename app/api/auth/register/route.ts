@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { arsipStorageLimitForDesaTierGb } from "@/lib/billing/catalog";
+import { DEFAULT_AI_CREDITS } from "@/lib/ai/credits";
 import { normalizeReferralCode, trackReferralEvent } from "@/lib/referrals/tracking";
+import { requireTurnstile } from "@/lib/turnstile";
+import { TRIAL_DAYS } from "@/lib/subscription";
 
 function slugifyVillageCode(input: string): string {
   const s = input
@@ -43,6 +46,7 @@ export async function POST(req: NextRequest) {
           agreePrivacy?: boolean;
           referralCode?: string;
           sourcePath?: string;
+          turnstileToken?: string;
         }
       | null;
 
@@ -91,6 +95,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const turnstile = await requireTurnstile(req, body?.turnstileToken);
+    if (!turnstile.ok) return turnstile.response;
+
     const emailExists = await prisma.user.findUnique({
       where: { email: emailDesa },
       select: { id: true },
@@ -108,6 +115,10 @@ export async function POST(req: NextRequest) {
     const address = `Desa ${namaDesa}, Kecamatan ${namaKecamatan}, Kabupaten ${namaKabupaten}, Provinsi ${provinsi}`;
 
     const passwordHash = await hashPassword(password);
+    const trialStart = new Date();
+    const trialExpiry = new Date(
+      trialStart.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000,
+    );
 
     const created = await prisma.$transaction(async (tx) => {
       const village = await tx.village.create({
@@ -120,9 +131,11 @@ export async function POST(req: NextRequest) {
           address,
           phone: nomorTelepon || null,
           email: emailDesa,
-          subscriptionPlan: "starter",
-          subscriptionStatus: "inactive",
-          storageLimit: arsipStorageLimitForDesaTierGb("starter"),
+          subscriptionPlan: "profesional",
+          subscriptionStatus: "trial",
+          subscriptionDate: trialStart,
+          subscriptionExpiry: trialExpiry,
+          storageLimit: arsipStorageLimitForDesaTierGb("profesional"),
         },
         select: { id: true, code: true, name: true },
       });
@@ -136,6 +149,7 @@ export async function POST(req: NextRequest) {
           phone: nomorTelepon || null,
           role: "admin",
           isActive: true,
+          aiCredits: DEFAULT_AI_CREDITS,
         },
         select: { id: true, email: true },
       });
@@ -170,7 +184,7 @@ export async function POST(req: NextRequest) {
         ok: true,
         village: created.village,
         user: created.user,
-        next: { loginUrl: "/auth/signin", billingUrl: "/billing" },
+        next: { loginUrl: "/auth/signin", onboardingUrl: "/onboarding", billingUrl: "/billing" },
       },
       { status: 201 }
     );

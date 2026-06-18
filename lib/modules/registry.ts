@@ -28,6 +28,16 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     status: "live",
     sortOrder: 10,
   },
+  {
+    id: "asisten-ai",
+    label: "Asisten Desa AI",
+    path: "/asisten-ai",
+    permission: "ai_assistant",
+    sdgGoals: [17],
+    status: "beta",
+    sortOrder: 15,
+    billingAddon: "ai_assistant",
+  },
 
   // --- Data master: Kependudukan ---
   {
@@ -322,17 +332,6 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     group: "integrasi",
     sortOrder: 602,
     billingAddon: "integrations",
-  },
-  {
-    id: "asisten-ai",
-    label: "Asisten AI",
-    path: "/asisten-ai",
-    permission: "ai_assistant",
-    sdgGoals: [17],
-    status: "beta",
-    group: "integrasi",
-    sortOrder: 603,
-    billingAddon: "ai_assistant",
   },
 
   // --- Konten & promosi ---

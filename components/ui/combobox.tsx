@@ -19,6 +19,7 @@ export type ComboboxOption = {
   label: string;
   keywords?: string;
   disabled?: boolean;
+  icon?: React.ReactNode;
 };
 
 type Props = {
@@ -32,6 +33,8 @@ type Props = {
   clearLabel?: string;
   disabled?: boolean;
   buttonClassName?: string;
+  /** Override popover panel styles; default z-index is above app modals (z-100). */
+  contentClassName?: string;
 };
 
 export function Combobox(props: Props) {
@@ -46,12 +49,14 @@ export function Combobox(props: Props) {
     clearLabel = "Kosongkan pilihan",
     disabled,
     buttonClassName,
+    contentClassName,
   } = props;
 
   const [open, setOpen] = React.useState(false);
 
   const selectedLabel =
     options.find((o) => o.value === value)?.label ?? "";
+  const selectedOption = options.find((o) => o.value === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -64,15 +69,26 @@ export function Combobox(props: Props) {
             buttonClassName,
           )}
         >
-          <span className={cn("truncate", !value && "text-gray-500")}>
-            {value ? selectedLabel : placeholder}
+          <span
+            className={cn(
+              "flex min-w-0 flex-1 items-center gap-2",
+              !value && "text-gray-500",
+            )}
+          >
+            {selectedOption?.icon}
+            <span className="truncate">
+              {value ? selectedLabel : placeholder}
+            </span>
           </span>
           <ChevronsUpDown className="w-4 h-4 text-gray-500 shrink-0" />
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[--radix-popover-trigger-width] p-0"
+        className={cn(
+          "z-110 w-[--radix-popover-trigger-width] p-0",
+          contentClassName,
+        )}
       >
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
@@ -109,11 +125,14 @@ export function Combobox(props: Props) {
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4",
+                      "mr-2 h-4 w-4 shrink-0",
                       value === o.value ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  {o.label}
+                  {o.icon ? (
+                    <span className="mr-2 shrink-0">{o.icon}</span>
+                  ) : null}
+                  <span className="truncate">{o.label}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
