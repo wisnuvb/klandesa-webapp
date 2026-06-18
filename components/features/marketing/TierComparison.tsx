@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Minus } from "lucide-react";
+import { MODULE_TIER_COMPARISON_ROWS } from "@/lib/modules/tier-marketing";
 
 type TierCell = "yes" | "no" | "addon";
 
@@ -12,55 +13,20 @@ interface TierComparisonRow {
   note?: string;
 }
 
-/** Modul platform — sama di semua paket (strategi go-to-market). */
-const PLATFORM_ROWS: TierComparisonRow[] = [
-  {
-    capability: "Administrasi desa inti",
-    starter: "yes",
-    professional: "yes",
-    enterprise: "yes",
-  },
-  {
-    capability: "Portal warga & permohonan surat",
-    starter: "yes",
-    professional: "yes",
-    enterprise: "yes",
-  },
-  {
-    capability: "Keuangan & penanda belanja per tujuan SDGs",
-    starter: "yes",
-    professional: "yes",
-    enterprise: "yes",
-  },
-  {
-    capability: "Dashboard SDGs & RPJMDes",
-    starter: "yes",
-    professional: "yes",
-    enterprise: "yes",
-  },
-  {
-    capability: "Program PKK & BUMDes",
-    starter: "yes",
-    professional: "yes",
-    enterprise: "yes",
-  },
-  {
-    capability: "Unduhan format Kemendesa + catatan riwayat",
-    starter: "yes",
-    professional: "yes",
-    enterprise: "yes",
-    note: "Ekspor data standar—bukan janji sinkron otomatis ke sistem pusat tanpa akses resmi.",
-  },
-  {
-    capability: "Peta wilayah & Asisten AI",
-    starter: "yes",
-    professional: "yes",
-    enterprise: "yes",
-  },
-];
-
 /** Layanan premium — pembeda harga & margin. */
 const PREMIUM_ROWS: TierComparisonRow[] = [
+  {
+    capability: "Migrasi data awal dibantu tim teknis",
+    starter: "yes",
+    professional: "yes",
+    enterprise: "yes",
+  },
+  {
+    capability: "Pantau banyak desa (kabupaten/kecamatan)",
+    starter: "yes",
+    professional: "yes",
+    enterprise: "yes",
+  },
   {
     capability: "Pelatihan on-site & pendamping go-live",
     starter: "no",
@@ -81,19 +47,7 @@ const PREMIUM_ROWS: TierComparisonRow[] = [
     note: "Profesional: shell bermerek desa. Enterprise: modul & alur bisa disesuaikan.",
   },
   {
-    capability: "Migrasi data awal dibantu tim teknis",
-    starter: "no",
-    professional: "yes",
-    enterprise: "yes",
-  },
-  {
     capability: "Dukungan prioritas (telepon + SLA lebih cepat)",
-    starter: "no",
-    professional: "yes",
-    enterprise: "yes",
-  },
-  {
-    capability: "Pantau banyak desa (kabupaten/kecamatan)",
     starter: "no",
     professional: "no",
     enterprise: "yes",
@@ -218,19 +172,19 @@ export function TierComparison() {
             Perbandingan paket
           </p>
           <h2 className="text-3xl md:text-4xl text-gray-900">
-            Platform sama — layanan premium yang naik tier
+            Modul inti di Starter — fitur lanjutan naik tier
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Modul inti Klandesa tersedia di semua paket agar desa bisa langsung
-            go-live. Paket lebih tinggi menambah pendampingan, branding, aplikasi
-            mobile, dan skala wilayah—bukan mengunci fitur operasional harian.
+            Operasional harian desa (administrasi, surat, portal warga, absensi)
+            aktif sejak Starter. Modul perencanaan, keuangan, dan integrasi
+            wilayah tersedia di paket lebih tinggi atau sebagai add-on bulanan.
           </p>
         </div>
 
         <ComparisonTable
-          title="Platform Klandesa (semua paket)"
-          subtitle="Modul operasional desa—aktif sejak Starter."
-          rows={PLATFORM_ROWS}
+          title="Modul platform Klandesa"
+          subtitle="Selaras dengan pembatasan paket di aplikasi — ✓ termasuk, Add-on = langganan bulanan terpisah."
+          rows={MODULE_TIER_COMPARISON_ROWS}
         />
 
         <ComparisonTable
@@ -240,9 +194,10 @@ export function TierComparison() {
         />
 
         <p className="text-xs md:text-sm text-gray-600 text-center max-w-3xl mx-auto">
-          <strong className="text-gray-900">Add-on terpisah:</strong> kuota arsip
-          ekstra, absensi GPS, top-up kredit Asisten AI—bisa ditambahkan di paket
-          manapun setelah konsultasi APBDes.
+          <strong className="text-gray-900">Add-on terpisah:</strong> modul di
+          luar paket (mis. Keuangan, SDGs, Peta), kuota arsip ekstra, absensi
+          GPS, dan top-up kredit Asisten AI—bisa ditambahkan di paket manapun
+          setelah konsultasi APBDes.
         </p>
       </div>
     </section>

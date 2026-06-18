@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatMarkdown } from "@/components/ui/chat-markdown";
+import { TypingChatMarkdown } from "@/components/ai/TypingChatMarkdown";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/components/ui/utils";
 import { AI_CREDITS_CONSUMPTION_ENABLED } from "@/lib/ai/credits";
@@ -123,6 +124,40 @@ function formatThreadDate(iso: string): string {
   }
 }
 
+const THINKING_STEPS_BY_MODE: Record<string, string[]> = {
+  citizen_faq: [
+    "Memahami pertanyaan…",
+    "Mencari info layanan desa…",
+    "Menyusun langkah yang jelas…",
+  ],
+  sdgs_analysis: [
+    "Memahami konteks desa…",
+    "Menganalisa skor SDGs…",
+    "Menyusun prioritas intervensi…",
+  ],
+  rpjmdes_draft: [
+    "Memahami konteks desa…",
+    "Memetakan RPJMDes & SDGs…",
+    "Menyusun draf rencana…",
+  ],
+  program_recommendation: [
+    "Memahami konteks desa…",
+    "Menganalisa kebutuhan program…",
+    "Menyusun rekomendasi…",
+  ],
+};
+
+const DEFAULT_THINKING_STEPS = [
+  "Memahami konteks…",
+  "Berpikir…",
+  "Menganalisa…",
+  "Menyusun jawaban…",
+];
+
+function getThinkingSteps(mode: string): string[] {
+  return THINKING_STEPS_BY_MODE[mode] ?? DEFAULT_THINKING_STEPS;
+}
+
 export default function AsistenAiPage() {
   const { appConfirm } = useAppDialogs();
   const [credits, setCredits] = useState<number | null>(null);
@@ -153,8 +188,17 @@ export default function AsistenAiPage() {
     qrContent?: string | null;
     expiresAt?: Date | null;
   } | null>(null);
+  const [streamingMessageIndex, setStreamingMessageIndex] = useState<number | null>(
+    null,
+  );
   const [thinkingStep, setThinkingStep] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  const isBusy = loading || streamingMessageIndex !== null;
 
   const loadCredits = useCallback(async () => {
     try {
@@ -201,12 +245,34 @@ export default function AsistenAiPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const prompt = params.get("prompt")?.trim();
+    const modeParam = params.get("mode")?.trim();
+    if (modeParam && MODES.some((m) => m.id === modeParam)) {
+      setMode(modeParam);
+    }
     if (prompt) setInput(prompt);
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    scrollToBottom();
+  }, [messages, loading, streamingMessageIndex, thinkingStep, scrollToBottom]);
+
+  useEffect(() => {
+    if (!loading) {
+      setThinkingStep(null);
+      return;
+    }
+
+    const steps = getThinkingSteps(mode);
+    let index = 0;
+    setThinkingStep(steps[0]);
+
+    const id = window.setInterval(() => {
+      index = Math.min(index + 1, steps.length - 1);
+      setThinkingStep(steps[index]);
+    }, 950);
+
+    return () => window.clearInterval(id);
+  }, [loading, mode]);
 
   const loadThread = useCallback(async (threadId: number) => {
     setMessagesLoading(true);
@@ -221,6 +287,7 @@ export default function AsistenAiPage() {
       }>(`/api/ai/threads/${threadId}`);
       setActiveThreadId(data.thread.id);
       setMode(data.thread.mode);
+      setStreamingMessageIndex(null);
       setMessages(
         data.thread.messages.map((m) => ({
           role: m.role as "user" | "assistant",
@@ -239,6 +306,7 @@ export default function AsistenAiPage() {
     setMessages([]);
     setError(null);
     setInput("");
+    setStreamingMessageIndex(null);
   }
 
   async function deleteThread(threadId: number, e: React.MouseEvent) {
@@ -260,22 +328,9 @@ export default function AsistenAiPage() {
     }
   }
 
-  async function runThinkingSteps(modelLabel: string) {
-    const steps = [
-      "Menganalisa pertanyaan dan konteks desa…",
-      `Memproses dengan ${modelLabel}…`,
-      "Menyusun balasan yang relevan…",
-    ];
-    for (const step of steps) {
-      setThinkingStep(step);
-      await new Promise((r) => setTimeout(r, 650));
-    }
-    setThinkingStep(null);
-  }
-
   async function send() {
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || isBusy) return;
 
     setInput("");
     setError(null);
@@ -286,11 +341,6 @@ export default function AsistenAiPage() {
     ];
     setMessages(optimistic);
     setLoading(true);
-
-    const currentModel = labelForAiModel(model);
-
-    // Mulai animasi thinking realtime
-    void runThinkingSteps(currentModel);
 
     try {
       const data = await fetchJson<{
@@ -309,10 +359,12 @@ export default function AsistenAiPage() {
       });
 
       setActiveThreadId(data.threadId);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply },
-      ]);
+      setLoading(false);
+      setMessages((prev) => {
+        const nextIndex = prev.length;
+        setStreamingMessageIndex(nextIndex);
+        return [...prev, { role: "assistant", content: data.reply }];
+      });
       if (typeof data.remainingCredits === "number") {
         setCredits(data.remainingCredits);
       }
@@ -320,10 +372,9 @@ export default function AsistenAiPage() {
     } catch (e) {
       setMessages(prevMessages);
       setError(e instanceof Error ? e.message : "Gagal mengirim pesan");
-      setThinkingStep(null);
+      setStreamingMessageIndex(null);
     } finally {
       setLoading(false);
-      setThinkingStep(null);
     }
   }
 
@@ -572,7 +623,7 @@ export default function AsistenAiPage() {
                   size="sm"
                   className="text-xs h-auto py-1.5 whitespace-normal text-left"
                   onClick={() => setInput(s)}
-                  disabled={loading}
+                  disabled={isBusy}
                 >
                   <Sparkles className="h-3 w-3 mr-1 shrink-0" />
                   {s}
@@ -607,6 +658,8 @@ export default function AsistenAiPage() {
               {!messagesLoading &&
                 messages.map((m, i) => {
                   const isUser = m.role === "user";
+                  const isStreaming =
+                    !isUser && streamingMessageIndex === i;
                   return (
                     <div
                       key={`${m.role}-${i}`}
@@ -637,6 +690,13 @@ export default function AsistenAiPage() {
                           <p className="text-sm whitespace-pre-wrap leading-relaxed">
                             {m.content}
                           </p>
+                        ) : isStreaming ? (
+                          <TypingChatMarkdown
+                            content={m.content}
+                            enabled
+                            onComplete={() => setStreamingMessageIndex(null)}
+                            onTick={scrollToBottom}
+                          />
                         ) : (
                           <ChatMarkdown content={m.content} />
                         )}
@@ -644,15 +704,17 @@ export default function AsistenAiPage() {
                     </div>
                   );
                 })}
-              {loading && (
+              {loading && thinkingStep ? (
                 <div className="flex gap-2">
-                  <LarasAvatar size={32} />
-                  <div className="flex items-center gap-2 rounded-2xl rounded-tl-md border bg-card px-3.5 py-2.5 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {thinkingStep || `${AI_ASSISTANT_NAME} sedang mengetik…`}
+                  <LarasAvatar size={32} className="mt-0.5" />
+                  <div className="flex items-center gap-2.5 rounded-2xl rounded-tl-md border bg-card px-3.5 py-2.5 text-sm text-muted-foreground min-w-[12rem]">
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0 text-primary/70" />
+                    <span key={thinkingStep} className="animate-in fade-in duration-300">
+                      {thinkingStep}
+                    </span>
                   </div>
                 </div>
-              )}
+              ) : null}
               <div ref={bottomRef} />
             </div>
 
@@ -676,7 +738,7 @@ export default function AsistenAiPage() {
                   size="icon"
                   className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                   onClick={() => alert("Fitur lampirkan file akan datang")}
-                  disabled={loading}
+                  disabled={isBusy}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -691,7 +753,7 @@ export default function AsistenAiPage() {
                     "focus-visible:!border-0 focus-visible:!ring-0 focus-visible:outline-none",
                     "placeholder:text-muted-foreground",
                   )}
-                  disabled={loading || messagesLoading}
+                  disabled={isBusy || messagesLoading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -704,17 +766,17 @@ export default function AsistenAiPage() {
                   size="icon"
                   className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                   onClick={() => alert("Voice input akan segera tersedia")}
-                  disabled={loading}
+                  disabled={isBusy}
                 >
                   <Mic className="h-4 w-4" />
                 </Button>
                 <Button
                   size="icon"
                   className="shrink-0 h-9 w-9 rounded-full"
-                  disabled={loading || messagesLoading || !input.trim()}
+                  disabled={isBusy || messagesLoading || !input.trim()}
                   onClick={() => void send()}
                 >
-                  {loading ? (
+                  {isBusy ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Send className="h-4 w-4" />

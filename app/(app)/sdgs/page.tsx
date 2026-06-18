@@ -25,6 +25,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
+import {
+  LarasDashboardCard,
+  LARAS_SDGS_PROMPTS,
+} from "@/components/ai/LarasDashboardCard";
+import { AI_ASSISTANT_NAME } from "@/lib/ai/persona";
 import { useSdgsDashboard } from "./_hooks/useSdgsDashboard";
 import type { SdgGoalScore } from "@/lib/sdgs/types";
 import type { SdgSpendingSummary } from "@/lib/finance/sdg-spending";
@@ -174,6 +179,13 @@ export default function SdgsDashboardPage() {
           </Card>
 
           <MetricGrid items={metrics} />
+
+          <LarasDashboardCard
+            title={`${AI_ASSISTANT_NAME} — analisa SDGs`}
+            tagline="Minta Laras merangkum skor di atas, mengidentifikasi goal yang perlu perhatian, dan menyusun prioritas program—berdasarkan data desa yang sama dengan dashboard ini. Bukan pengganti penilaian resmi Kemendesa."
+            prompts={LARAS_SDGS_PROMPTS}
+            mode="sdgs_analysis"
+          />
 
           {spending ? (
             <Card>

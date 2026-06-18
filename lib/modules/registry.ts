@@ -138,7 +138,7 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
   // --- Operasional: Layanan surat ---
   {
     id: "permohonan-warga",
-    label: "Antrian Permohonan",
+    label: "Permohonan",
     path: "/permohonan-warga",
     permission: "mail",
     sdgGoals: [16],
@@ -180,7 +180,7 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
   // --- Operasional: Portal warga ---
   {
     id: "pengumuman-desa",
-    label: "Pengumuman & Berita",
+    label: "Informasi",
     path: "/pengumuman-desa",
     permission: "announcements",
     sdgGoals: [16],
@@ -293,7 +293,7 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     sdgGoals: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     status: "beta",
     group: "perencanaan",
-    groupLabel: "Perencanaan & SDGs",
+    groupLabel: "RPJMDes & SDGs",
     sortOrder: 501,
     billingAddon: "sdgs",
   },

@@ -20,11 +20,11 @@ export const SELECTABLE_AI_MODELS = [
     label: "OpenAI OSS 20B",
     description: "Rasional & analisis",
   },
-  {
-    id: "qwen3Next80bA3bInstruct",
-    label: "Qwen 3 Next 80B A3B Instruct",
-    description: "Rasional & analisis",
-  },
+  // {
+  //   id: "qwen3Next80bA3bInstruct",
+  //   label: "Qwen 3 Next 80B A3B Instruct",
+  //   description: "Rasional & analisis",
+  // },
   {
     id: "nexN2Pro",
     label: "Nex N2 Pro",

@@ -93,7 +93,7 @@ const pageConfig = {
 
   // --- Operasional: Portal warga ---
   "pengumuman-desa": {
-    title: "Pengumuman & Berita",
+    title: "Informasi",
     subtitle: "Kelola pengumuman dan berita untuk warga",
   },
   "forum-diskusi": {

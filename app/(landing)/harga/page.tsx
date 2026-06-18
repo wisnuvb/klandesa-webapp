@@ -18,6 +18,10 @@ import {
   ChevronDown,
 } from "lucide-react";
 import React from "react";
+import {
+  starterModuleSummary,
+  profesionalModuleSummary,
+} from "@/lib/modules/tier-marketing";
 
 export default function PricingPage() {
   const [showRegistration, setShowRegistration] = React.useState(false);
@@ -29,15 +33,16 @@ export default function PricingPage() {
       name: "Starter",
       icon: Sparkles,
       description:
-        "Platform Klandesa lengkap untuk operasional desa—mulai cepat dengan panduan mandiri dan dukungan standar.",
+        "Modul inti operasional desa—administrasi, surat, portal warga, absensi—plus add-on opsional sesuai kebutuhan APBDes.",
       popular: false,
       features: [
-        { name: "Semua modul inti platform (admin, surat, SDGs, RPJMDes, keuangan)", included: true },
-        { name: "Portal warga, PKK/BUMDes, peta wilayah & Asisten AI", included: true },
+        { name: `Modul inti: ${starterModuleSummary()}`, included: true },
         { name: "Unduhan format Kemendesa + riwayat aktivitas", included: true },
         { name: "Akses web responsif di HP, tablet, dan komputer", included: true },
         { name: "Pelatihan daring & panduan mandiri", included: true },
         { name: "Dukungan email & chat (jam kerja)", included: true },
+        { name: "Add-on modul lanjutan (Keuangan, SDGs, BUMDes, dll.) tersedia", included: true },
+        { name: "Keuangan, SDGs, BUMDes, PKK — termasuk di paket (bukan add-on)", included: false },
         { name: "Pelatihan on-site & pendamping go-live di desa", included: false },
         { name: "Aplikasi seluler bermerek desa (Android/iOS)", included: false },
         { name: "Branding portal (logo, warna, subdomain/domain desa)", included: false },
@@ -45,22 +50,24 @@ export default function PricingPage() {
       ],
       cta: "Mulai Trial Gratis",
       highlight: "Untuk Desa Kecil",
-      badge: "Mulai tanpa hambatan fitur",
+      badge: "Modul inti operasional",
     },
     {
       name: "Profesional",
       icon: Zap,
       description:
-        "Platform yang sama, plus layanan premium: branding desa, app mobile, onboarding terarah, dan dukungan prioritas.",
+        "Semua modul inti Starter, plus modul lanjutan (keuangan, SDGs, BUMDes, PKK) dan layanan premium onboarding & branding.",
       popular: true,
       features: [
-        { name: "Semua modul platform (sama seperti Starter)", included: true },
+        { name: "Semua modul inti Starter", included: true },
+        { name: `Modul lanjutan: ${profesionalModuleSummary()}, dan lainnya`, included: true },
         { name: "Pelatihan on-site ke kantor desa & pendamping go-live", included: true },
         { name: "Migrasi data awal dibantu tim teknis", included: true },
         { name: "Branding portal desa (logo, warna, subdomain/domain)", included: true },
         { name: "Aplikasi seluler bermerek desa (shell Android/iOS)", included: true },
         { name: "Dukungan prioritas (email, chat, telepon jam kerja)", included: true },
         { name: "Kuota penyimpanan & pengguna lebih besar (dinegosiasikan)", included: true },
+        { name: "Peta infrastruktur & sinkronisasi data wilayah", included: false },
         { name: "Integrasi SSO/sistem pemda & custom development", included: false },
         { name: "Dashboard lintas desa + penanggung jawab enterprise", included: false },
       ],
@@ -72,10 +79,11 @@ export default function PricingPage() {
       name: "Enterprise",
       icon: Crown,
       description:
-        "Untuk kabupaten/kecamatan: skala banyak desa, integrasi wilayah, SLA khusus, dan pengembangan sesuai kebijakan IT pemda.",
+        "Untuk kabupaten/kecamatan: semua modul Profesional + peta GIS, sinkronisasi data, skala banyak desa, dan SLA khusus.",
       popular: false,
       features: [
-        { name: "Semua modul platform untuk setiap desa di wilayah", included: true },
+        { name: "Semua modul Profesional untuk setiap desa di wilayah", included: true },
+        { name: "Peta infrastruktur (GIS) & sinkronisasi data", included: true },
         { name: "Dashboard lintas desa (kabupaten/kecamatan)", included: true },
         { name: "Semua layanan premium Profesional per desa", included: true },
         { name: "Aplikasi mobile custom (modul & alur disesuaikan)", included: true },
@@ -118,7 +126,7 @@ export default function PricingPage() {
     {
       question: "Apakah paket Starter benar-benar bisa pakai semua fitur?",
       answer:
-        "Ya. Kami sengaja tidak mengunci modul inti (administrasi, surat, SDGs, RPJMDes, keuangan, portal warga, dan lainnya) agar desa bisa langsung merasakan manfaat. Yang dibedakan antar paket adalah layanan premium: seberapa dalam pendampingan, branding, aplikasi mobile, dan skala wilayah.",
+        "Starter membuka modul inti operasional desa—administrasi & kependudukan, layanan surat, portal warga, absensi, arsip, dan profil desa—agar desa bisa langsung go-live. Modul lanjutan seperti Keuangan, SDGs, BUMDes, PKK, dan Peta tersedia di paket Profesional/Enterprise atau bisa diaktifkan sebagai add-on bulanan tanpa harus upgrade paket penuh.",
     },
     {
       question: "Bagaimana dengan pelatihan untuk perangkat desa?",
@@ -180,9 +188,9 @@ export default function PricingPage() {
             </h1>
 
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Semua paket membuka platform Klandesa yang sama—perbedaan ada di layanan
-              premium (onboarding, branding, aplikasi mobile, skala wilayah), bukan
-              mengunci fitur inti. Nominal disesuaikan di proposal.
+              Modul inti operasional desa aktif sejak Starter. Paket lebih tinggi
+              menambah modul lanjutan, pendampingan, branding, aplikasi mobile,
+              dan skala wilayah—dengan opsi add-on bulanan untuk modul tertentu.
             </p>
 
             {/* Trust Badge */}

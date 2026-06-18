@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getLandingPageMetadata } from "@/lib/seo/landing-pages";
 import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
+import { AI_ASSISTANT_NAME } from "@/lib/ai/persona";
 
 export const metadata: Metadata = getLandingPageMetadata("platformSdgs");
 
@@ -10,7 +11,7 @@ export default function PlatformSdgsPage() {
     <article className="max-w-3xl mx-auto px-4 py-20 md:py-28">
       <p className="text-sm font-medium text-[#0d9488] mb-2">{EARLY_ACCESS_LABEL}</p>
       <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-        SDGs &amp; perencanaan pembangunan desa
+        SDGs &amp; Perencanaan Pembangunan Desa
       </h1>
       <div className="prose prose-gray max-w-none text-gray-600 space-y-4">
         <p>
@@ -33,6 +34,23 @@ export default function PlatformSdgsPage() {
           </Link>
           .
         </p>
+        <div className="text-sm bg-teal-50 border border-teal-100 rounded-xl p-4 text-teal-950 space-y-2 not-prose">
+          <p>
+            <strong>{AI_ASSISTANT_NAME} — Asisten Desa AI</strong> membantu
+            merangkum skor SDGs, mengidentifikasi tujuan yang perlu perhatian,
+            dan menyusun draf prioritas program atau section RPJMDes—berdasarkan
+            data operasional yang sudah Anda input di Klandesa.
+          </p>
+          <p className="text-teal-900/80">
+            Ini pendamping interpretasi untuk rapat perangkat desa, bukan
+            pengganti penilaian resmi SDGs Desa. Modul tersedia sebagai add-on
+            terpisah dengan kuota kredit per pengguna.{" "}
+            <Link href="/platform" className="text-[#0d9488] font-medium">
+              Lihat di katalog fitur
+            </Link>
+            .
+          </p>
+        </div>
         <p className="text-sm bg-amber-50 border border-amber-100 rounded-xl p-4 text-amber-950">
           Skor di aplikasi membantu keputusan internal desa; pemeriksaan resmi SDGs
           tetap mengikuti prosedur portal Kemendesa.
@@ -50,6 +68,12 @@ export default function PlatformSdgsPage() {
           className="inline-flex rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium hover:bg-gray-50"
         >
           Unduh format Kemendesa
+        </Link>
+        <Link
+          href="/platform"
+          className="inline-flex rounded-xl border border-teal-200 bg-teal-50 px-5 py-2.5 text-sm font-medium text-teal-900 hover:bg-teal-100"
+        >
+          Asisten AI {AI_ASSISTANT_NAME}
         </Link>
       </div>
     </article>
