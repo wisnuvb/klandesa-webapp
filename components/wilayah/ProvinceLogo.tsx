@@ -19,7 +19,7 @@ export function ProvinceLogo({
   className,
 }: Props) {
   const [failed, setFailed] = React.useState(false);
-  const src = getProvinceLogoUrl(kodeProvinsi, size);
+  const src = getProvinceLogoUrl(kodeProvinsi);
   const initials = (name ?? kodeProvinsi).slice(0, 2).toUpperCase();
 
   if (!src || failed) {
