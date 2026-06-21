@@ -9,12 +9,23 @@ export function normalizeLocationKey(s: string): string {
   return s.trim().replace(/\s+/g, " ");
 }
 
+export const REGIONAL_ROLE_PROVINSI = "regional_provinsi";
 export const REGIONAL_ROLE_KABUPATEN = "regional_kabupaten";
 export const REGIONAL_ROLE_KECAMATAN = "regional_kecamatan";
 
+export const REGIONAL_ROLES = [
+  REGIONAL_ROLE_PROVINSI,
+  REGIONAL_ROLE_KABUPATEN,
+  REGIONAL_ROLE_KECAMATAN,
+] as const;
+
+export type RegionalRole = (typeof REGIONAL_ROLES)[number];
+
 export function isRegionalRole(role: string | undefined | null): boolean {
   return (
-    role === REGIONAL_ROLE_KABUPATEN || role === REGIONAL_ROLE_KECAMATAN
+    role === REGIONAL_ROLE_PROVINSI ||
+    role === REGIONAL_ROLE_KABUPATEN ||
+    role === REGIONAL_ROLE_KECAMATAN
   );
 }
 

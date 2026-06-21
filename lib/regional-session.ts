@@ -1,12 +1,15 @@
 import type { Session } from "next-auth";
 import { isRegionalRole } from "@/lib/regional-policy";
 
-export type RegionalScopeLevel = "REGENCY" | "DISTRICT";
+export type RegionalScopeLevel = "PROVINCE" | "REGENCY" | "DISTRICT";
 
 export type RegionalScope = {
   level: RegionalScopeLevel;
+  province?: string;
   regency: string;
   district?: string;
+  kodeProvinsi?: string;
+  kodeKabKota?: string;
 };
 
 export type ParsedRegionalSession = {

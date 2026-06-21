@@ -12,6 +12,7 @@ export const PLATFORM_ROLES = ["platform_admin", "platform_support"] as const;
 export type PlatformRole = (typeof PLATFORM_ROLES)[number];
 
 export const REGIONAL_ROLES = [
+  "regional_provinsi",
   "regional_kabupaten",
   "regional_kecamatan",
 ] as const;

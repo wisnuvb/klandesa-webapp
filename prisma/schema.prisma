@@ -123,13 +123,17 @@ model RegionalUser {
   password String @db.VarChar(255)
   name     String @db.VarChar(255)
 
-  /// regional_kabupaten = seluruh kabupaten; regional_kecamatan = satu kecamatan dalam kabupaten
+  /// regional_provinsi | regional_kabupaten | regional_kecamatan
   role String @db.VarChar(50)
 
-  /// Harus cocok dengan `Village.regency` (teks, dinormalisasi saat provisioning)
+  /// Harus cocok dengan `Village.province` / `regency` / `district` (teks, dinormalisasi)
+  scopeProvince String? @db.VarChar(255)
   scopeRegency  String  @db.VarChar(255)
-  /// Untuk role kecamatan: cocok dengan `Village.district`; untuk kabupaten boleh null
   scopeDistrict String? @db.VarChar(255)
+
+  /// Kode BPS/Kemendag (opsional, prioritas matching wilayah)
+  scopeKodeProvinsi String? @db.VarChar(10)
+  scopeKodeKabKota  String? @db.VarChar(10)
 
   isActive  Boolean   @default(true)
   lastLogin DateTime?

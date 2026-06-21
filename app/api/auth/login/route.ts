@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, generateTokens, type JwtTokenPayloadVillage } from "@/lib/auth";
 import {
+  REGIONAL_ROLE_PROVINSI,
   REGIONAL_ROLE_KABUPATEN,
   REGIONAL_ROLE_KECAMATAN,
   normalizeLocationKey,
@@ -13,20 +14,45 @@ import { requireTurnstile } from "@/lib/turnstile";
 
 function buildRegionalScopeFromUser(user: {
   role: string;
+  scopeProvince: string | null;
   scopeRegency: string;
   scopeDistrict: string | null;
+  scopeKodeProvinsi: string | null;
+  scopeKodeKabKota: string | null;
 }): RegionalScope | null {
   const regency = normalizeLocationKey(user.scopeRegency);
-  if (!regency) return null;
+  const province = user.scopeProvince
+    ? normalizeLocationKey(user.scopeProvince)
+    : "";
+  const kodeProvinsi = user.scopeKodeProvinsi?.trim() || undefined;
+  const kodeKabKota = user.scopeKodeKabKota?.trim() || undefined;
+
+  if (user.role === REGIONAL_ROLE_PROVINSI) {
+    if (!province && !kodeProvinsi) return null;
+    return {
+      level: "PROVINCE",
+      province: province || regency,
+      regency: regency || province,
+      kodeProvinsi,
+      kodeKabKota,
+    };
+  }
   if (user.role === REGIONAL_ROLE_KABUPATEN) {
-    return { level: "REGENCY", regency };
+    if (!regency && !kodeKabKota) return null;
+    return { level: "REGENCY", regency, kodeProvinsi, kodeKabKota };
   }
   if (user.role === REGIONAL_ROLE_KECAMATAN) {
     const district = user.scopeDistrict
       ? normalizeLocationKey(user.scopeDistrict)
       : "";
-    if (!district) return null;
-    return { level: "DISTRICT", regency, district };
+    if (!district || (!regency && !kodeKabKota)) return null;
+    return {
+      level: "DISTRICT",
+      regency,
+      district,
+      kodeProvinsi,
+      kodeKabKota,
+    };
   }
   return null;
 }
