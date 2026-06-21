@@ -102,8 +102,21 @@ export function throwApiError(body: unknown, fallback = "Gagal memuat data"): ne
 
 export type AsyncPageError = string | ModuleNotEntitledInfo;
 
+export function isModuleNotEntitledInfo(
+  value: unknown,
+): value is ModuleNotEntitledInfo {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    (value as ModuleNotEntitledInfo).code === "MODULE_NOT_ENTITLED" &&
+    typeof (value as ModuleNotEntitledInfo).message === "string"
+  );
+}
+
 export function normalizeAsyncError(error: unknown): AsyncPageError | null {
   if (!error) return null;
+  if (isModuleNotEntitledInfo(error)) return error;
   if (typeof error === "string") {
     return parseModuleNotEntitledFromMessage(error) ?? error;
   }

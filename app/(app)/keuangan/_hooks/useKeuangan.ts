@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
+import {
+  parseModuleNotEntitledBody,
+  type AsyncPageError,
+} from "@/lib/modules/client-error";
 import { subKategoriOptions } from "../_lib/constants";
 import type {
   ApbdesData,
@@ -96,7 +100,7 @@ export function useKeuangan() {
   );
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AsyncPageError | null>(null);
 
   const [apbdesData, setApbdesData] = useState<ApbdesData>(() =>
     defaultApbdes(),
@@ -162,9 +166,32 @@ export function useKeuangan() {
         const res = await fetch(`/api/finance/summary?year=${selectedYear}`, {
           cache: "no-store",
         });
-        if (!res.ok) throw new Error("Gagal memuat data keuangan");
 
-        const result: { data: FinanceResponse } = await res.json();
+        let body: unknown = null;
+        try {
+          body = await res.json();
+        } catch {
+          body = null;
+        }
+
+        if (!res.ok) {
+          const entitled = parseModuleNotEntitledBody(body);
+          if (entitled) {
+            setError(entitled);
+            return;
+          }
+
+          const message =
+            body &&
+            typeof body === "object" &&
+            typeof (body as { error?: string }).error === "string"
+              ? (body as { error: string }).error
+              : "Gagal memuat data keuangan";
+          setError(message);
+          return;
+        }
+
+        const result = body as { data: FinanceResponse };
         setApbdesData(result.data.apbdes);
         setPendapatanData(result.data.pendapatan);
         setBelanjaData(result.data.belanja);
@@ -172,7 +199,9 @@ export function useKeuangan() {
         setSppData(result.data.spp);
         setTrendKeuangan(result.data.trend);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Terjadi kesalahan");
+        const message =
+          err instanceof Error ? err.message : "Terjadi kesalahan";
+        setError(message);
         console.error("fetchFinance error", err);
       } finally {
         if (!silent) setLoading(false);

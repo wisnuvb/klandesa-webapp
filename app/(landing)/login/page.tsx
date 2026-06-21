@@ -5,6 +5,7 @@ import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 import { getSession, signIn, signOut } from "next-auth/react";
 
 function LandingLoginContent() {
@@ -17,9 +18,7 @@ function LandingLoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const turnstileRequired = Boolean(
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
-  );
+  const turnstileRequired = isTurnstileRequiredOnClient();
 
   const isFormInvalid = useMemo(
     () =>

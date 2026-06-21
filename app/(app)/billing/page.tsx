@@ -1,47 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "sonner";
 import { CheckoutDialog } from "./_components/CheckoutDialog";
 import { DesaPackagePurchaseCard } from "./_components/DesaPackagePurchaseCard";
 import { InvoiceHistoryCard } from "./_components/InvoiceHistoryCard";
+import { ModuleAddonCheckoutDialog } from "./_components/ModuleAddonCheckoutDialog";
 import { ModuleCatalogCard } from "./_components/ModuleCatalogCard";
 import { SubscriptionSummaryCard } from "./_components/SubscriptionSummaryCard";
 import { useBillingStatus } from "./_hooks/useBillingStatus";
 import { useDesaPackageCheckout } from "./_hooks/useDesaPackageCheckout";
+import { useModuleAddonCheckout } from "./_hooks/useModuleAddonCheckout";
 
 export default function Page() {
   const { loading, error, data, reload } = useBillingStatus();
   const checkout = useDesaPackageCheckout({ data, reloadBilling: reload });
-  const [moduleCheckoutLoading, setModuleCheckoutLoading] = useState<
-    string | null
-  >(null);
-
-  const subscribeModule = async (moduleCode: string) => {
-    setModuleCheckoutLoading(moduleCode);
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productType: "module_addon",
-          planCode: moduleCode,
-          paymentMethod: "qris",
-        }),
-      });
-      const j = (await res.json().catch(() => null)) as {
-        error?: string;
-        invoice?: { qrImageUrl?: string; paymentUrl?: string };
-      } | null;
-      if (!res.ok) throw new Error(j?.error || "Checkout gagal");
-      toast.success("Invoice modul dibuat. Selesaikan pembayaran di riwayat invoice.");
-      await reload();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Checkout gagal");
-    } finally {
-      setModuleCheckoutLoading(null);
-    }
-  };
+  const moduleCheckout = useModuleAddonCheckout({ data, reloadBilling: reload });
 
   return (
     <div className="space-y-6">
@@ -64,6 +36,34 @@ export default function Page() {
         copyText={checkout.copyText}
         statusCheckLoading={checkout.statusCheckLoading}
         refreshInvoiceStatus={checkout.refreshInvoiceStatus}
+      />
+
+      <ModuleAddonCheckoutDialog
+        open={moduleCheckout.open}
+        onOpenChange={moduleCheckout.setDialogOpen}
+        moduleLabel={moduleCheckout.moduleLabel}
+        monthlyFee={moduleCheckout.monthlyFee}
+        checkoutStep={moduleCheckout.checkoutStep}
+        paymentMethod={moduleCheckout.paymentMethod}
+        setPaymentMethod={moduleCheckout.setPaymentMethod}
+        vaBanks={moduleCheckout.vaBanks}
+        banksLoading={moduleCheckout.banksLoading}
+        selectedBankCode={moduleCheckout.selectedBankCode}
+        setSelectedBankCode={moduleCheckout.setSelectedBankCode}
+        ewalletChannels={moduleCheckout.ewalletChannels}
+        selectedRetailCode={moduleCheckout.selectedRetailCode}
+        setSelectedRetailCode={moduleCheckout.setSelectedRetailCode}
+        ewalletPhone={moduleCheckout.ewalletPhone}
+        setEwalletPhone={moduleCheckout.setEwalletPhone}
+        checkoutLoading={moduleCheckout.checkoutLoading}
+        checkoutError={moduleCheckout.checkoutError}
+        checkoutNotice={moduleCheckout.checkoutNotice}
+        onConfirmCheckout={moduleCheckout.onConfirmCheckout}
+        activeInvoice={moduleCheckout.activeInvoice}
+        bankLabelForInvoice={moduleCheckout.bankLabelForInvoice}
+        copyText={moduleCheckout.copyText}
+        statusCheckLoading={moduleCheckout.statusCheckLoading}
+        refreshInvoiceStatus={moduleCheckout.refreshInvoiceStatus}
       />
 
       <SubscriptionSummaryCard loading={loading} error={error} data={data} />
@@ -91,8 +91,10 @@ export default function Page() {
       {data?.modules && (
         <ModuleCatalogCard
           modules={data.modules}
-          onSubscribe={subscribeModule}
-          checkoutLoading={moduleCheckoutLoading}
+          onActivate={moduleCheckout.openCheckout}
+          checkoutLoading={
+            moduleCheckout.checkoutLoading ? moduleCheckout.moduleId : null
+          }
         />
       )}
 

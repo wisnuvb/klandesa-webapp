@@ -98,8 +98,8 @@ export function FormDialog({
 
   return (
     <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-3xl">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Tambah Data Potensi Desa</DialogTitle>
           <DialogDescription>
             Masukkan data potensi desa untuk tahun tertentu.
@@ -107,9 +107,12 @@ export function FormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="overflow-y-auto flex-1 pr-2">
-              <div className="grid grid-cols-2 gap-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-4 pb-2">
                 <div className="col-span-2">
                   <FormField
                     control={form.control}
@@ -349,7 +352,7 @@ export function FormDialog({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 border-t pt-4 mt-4">
+            <div className="mt-4 flex shrink-0 justify-end gap-2 border-t pt-4">
               <Button
                 type="button"
                 variant="outline"

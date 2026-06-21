@@ -11,6 +11,7 @@ import {
   isVillageSubscriptionReadable,
   isVillageSubscriptionWritable,
   resolveSubscriptionPhaseWithTransition,
+  SUBSCRIPTION_EXPIRING_SOON_DAYS,
 } from "@/lib/subscription";
 
 export async function GET(req: NextRequest) {
@@ -86,6 +87,10 @@ export async function GET(req: NextRequest) {
         paid: paidActive,
         phase: phaseInfo.phase,
         daysRemaining: phaseInfo.daysRemaining,
+        expiringSoon:
+          phaseInfo.phase === "active" &&
+          phaseInfo.daysRemaining != null &&
+          phaseInfo.daysRemaining <= SUBSCRIPTION_EXPIRING_SOON_DAYS,
         plan: village.subscriptionPlan,
         status: village.subscriptionStatus,
         startDate: village.subscriptionDate?.toISOString() ?? null,
@@ -124,6 +129,8 @@ export async function GET(req: NextRequest) {
             minPackageTier: m.minPackageTier,
             addonMonthlyFee: m.addonMonthlyFee,
             locked: m.locked,
+            addonExpiry: m.addonExpiry ?? null,
+            addonDaysRemaining: m.addonDaysRemaining ?? null,
           },
         ]),
       ),

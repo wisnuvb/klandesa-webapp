@@ -28,7 +28,16 @@ export const LINKQU_VA_CHANNELS: LinkquVaChannel[] = [
   { id: "cimb", label: "CIMB Niaga", enabled: true, linkquBankCode: "022" },
 ];
 
-export const LINKQU_EWALLET_CHANNELS: LinkquEwalletChannel[] = [];
+export const LINKQU_EWALLET_CHANNELS: LinkquEwalletChannel[] = [
+  { id: "dana", label: "DANA", enabled: true, retailCode: "PAYDANA" },
+  { id: "linkaja", label: "LinkAja", enabled: true, retailCode: "PAYLINKAJA" },
+  {
+    id: "shopeepay",
+    label: "ShopeePay",
+    enabled: true,
+    retailCode: "PAYSHOPEEPAY",
+  },
+];
 
 export function resolveLinkquBankCode(channelId: string): string | null {
   const found = LINKQU_VA_CHANNELS.find((c) => c.id === channelId && c.enabled);

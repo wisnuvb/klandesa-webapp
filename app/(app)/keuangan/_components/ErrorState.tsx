@@ -1,7 +1,8 @@
 import { AsyncState } from "@/components/app/patterns";
+import type { AsyncPageError } from "@/lib/modules/client-error";
 
 type ErrorStateProps = {
-  message: string;
+  message: AsyncPageError;
   onRetry: () => void;
 };
 

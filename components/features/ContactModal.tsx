@@ -16,6 +16,7 @@ import {
 import { KlandesaLogo } from "./KlandesaLogo";
 import { getStoredReferralCode } from "@/lib/referrals/client";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 
 interface ContactModalProps {
   onClose: () => void;
@@ -51,9 +52,7 @@ export function ContactModal({ onClose }: ContactModalProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
-  const turnstileRequired = Boolean(
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
-  );
+  const turnstileRequired = isTurnstileRequiredOnClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

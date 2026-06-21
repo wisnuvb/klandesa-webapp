@@ -29,9 +29,24 @@ export function moduleNotEntitledResponse(
   );
 }
 
+export async function resolveExpiredModuleSubscriptions(
+  villageId: number,
+): Promise<void> {
+  const now = new Date();
+  await prisma.villageModuleSubscription.updateMany({
+    where: {
+      villageId,
+      status: "active",
+      expiryDate: { lte: now },
+    },
+    data: { status: "expired" },
+  });
+}
+
 export async function loadActiveModuleSubs(
   villageId: number,
 ): Promise<ActiveModuleSub[]> {
+  await resolveExpiredModuleSubscriptions(villageId);
   const now = new Date();
   const rows = await prisma.villageModuleSubscription.findMany({
     where: {

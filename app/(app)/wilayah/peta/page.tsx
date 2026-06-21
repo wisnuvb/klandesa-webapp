@@ -11,6 +11,11 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RegionalPageHeader } from "@/components/regional/RegionalPageHeader";
+import { RegionalGisMap } from "@/components/regional/RegionalGisMap";
+import {
+  MARKER_COLORS,
+  MARKER_TYPE_LABELS,
+} from "@/lib/gis/map/constants";
 
 type GisPoint = {
   id: string;
@@ -28,17 +33,9 @@ type GisData = {
   summary: { assets: number; projects: number; disasterPoints: number };
 };
 
-const TYPE_LABEL: Record<GisPoint["type"], string> = {
-  asset: "Aset",
-  project: "Proyek",
-  disaster: "Risiko bencana",
-};
+const TYPE_LABEL = MARKER_TYPE_LABELS;
 
-const TYPE_COLOR: Record<GisPoint["type"], string> = {
-  asset: "#0d9488",
-  project: "#2563eb",
-  disaster: "#dc2626",
-};
+const TYPE_COLOR = MARKER_COLORS;
 
 export default function WilayahPetaPage() {
   const { data: session } = useSession();
@@ -79,21 +76,6 @@ export default function WilayahPetaPage() {
     return data.points.filter((p) => p.type === filter);
   }, [data, filter]);
 
-  const bounds = useMemo(() => {
-    if (filtered.length === 0) return null;
-    let minLat = Infinity;
-    let maxLat = -Infinity;
-    let minLng = Infinity;
-    let maxLng = -Infinity;
-    for (const p of filtered) {
-      minLat = Math.min(minLat, p.lat);
-      maxLat = Math.max(maxLat, p.lat);
-      minLng = Math.min(minLng, p.lng);
-      maxLng = Math.max(maxLng, p.lng);
-    }
-    return { minLat, maxLat, minLng, maxLng };
-  }, [filtered]);
-
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <RegionalPageHeader
@@ -102,9 +84,7 @@ export default function WilayahPetaPage() {
         description="Titik aset, proyek, dan risiko bencana agregat dari desa-desa di wilayah."
       />
 
-      {loading && (
-        <p className="text-sm text-muted-foreground">Memuat data…</p>
-      )}
+      {loading && <p className="text-sm text-muted-foreground">Memuat data…</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {data && !loading && (
@@ -157,50 +137,25 @@ export default function WilayahPetaPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Peta scatter</CardTitle>
+              <CardTitle>Peta wilayah</CardTitle>
               <CardDescription>
-                {filtered.length} titik dengan koordinat — proporsional dalam
-                batas wilayah
+                {filtered.length} titik pada peta OpenStreetMap — geser dan zoom
+                untuk melihat detail
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {filtered.length === 0 || !bounds ? (
-                <p className="text-sm text-muted-foreground py-12 text-center">
-                  Belum ada titik GIS dengan koordinat di desa wilayah ini.
-                </p>
-              ) : (
-                <div className="relative w-full aspect-[16/10] bg-muted/30 rounded-lg border overflow-hidden">
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="w-full h-full"
-                    role="img"
-                    aria-label="Peta titik infrastruktur"
-                  >
-                    {filtered.map((p) => {
-                      const latRange = bounds.maxLat - bounds.minLat || 0.01;
-                      const lngRange = bounds.maxLng - bounds.minLng || 0.01;
-                      const x =
-                        ((p.lng - bounds.minLng) / lngRange) * 90 + 5;
-                      const y =
-                        95 - ((p.lat - bounds.minLat) / latRange) * 90;
-                      return (
-                        <circle
-                          key={p.id}
-                          cx={x}
-                          cy={y}
-                          r={1.2}
-                          fill={TYPE_COLOR[p.type]}
-                          opacity={0.85}
-                        >
-                          <title>
-                            {p.name} ({p.villageName})
-                          </title>
-                        </circle>
-                      );
-                    })}
-                  </svg>
-                </div>
-              )}
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {(["asset", "project", "disaster"] as const).map((t) => (
+                  <span key={t} className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full border border-white shadow-sm"
+                      style={{ backgroundColor: TYPE_COLOR[t] }}
+                    />
+                    {TYPE_LABEL[t]}
+                  </span>
+                ))}
+              </div>
+              <RegionalGisMap points={filtered} />
             </CardContent>
           </Card>
 

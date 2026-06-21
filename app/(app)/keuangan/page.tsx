@@ -8,24 +8,23 @@ import { SppDetailDialog } from "./_components/dialogs/SppDetailDialog";
 import { SppFormDialog } from "./_components/dialogs/SppFormDialog";
 import { TransaksiDetailDialog } from "./_components/dialogs/TransaksiDetailDialog";
 import { TransaksiDialog } from "./_components/dialogs/TransaksiDialog";
-import { ErrorState } from "./_components/ErrorState";
 import { HeaderSection } from "./_components/HeaderSection";
 import { KeuanganTabs } from "./_components/KeuanganTabs";
-import { LoadingState } from "./_components/LoadingState";
 import { SummaryCards } from "./_components/SummaryCards";
 import { useKeuangan } from "./_hooks/useKeuangan";
+import { AsyncState } from "@/components/app/patterns";
 import { SdgTagsManager } from "@/components/app/finance/SdgTagsManager";
 
 export default function KeuanganPage() {
   const k = useKeuangan();
 
-  if (k.loading) return <LoadingState />;
-
-  if (k.error) {
-    return <ErrorState message={k.error} onRetry={() => void k.fetchFinance()} />;
-  }
-
   return (
+    <AsyncState
+      loading={k.loading}
+      error={k.error}
+      onRetry={() => void k.fetchFinance()}
+      loadingMessage="Memuat data keuangan..."
+    >
     <div className="space-y-6">
       <HeaderSection selectedYear={k.selectedYear} setSelectedYear={k.setSelectedYear} />
 
@@ -143,5 +142,6 @@ export default function KeuanganPage() {
         }}
       />
     </div>
+    </AsyncState>
   );
 }

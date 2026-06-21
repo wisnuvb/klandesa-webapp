@@ -21,6 +21,7 @@ import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 
 import { KlandesaLogo } from "./KlandesaLogo";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 
 interface LoginModalProps {
   onClose: () => void;
@@ -32,9 +33,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
   const [password, setPassword] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
-  const turnstileRequired = Boolean(
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
-  );
+  const turnstileRequired = isTurnstileRequiredOnClient();
   // Initialize hook to sync NextAuth session into Redux store
   useNextAuthSession();
 

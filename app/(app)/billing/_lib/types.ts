@@ -31,6 +31,7 @@ export type BillingStatusResponse = {
     paid?: boolean;
     phase?: string;
     daysRemaining?: number | null;
+    expiringSoon?: boolean;
     plan: string | null;
     status: string | null;
     startDate: string | null;
@@ -52,6 +53,8 @@ export type BillingStatusResponse = {
       minPackageTier: PackageTier;
       addonMonthlyFee: number | null;
       locked: boolean;
+      addonExpiry?: string | null;
+      addonDaysRemaining?: number | null;
     }
   >;
   invoices: BillingStatusInvoice[];

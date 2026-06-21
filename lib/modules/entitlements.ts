@@ -129,6 +129,9 @@ export type ModuleAccessResult = {
   minPackageTier: PackageTier;
   addonMonthlyFee: number | null;
   locked: boolean;
+  /** ISO expiry add-on bulanan (jika akses via add-on). */
+  addonExpiry?: string | null;
+  addonDaysRemaining?: number | null;
 };
 
 export function getModuleAddonMonthlyFee(addonCode: string | undefined): number | null {
@@ -192,13 +195,19 @@ export function resolveModuleAccess(
 
   const addonCode = ent.addonProductCode;
   const now = Date.now();
-  const hasAddon =
+  const activeAddon =
     addonCode &&
-    opts.activeAddons.some(
+    opts.activeAddons.find(
       (s) =>
-        s.moduleCode === addonCode &&
-        s.expiryDate.getTime() > now,
+        s.moduleCode === addonCode && s.expiryDate.getTime() > now,
     );
+  const hasAddon = Boolean(activeAddon);
+  const addonDaysRemaining = activeAddon
+    ? Math.max(
+        0,
+        Math.ceil((activeAddon.expiryDate.getTime() - now) / (24 * 60 * 60 * 1000)),
+      )
+    : null;
 
   const websiteEntitled =
     moduleId === "website" && opts.websiteActive === true;
@@ -213,6 +222,8 @@ export function resolveModuleAccess(
     minPackageTier: ent.minPackageTier,
     addonMonthlyFee: getModuleAddonMonthlyFee(addonCode),
     locked: opts.subscriptionReadable && !entitled,
+    addonExpiry: activeAddon ? activeAddon.expiryDate.toISOString() : null,
+    addonDaysRemaining,
   };
 }
 

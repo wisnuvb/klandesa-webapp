@@ -18,6 +18,7 @@ import { KlandesaLogo } from "./KlandesaLogo";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { getStoredReferralCode } from "@/lib/referrals/client";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 import { Combobox } from "@/components/ui/combobox";
 import { ProvinceLogo } from "@/components/wilayah/ProvinceLogo";
 import { PROVINSI_CODES, matchProvinceCode } from "@/lib/pangan/match-region";
@@ -78,9 +79,7 @@ export function RegistrationModal({
     agreePrivacy: false,
   });
 
-  const turnstileRequired = Boolean(
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
-  );
+  const turnstileRequired = isTurnstileRequiredOnClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

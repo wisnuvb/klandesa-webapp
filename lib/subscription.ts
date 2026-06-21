@@ -10,6 +10,11 @@ export type SubscriptionPhase = "trial" | "grace" | "active" | "inactive";
 
 export const TRIAL_DAYS = 14;
 export const GRACE_DAYS = 7;
+/** Tampilkan banner peringatan saat paket berbayar akan habis dalam N hari. */
+export const SUBSCRIPTION_EXPIRING_SOON_DAYS = 30;
+export const SUBSCRIPTION_EXPIRING_URGENT_DAYS = 7;
+/** Peringatan add-on modul bulanan akan habis. */
+export const MODULE_ADDON_EXPIRING_SOON_DAYS = 7;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

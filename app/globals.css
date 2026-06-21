@@ -71,3 +71,8 @@ button {
   padding: 8px 10px;
   border-radius: 8px;
 }
+
+/* Shell peta pemda — popup React overlay di atas canvas */
+.regional-map-shell.village-map-shell {
+  overflow: hidden;
+}

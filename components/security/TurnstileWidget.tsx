@@ -2,6 +2,10 @@
 
 import React from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import {
+  getTurnstileSiteKey,
+  isTurnstileRequiredOnClient,
+} from "@/lib/turnstile-config";
 
 type TurnstileWidgetProps = {
   onToken: (token: string | null) => void;
@@ -10,20 +14,14 @@ type TurnstileWidgetProps = {
 
 export function TurnstileWidget({ onToken, className }: TurnstileWidgetProps) {
   const ref = React.useRef<TurnstileInstance | null>(null);
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
+  const required = isTurnstileRequiredOnClient();
+  const siteKey = getTurnstileSiteKey();
 
   React.useEffect(() => {
-    if (!siteKey) onToken(null);
-  }, [onToken, siteKey]);
+    if (!required) onToken(null);
+  }, [onToken, required]);
 
-  if (!siteKey) {
-    if (process.env.NODE_ENV === "development") {
-      return (
-        <p className="text-xs text-muted-foreground">
-          Turnstile nonaktif (NEXT_PUBLIC_TURNSTILE_SITE_KEY kosong).
-        </p>
-      );
-    }
+  if (!required || !siteKey) {
     return null;
   }
 

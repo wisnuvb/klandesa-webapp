@@ -3,14 +3,24 @@
 import Link from "next/link";
 import { AlertTriangle, Clock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  SUBSCRIPTION_EXPIRING_SOON_DAYS,
+  SUBSCRIPTION_EXPIRING_URGENT_DAYS,
+} from "@/lib/subscription";
 
 type TrialBannerProps = {
   phase: string;
   daysRemaining: number | null;
   writable: boolean;
+  expiringSoon?: boolean;
 };
 
-export function TrialBanner({ phase, daysRemaining, writable }: TrialBannerProps) {
+export function TrialBanner({
+  phase,
+  daysRemaining,
+  writable,
+  expiringSoon = false,
+}: TrialBannerProps) {
   if (phase === "inactive") return null;
 
   const days = daysRemaining ?? 0;
@@ -63,6 +73,44 @@ export function TrialBanner({ phase, daysRemaining, writable }: TrialBannerProps
               <Link href="/asisten-ai">Coba Laras</Link>
             </Button>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    phase === "active" &&
+    expiringSoon &&
+    daysRemaining != null &&
+    daysRemaining <= SUBSCRIPTION_EXPIRING_SOON_DAYS
+  ) {
+    const urgent = daysRemaining <= SUBSCRIPTION_EXPIRING_URGENT_DAYS;
+    return (
+      <div
+        className={
+          urgent
+            ? "bg-amber-50 border-b border-amber-200 px-4 py-2 text-sm text-amber-900"
+            : "bg-sky-50 border-b border-sky-200 px-4 py-2 text-sm text-sky-900"
+        }
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {urgent ? (
+              <Clock className="h-4 w-4 shrink-0" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+            )}
+            <span>
+              Paket langganan berakhir{" "}
+              <strong>
+                {days === 0 ? "hari ini" : `dalam ${days} hari`}
+              </strong>
+              . Perpanjang agar layanan desa tetap aktif.
+            </span>
+          </div>
+          <Button size="sm" variant={urgent ? "default" : "outline"} asChild>
+            <Link href="/billing">Perpanjang Paket</Link>
+          </Button>
         </div>
       </div>
     );

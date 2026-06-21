@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isTurnstileProduction } from "@/lib/turnstile-config";
 
 const SITEVERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 export function isTurnstileEnabled(): boolean {
   if (process.env.TURNSTILE_SKIP === "true") return false;
+  if (!isTurnstileProduction()) return false;
   return Boolean(process.env.TURNSTILE_SECRET_KEY?.trim());
 }
 
@@ -18,14 +20,11 @@ export async function verifyTurnstileToken(
   token: string | null | undefined,
   remoteIp?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
-  if (!secret || process.env.TURNSTILE_SKIP === "true") {
-    if (!secret) {
-      console.warn("[turnstile] TURNSTILE_SECRET_KEY kosong — verifikasi dilewati");
-    }
+  if (!isTurnstileEnabled()) {
     return { success: true };
   }
 
+  const secret = process.env.TURNSTILE_SECRET_KEY!.trim();
   const trimmed = String(token ?? "").trim();
   if (!trimmed) {
     return { success: false, error: "Token Turnstile wajib" };

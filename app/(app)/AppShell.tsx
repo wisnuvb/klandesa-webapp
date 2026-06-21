@@ -304,6 +304,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     writable: boolean;
     active: boolean;
     onboardingDone: boolean;
+    expiringSoon: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -332,6 +333,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             writable?: boolean;
             phase?: string;
             daysRemaining?: number | null;
+            expiringSoon?: boolean;
           };
           village?: { onboardingCompletedAt?: string | null };
         } | null;
@@ -344,6 +346,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           writable: sub.writable !== false,
           active: sub.active,
           onboardingDone: Boolean(data?.village?.onboardingCompletedAt),
+          expiringSoon: sub.expiringSoon === true,
         });
 
         if (!sub.active && !current.startsWith("/billing")) {
@@ -402,6 +405,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             phase={billingBanner.phase}
             daysRemaining={billingBanner.daysRemaining}
             writable={billingBanner.writable}
+            expiringSoon={billingBanner.expiringSoon}
           />
         )}
         <Header

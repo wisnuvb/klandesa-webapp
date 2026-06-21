@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getStoredReferralCode } from "@/lib/referrals/client";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 
 const intentOptions = [
   {
@@ -46,9 +47,7 @@ export function DemoContactSection() {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = React.useState(false);
   const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
-  const turnstileRequired = Boolean(
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim(),
-  );
+  const turnstileRequired = isTurnstileRequiredOnClient();
 
   const selectedIntent = intentOptions.find((o) => o.id === intent)!;
 
