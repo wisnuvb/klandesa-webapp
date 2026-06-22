@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
 import { MapShell } from "@/components/app/gis/map/MapShell";
 import { cn } from "@/components/ui/utils";
 import { MAP_LAYER_IDS, MAP_SOURCE_IDS } from "@/lib/gis/map/constants";
@@ -28,10 +28,10 @@ type PopupState = {
 };
 
 function setRegionalMarkers(map: MapLibreMap, points: RegionalGisPoint[]) {
-  const source = map.getSource(MAP_SOURCE_IDS.markers);
-  if (source && "setData" in source) {
-    source.setData(regionalPointsToFeatureCollection(points));
-  }
+  const source = map.getSource(MAP_SOURCE_IDS.markers) as
+    | GeoJSONSource
+    | undefined;
+  source?.setData(regionalPointsToFeatureCollection(points));
 }
 
 function popupStyleFromLngLat(
