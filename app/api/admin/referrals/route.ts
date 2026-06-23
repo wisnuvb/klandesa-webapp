@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
 
   const status = String(body?.status ?? "active").trim() || "active";
   const normalizedStatus = status.slice(0, 30);
-  const landingPath = String(body?.landingPath ?? "/tim").trim() || "/tim";
+  const landingPath = String(body?.landingPath ?? "/m").trim() || "/m";
 
   const ownerEmail = String(body?.ownerEmail ?? "").trim().toLowerCase().slice(0, 254) || null;
   if (/^active$/i.test(normalizedStatus) && ownerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) {

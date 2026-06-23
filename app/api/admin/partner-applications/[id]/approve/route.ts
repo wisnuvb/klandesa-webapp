@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { hashPassword } from "@/lib/auth";
 import { ensurePartnerCommissionRule } from "@/lib/partner/commission";
+import { ensurePartnerReferralCodeTx } from "@/lib/partner/referral-code";
 
 function generateTempPassword(): string {
   return randomBytes(9).toString("base64url");
@@ -53,7 +54,8 @@ export async function POST(
 
   const approvedAt = new Date().toISOString();
 
-  const { partnerRow, tempPassword, approveInfo } = await prisma.$transaction(async (tx) => {
+  const { partnerRow, tempPassword, approveInfo, referralCode, sharePath } =
+    await prisma.$transaction(async (tx) => {
     /** Hanya ada jika mitra baru & pendaftar tidak punya hash (data lama). */
     let tempPassword: string | null = null;
     /** Penjelasan singkat untuk admin (tanpa menyebut password). */
@@ -137,7 +139,24 @@ export async function POST(
 
     await ensurePartnerCommissionRule(tx, row.id);
 
-    return { partnerRow: row, tempPassword, approveInfo };
+    const referral = await ensurePartnerReferralCodeTx(tx, row.id, {
+      name: application.name,
+      email: application.email,
+      phone: application.phone,
+    });
+
+    const referralSuffix = referral.created
+      ? ` Kode referral otomatis: ${referral.code}.`
+      : ` Kode referral: ${referral.code}.`;
+    approveInfo = `${approveInfo}${referralSuffix}`;
+
+    return {
+      partnerRow: row,
+      tempPassword,
+      approveInfo,
+      referralCode: referral.code,
+      sharePath: referral.sharePath,
+    };
   });
 
   return NextResponse.json(
@@ -146,6 +165,8 @@ export async function POST(
       partnerId: partnerRow.id,
       tempPassword,
       approveInfo,
+      referralCode,
+      sharePath,
     },
     { status: 200 },
   );

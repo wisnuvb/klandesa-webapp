@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { buildPartnerSharePath } from "@/lib/partner/public-page";
 
 type ReferralCodeRow = {
   id: number;
@@ -68,8 +69,10 @@ function baseUrl(): string {
 function referralLink(
   row: Pick<ReferralCodeRow, "code" | "landingPath">,
 ): string {
-  const path = row.landingPath || "/tim";
-  return `${baseUrl()}${path}?ref=${encodeURIComponent(row.code)}`;
+  const path = buildPartnerSharePath(null, row.code);
+  if (path) return `${baseUrl()}${path}`;
+  const legacyPath = row.landingPath || "/tim";
+  return `${baseUrl()}${legacyPath}?ref=${encodeURIComponent(row.code)}`;
 }
 
 function actionLabel(action: string): string {
@@ -166,7 +169,7 @@ export function AdminReferralSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          landingPath: "/tim",
+          landingPath: "/m",
           status: "active",
         }),
       });
@@ -255,7 +258,7 @@ export function AdminReferralSection() {
           </div>
           <div className="text-sm text-muted-foreground">
             Link publik berbentuk{" "}
-            <span className="font-mono">/tim?ref=KODE</span>.
+            <span className="font-mono">/m/kode-atau-slug</span>.
           </div>
         </CardHeader>
         <CardContent className="space-y-3">

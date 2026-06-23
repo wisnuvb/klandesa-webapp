@@ -40,6 +40,22 @@ export async function middleware(req: NextRequest) {
   }
 
   if (isMainDomain(subdomain)) {
+    if (url.pathname === "/tim") {
+      const ref = url.searchParams.get("ref")?.trim();
+      if (ref) {
+        const normalized = ref
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 80);
+        if (normalized) {
+          const target = new URL(`/m/${encodeURIComponent(normalized)}`, req.url);
+          return NextResponse.redirect(target, 301);
+        }
+      }
+    }
+
     if (isCustomDomainCandidateHost(hostname)) {
       const requestHeaders = new Headers(req.headers);
       requestHeaders.set("x-tenant-hostname", hostname);

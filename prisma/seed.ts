@@ -110,13 +110,27 @@ async function main() {
         phone: "081200000001",
         region,
         status: "active",
+        publicHeadline: "Digitalisasi desa & pemda bersama Klandesa",
+        publicBio:
+          "Mitra demo Klandesa siap mendampingi desa dan pemda memilih platform operasional terintegrasi.",
+        publicPageEnabled: true,
       },
       update: {
         password: hashed,
         name,
         region,
         status: "active",
+        publicHeadline: "Digitalisasi desa & pemda bersama Klandesa",
+        publicBio:
+          "Mitra demo Klandesa siap mendampingi desa dan pemda memilih platform operasional terintegrasi.",
+        publicPageEnabled: true,
       },
+    });
+
+    const demoPublicSlug = `mitra-demo-${partner.id}`.slice(0, 80);
+    await prisma.partner.update({
+      where: { id: partner.id },
+      data: { publicSlug: demoPublicSlug },
     });
 
     await ensurePartnerCommissionRule(prisma, partner.id);
@@ -164,7 +178,7 @@ async function main() {
             ownerEmail: email,
             ownerPhone: partner.phone,
             status: "active",
-            landingPath: "/tim",
+            landingPath: "/m",
             partnerId: partner.id,
           },
         });
@@ -177,6 +191,7 @@ async function main() {
           ownerName: name,
           ownerPhone: partner.phone ?? "081200000001",
           status: "active",
+          landingPath: "/m",
         },
       });
     }
@@ -191,7 +206,9 @@ async function main() {
       console.log(
         "✓ Mitra seed:",
         email,
-        "(password dari env) — login /mitra · ?ref=",
+        "(password dari env) — login /mitra · /m/",
+        demoPublicSlug,
+        "· ?ref=",
         refCode,
       );
     } else {
@@ -200,7 +217,9 @@ async function main() {
         email,
         "password:",
         password,
-        "— login /mitra · ?ref=",
+        "— login /mitra · /m/",
+        demoPublicSlug,
+        "· ?ref=",
         refCode,
       );
     }

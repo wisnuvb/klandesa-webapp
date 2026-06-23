@@ -23,6 +23,21 @@ export function captureReferralFromUrl(): string | null {
   return code;
 }
 
+/** Simpan kode referral dari halaman publik mitra (/m/[slug]) dan catat kunjungan. */
+export function captureReferralFromPartnerPage(
+  referralCode: string,
+  sourcePath: string,
+): void {
+  if (typeof window === "undefined") return;
+  const code = normalizeClientReferralCode(referralCode);
+  if (!code) return;
+  window.localStorage.setItem(REFERRAL_STORAGE_KEY, code);
+  void trackReferralClient("page_view", {
+    refCode: code,
+    sourcePath,
+  });
+}
+
 export function getStoredReferralCode(): string | null {
   if (typeof window === "undefined") return null;
   return normalizeClientReferralCode(window.localStorage.getItem(REFERRAL_STORAGE_KEY));

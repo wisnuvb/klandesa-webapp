@@ -1609,6 +1609,13 @@ model Partner {
 
   status String @default("active") @db.VarChar(30)
 
+  /// Halaman publik mitra (/m/[slug]) untuk dibagikan ke calon konsumen.
+  publicSlug        String? @unique @db.VarChar(80)
+  publicHeadline    String? @db.VarChar(200)
+  publicBio         String? @db.Text
+  publicWhatsapp    String? @db.VarChar(40)
+  publicPageEnabled Boolean @default(true)
+
   lastLogin DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

@@ -178,11 +178,18 @@ function AdminMitraPageInner() {
         error?: string;
         tempPassword?: string | null;
         approveInfo?: string | null;
+        referralCode?: string | null;
+        sharePath?: string | null;
       } | null;
       if (!res.ok) throw new Error(data?.error || "Gagal approve");
       await load();
       setApprovedPassword(data?.tempPassword ?? null);
-      setActionOk(data?.approveInfo ?? null);
+      const shareNote = data?.sharePath
+        ? ` Halaman publik: ${data.sharePath}`
+        : "";
+      setActionOk(
+        `${data?.approveInfo ?? "Pendaftaran disetujui."}${shareNote}`,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal approve");
     } finally {

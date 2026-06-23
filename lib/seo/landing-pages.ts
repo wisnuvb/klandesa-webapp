@@ -15,6 +15,7 @@ export type LandingPageSeoKey =
   | "karir"
   | "demo"
   | "tim"
+  | "mitraPublic"
   | "mitra-klandesa"
   | "blog";
 
@@ -207,6 +208,19 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
       "startup desa digital",
       "platform desa digital indonesia",
       "klandesa",
+    ],
+    robots: "index, follow",
+  },
+  mitraPublic: {
+    pathname: "/m",
+    title: "Mitra Klandesa — Halaman Publik",
+    description:
+      "Halaman mitra resmi Klandesa untuk calon konsumen desa dan pemda — digitalisasi layanan dengan pendamping lokal.",
+    keywords: [
+      "mitra klandesa",
+      "partner desa digital",
+      "konsultan klandesa",
+      "digitalisasi desa",
     ],
     robots: "index, follow",
   },

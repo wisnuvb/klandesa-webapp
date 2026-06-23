@@ -20,6 +20,8 @@ type ReferralRow = {
   landingPath: string;
   createdAt: string;
   eventCount: number;
+  publicSlug: string | null;
+  shareUrl: string | null;
 };
 
 type Summary = {
@@ -62,8 +64,9 @@ function baseUrl(): string {
 
 function buildShareLink(code: ReferralRow | null): string {
   if (!code) return "";
-  const path = code.landingPath || "/tim";
-  return `${baseUrl()}${path}?ref=${encodeURIComponent(code.code)}`;
+  if (code.shareUrl) return code.shareUrl;
+  const slug = code.publicSlug || code.code.toLowerCase();
+  return `${baseUrl()}/m/${encodeURIComponent(slug)}`;
 }
 
 function formatDt(value: string): string {
@@ -160,7 +163,7 @@ export default function MitraReferralPage() {
           </Button>
           <h1 className="text-xl md:text-2xl font-semibold">Kode referral</h1>
           <p className="text-sm text-muted-foreground">
-            Statistik kampanye Anda dan tautan bagi calon pelanggan.
+            Statistik kampanye Anda dan tautan halaman publik bagi calon pelanggan.
           </p>
         </div>
         <Button
