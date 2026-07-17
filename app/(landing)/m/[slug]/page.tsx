@@ -13,14 +13,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const profile = await resolvePartnerPublicProfile(slug);
   if (!profile) {
     return {
-      title: "Halaman mitra tidak ditemukan | Klandesa",
+      title: "Halaman tidak ditemukan | Klandesa",
       robots: "noindex, nofollow",
     };
   }
 
-  const title =
-    profile.publicHeadline?.trim() ||
-    `${profile.name} — Mitra Klandesa`;
+  const title = `${profile.name} — Digitalisasi Desa`;
   const description =
     profile.publicBio?.trim()?.slice(0, 160) ||
     `${profile.name} memperkenalkan Klandesa untuk digitalisasi desa dan pemda${

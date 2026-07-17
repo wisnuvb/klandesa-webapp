@@ -213,14 +213,14 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   mitraPublic: {
     pathname: "/m",
-    title: "Mitra Klandesa — Halaman Publik",
+    title: "Digitalisasi Desa — Halaman Publik",
     description:
-      "Halaman mitra resmi Klandesa untuk calon konsumen desa dan pemda — digitalisasi layanan dengan pendamping lokal.",
+      "Halaman pendamping resmi Klandesa untuk calon konsumen desa dan pemda — digitalisasi layanan dengan pendamping lokal.",
     keywords: [
-      "mitra klandesa",
+      "digitalisasi desa",
       "partner desa digital",
       "konsultan klandesa",
-      "digitalisasi desa",
+      "pendamping desa",
     ],
     robots: "index, follow",
   },
