@@ -1,5 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -13,19 +13,6 @@ import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
-
-function mapFamilyRole(id: string) {
-  switch (id) {
-    case "1":
-      return "Kepala Keluarga";
-    case "2":
-      return "Istri";
-    case "3":
-      return "Anak";
-    default:
-      return "Anggota";
-  }
-}
 
 function mapReligionId(id: string) {
   const map: Record<string, string> = {
@@ -134,7 +121,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(result, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("POST /api/residents error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
@@ -163,7 +150,7 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const where: any = { villageId: village.id };
+    const where: Prisma.ResidentWhereInput = { villageId: village.id };
     if (search) {
       where.OR = [
         { name: { contains: search } },
@@ -181,7 +168,7 @@ export async function GET(req: NextRequest) {
       where.maritalStatus = status;
     }
 
-    let orderBy: any = undefined;
+    let orderBy: Prisma.ResidentOrderByWithRelationInput | undefined = undefined;
     if (sortKey) {
       let key = sortKey;
       if (sortKey === "id_number") key = "nik";

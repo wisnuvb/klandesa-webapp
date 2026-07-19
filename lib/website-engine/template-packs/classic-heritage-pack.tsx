@@ -6,6 +6,7 @@ import {
   FeaturesBlock,
   GalleryBlock,
   NewsBlock,
+  RegionalNewsBlock,
   RichTextBlock,
   SpacerBlock,
   StatsBlock,
@@ -138,6 +139,16 @@ function renderClassicSection(
         items={ctx.news}
         newsDetailBasePath={ctx.newsDetailBasePath}
         cardClassName="flex items-center justify-between gap-4 rounded-none p-4 border-l-4 [border-color:var(--site-accent,#92400e)] [background:var(--site-surface,#fffbeb)] [border-top:1px_solid_var(--site-border,#e7e5e4)] [border-right:1px_solid_var(--site-border,#e7e5e4)] [border-bottom:1px_solid_var(--site-border,#e7e5e4)]"
+        style={s.style}
+      />
+    );
+  }
+  if (s.kind === "regional_news") {
+    return (
+      <RegionalNewsBlock
+        title={s.title ?? "Berita di Sekitar Kami"}
+        items={ctx.regionalNews ?? []}
+        showSource={s.show_source !== false}
         style={s.style}
       />
     );

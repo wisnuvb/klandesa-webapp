@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { Search as SearchIcon } from "lucide-react";
 
 interface SearchBarProps {

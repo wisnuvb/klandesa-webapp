@@ -85,7 +85,9 @@ export function mergeBoundaryIntoVillageSettings(
       : {};
 
   if (!boundary) {
-    const { boundary: _b, boundaryUpdatedAt: _u, ...restGis } = prevGis;
+    const restGis = { ...prevGis };
+    delete restGis.boundary;
+    delete restGis.boundaryUpdatedAt;
     const next = { ...base };
     if (Object.keys(restGis).length > 0) {
       next.gis = restGis;

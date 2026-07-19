@@ -58,7 +58,7 @@ export const DataWargaTable = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"excel" | "csv" | "pdf">(
+  const [, setExportFormat] = useState<"excel" | "csv" | "pdf">(
     "excel"
   );
 

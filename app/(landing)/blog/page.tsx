@@ -1,25 +1,12 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { listPublishedBlogPosts } from "@/lib/blog/public-posts";
 
 function formatDate(value: Date): string {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(value);
 }
 
 export default async function BlogIndexPage() {
-  const posts = await prisma.blogPost.findMany({
-    where: { status: "published" },
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    take: 50,
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      coverImageUrl: true,
-      publishedAt: true,
-      createdAt: true,
-    },
-  });
+  const posts = await listPublishedBlogPosts(50);
 
   return (
     <main className="min-h-screen bg-white">

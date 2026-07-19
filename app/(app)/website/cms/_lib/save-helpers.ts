@@ -167,6 +167,19 @@ export function cleanSectionsForSave(
         style: cleanStyleForSave(s.style),
       };
     }
+    if (s.kind === "regional_news") {
+      const limitRaw =
+        typeof s.limit === "number"
+          ? Math.min(12, Math.max(1, Math.floor(s.limit)))
+          : undefined;
+      return {
+        kind: "regional_news",
+        title: s.title?.trim() || undefined,
+        limit: limitRaw,
+        show_source: s.show_source !== false,
+        style: cleanStyleForSave(s.style),
+      };
+    }
     if (s.kind === "rich_text") {
       return {
         kind: "rich_text",

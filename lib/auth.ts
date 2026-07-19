@@ -71,7 +71,7 @@ export function generateTokens(
 export function verifyToken(token: string): jwt.JwtPayload | string | null {
   try {
     return jwt.verify(token, JWT_SECRET) as jwt.JwtPayload | string;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

@@ -74,11 +74,12 @@ export function SimpleRichTextEditor({
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
   const [showImageModal, setShowImageModal] = useState(false);
   
-  // Initialize content
+  // Inisialisasi konten editor sekali saat mount
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
       editorRef.current.innerHTML = value || '';
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hanya sinkron awal, bukan setiap perubahan value
   }, []);
 
   // Update active formats on selection change

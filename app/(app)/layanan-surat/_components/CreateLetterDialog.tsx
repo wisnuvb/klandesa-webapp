@@ -219,7 +219,9 @@ export function CreateLetterDialog({
       return;
     }
     let cancel = false;
-    setOfficialsLoading(true);
+    queueMicrotask(() => {
+      if (!cancel) setOfficialsLoading(true);
+    });
     fetch("/api/officials?status=active&pageSize=300")
       .then((r) => r.json())
       .then((j) => {
@@ -259,6 +261,7 @@ export function CreateLetterDialog({
       const patch = buildFooterSignerPatchFromOfficial(template, slotIdx, o);
       Object.entries(patch).forEach(([k, val]) => onFormChange(k, val));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- formData sudah diwakili officialSlotsApplyWatch
   }, [
     open,
     template,
@@ -266,6 +269,7 @@ export function CreateLetterDialog({
     officialSlotsApplyWatch,
     officialRows,
     onFormChange,
+    // formData tercakup via officialSlotsApplyWatch
   ]);
 
   const applyManualSignerSlot = useCallback(

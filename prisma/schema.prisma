@@ -1858,6 +1858,25 @@ model BlogPostTag {
 }
 
 // ============================================
+// REGIONAL NEWS FEED (Google News RSS cache per kabupaten)
+// ============================================
+
+model RegionalNewsFeedSnapshot {
+  id        Int      @id @default(autoincrement())
+  regionKey String   @unique @db.VarChar(120)
+  province  String   @db.VarChar(255)
+  regency   String   @db.VarChar(255)
+  items     Json
+  fetchedAt DateTime @default(now())
+  expiresAt DateTime
+  lastError String?  @db.Text
+
+  @@index([province, regency])
+  @@index([expiresAt])
+  @@map("regional_news_feed_snapshots")
+}
+
+// ============================================
 // SYSTEM LOGS & AUDIT
 // ============================================
 

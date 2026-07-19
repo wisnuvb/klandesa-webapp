@@ -9,6 +9,7 @@ import type {
 import { getTemplatePack } from "@/lib/website-engine/template-packs/registry";
 import { themeToCssVars } from "@/lib/website-engine/theme";
 import { renderWebsiteSection } from "@/lib/website-engine/site-sections";
+import type { RegionalNewsItem } from "@/lib/regional-news/types";
 import {
   Card,
   CardContent,
@@ -50,6 +51,7 @@ export const CmsLivePreviewCard = memo(function CmsLivePreviewCard({
     Array<{ id: number; title: string; date: string }>
   >([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [regionalNews, setRegionalNews] = useState<RegionalNewsItem[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +85,23 @@ export const CmsLivePreviewCard = memo(function CmsLivePreviewCard({
       .finally(() => {
         if (cancelled) return;
         setNewsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/regional-news?limit=6")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (cancelled || !j || !Array.isArray(j.items)) return;
+        setRegionalNews(j.items as RegionalNewsItem[]);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRegionalNews([]);
       });
     return () => {
       cancelled = true;
@@ -136,6 +155,7 @@ export const CmsLivePreviewCard = memo(function CmsLivePreviewCard({
                         website: village?.website ?? null,
                       },
                       news,
+                      regionalNews,
                       newsDetailBasePath: "/site/berita",
                     })}
                   </div>

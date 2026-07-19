@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { getPublishedBlogPostBySlug } from "@/lib/blog/public-posts";
 import { buildLandingSeo } from "@/lib/seo/landing";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -12,18 +12,8 @@ function formatDate(value: Date): string {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { slug } = await props.params;
-  const post = await prisma.blogPost.findUnique({
-    where: { slug },
-    select: {
-      title: true,
-      seoTitle: true,
-      seoDescription: true,
-      excerpt: true,
-      coverImageUrl: true,
-      status: true,
-    },
-  });
-  if (!post || post.status !== "published") {
+  const post = await getPublishedBlogPostBySlug(slug);
+  if (!post) {
     return {
       title: "Artikel tidak ditemukan",
       robots: { index: false, follow: false },
@@ -61,20 +51,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function BlogDetailPage(props: Props) {
   const { slug } = await props.params;
-  const post = await prisma.blogPost.findUnique({
-    where: { slug },
-    select: {
-      title: true,
-      excerpt: true,
-      content: true,
-      coverImageUrl: true,
-      coverImageAttribution: true,
-      status: true,
-      publishedAt: true,
-      createdAt: true,
-    },
-  });
-  if (!post || post.status !== "published") notFound();
+  const post = await getPublishedBlogPostBySlug(slug);
+  if (!post) notFound();
 
   const date = post.publishedAt ?? post.createdAt;
   const attribution =

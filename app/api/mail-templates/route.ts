@@ -1,5 +1,4 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";

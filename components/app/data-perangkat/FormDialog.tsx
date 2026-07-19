@@ -103,7 +103,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
     if (!form.getValues("village_staff_position_id") && positions[0]?.id) {
       form.setValue("village_staff_position_id", positions[0].id.toString());
     }
-  }, [positions]);
+  }, [positions, form]);
 
   const supervisorCandidates = useMemo(() => {
     const selectedPositionId = form.watch("village_staff_position_id");

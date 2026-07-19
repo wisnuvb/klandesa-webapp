@@ -54,10 +54,7 @@ export function getProvinceLogoUrl(
   return null;
 }
 
-export function getProvinceLogoUrlByName(
-  namaProvinsi: string,
-  size = 48,
-): string | null {
+export function getProvinceLogoUrlByName(namaProvinsi: string): string | null {
   const code = matchProvinceCode(namaProvinsi);
   if (!code) return null;
   return getProvinceLogoUrl(code);

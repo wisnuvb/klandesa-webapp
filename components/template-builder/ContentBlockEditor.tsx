@@ -93,7 +93,7 @@ function ContentBlockEditorComponent({
     fieldName?: "content" | "value" | "label";
   } | null>(null);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [_, setIsMentionTriggered] = useState(false);
+  const [, setIsMentionTriggered] = useState(false);
   const inputRefs = useRef<{
     [key: string]: HTMLInputElement | HTMLTextAreaElement;
   }>({});

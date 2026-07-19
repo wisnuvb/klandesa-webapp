@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- komponen fallback Figma; src dinamis tidak cocok untuk next/image */
 import React, { useState } from "react";
 
 const ERROR_IMG_SRC =

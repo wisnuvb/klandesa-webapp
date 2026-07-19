@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Leaf, Loader2, Plus, Recycle, Trash2 } from "lucide-react";
+import { AlertTriangle, Leaf, Plus, Recycle, Trash2 } from "lucide-react";
 import { AsyncState, MetricGrid, type MetricItem } from "@/components/app/patterns";
 import { Can } from "@/components/permissions/Can";
 import { Badge } from "@/components/ui/badge";

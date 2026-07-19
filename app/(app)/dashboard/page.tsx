@@ -5,6 +5,7 @@ import Link from "next/link";
 import { RecentActivity } from "@/components/app/RecentActivity";
 import { StatsCard } from "@/components/app/StatsCard";
 import { LarasDashboardCard } from "@/components/ai/LarasDashboardCard";
+import { RegionalNewsCard } from "@/components/regional-news/RegionalNewsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Wallet, TrendingUp, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -433,8 +434,11 @@ export default function AppDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
-        <RecentActivity />
+        {/* Recent Activity + berita regional (pendukung, tidak mendominasi) */}
+        <div className="space-y-6">
+          <RecentActivity />
+          <RegionalNewsCard defaultOpen={false} itemLimit={3} />
+        </div>
       </div>
 
       {/* Quick Actions */}

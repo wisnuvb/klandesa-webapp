@@ -238,6 +238,22 @@ export const WEBSITE_SECTION_REGISTRY: Record<
     ],
     createDefault: () => ({ kind: "news", title: "", limit: 6 }),
   },
+  regional_news: {
+    kind: "regional_news",
+    label: "Berita Regional (Media)",
+    requiredCapabilities: ["section_regional_news"],
+    cmsFields: [
+      { name: "title", label: "Judul blok", type: "text" },
+      { name: "limit", label: "Jumlah item", type: "number", min: 1, max: 12 },
+      { name: "show_source", label: "Tampilkan nama media", type: "checkbox" },
+    ],
+    createDefault: () => ({
+      kind: "regional_news",
+      title: "Berita di Sekitar Kami",
+      limit: 6,
+      show_source: true,
+    }),
+  },
   contact: {
     kind: "contact",
     label: "Kontak",
@@ -412,6 +428,7 @@ export function renderWebsiteSection(params: {
     website?: string | null;
   };
   news: Array<{ id: number; title: string; date: string }>;
+  regionalNews?: import("@/lib/regional-news/types").RegionalNewsItem[];
   newsDetailBasePath?: string;
 }) {
   const pack = getTemplatePack(params.templateKey);
@@ -423,6 +440,7 @@ export function renderWebsiteSection(params: {
     section,
     village: params.village,
     news: params.news,
+    regionalNews: params.regionalNews ?? [],
     newsDetailBasePath: params.newsDetailBasePath,
   });
 }
@@ -436,6 +454,7 @@ export {
   HeroCenterBlock,
   HeroSplitBlock,
   NewsBlock,
+  RegionalNewsBlock,
   RichTextBlock,
   SpacerBlock,
   StatsBlock,

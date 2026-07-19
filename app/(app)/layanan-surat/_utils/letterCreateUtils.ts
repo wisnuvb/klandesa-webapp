@@ -28,7 +28,7 @@ export function parseIndonesianLetterDateString(
       const parsed = parse(t, pattern, new Date(), { locale: idLocale });
       if (!Number.isNaN(parsed.getTime())) return startOfLocalDay(parsed);
     } catch {
-      /* eslint-disable-next-line no-empty */
+      // abaikan format tanggal yang tidak cocok
     }
   }
   for (const pattern of ["d MMMM yyyy", "dd MMMM yyyy"]) {
@@ -36,7 +36,7 @@ export function parseIndonesianLetterDateString(
       const parsed = parse(t, pattern, new Date());
       if (!Number.isNaN(parsed.getTime())) return startOfLocalDay(parsed);
     } catch {
-      /* eslint-disable-next-line no-empty */
+      // abaikan format tanggal yang tidak cocok
     }
   }
   return null;

@@ -90,6 +90,12 @@ export type WebsiteSection =
       limit?: number;
     }>
   | WithStyle<{
+      kind: "regional_news";
+      title?: string;
+      limit?: number;
+      show_source?: boolean;
+    }>
+  | WithStyle<{
       kind: "contact";
       title?: string;
       show_map?: boolean;

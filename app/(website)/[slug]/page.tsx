@@ -53,7 +53,7 @@ export default async function TenantCmsPage(props: Props) {
   const ctx = await loadTenantPublicPageContext(tenant, slug);
   if (!ctx) notFound();
 
-  const { page, announcements, templateKey } = ctx;
+  const { page, announcements, templateKey, regionalNews } = ctx;
 
   return (
     <SitePageBody
@@ -61,6 +61,7 @@ export default async function TenantCmsPage(props: Props) {
       templateKey={templateKey}
       village={tenant.village}
       announcements={announcements}
+      regionalNews={regionalNews}
       newsDetailBasePath="/site/berita"
       layoutPreset={page.layoutPreset}
     />

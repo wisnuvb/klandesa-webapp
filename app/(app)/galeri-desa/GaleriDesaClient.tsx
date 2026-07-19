@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -741,12 +742,12 @@ export default function GaleriDesaClient(props: Props) {
                         </div>
 
                         <div className="flex gap-3 pt-2">
-                          <a
+                          <Link
                             href="/arsip"
                             className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-center"
                           >
                             Buka Arsip
-                          </a>
+                          </Link>
                           <button
                             type="button"
                             onClick={handleAssignFromArchive}
@@ -820,13 +821,13 @@ export default function GaleriDesaClient(props: Props) {
                   >
                     <Download className="w-5 h-5" />
                   </a>
-                  <a
+                  <Link
                     href="/arsip"
                     className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                     title="Kelola di Arsip"
                   >
                     Kelola di Arsip
-                  </a>
+                  </Link>
                   <button
                     onClick={() => setShowDetailModal(false)}
                     className="p-2 hover:bg-gray-100 rounded-lg"

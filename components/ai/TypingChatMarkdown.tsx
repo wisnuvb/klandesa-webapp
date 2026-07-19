@@ -39,8 +39,10 @@ export function TypingChatMarkdown({
   const onCompleteRef = useRef(onComplete);
   const onTickRef = useRef(onTick);
 
-  onCompleteRef.current = onComplete;
-  onTickRef.current = onTick;
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    onTickRef.current = onTick;
+  }, [onComplete, onTick]);
 
   const finish = useCallback(() => {
     if (completedRef.current) return;
@@ -54,14 +56,18 @@ export function TypingChatMarkdown({
     completedRef.current = false;
 
     if (!enabled || !content) {
-      setVisibleCount(content.length);
-      setIsTyping(false);
-      if (enabled && !content) onCompleteRef.current?.();
+      queueMicrotask(() => {
+        setVisibleCount(content.length);
+        setIsTyping(false);
+        if (enabled && !content) onCompleteRef.current?.();
+      });
       return;
     }
 
-    setVisibleCount(0);
-    setIsTyping(true);
+    queueMicrotask(() => {
+      setVisibleCount(0);
+      setIsTyping(true);
+    });
 
     const delay = tickDelayMs(content.length);
     const step = charsPerTick(content.length);

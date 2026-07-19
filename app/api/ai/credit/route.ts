@@ -3,7 +3,6 @@ import { getApiSession } from "@/lib/api-session";
 import { prisma } from "@/lib/prisma";
 import {
   AI_CREDITS_CONSUMPTION_ENABLED,
-  DEFAULT_AI_CREDITS,
   ensureDefaultAiCredits,
 } from "@/lib/ai/credits";
 

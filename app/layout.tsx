@@ -6,7 +6,6 @@ import "./styles/theme.css";
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { auth } from "@/auth";
 import { AuthProvider } from "./components/AuthProvider";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 
@@ -75,19 +74,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
-
   return (
     <html lang="id">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider session={session}>{children}</AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
         <GoogleAnalytics />
       </body>
     </html>

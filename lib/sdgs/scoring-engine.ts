@@ -91,7 +91,7 @@ function scoreGoal4(m: VillageRawMetrics): SdgGoalScore {
   const illiteracyRate = pct(m.illiterateCount, Math.max(m.totalResidents, 1));
   const atsRate = pct(m.schoolAgeNoEducation, Math.max(m.schoolAgeTotal, 1));
   const eduFacilities = m.villagePotential?.educationFacilities ?? 0;
-  let score = clamp(100 - illiteracyRate - atsRate * 0.8 + (eduFacilities > 0 ? 10 : 0));
+  const score = clamp(100 - illiteracyRate - atsRate * 0.8 + (eduFacilities > 0 ? 10 : 0));
 
   return {
     goalId: 4,

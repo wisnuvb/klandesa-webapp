@@ -202,7 +202,7 @@ export function VillageMap({
     }
 
     clearDraw(draw);
-  }, [mapReady, mode, boundaryKey, center?.lat, center?.lng, markersKey]);
+  }, [mapReady, mode, boundaryKey, center, markersKey, markers, boundary]);
 
   // ── Sync markers, boundary, pick ──
   useEffect(() => {
@@ -224,7 +224,7 @@ export function VillageMap({
     if (!mapReady || !map) return;
     if (mode === "drawBoundary" || mode === "editBoundary") return;
     fitMapToContext(map, center, markers, boundary);
-  }, [mapReady, mode, boundaryKey, center?.lat, center?.lng, markersKey]);
+  }, [mapReady, mode, boundaryKey, center, markersKey, markers, boundary]);
 
   return (
     <MapShell

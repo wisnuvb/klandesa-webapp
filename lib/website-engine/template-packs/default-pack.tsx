@@ -7,6 +7,7 @@ import {
   GalleryBlock,
   HeroCenterBlock,
   NewsBlock,
+  RegionalNewsBlock,
   RichTextBlock,
   SpacerBlock,
   StatsBlock,
@@ -150,6 +151,16 @@ function renderDefaultSection(
         title={title}
         items={ctx.news}
         newsDetailBasePath={ctx.newsDetailBasePath}
+        style={s.style}
+      />
+    );
+  }
+  if (s.kind === "regional_news") {
+    return (
+      <RegionalNewsBlock
+        title={s.title ?? "Berita di Sekitar Kami"}
+        items={ctx.regionalNews ?? []}
+        showSource={s.show_source !== false}
         style={s.style}
       />
     );

@@ -34,7 +34,8 @@ export function ExportPermohonanModal({
   const [search, setSearch] = useState(currentFilters?.search || "");
   const [useCurrentFilters, setUseCurrentFilters] = useState(true);
 
-  async function handleExport(_format: ExportFormat) {
+  async function handleExport(format: ExportFormat) {
+    void format;
     try {
       const params = new URLSearchParams();
 

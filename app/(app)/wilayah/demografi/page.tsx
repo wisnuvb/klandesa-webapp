@@ -13,8 +13,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { RegionalPageHeader } from "@/components/regional/RegionalPageHeader";

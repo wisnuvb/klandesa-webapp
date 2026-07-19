@@ -65,6 +65,7 @@ export default async function TenantWebsiteHome() {
       templateKey={templateKey}
       village={tenant.village}
       announcements={announcements}
+      regionalNews={ctx.regionalNews}
       newsDetailBasePath="/site/berita"
       layoutPreset={page.layoutPreset}
     />

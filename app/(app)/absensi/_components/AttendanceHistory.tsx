@@ -70,9 +70,12 @@ export function AttendanceHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const rangeFromTime = range?.from?.getTime();
+  const rangeToTime = range?.to?.getTime();
+
   useEffect(() => {
     setPage(1);
-  }, [range?.from?.getTime(), range?.to?.getTime(), searchQuery, filterStatus]);
+  }, [rangeFromTime, rangeToTime, searchQuery, filterStatus]);
 
   useEffect(() => {
     const controller = new AbortController();

@@ -4,7 +4,6 @@ import {
   Trash2,
   GripVertical,
   FileText,
-  Edit2,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -19,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Switch } from "../ui/switch";
 import { Badge } from "../ui/badge";
 import { TemplatePage } from "./types";
 import {
@@ -35,7 +33,8 @@ interface PageManagerProps {
   onAddPage: () => void;
   onDeletePage: (pageId: string) => void;
   onUpdatePage: (pageId: string, updates: Partial<TemplatePage>) => void;
-  onReorderPages: (pages: TemplatePage[]) => void;
+  /** Reserved — drag reorder belum diimplementasi di UI PageManager. */
+  onReorderPages?: (pages: TemplatePage[]) => void;
 }
 
 function PageManagerComponent({
@@ -45,7 +44,6 @@ function PageManagerComponent({
   onAddPage,
   onDeletePage,
   onUpdatePage,
-  onReorderPages,
 }: PageManagerProps) {
   const [expandedPages, setExpandedPages] = useState<Set<string>>(
     new Set([currentPageId]),
@@ -77,7 +75,7 @@ function PageManagerComponent({
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          {pages.map((page, index) => (
+          {pages.map((page) => (
             <Collapsible
               key={page.id}
               open={expandedPages.has(page.id)}

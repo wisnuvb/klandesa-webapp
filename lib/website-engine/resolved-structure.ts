@@ -374,6 +374,22 @@ function cleanSectionRaw(raw: unknown): WebsiteSection | null {
       ...(style ? { style } : {}),
     };
   }
+  if (kind === "regional_news") {
+    let limit = 6;
+    if (typeof raw.limit === "number" && Number.isFinite(raw.limit)) {
+      limit = Math.min(12, Math.max(1, Math.floor(raw.limit)));
+    }
+    return {
+      kind: "regional_news",
+      title:
+        typeof raw.title === "string"
+          ? raw.title.trim().slice(0, 200)
+          : undefined,
+      limit,
+      show_source: raw.show_source !== false,
+      ...(style ? { style } : {}),
+    };
+  }
   if (kind === "contact") {
     return {
       kind: "contact",

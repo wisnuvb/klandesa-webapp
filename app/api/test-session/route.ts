@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sign } from "jsonwebtoken";
-import { getResolvedAuthSecret } from "@/lib/auth-secret";
 
 export async function GET() {
   return NextResponse.json({

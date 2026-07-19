@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Eye,
@@ -112,7 +112,7 @@ export function PermohonanWarga() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -138,11 +138,11 @@ export function PermohonanWarga() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [page, searchQuery, filterStatus]);
 
   useEffect(() => {
-    fetchData();
-  }, [page, searchQuery, filterStatus]);
+    void fetchData();
+  }, [fetchData]);
 
   // Calculate statistics from all data (you might want to fetch this separately)
   const totalPermohonan = total;

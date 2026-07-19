@@ -111,8 +111,6 @@ export async function PUT(req: NextRequest) {
     const {
       name,
       district,
-      regency,
-      province,
       address,
       postalCode,
       phone,

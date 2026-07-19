@@ -1,6 +1,9 @@
 import Image from "next/image";
 import clsx from "clsx";
+import { ExternalLink, Globe2 } from "lucide-react";
 import type React from "react";
+import { REGIONAL_NEWS_DISCLAIMER } from "@/lib/regional-news/config";
+import type { RegionalNewsItem } from "@/lib/regional-news/types";
 import type {
   WebsiteSection,
   WebsiteSectionStyle,
@@ -190,6 +193,93 @@ export function NewsBlock(props: {
             })}
           </div>
         )}
+      </div>
+    </SectionFrame>
+  );
+}
+
+function formatNewsDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export function RegionalNewsBlock(props: {
+  title: string;
+  items: RegionalNewsItem[];
+  showSource?: boolean;
+  style?: WebsiteSectionStyle;
+}) {
+  return (
+    <SectionFrame style={props.style} className="px-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <Globe2 className="size-5 [color:var(--site-muted-foreground,#6b7280)]" />
+          <h2 className="text-2xl font-semibold [color:var(--site-accent,#111827)]">
+            {props.title}
+          </h2>
+        </div>
+        {props.items.length === 0 ? (
+          <div className="rounded-2xl border border-dashed p-6 text-sm [border-color:var(--site-border,#e5e7eb)] [color:var(--site-muted-foreground,#6b7280)]">
+            Belum ada berita regional untuk wilayah ini.
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {props.items.map((item) => (
+              <a
+                key={item.guid}
+                href={item.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-dashed transition-all hover:-translate-y-0.5 hover:shadow-md [border-color:var(--site-border,#e5e7eb)] [background:var(--site-surface,#ffffff)]"
+              >
+                {item.imageUrl ? (
+                  <div className="relative aspect-[16/9] w-full overflow-hidden [background:var(--site-surface-muted,#f9fafb)]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex aspect-[16/9] items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm font-semibold text-slate-600">
+                    {item.sourceName.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex flex-1 flex-col p-4">
+                  {props.showSource !== false ? (
+                    <span className="mb-2 inline-flex w-fit rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                      {item.sourceName}
+                    </span>
+                  ) : null}
+                  <h3 className="line-clamp-3 text-sm font-semibold leading-snug [color:var(--site-primary,#111827)] group-hover:opacity-90">
+                    {item.title}
+                  </h3>
+                  {item.excerpt ? (
+                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed [color:var(--site-muted-foreground,#6b7280)]">
+                      {item.excerpt}
+                    </p>
+                  ) : null}
+                  <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-xs [color:var(--site-muted-foreground,#6b7280)]">
+                    <span>{formatNewsDate(item.publishedAt)}</span>
+                    <span className="inline-flex items-center gap-1 font-medium">
+                      Baca
+                      <ExternalLink className="size-3.5" />
+                    </span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+        <p className="mt-4 text-[11px] leading-relaxed [color:var(--site-muted-foreground,#6b7280)]">
+          {REGIONAL_NEWS_DISCLAIMER}
+        </p>
       </div>
     </SectionFrame>
   );

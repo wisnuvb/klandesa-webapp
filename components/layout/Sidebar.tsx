@@ -22,7 +22,6 @@ import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 import { useCooperativeNav } from "@/components/providers/CooperativeNavProvider";
 import { buildVillageSidebarMenu } from "@/lib/modules/sidebar-menu";
 import { useMemo, useState } from "react";
-import { ModuleTierBadge } from "@/components/modules/ModuleTierBadge";
 import type { PackageTier } from "@/lib/modules/entitlements";
 
 interface MenuItem {

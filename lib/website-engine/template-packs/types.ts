@@ -1,4 +1,5 @@
 import type { FC, ReactNode } from "react";
+import type { RegionalNewsItem } from "@/lib/regional-news/types";
 import type { WebsiteNavItem, WebsiteSection, WebsiteThemeTokens } from "@/lib/website-engine/types";
 
 export type SectionRenderContext = {
@@ -11,6 +12,7 @@ export type SectionRenderContext = {
     website?: string | null;
   };
   news: Array<{ id: number; title: string; date: string }>;
+  regionalNews?: RegionalNewsItem[];
   /** Path prefix untuk tautan detail berita, mis. `/site/berita` */
   newsDetailBasePath?: string;
 };

@@ -8,6 +8,7 @@ export const BASE_VILLAGE_WEBSITE_CAPS = [
   "section_testimonials",
   "section_spacer",
   "section_news",
+  "section_regional_news",
   "section_contact",
   "section_rich_text",
   "section_cta",
@@ -21,8 +22,8 @@ export type BaseVillageWebsiteCap = (typeof BASE_VILLAGE_WEBSITE_CAPS)[number];
 export const WEBSITE_FEATURE_TO_CAPABILITIES: Record<string, readonly string[]> = {
   "Responsive Design": ["responsive"],
   "SEO Optimized": ["seo"],
-  "Berita & Artikel": ["section_news", "content_news"],
-  "Portal Berita": ["section_news", "content_news"],
+  "Berita & Artikel": ["section_news", "section_regional_news", "content_news"],
+  "Portal Berita": ["section_news", "section_regional_news", "content_news"],
   "Galeri Foto": ["section_gallery"],
   "Galeri Premium": ["section_gallery"],
   "Profil Desa": ["content_profile"],

@@ -79,7 +79,9 @@ export default function AbsensiCheckInClient() {
     if (!token || status !== "authenticated") return;
     if (attemptedRef.current) return;
     attemptedRef.current = true;
-    void submit();
+    queueMicrotask(() => {
+      void submit();
+    });
   }, [token, status, submit]);
 
   if (!token) {
