@@ -50,7 +50,7 @@ export default function Beranda() {
             <Empty title="Belum ada urusan" hint="Butuh surat dari desa? Buat dari sini, tanpa antre." />
           ) : (
             d.activeRequests.map((r) => (
-              <Card key={r.id} onPress={() => router.push(`/surat/${r.id}`)} label={`${r.type} untuk ${r.forName}. ${r.title}`}>
+              <Card key={r.id} onPress={() => router.push(r.kind === 'report' ? `/lapor/${r.id}` : `/surat/${r.id}`)} label={`${r.type} untuk ${r.forName}. ${r.title}`}>
                 <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>{r.type}</Text>
                 <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 8 }}>untuk {r.forName}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -62,8 +62,9 @@ export default function Beranda() {
             ))
           )}
 
-          <View style={{ marginTop: spacing.md }}>
-            <Button label="Buat Surat" onPress={() => router.push('/layanan')} />
+          <View style={{ marginTop: spacing.md, flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1 }}><Button label="Buat Surat" onPress={() => router.push('/layanan')} /></View>
+            <View style={{ flex: 1 }}><Button label="Lapor Masalah" variant="secondary" onPress={() => router.push('/lapor/baru')} /></View>
           </View>
 
           <SectionTitle>KABAR DESA</SectionTitle>

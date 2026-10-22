@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { Card, Empty, SectionTitle, StepDots, STAGE_COLOR } from '@/components/cards';
 import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { formatDateId } from '@/lib/format';
-import { useRequests, useServices, type Service } from '@/lib/queries';
+import { useReports, useRequests, useServices, type Service } from '@/lib/queries';
 import { useSession } from '@/state/session';
 import { colors } from '@/theme';
 
@@ -23,6 +23,8 @@ export default function Layanan() {
   const { profile } = useSession();
   const services = useServices();
   const requests = useRequests();
+  const reports = useReports();
+  const [tab, setTab] = useState<'surat' | 'laporan'>('surat');
   const [q, setQ] = useState('');
 
   const { popular, rest } = useMemo(() => {
@@ -41,11 +43,41 @@ export default function Layanan() {
     );
   }
 
-  const refresh = () => { void services.refetch(); void requests.refetch(); };
+  const refresh = () => { void services.refetch(); void requests.refetch(); void reports.refetch(); };
 
   return (
     <Screen onRefresh={refresh} refreshing={services.isRefetching || requests.isRefetching}>
-      <Title>Layanan surat</Title>
+      <Title>Layanan</Title>
+      <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 14, padding: 4, marginBottom: 16 }} accessibilityRole="tablist">
+        {(['surat', 'laporan'] as const).map((t) => (
+          <Pressable key={t} onPress={() => setTab(t)} accessibilityRole="tab" accessibilityState={{ selected: tab === t }}
+            style={{ flex: 1, minHeight: 48, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: tab === t ? colors.primary : 'transparent' }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: tab === t ? '#fff' : colors.text }}>{t === 'surat' ? 'Surat' : 'Laporan'}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {tab === 'laporan' ? (
+        <>
+          <Button label="Lapor Masalah Baru" onPress={() => router.push('/lapor/baru')} />
+          <SectionTitle>LAPORAN SAYA</SectionTitle>
+          {reports.isLoading ? <ActivityIndicator color={colors.primary} /> : null}
+          {reports.isError ? <ErrorBanner message={reports.error instanceof ApiError ? reports.error.message : 'Gagal memuat laporan.'} /> : null}
+          {reports.data?.items.length === 0 ? <Empty title="Belum ada laporan" hint="Lihat jalan rusak, lampu mati, atau sampah menumpuk? Laporkan di sini." /> : null}
+          {reports.data?.items.map((r) => (
+            <Card key={r.id} onPress={() => router.push(`/lapor/${r.id}`)} label={`${r.title}, ${r.stageTitle}`}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>{r.category.toUpperCase()}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }} numberOfLines={2}>{r.title}</Text>
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>{formatDateId(r.createdAt)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                <StepDots states={r.steps} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: STAGE_COLOR[r.stage] }}>{r.stageTitle}</Text>
+              </View>
+            </Card>
+          ))}
+        </>
+      ) : (
+        <>
       <Field label="Cari surat" value={q} onChangeText={setQ} placeholder="mis. domisili" autoCapitalize="none" />
       {services.isLoading ? <ActivityIndicator color={colors.primary} /> : null}
       {services.isError ? (
@@ -78,6 +110,8 @@ export default function Layanan() {
           </View>
         </Card>
       ))}
+        </>
+      )}
     </Screen>
   );
 }

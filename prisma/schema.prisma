@@ -1940,6 +1940,20 @@ model CitizenReport {
   reporterName String  @db.VarChar(255)
   reporterNik  String? @db.VarChar(16)
 
+  // Mobile v2
+  residentId       Int?
+  /// jalan | lampu | sampah | air | keamanan | lainnya
+  category         String?   @db.VarChar(30)
+  locationLat      Float?
+  locationLng      Float?
+  /// RT/dusun/patokan yang diketik warga
+  locationNote     String?   @db.VarChar(200)
+  /// Sembunyikan nama dari warga lain (staf tetap melihat pelapor)
+  isAnonymous      Boolean   @default(false)
+  /// RESOLVED | NOT_RESOLVED — jawaban pelapor setelah status DONE
+  resolvedFeedback String?   @db.VarChar(20)
+  feedbackAt       DateTime?
+
   // Processing
   doneById Int?
   doneBy   User? @relation("CitizenReportDoneBy", fields: [doneById], references: [id])
@@ -1952,6 +1966,7 @@ model CitizenReport {
   @@index([villageId, status])
   @@index([villageId, reportType])
   @@index([villageId, createdAt(sort: Desc)])
+  @@index([residentId, createdAt])
   @@map("citizen_reports")
 }
 

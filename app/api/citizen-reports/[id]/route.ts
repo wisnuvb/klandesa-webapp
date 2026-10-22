@@ -2,6 +2,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { notifyReportUpdate } from "@/lib/mobile/notify";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   PENDING: ["PROCESS", "REJECT"],
@@ -129,6 +130,9 @@ export async function PATCH(
         },
       });
     }
+
+    // Beri tahu warga pelapor (akun mobile) tanpa menunggu.
+    void notifyReportUpdate(reportId, "status");
 
     return NextResponse.json({ status: updated.status });
   } catch (error) {

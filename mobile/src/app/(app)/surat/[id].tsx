@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { STAGE_COLOR } from '@/components/cards';
+import { ContactVillageButton } from '@/components/contact';
 import { Body, Button, ErrorBanner, Screen, Title } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { formatDateId } from '@/lib/format';
@@ -86,6 +87,7 @@ export default function MailDetail() {
         <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 10 }}>Dikirim</Text>
         <Text style={{ fontSize: 17, color: colors.text }}>{formatDateId(r.createdAt)}</Text>
       </View>
+      <View style={{ marginTop: spacing.lg }}><ContactVillageButton /></View>
     </Screen>
   );
 }

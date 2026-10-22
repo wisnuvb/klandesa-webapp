@@ -2,6 +2,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { notifyReportUpdate } from "@/lib/mobile/notify";
 
 function mapRoleLabel(role?: string | null): string {
   const mapping: Record<string, string> = {
@@ -64,6 +65,8 @@ export async function POST(
         responderRole: mapRoleLabel(session.user.role),
       },
     });
+
+    void notifyReportUpdate(reportId, "response");
 
     return NextResponse.json(
       {

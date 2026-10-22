@@ -7,12 +7,12 @@ export const queryClient = new QueryClient({
 });
 
 export type Step = { key: 'sent' | 'review' | 'done'; label: string; state: 'done' | 'current' | 'todo' | 'failed'; at: string | null };
-export type Stage = 'sent' | 'approved' | 'ready' | 'rejected';
+export type Stage = 'sent' | 'approved' | 'ready' | 'rejected' | 'working' | 'done';
 
 export type Home = {
-  village: { id: number; name: string; logoUrl: string | null };
+  village: { id: number; name: string; logoUrl: string | null; phone: string | null; address: string | null; email: string | null };
   unreadNotifications: number;
-  activeRequests: { id: number; kind: 'mail'; type: string; forName: string; stage: Stage; title: string; steps: Step['state'][]; updatedAt: string }[];
+  activeRequests: { id: number; kind: 'mail' | 'report'; type: string; forName: string; stage: Stage; title: string; steps: Step['state'][]; updatedAt: string }[];
   announcements: { id: number; title: string; excerpt: string; category: string; imageUrl: string | null; pinned: boolean; publishedAt: string }[];
 };
 export type Service = { id: number; name: string; description: string; category: string; popular: boolean };
@@ -23,6 +23,18 @@ export type RequestDetail = {
 };
 export type Family = { me: number; members: { id: number; name: string; relation: string; nikMasked: string; birthDate: string; canActFor: boolean }[] };
 export type NotificationRow = { id: number; type: string; title: string; body: string | null; deepLink: string | null; read: boolean; createdAt: string };
+
+export type ReportRow = { id: number; title: string; category: string; status: string; stage: Stage; stageTitle: string; steps: Step['state'][]; createdAt: string; thumb: string | null };
+export type ReportDetail = {
+  id: number; title: string; category: string; content: string; photos: string[]; locationNote: string | null; hasLocation: boolean;
+  isPublic: boolean; isAnonymous: boolean; createdAt: string; stage: Stage; stageTitle: string; next: string;
+  steps: { key: string; label: string; state: Step['state'] }[]; feedback: string | null; canGiveFeedback: boolean;
+  responses: { id: number; by: string; role: string; text: string; at: string }[];
+};
+export type ReportInput = {
+  category: string; content: string; photos: string[]; isAnonymous: boolean; isPublic: boolean;
+  location?: { lat: number; lng: number }; locationNote?: string;
+};
 
 export const useHome = () => useQuery({ queryKey: ['home'], queryFn: () => api<Home>('/home') });
 export const useServices = () => useQuery({ queryKey: ['mail-services'], queryFn: () => api<{ items: Service[] }>('/mail/services'), staleTime: 5 * 60_000 });
@@ -54,3 +66,31 @@ export function useMarkRead() {
     },
   });
 }
+
+export const useReports = () => useQuery({ queryKey: ['reports'], queryFn: () => api<{ items: ReportRow[] }>('/reports') });
+export const useReport = (id: number) => useQuery({ queryKey: ['report', id], queryFn: () => api<ReportDetail>(`/reports/${id}`), enabled: Number.isInteger(id) });
+
+export function useCreateReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (b: ReportInput) => post<{ id: number }>('/reports', b),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['reports'] });
+      void qc.invalidateQueries({ queryKey: ['home'] });
+    },
+  });
+}
+
+export function useReportFeedback(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (resolved: boolean) => post<void>(`/reports/${id}/feedback`, { resolved }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['report', id] });
+      void qc.invalidateQueries({ queryKey: ['reports'] });
+      void qc.invalidateQueries({ queryKey: ['home'] });
+    },
+  });
+}
+
+export const deleteAccount = (password: string) => api<void>('/me', { method: 'DELETE', body: JSON.stringify({ password }) });

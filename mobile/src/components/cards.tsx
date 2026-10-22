@@ -8,6 +8,8 @@ export const STAGE_COLOR: Record<Stage, string> = {
   approved: colors.primary,
   ready: colors.primary,
   rejected: colors.danger,
+  working: '#1565C0',
+  done: colors.primary,
 };
 
 /** Titik progres 3 langkah: ● selesai · ◐ sedang · ○ belum · ✕ gagal. Status juga ditulis, tidak mengandalkan warna. */

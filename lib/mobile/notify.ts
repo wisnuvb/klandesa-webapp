@@ -56,3 +56,30 @@ export async function notifyMailRequestStatus(requestId: bigint): Promise<void> 
     console.error("notifyMailRequestStatus failed:", e);
   }
 }
+
+/** Dipanggil saat staf mengubah status laporan atau menulis tanggapan (route web). */
+export async function notifyReportUpdate(reportId: bigint, kind: "status" | "response"): Promise<void> {
+  try {
+    const r = await prisma.citizenReport.findUnique({
+      where: { id: reportId },
+      select: { id: true, villageId: true, residentId: true, title: true, status: true },
+    });
+    if (!r?.residentId) return; // laporan dari web/lama
+    const acc = await prisma.citizenAccount.findUnique({ where: { residentId: r.residentId }, select: { id: true, status: true } });
+    if (!acc || acc.status !== "ACTIVE") return;
+    const deepLink = `/lapor/${Number(r.id)}`;
+    if (kind === "response") {
+      return notifyAccount("citizen", acc.id, r.villageId, { type: "report_status", deepLink, title: "Desa menanggapi laporan Anda", body: r.title });
+    }
+    const text: Record<string, string> = {
+      PROCESS: "Laporan Anda sedang ditangani",
+      DONE: "Laporan Anda ditandai selesai",
+      REJECT: "Laporan Anda belum bisa diproses",
+    };
+    if (text[r.status]) {
+      return notifyAccount("citizen", acc.id, r.villageId, { type: "report_status", deepLink, title: text[r.status]!, body: r.title });
+    }
+  } catch (e) {
+    console.error("notifyReportUpdate failed:", e);
+  }
+}

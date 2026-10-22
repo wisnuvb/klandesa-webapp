@@ -34,6 +34,10 @@ export default function AppLayout() {
       <Stack.Screen name="surat/[id]" options={{ title: 'Status surat' }} />
       <Stack.Screen name="kabar/[id]" options={{ title: 'Kabar desa' }} />
       <Stack.Screen name="notifikasi" options={{ title: 'Notifikasi' }} />
+      <Stack.Screen name="lapor/baru" options={{ title: 'Lapor masalah' }} />
+      <Stack.Screen name="lapor/[id]" options={{ title: 'Status laporan' }} />
+      <Stack.Screen name="keluarga" options={{ title: 'Keluarga saya' }} />
+      <Stack.Screen name="hapus-akun" options={{ title: 'Hapus akun' }} />
     </Stack>
   );
 }
