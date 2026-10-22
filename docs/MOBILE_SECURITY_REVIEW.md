@@ -23,7 +23,7 @@ Metode: **tinjauan kode statis + tes unit**. Belum ada uji dinamis (tidak ada se
 | M6 | Sedang | **Penarikan data massal lewat Cari Warga** (60 pencarian/mnt × 20 hasil) oleh akun staf yang bocor. | **Diperbaiki sebagian**: 30/mnt per staf, setiap pencarian dicatat di AuditLog (tanpa isi kueri). *Terbuka*: pantau log `search` yang tidak wajar; pertimbangkan batas per hari. |
 | M7 | Sedang | **Backup Android** dapat menyertakan data aplikasi (token tersimpan). | **Diperbaiki**: `android.allowBackup: false`. |
 | L1 | Rendah | Kode aktivasi yang sudah "diklaim" hangus bila pembuatan akun melempar error. | **Diperbaiki** (pemakaian dikembalikan). Ditambah batas tebak 8×/jam per NIK. |
-| L2 | Rendah | QR absensi ditandatangani dengan `"your-secret-key"` bila `AUTH_SECRET` kosong → bisa dipalsukan (warisan kode web). | **Diperbaiki di mobile**: ditolak (503) di produksi bila `AUTH_SECRET` kosong. *Terbuka di web*: `lib/auth.ts` dan `/api/attendance/*` masih punya fallback yang sama — hapus fallback. |
+| L2 | Rendah | QR absensi ditandatangani dengan `"your-secret-key"` bila `AUTH_SECRET` kosong → bisa dipalsukan (warisan kode web). | **Diperbaiki (mobile + web)**: fallback dihapus dari `lib/auth.ts` dan `/api/attendance/{qr,scan,check-in}`; semua memakai `requireAuthSecret()` yang gagal tertutup (login/QR menjawab 500/503, verifikasi token menolak) bila `AUTH_SECRET`/`NEXTAUTH_SECRET` kosong di produksi. Dicek saat dipakai, bukan saat modul dimuat, jadi `next build` tanpa env tetap jalan. |
 | L3 | Rendah | HTML surat (`contentHtml`, dibuat di web dari isian termasuk teks warga) dicetak di perangkat tanpa sanitasi. | **Diperbaiki**: dibungkus CSP `default-src 'none'` sehingga skrip/iframe/koneksi keluar tidak berjalan. *Disarankan*: escape isian warga saat HTML surat dirakit di web. |
 | L4 | Rendah | Tabel sesi/penghitung tumbuh tanpa batas. | **Diperbaiki**: pembersihan oportunistik (sesi > 30 hari kedaluwarsa/dicabut, penghitung > 24 jam). |
 
@@ -45,4 +45,4 @@ Metode: **tinjauan kode statis + tes unit**. Belum ada uji dinamis (tidak ada se
 - [ ] Uji manual per peran: warga A tidak bisa membuka `/mail/requests/{id}`, `/reports/{id}`, `/social/posts/{id}` milik warga lain/desa lain; staf desa A tidak bisa mengakses data desa B (coba mengganti `{id}`).
 - [ ] Uji ketahanan login: 9 percobaan salah dari satu IP harus 429 seragam untuk username ada maupun tidak ada; cek tidak ada beda pesan.
 - [ ] Hapus akun uji: pastikan postingan, komentar, like, dan foto hilang.
-- [ ] Hapus fallback `"your-secret-key"` di `lib/auth.ts` dan route `/api/attendance/*` (web).
+- [x] Fallback `"your-secret-key"` sudah dihapus (web & mobile). **Catatan rilis:** token login web lama yang ditandatangani dengan kunci bawaan tidak berlaku lagi; pengguna perlu login ulang, dan QR absensi yang masih tampil di layar perlu dimuat ulang.

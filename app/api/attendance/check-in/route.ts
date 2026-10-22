@@ -1,3 +1,4 @@
+import { requireAuthSecret } from "@/lib/auth-secret";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
@@ -115,7 +116,13 @@ export async function POST(req: NextRequest) {
     const methodRaw = String(body?.method ?? "").toUpperCase();
     const method = methodRaw === "GPS" ? "GPS" : "QR";
 
-    const secret = process.env.AUTH_SECRET ?? "your-secret-key";
+    let secret: string;
+    try {
+      secret = requireAuthSecret();
+    } catch {
+      console.error("AUTH_SECRET belum diset: absensi QR dinonaktifkan");
+      return NextResponse.json({ error: "Layanan sedang dikonfigurasi. Hubungi admin Klandesa." }, { status: 503 });
+    }
 
     let villageId: number;
     let village: VillageCheckIn;

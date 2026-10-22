@@ -1,3 +1,4 @@
+import { requireAuthSecret } from "@/lib/auth-secret";
 import jwt from "jsonwebtoken";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -19,7 +20,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Token tidak ditemukan" }, { status: 400 });
   }
 
-  const secret = process.env.AUTH_SECRET ?? "your-secret-key";
+  let secret: string;
+  try {
+    secret = requireAuthSecret();
+  } catch {
+    console.error("AUTH_SECRET belum diset: absensi QR dinonaktifkan");
+    return NextResponse.json({ error: "Layanan sedang dikonfigurasi. Hubungi admin Klandesa." }, { status: 503 });
+  }
   try {
     const payload = jwt.verify(token, secret) as { type?: string };
     if (payload.type !== "ATTENDANCE_QR") {

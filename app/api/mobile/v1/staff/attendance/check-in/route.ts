@@ -6,11 +6,9 @@ import { audit, type StaffContext } from "@/lib/mobile/staff";
 import { checkMobileRateLimit } from "@/lib/mobile/rate-limit";
 import { computePresentOrLate, evaluateGps, extractQrToken, STATUS_LABEL } from "@/lib/mobile/attendance-logic";
 import { normalizeVillageRole } from "@/lib/permissions";
+// Secret yang sama dengan route web /api/attendance/qr (penanda QR); gagal tertutup bila belum diset.
+import { requireAuthSecret } from "@/lib/auth-secret";
 
-// Sama dengan route web /api/attendance/qr yang menandatangani QR.
-const qrSecret = () => process.env.AUTH_SECRET ?? "your-secret-key";
-// Di produksi tanpa AUTH_SECRET, QR yang ditandatangani dengan kunci bawaan bisa dipalsukan siapa saja → tolak.
-const qrSecretMissingInProd = () => process.env.NODE_ENV === "production" && !process.env.AUTH_SECRET;
 
 /** Absen masuk dengan QR kantor atau GPS (add-on). Satu kali per hari; panggilan ulang mengembalikan catatan yang sudah ada. */
 export async function POST(req: NextRequest) {
@@ -31,11 +29,16 @@ export async function POST(req: NextRequest) {
 
   let gpsFix: { lat: number; lng: number } | null = null;
   if (method === "QR") {
-    if (qrSecretMissingInProd()) return mobileError("INVALID_REQUEST", "Absensi QR belum dikonfigurasi dengan aman di server. Hubungi admin Klandesa.", 503);
+    let secret: string;
+    try {
+      secret = requireAuthSecret();
+    } catch {
+      return mobileError("INVALID_REQUEST", "Absensi QR belum dikonfigurasi dengan aman di server. Hubungi admin Klandesa.", 503);
+    }
     const token = typeof body?.token === "string" ? extractQrToken(body.token) : null;
     if (!token) return mobileError("INVALID_REQUEST", "QR tidak dikenali. Arahkan kamera ke QR absensi di layar admin desa.", 400);
     try {
-      const p = jwt.verify(token, qrSecret()) as jwt.JwtPayload;
+      const p = jwt.verify(token, secret) as jwt.JwtPayload;
       if (p.type !== "ATTENDANCE_QR") return mobileError("INVALID_REQUEST", "QR ini bukan QR absensi.", 400);
       if (Number(p.villageId) !== ctx.villageId) return mobileError("FORBIDDEN", "QR ini untuk desa lain.", 403);
     } catch {

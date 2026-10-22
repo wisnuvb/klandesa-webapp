@@ -1,3 +1,4 @@
+import { requireAuthSecret } from "@/lib/auth-secret";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +23,13 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const secret = process.env.AUTH_SECRET ?? "your-secret-key";
+    let secret: string;
+    try {
+      secret = requireAuthSecret();
+    } catch {
+      console.error("AUTH_SECRET belum diset: absensi QR dinonaktifkan");
+      return NextResponse.json({ error: "Layanan sedang dikonfigurasi. Hubungi admin Klandesa." }, { status: 503 });
+    }
     const expiresInSeconds = 60 * 5;
 
     const token = jwt.sign(

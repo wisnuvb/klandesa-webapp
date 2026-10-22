@@ -9,3 +9,14 @@ export function getResolvedAuthSecret(): string {
   }
   return "";
 }
+
+/**
+ * Secret untuk menandatangani/memverifikasi token (JWT login, QR absensi, dsb).
+ * Gagal tertutup: bila belum diset di produksi, lempar error — tidak ada nilai bawaan yang bisa ditebak.
+ * Dipanggil saat dipakai (bukan saat modul dimuat) agar `next build` tanpa env tidak gagal.
+ */
+export function requireAuthSecret(): string {
+  const secret = getResolvedAuthSecret();
+  if (!secret) throw new Error("AUTH_SECRET belum diset");
+  return secret;
+}

@@ -1,7 +1,7 @@
 import * as bcrypt from "bcryptjs";
 import * as jwt from "jsonwebtoken";
+import { requireAuthSecret } from "@/lib/auth-secret";
 
-const JWT_SECRET = process.env.AUTH_SECRET || "your-secret-key";
 const JWT_EXPIRY = "24h";
 const REFRESH_TOKEN_EXPIRY = "7d";
 
@@ -55,13 +55,13 @@ export function generateTokens(
     | JwtTokenPayloadPartner
     | JwtTokenPayloadPlatform,
 ) {
-  const accessToken = jwt.sign(payload, JWT_SECRET, {
+  const accessToken = jwt.sign(payload, requireAuthSecret(), {
     expiresIn: JWT_EXPIRY,
   });
 
   const refreshToken = jwt.sign(
     { id: payload.id, email: payload.email },
-    JWT_SECRET,
+    requireAuthSecret(),
     { expiresIn: REFRESH_TOKEN_EXPIRY },
   );
 
@@ -70,7 +70,7 @@ export function generateTokens(
 
 export function verifyToken(token: string): jwt.JwtPayload | string | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as jwt.JwtPayload | string;
+    return jwt.verify(token, requireAuthSecret()) as jwt.JwtPayload | string;
   } catch {
     return null;
   }
