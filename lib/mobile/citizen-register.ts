@@ -16,6 +16,7 @@ import {
 } from "./citizen";
 import { checkMobileRateLimit, clientIp } from "./rate-limit";
 import { createMobileSession } from "./sessions";
+import { notifyVillageStaff } from "./notify";
 
 const GENERIC_MISMATCH =
   "Data tidak cocok atau belum bisa didaftarkan. Periksa kembali, atau minta bantuan perangkat desa.";
@@ -71,6 +72,9 @@ async function createAccount(
       },
     });
     if (status === "PENDING_VERIFY") {
+      void notifyVillageStaff(village.id, "residents", {
+        type: "system", title: "Pendaftaran warga menunggu persetujuan", body: residentName, deepLink: "/staff/pendaftaran",
+      });
       return Response.json(
         { status: "PENDING_VERIFY", message: "Pendaftaran terkirim. Perangkat desa akan memeriksa data Anda, kami kabari saat disetujui." },
         { status: 202 },

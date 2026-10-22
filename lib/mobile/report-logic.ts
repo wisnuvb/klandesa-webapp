@@ -79,3 +79,13 @@ export function validCoordinates(lat: unknown, lng: unknown): { lat: number; lng
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   return { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
 }
+
+/** Transisi status yang diizinkan staf (sama dengan route web /api/citizen-reports/[id]). */
+export const REPORT_TRANSITIONS: Record<string, string[]> = {
+  PENDING: ["PROCESS", "REJECT"],
+  PROCESS: ["DONE", "REJECT"],
+};
+
+export function canRespondToReport(status: string): boolean {
+  return status === "PENDING" || status === "PROCESS";
+}

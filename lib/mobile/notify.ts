@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { roleCan, normalizeVillageRole, type PermissionResource } from "@/lib/permissions";
 import { sendPushToAccount } from "./push";
 import type { MobileAccountType } from "./tokens";
 
@@ -81,5 +82,23 @@ export async function notifyReportUpdate(reportId: bigint, kind: "status" | "res
     }
   } catch (e) {
     console.error("notifyReportUpdate failed:", e);
+  }
+}
+
+/**
+ * Beri tahu semua staf aktif desa yang punya izin `update` pada resource (mis. ada surat/laporan/pendaftaran baru).
+ * Dibatasi 15 penerima; tidak melempar.
+ */
+export async function notifyVillageStaff(
+  villageId: number,
+  resource: PermissionResource,
+  n: NotifyInput,
+): Promise<void> {
+  try {
+    const users = await prisma.user.findMany({ where: { villageId, isActive: true }, select: { id: true, role: true }, take: 50 });
+    const targets = users.filter((u) => roleCan(resource, "update", normalizeVillageRole(u.role))).slice(0, 15);
+    await Promise.all(targets.map((u) => notifyAccount("staff", u.id, villageId, n)));
+  } catch (e) {
+    console.error("notifyVillageStaff failed:", e);
   }
 }

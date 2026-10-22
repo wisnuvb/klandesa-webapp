@@ -6,6 +6,7 @@ import {
   MAX_REPORTS_PER_DAY, MAX_REPORT_PHOTOS, buildReportTitle, categoryLabel, describeReport, isOwnReportPhotoUrl, isReportCategory, parseImages, validCoordinates,
 } from "@/lib/mobile/report-logic";
 import { getSpacesConfig } from "@/lib/spaces";
+import { notifyVillageStaff } from "@/lib/mobile/notify";
 
 /** Laporan milik warga yang login. */
 export async function GET(req: NextRequest) {
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest) {
       locationNote,
       isAnonymous: body?.isAnonymous === true,
     },
+  });
+  void notifyVillageStaff(ctx.villageId, "citizen_reports", {
+    type: "report_status", title: "Laporan warga baru", body: created.title, deepLink: `/staff/lapor/${Number(created.id)}`,
   });
   return NextResponse.json({ id: Number(created.id) }, { status: 201 });
 }

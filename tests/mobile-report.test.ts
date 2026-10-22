@@ -37,3 +37,20 @@ describe("pengaduan warga", () => {
     assert.equal(validCoordinates(NaN, 2), null);
   });
 });
+
+import { REPORT_TRANSITIONS, canRespondToReport } from "../lib/mobile/report-logic.ts";
+
+describe("transisi status laporan oleh staf", () => {
+  it("mengikuti aturan web: PENDING→PROCESS|REJECT, PROCESS→DONE|REJECT, final tak bisa diubah", () => {
+    assert.deepEqual(REPORT_TRANSITIONS.PENDING, ["PROCESS", "REJECT"]);
+    assert.deepEqual(REPORT_TRANSITIONS.PROCESS, ["DONE", "REJECT"]);
+    assert.equal(REPORT_TRANSITIONS.DONE, undefined);
+    assert.equal(REPORT_TRANSITIONS.REJECT, undefined);
+  });
+  it("tanggapan hanya saat masih terbuka", () => {
+    assert.equal(canRespondToReport("PENDING"), true);
+    assert.equal(canRespondToReport("PROCESS"), true);
+    assert.equal(canRespondToReport("DONE"), false);
+    assert.equal(canRespondToReport("REJECT"), false);
+  });
+});

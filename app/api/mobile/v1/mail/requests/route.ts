@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
 import { getCitizenResident } from "@/lib/mobile/citizen-data";
 import { canActForMember, describeMailRequest } from "@/lib/mobile/mail-logic";
+import { notifyVillageStaff } from "@/lib/mobile/notify";
 
 function requestNumber(villageCode: string): string {
   const d = new Date();
@@ -94,6 +95,9 @@ export async function POST(req: NextRequest) {
       templateId: template.id,
       formData: note ? { note } : undefined,
     },
+  });
+  void notifyVillageStaff(ctx.villageId, "mail", {
+    type: "mail_status", title: "Permohonan surat baru", body: `${template.name} - ${target.name}`, deepLink: `/staff/surat/${Number(created.id)}`,
   });
   return NextResponse.json({ id: Number(created.id), number: created.requestNumber }, { status: 201 });
 }

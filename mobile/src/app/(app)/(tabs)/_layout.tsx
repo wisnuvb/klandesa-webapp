@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+
+import { useSession } from '@/state/session';
 import type { ColorValue } from 'react-native';
 
 import { colors } from '@/theme';
@@ -11,6 +13,7 @@ function TabIcon({ solid, outline, color, focused }: { solid: IconName; outline:
 }
 
 export default function TabsLayout() {
+  const isStaff = useSession().profile?.account.type === 'staff';
   return (
     <Tabs
       screenOptions={{
@@ -22,7 +25,8 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Beranda', tabBarIcon: (p) => <TabIcon solid="home" outline="home-outline" {...p} /> }} />
-      <Tabs.Screen name="layanan" options={{ title: 'Layanan', tabBarIcon: (p) => <TabIcon solid="document-text" outline="document-text-outline" {...p} /> }} />
+      <Tabs.Screen name="layanan" options={{ href: isStaff ? null : undefined, title: 'Layanan', tabBarIcon: (p) => <TabIcon solid="document-text" outline="document-text-outline" {...p} /> }} />
+      <Tabs.Screen name="antrean" options={{ href: isStaff ? undefined : null, title: 'Antrean', tabBarIcon: (p) => <TabIcon solid="file-tray-full" outline="file-tray-full-outline" {...p} /> }} />
       <Tabs.Screen name="saya" options={{ title: 'Saya', tabBarIcon: (p) => <TabIcon solid="person" outline="person-outline" {...p} /> }} />
     </Tabs>
   );

@@ -94,3 +94,42 @@ export function useReportFeedback(id: number) {
 }
 
 export const deleteAccount = (password: string) => api<void>('/me', { method: 'DELETE', body: JSON.stringify({ password }) });
+
+// ── Perangkat desa ──────────────────────────────────────────────────────────
+export type StaffSummary = {
+  village: { name: string; logoUrl: string | null } | null; userName: string; role: string; unreadNotifications: number;
+  permissions: { mail: boolean; reports: boolean; signups: boolean };
+  counts: { pendingMail: number | null; newReports: number | null; processingReports: number | null; pendingSignups: number | null };
+  oldestPendingMailHours: number | null;
+};
+export type StaffMailRow = { id: number; number: string; type: string; name: string; nikMasked: string; purpose: string; channel: string; onBehalf: boolean; status: string; createdAt: string; processedAt: string | null };
+export type StaffMailDetail = StaffMailRow & {
+  note: string | null; notes: string | null; rejectionReason: string | null;
+  purpose: string; resident: { address: string; rt: string | null; rw: string | null; hamlet: string | null; birthDate: string; birthplace: string; occupation: string | null } | null;
+  letterIssued: boolean; canDecide: boolean;
+};
+export type StaffReportRow = { id: number; title: string; category: string; status: string; stage: Stage; reporter: string; photos: number; thumb: string | null; createdAt: string; source: 'mobile' | 'web' };
+export type StaffReportDetail = {
+  id: number; title: string; category: string; content: string; photos: string[]; reporter: string; reporterNikMasked: string | null;
+  reporterWantsAnonymous: boolean; isPublic: boolean; resident: { rt: string | null; rw: string | null; hamlet: string | null; address: string } | null;
+  location: { lat: number; lng: number } | null; locationNote: string | null; createdAt: string; status: string; stage: Stage; stageTitle: string;
+  feedback: string | null; actions: string[]; canRespond: boolean; responses: { id: number; by: string; role: string; text: string; at: string }[];
+};
+export type PendingSignup = { id: number; username: string; createdAt: string; name: string; nikMasked: string; rt: string | null; rw: string | null; address: string };
+
+export const useStaffSummary = () => useQuery({ queryKey: ['staff-summary'], queryFn: () => api<StaffSummary>('/staff/summary'), refetchInterval: 60_000 });
+export const useStaffMail = (scope: 'pending' | 'done') => useQuery({ queryKey: ['staff-mail', scope], queryFn: () => api<{ items: StaffMailRow[] }>(`/staff/mail?scope=${scope}`) });
+export const useStaffMailDetail = (id: number) => useQuery({ queryKey: ['staff-mail-detail', id], queryFn: () => api<StaffMailDetail>(`/staff/mail/${id}`), enabled: Number.isInteger(id) });
+export const useStaffReports = (scope: 'open' | 'closed') => useQuery({ queryKey: ['staff-reports', scope], queryFn: () => api<{ items: StaffReportRow[] }>(`/staff/reports?scope=${scope}`) });
+export const useStaffReportDetail = (id: number) => useQuery({ queryKey: ['staff-report-detail', id], queryFn: () => api<StaffReportDetail>(`/staff/reports/${id}`), enabled: Number.isInteger(id) });
+export const useStaffSignups = () => useQuery({ queryKey: ['staff-signups'], queryFn: () => api<{ items: PendingSignup[] }>('/staff/citizen-accounts') });
+
+/** Setelah aksi staf, segarkan semua daftar & ringkasan terkait. */
+export function useInvalidateStaff() {
+  const qc = useQueryClient();
+  return () => {
+    for (const k of ['staff-summary', 'staff-mail', 'staff-mail-detail', 'staff-reports', 'staff-report-detail', 'staff-signups']) {
+      void qc.invalidateQueries({ queryKey: [k] });
+    }
+  };
+}
