@@ -20,5 +20,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // versionCode harus lebih tinggi dari versi Flutter terakhir di Play Store.
     versionCode: Number(process.env.KLANDESA_VERSION_CODE ?? 1),
   },
-  plugins: ['expo-router', 'expo-secure-store'],
+  plugins: [
+    'expo-router',
+    'expo-secure-store',
+    ['expo-notifications', { color: '#1B7F4B' }],
+  ],
 });

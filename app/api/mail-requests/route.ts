@@ -3,6 +3,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { notifyMailRequestStatus } from "@/lib/mobile/notify";
 
 export async function GET(req: NextRequest) {
   try {
@@ -151,6 +152,9 @@ export async function PUT(req: NextRequest) {
       where: { id: BigInt(id) },
       data: updateData,
     });
+
+    // Beri tahu warga pemilik akun mobile (tidak menunggu; gagal tidak mengubah hasil).
+    if (dbStatus === "approved" || dbStatus === "rejected") void notifyMailRequestStatus(updated.id);
 
     return NextResponse.json({
       success: true,

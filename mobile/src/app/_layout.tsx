@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -5,6 +6,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 
 import { Screen, Title, Body } from '@/components/ui';
 import { APP_VERSION, fetchRemoteConfig, needsForceUpdate } from '@/lib/app-config';
+import { queryClient } from '@/lib/queries';
 import { SessionProvider, useSession } from '@/state/session';
 import { colors } from '@/theme';
 
@@ -48,9 +50,11 @@ function Gate() {
 
 export default function RootLayout() {
   return (
-    <SessionProvider>
-      <StatusBar style="dark" />
-      <Gate />
-    </SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider>
+        <StatusBar style="dark" />
+        <Gate />
+      </SessionProvider>
+    </QueryClientProvider>
   );
 }

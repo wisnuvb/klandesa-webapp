@@ -783,6 +783,14 @@ model MailRequest {
   notes           String? @db.Text
   rejectionReason String? @db.Text
 
+  // Mobile v2: pemohon terhubung ke Resident (null untuk kiosk/portal lama)
+  residentId         Int?
+  /// Diisi bila kepala keluarga mengajukan atas nama anggota KK
+  onBehalfResidentId Int?
+  templateId         Int?
+  /// Isian tambahan dari form (JSON)
+  formData           Json?
+
   // Dates
   requestDate   DateTime  @default(now())
   processedDate DateTime?
@@ -793,6 +801,7 @@ model MailRequest {
   @@index([villageId, status])
   @@index([villageId, nik])
   @@index([villageId, channel])
+  @@index([residentId, createdAt])
   @@map("mail_requests")
 }
 
@@ -2661,4 +2670,26 @@ model ActivationCode {
   @@index([kk])
   @@index([expiresAt])
   @@map("activation_codes")
+}
+
+/// Kotak masuk notifikasi per akun mobile (warga/staf). Terpisah dari AdminNotification (web).
+model UserNotification {
+  id          BigInt   @id @default(autoincrement())
+  accountType String   @db.VarChar(20)
+  accountId   Int
+  villageId   Int
+
+  /// mail_status | report_status | announcement | system
+  type     String  @db.VarChar(30)
+  title    String  @db.VarChar(160)
+  body     String? @db.VarChar(500)
+  /// Rute di app, mis. "/surat/12"
+  deepLink String? @db.VarChar(200)
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountType, accountId, createdAt(sort: Desc)])
+  @@index([accountType, accountId, readAt])
+  @@map("user_notifications")
 }

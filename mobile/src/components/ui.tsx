@@ -1,17 +1,25 @@
 import { forwardRef, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View,
   type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, TOUCH_MIN } from '@/theme';
 
-export function Screen({ children, scroll = true, footer }: { children: ReactNode; scroll?: boolean; footer?: ReactNode }) {
+export function Screen({
+  children, scroll = true, footer, onRefresh, refreshing,
+}: { children: ReactNode; scroll?: boolean; footer?: ReactNode; onRefresh?: () => void; refreshing?: boolean }) {
   return (
     <SafeAreaView style={s.screen}>
       {scroll ? (
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+        <ScrollView
+          contentContainerStyle={s.content}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} colors={[colors.primary]} /> : undefined}
+        >
+          {children}
+        </ScrollView>
       ) : (
         <View style={s.content}>{children}</View>
       )}
