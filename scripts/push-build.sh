@@ -3,8 +3,8 @@
 # Dipakai kalau proses berat di server kena SIGKILL / OOM (exit 137) — build Next.js atau prisma generate.
 #
 # Usage:
-#   yarn deploy:prod
-#   DEPLOY_SERVER=ubuntu@host DEPLOY_PATH=/path/to/app yarn deploy:prod
+#   pnpm deploy:prod
+#   DEPLOY_SERVER=ubuntu@host DEPLOY_PATH=/path/to/app pnpm deploy:prod
 #
 # Pastikan perubahan sudah di-push ke origin/main sebelum deploy.
 set -euo pipefail
@@ -24,18 +24,18 @@ ssh_cmd() {
 if [ "${SKIP_LINT:-}" != "1" ]; then
   echo "==> Lint (lokal)"
   rm -rf .next/types
-  yarn lint
+  pnpm lint
 fi
 
 echo "==> Next.js build (lokal, env: .env.production saja)"
-yarn build:next
+pnpm build:next
 
 if [ ! -f .next/BUILD_ID ]; then
   echo "ERROR: .next/BUILD_ID tidak ada — build lokal gagal."
   exit 1
 fi
 
-echo "==> Git pull + yarn di server (deps & prisma schema sync)"
+echo "==> Git pull + pnpm di server (deps & prisma schema sync)"
 if ! ssh_cmd "cd '$DEPLOY_PATH' && git pull --ff-only origin '$GIT_BRANCH'"; then
   echo ""
   echo "ERROR: git pull di server gagal."
@@ -45,7 +45,7 @@ if ! ssh_cmd "cd '$DEPLOY_PATH' && git pull --ff-only origin '$GIT_BRANCH'"; the
   exit 1
 fi
 
-ssh_cmd "cd '$DEPLOY_PATH' && (yarn --frozen-lockfile 2>/dev/null || yarn)"
+ssh_cmd "cd '$DEPLOY_PATH' && (corepack enable >/dev/null 2>&1 && pnpm install --frozen-lockfile)"
 
 echo "==> Prisma generate (lokal — client di-upload ke server, hindari OOM di server)"
 npx prisma generate

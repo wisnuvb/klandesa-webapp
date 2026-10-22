@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build production di server yang sama dengan PM2 (next start).
-# Kalau TypeScript/webpack kena SIGKILL (exit 137), pakai: yarn deploy:prod (build lokal + upload .next).
+# Kalau TypeScript/webpack kena SIGKILL (exit 137), pakai: pnpm deploy:prod (build lokal + upload .next).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,11 +28,11 @@ fi
 if [ "${SKIP_LINT:-}" != "1" ]; then
   echo "==> ESLint"
   rm -rf .next/types
-  yarn lint
+  pnpm lint
 fi
 
 echo "==> Next.js build"
-yarn build:next
+pnpm build:next
 
 if [ "$PM2_REGISTERED" = "1" ]; then
   echo "==> Restart PM2 $PM2_APP"

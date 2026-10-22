@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Release di server TANPA build Next.js (hemat RAM — build dari lokal via yarn deploy:prod).
+# Release di server TANPA build Next.js (hemat RAM — build dari lokal via pnpm deploy:prod).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -8,8 +8,8 @@ cd "$ROOT"
 echo "==> Git pull"
 git pull --ff-only origin main
 
-echo "==> Yarn install"
-yarn --frozen-lockfile 2>/dev/null || yarn
+echo "==> pnpm install"
+corepack enable >/dev/null 2>&1 && pnpm install --frozen-lockfile
 
 PM2_APP="${PM2_APP:-klandesa-webapp}"
 echo "==> Stop PM2 $PM2_APP (hemat RAM untuk prisma)"
@@ -22,4 +22,4 @@ echo "==> Restart PM2"
 bash scripts/pm2-restart.sh
 
 echo "==> Release server selesai (tanpa build)."
-echo "    Untuk deploy kode UI/API terbaru, jalankan dari mesin lokal: yarn deploy:prod"
+echo "    Untuk deploy kode UI/API terbaru, jalankan dari mesin lokal: pnpm deploy:prod"
