@@ -63,6 +63,11 @@ export function StaffHome() {
           ) : null}
           <Stat label="Laporan baru" value={d.counts.newReports} tone="warn" onPress={() => router.push({ pathname: '/antrean', params: { tab: 'laporan' } })} />
           <Stat label="Pendaftaran warga menunggu" value={d.counts.pendingSignups} tone="warn" onPress={() => router.push({ pathname: '/antrean', params: { tab: 'pendaftaran' } })} />
+          <SectionTitle>AKSI CEPAT</SectionTitle>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1 }}><Button label="Buat Pengumuman" variant="secondary" onPress={() => router.push('/staff/pengumuman')} /></View>
+            <View style={{ flex: 1 }}><Button label="Cari Warga" variant="secondary" onPress={() => router.push('/staff/warga')} /></View>
+          </View>
           <SectionTitle>SEDANG BERJALAN</SectionTitle>
           <Stat label="Laporan sedang ditangani" value={d.counts.processingReports} onPress={() => router.push({ pathname: '/antrean', params: { tab: 'laporan' } })} />
           {d.counts.pendingMail === 0 && d.counts.newReports === 0 && (d.counts.pendingSignups ?? 0) === 0 ? (

@@ -46,6 +46,11 @@ export default function AppLayout() {
         <Stack.Screen name="staff/surat/[id]" options={{ title: 'Permohonan surat' }} />
         <Stack.Screen name="staff/lapor/[id]" options={{ title: 'Laporan warga' }} />
         <Stack.Screen name="staff/pendaftaran" options={{ headerShown: false }} />
+        <Stack.Screen name="staff/scan-qr" options={{ title: 'Scan QR absensi' }} />
+        <Stack.Screen name="staff/pengumuman/index" options={{ title: 'Pengumuman' }} />
+        <Stack.Screen name="staff/pengumuman/baru" options={{ title: 'Pengumuman baru' }} />
+        <Stack.Screen name="staff/warga/index" options={{ title: 'Cari warga' }} />
+        <Stack.Screen name="staff/warga/[id]" options={{ title: 'Data warga' }} />
       </Stack.Protected>
     </Stack>
   );

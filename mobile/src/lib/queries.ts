@@ -133,3 +133,31 @@ export function useInvalidateStaff() {
     }
   };
 }
+
+// ── Absensi, pengumuman, cari warga (perangkat desa) ───────────────────────
+export type AttendanceToday = {
+  linked: boolean; linkHint: string | null; me: { name: string; position: string | null } | null;
+  today: { checkInAt: string; status: string; statusLabel: string; method: string | null } | null;
+  methods: { qr: boolean; gps: boolean; gpsInactiveReason: string | null; radiusMeters: number | null };
+  shift: { name: string; start: string; end: string; tolerance: number } | null;
+  team: { id: number; name: string; position: string | null; status: string; statusLabel: string; checkInAt: string | null }[];
+};
+export type AttendanceHistory = {
+  month: string; linked: boolean; summary: { present: number; late: number; leave: number; total: number };
+  items: { date: string; checkInAt: string | null; status: string; statusLabel: string; method: string | null }[];
+};
+export type StaffAnnouncement = { id: number; title: string; excerpt: string; category: string; pinned: boolean; active: boolean; publishedAt: string; views: number };
+export type ResidentHit = { id: number; name: string; nikMasked: string; gender: string; age: number; rt: string | null; rw: string | null; hamlet: string | null; relation: string; alive: boolean; hasApp: boolean };
+export type ResidentDetail = {
+  id: number; name: string; nikMasked: string; kkMasked: string | null; gender: string; age: number; birthplace: string; birthDate: string; religion: string;
+  maritalStatus: string; relation: string; address: string; rt: string | null; rw: string | null; hamlet: string | null; occupation: string | null; education: string | null;
+  phone: string | null; alive: boolean; moved: boolean; app: { status: string; lastLoginAt: string | null } | null;
+  family: { id: number; name: string; relation: string; age: number }[]; canManageAccess: boolean;
+};
+
+export const useAttendanceToday = () => useQuery({ queryKey: ['att-today'], queryFn: () => api<AttendanceToday>('/staff/attendance/today') });
+export const useAttendanceHistory = (month: string) => useQuery({ queryKey: ['att-history', month], queryFn: () => api<AttendanceHistory>(`/staff/attendance/history?month=${month}`) });
+export const useStaffAnnouncements = () => useQuery({ queryKey: ['staff-announcements'], queryFn: () => api<{ categories: string[]; items: StaffAnnouncement[] }>('/staff/announcements') });
+export const useResidentSearch = (q: string) =>
+  useQuery({ queryKey: ['resident-search', q], queryFn: () => api<{ items: ResidentHit[]; hint?: string }>(`/staff/residents?q=${encodeURIComponent(q)}`), enabled: q.trim().length >= 3, staleTime: 15_000 });
+export const useResidentDetail = (id: number) => useQuery({ queryKey: ['resident', id], queryFn: () => api<ResidentDetail>(`/staff/residents/${id}`), enabled: Number.isInteger(id), staleTime: 15_000 });

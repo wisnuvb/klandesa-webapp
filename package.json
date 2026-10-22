@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:push:prod": "bash scripts/db-push-prod.sh",
-    "test:unit": "node --import tsx --test tests/domain-doh.test.ts tests/domain-validators.test.ts tests/domain-verify-flow.test.ts tests/linkqu-signature.test.ts tests/sign-footer-id-label.test.ts tests/website-engine-normalize.test.ts tests/lpdp-scholarships.test.ts tests/subscription.test.ts tests/regional-news.test.ts tests/mobile-auth.test.ts tests/mobile-citizen.test.ts tests/mobile-mail.test.ts tests/mobile-report.test.ts",
+    "test:unit": "node --import tsx --test tests/domain-doh.test.ts tests/domain-validators.test.ts tests/domain-verify-flow.test.ts tests/linkqu-signature.test.ts tests/sign-footer-id-label.test.ts tests/website-engine-normalize.test.ts tests/lpdp-scholarships.test.ts tests/subscription.test.ts tests/regional-news.test.ts tests/mobile-auth.test.ts tests/mobile-citizen.test.ts tests/mobile-mail.test.ts tests/mobile-report.test.ts tests/mobile-staff.test.ts",
     "db:push": "bash scripts/db-push.sh",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",

@@ -25,6 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     ['expo-notifications', { color: '#1B7F4B' }],
     ['expo-image-picker', { photosPermission: 'Klandesa memakai foto yang Anda pilih untuk melampirkan laporan.', cameraPermission: 'Klandesa memakai kamera untuk memotret masalah yang Anda laporkan.' }],
+    ['expo-camera', { cameraPermission: 'Klandesa memakai kamera untuk memindai QR absensi kantor desa.', recordAudioAndroid: false }],
     ['expo-location', { locationWhenInUsePermission: 'Klandesa memakai lokasi Anda hanya saat membuat laporan, agar desa tahu letak masalahnya.' }],
   ],
 });

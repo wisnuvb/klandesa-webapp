@@ -29,15 +29,22 @@ export async function POST(req: NextRequest) {
 
   if (purpose === "ACTIVATE") {
     kk = typeof body?.kk === "string" ? body.kk.replace(/\s+/g, "") : "";
+    if (!kk && Number.isInteger(body?.residentId)) {
+      const r = await prisma.resident.findFirst({ where: { id: body!.residentId as number, villageId: ctx.villageId }, select: { kk: true } });
+      kk = r?.kk ?? "";
+    }
     if (!/^[0-9]{16}$/.test(kk)) return mobileError("INVALID_REQUEST", "Nomor KK harus 16 digit.", 400);
     const members = await prisma.resident.count({ where: { villageId: ctx.villageId, kk, isAlive: true } });
     if (members === 0) return mobileError("INVALID_REQUEST", "KK tidak ditemukan di data desa ini.", 404);
     maxUses = Math.min(members, 20);
   } else {
-    const nik = normalizeNik(body?.nik);
-    if (!isValidNik(nik)) return mobileError("INVALID_REQUEST", "NIK harus 16 digit.", 400);
-    const account = await prisma.citizenAccount.findFirst({ where: { villageId: ctx.villageId, resident: { nik } } });
-    if (!account) return mobileError("INVALID_REQUEST", "Warga ini belum punya akun.", 404);
+    const account = Number.isInteger(body?.residentId)
+      ? await prisma.citizenAccount.findFirst({ where: { villageId: ctx.villageId, residentId: body!.residentId as number } })
+      : await (async () => {
+          const nik = normalizeNik(body?.nik);
+          return isValidNik(nik) ? prisma.citizenAccount.findFirst({ where: { villageId: ctx.villageId, resident: { nik } } }) : null;
+        })();
+    if (!account) return mobileError("INVALID_REQUEST", "Warga ini belum punya akun (atau NIK tidak valid).", 404);
     residentId = account.residentId;
   }
 
