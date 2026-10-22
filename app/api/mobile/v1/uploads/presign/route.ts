@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
   const rl = checkMobileRateLimit(`presign:${ctx.accountId}`, { max: 30, windowMs: 10 * 60_000 });
   if (!rl.ok) return mobileError("RATE_LIMITED", "Terlalu banyak unggahan. Coba lagi sebentar.", 429, { retryAfterSec: rl.retryAfterSec });
 
-  const body = (await req.json().catch(() => null)) as { contentType?: unknown; fileSize?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as { contentType?: unknown; fileSize?: unknown; kind?: unknown } | null;
+  const folder = body?.kind === "social" ? "mobile-social" : "mobile-reports";
   const contentType = typeof body?.contentType === "string" ? body.contentType : "";
   const size = Number(body?.fileSize);
   const ext = PHOTO_TYPES[contentType];
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
   const key = [
-    "villages", ctx.village.code, "mobile-reports", String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"),
+    "villages", ctx.village.code, folder, String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"),
     `${globalThis.crypto.randomUUID()}.${ext}`,
   ].join("/");
 

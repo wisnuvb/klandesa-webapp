@@ -68,6 +68,10 @@ export function StaffHome() {
             <View style={{ flex: 1 }}><Button label="Buat Pengumuman" variant="secondary" onPress={() => router.push('/staff/pengumuman')} /></View>
             <View style={{ flex: 1 }}><Button label="Cari Warga" variant="secondary" onPress={() => router.push('/staff/warga')} /></View>
           </View>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            <View style={{ flex: 1 }}><Button label="Moderasi Warga" variant="secondary" onPress={() => router.push('/staff/moderasi')} /></View>
+            <View style={{ flex: 1 }}><Button label="Pengaturan Warga" variant="secondary" onPress={() => router.push('/staff/pengaturan-warga')} /></View>
+          </View>
           <SectionTitle>SEDANG BERJALAN</SectionTitle>
           <Stat label="Laporan sedang ditangani" value={d.counts.processingReports} onPress={() => router.push({ pathname: '/antrean', params: { tab: 'laporan' } })} />
           {d.counts.pendingMail === 0 && d.counts.newReports === 0 && (d.counts.pendingSignups ?? 0) === 0 ? (

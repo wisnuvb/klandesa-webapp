@@ -2649,6 +2649,11 @@ model CitizenAccount {
   lockedUntil    DateTime?
   lastLoginAt    DateTime?
   deletedAt      DateTime?
+  /// Sosial desa: syarat komunitas disetujui, dan sanksi moderasi
+  socialTermsAt    DateTime?
+  /// OK | MUTED | BANNED
+  socialStatus     String    @default("OK") @db.VarChar(10)
+  socialMutedUntil DateTime?
   /// Id akun di sistem lama (app Flutter) bila diimpor
   legacyUserId   String?   @db.VarChar(64)
 
@@ -2707,4 +2712,138 @@ model UserNotification {
   @@index([accountType, accountId, createdAt(sort: Desc)])
   @@index([accountType, accountId, readAt])
   @@map("user_notifications")
+}
+
+// ─── Sosial desa ("Warga") — docs/MOBILE_V2_PRODUCT_SPEC.md §14 ──────────────
+
+/// Postingan warga (teks, 1–4 foto, atau tautan YouTube). Feed tertutup per desa.
+model SocialPost {
+  id        BigInt @id @default(autoincrement())
+  villageId Int
+
+  /// citizen = CitizenAccount, staff = User desa
+  authorType String @db.VarChar(10)
+  authorId   Int
+  /// Nama tampilan saat posting (snapshot) dan RT penulis
+  authorName String @db.VarChar(255)
+  authorRt   String? @db.VarChar(10)
+
+  content String @db.Text
+  /// kegiatan | usaha | info | lainnya
+  category String @db.VarChar(20)
+
+  youtubeId    String? @db.VarChar(16)
+  youtubeTitle String? @db.VarChar(200)
+
+  /// PUBLISHED | PENDING (menunggu moderator) | HIDDEN (disembunyikan, menunggu keputusan) | REMOVED
+  status       String  @default("PUBLISHED") @db.VarChar(12)
+  moderationNote String? @db.VarChar(300)
+
+  likesCount    Int @default(0)
+  commentsCount Int @default(0)
+  reportsCount  Int @default(0)
+
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  media    SocialPostMedia[]
+  comments SocialComment[]
+  likes    SocialLike[]
+
+  @@index([villageId, status, createdAt(sort: Desc)])
+  @@index([villageId, category, status, createdAt(sort: Desc)])
+  @@index([authorType, authorId, createdAt])
+  @@map("social_posts")
+}
+
+model SocialPostMedia {
+  id        BigInt     @id @default(autoincrement())
+  postId    BigInt
+  post      SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  url       String     @db.VarChar(500)
+  sortOrder Int        @default(0)
+
+  @@index([postId, sortOrder])
+  @@map("social_post_media")
+}
+
+model SocialComment {
+  id        BigInt     @id @default(autoincrement())
+  postId    BigInt
+  post      SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  villageId Int
+
+  authorType String @db.VarChar(10)
+  authorId   Int
+  authorName String @db.VarChar(255)
+
+  content      String @db.VarChar(500)
+  /// PUBLISHED | HIDDEN | REMOVED
+  status       String @default("PUBLISHED") @db.VarChar(12)
+  reportsCount Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([postId, status, createdAt])
+  @@index([authorType, authorId])
+  @@map("social_comments")
+}
+
+model SocialLike {
+  id          BigInt     @id @default(autoincrement())
+  postId      BigInt
+  post        SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  accountType String     @db.VarChar(10)
+  accountId   Int
+  createdAt   DateTime   @default(now())
+
+  @@unique([postId, accountType, accountId])
+  @@map("social_likes")
+}
+
+model SocialBookmark {
+  id          BigInt   @id @default(autoincrement())
+  postId      BigInt
+  accountType String   @db.VarChar(10)
+  accountId   Int
+  createdAt   DateTime @default(now())
+
+  @@unique([postId, accountType, accountId])
+  @@index([accountType, accountId, createdAt])
+  @@map("social_bookmarks")
+}
+
+/// Laporan konten/akun oleh warga. Satu pelapor satu kali per target.
+model SocialReport {
+  id         BigInt @id @default(autoincrement())
+  villageId  Int
+  /// post | comment
+  targetType String @db.VarChar(10)
+  targetId   BigInt
+  reporterType String @db.VarChar(10)
+  reporterId   Int
+  /// hoaks | sara | kasar | penipuan | pribadi | lainnya
+  reason     String  @db.VarChar(20)
+  note       String? @db.VarChar(300)
+  /// OPEN | ACTIONED | DISMISSED
+  status     String  @default("OPEN") @db.VarChar(10)
+  createdAt  DateTime @default(now())
+
+  @@unique([targetType, targetId, reporterType, reporterId])
+  @@index([villageId, status, createdAt])
+  @@map("social_reports")
+}
+
+model SocialBlock {
+  id          BigInt   @id @default(autoincrement())
+  blockerType String   @db.VarChar(10)
+  blockerId   Int
+  blockedType String   @db.VarChar(10)
+  blockedId   Int
+  createdAt   DateTime @default(now())
+
+  @@unique([blockerType, blockerId, blockedType, blockedId])
+  @@index([blockerType, blockerId])
+  @@map("social_blocks")
 }

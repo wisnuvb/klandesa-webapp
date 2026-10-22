@@ -62,9 +62,9 @@ export function parseImages(csv: string | null | undefined): string[] {
 }
 
 /** Hanya terima URL foto yang berasal dari unggahan mobile desa ini (cegah URL luar/XSS). */
-export function isOwnReportPhotoUrl(url: unknown, cdnBase: string, villageCode: string): url is string {
+export function isOwnReportPhotoUrl(url: unknown, cdnBase: string, villageCode: string, folder = "mobile-reports"): url is string {
   if (typeof url !== "string" || url.length > 500 || /[\s,"'<>]/.test(url)) return false;
-  const prefix = `${cdnBase.replace(/\/+$/, "")}/villages/${villageCode}/mobile-reports/`;
+  const prefix = `${cdnBase.replace(/\/+$/, "")}/villages/${villageCode}/${folder}/`;
   return url.startsWith(prefix) && !url.slice(prefix.length).includes("..");
 }
 

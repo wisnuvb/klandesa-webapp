@@ -41,6 +41,10 @@ export default function AppLayout() {
         <Stack.Screen name="lapor/[id]" options={{ title: 'Status laporan' }} />
         <Stack.Screen name="keluarga" options={{ title: 'Keluarga saya' }} />
         <Stack.Screen name="hapus-akun" options={{ title: 'Hapus akun' }} />
+        <Stack.Screen name="warga/baru" options={{ title: 'Postingan baru' }} />
+        <Stack.Screen name="warga/[id]" options={{ title: 'Postingan' }} />
+        <Stack.Screen name="warga/laporkan" options={{ title: 'Laporkan' }} />
+        <Stack.Screen name="warga/blokir" options={{ title: 'Akun diblokir' }} />
       </Stack.Protected>
       <Stack.Protected guard={isStaff}>
         <Stack.Screen name="staff/surat/[id]" options={{ title: 'Permohonan surat' }} />
@@ -51,6 +55,8 @@ export default function AppLayout() {
         <Stack.Screen name="staff/pengumuman/baru" options={{ title: 'Pengumuman baru' }} />
         <Stack.Screen name="staff/warga/index" options={{ title: 'Cari warga' }} />
         <Stack.Screen name="staff/warga/[id]" options={{ title: 'Data warga' }} />
+        <Stack.Screen name="staff/moderasi" options={{ title: 'Moderasi Warga' }} />
+        <Stack.Screen name="staff/pengaturan-warga" options={{ title: 'Pengaturan Warga' }} />
       </Stack.Protected>
     </Stack>
   );

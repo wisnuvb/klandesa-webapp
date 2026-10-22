@@ -1,4 +1,4 @@
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, post } from './api';
 
@@ -161,3 +161,48 @@ export const useStaffAnnouncements = () => useQuery({ queryKey: ['staff-announce
 export const useResidentSearch = (q: string) =>
   useQuery({ queryKey: ['resident-search', q], queryFn: () => api<{ items: ResidentHit[]; hint?: string }>(`/staff/residents?q=${encodeURIComponent(q)}`), enabled: q.trim().length >= 3, staleTime: 15_000 });
 export const useResidentDetail = (id: number) => useQuery({ queryKey: ['resident', id], queryFn: () => api<ResidentDetail>(`/staff/residents/${id}`), enabled: Number.isInteger(id), staleTime: 15_000 });
+
+// ── Warga (sosial desa) ─────────────────────────────────────────────────────
+
+export type SocialConfig = {
+  mode: 'post' | 'pre'; termsAccepted: boolean; muted: boolean; mutedUntil: string | null; me: { name: string; rt: string | null };
+  rules: string[]; limits: { postChars: number; commentChars: number; photos: number };
+  categories: string[]; reportReasons: string[];
+};
+export type SocialPost = {
+  id: number; author: { type: string; id: number; name: string; rt: string | null; mine: boolean }; content: string; category: string;
+  photos: string[]; youtube: { id: string; title: string | null; thumb: string; url: string } | null;
+  likes: number; comments: number; liked: boolean; saved: boolean; mine: boolean; canEdit: boolean; pending: boolean; createdAt: string; editedAt: string | null;
+};
+export type FeedPage = { items: SocialPost[]; official: { id: number; title: string; excerpt: string; category: string; publishedAt: string }[]; nextCursor: string | null };
+export type SocialComment = { id: number; author: { type: string; id: number; name: string; mine: boolean }; content: string; createdAt: string };
+export type FeedFilter = 'all' | 'rt' | 'kegiatan' | 'usaha' | 'foto' | 'saved';
+
+export const useSocialConfig = () => useQuery({ queryKey: ['social-config'], queryFn: () => api<SocialConfig>('/social/config'), retry: false, staleTime: 60_000 });
+
+export function useFeed(filter: FeedFilter, q: string, enabled = true) {
+  return useInfiniteQuery({
+    enabled,
+    queryKey: ['social-feed', filter, q],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      api<FeedPage>(`/social/feed?filter=${filter}${q ? `&q=${encodeURIComponent(q)}` : ''}${pageParam ? `&cursor=${pageParam}` : ''}`),
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+export const useSocialPost = (id: number) => useQuery({ queryKey: ['social-post', id], queryFn: () => api<SocialPost>(`/social/posts/${id}`), enabled: Number.isInteger(id) });
+export const useSocialComments = (id: number) => useQuery({ queryKey: ['social-comments', id], queryFn: () => api<{ items: SocialComment[] }>(`/social/posts/${id}/comments`), enabled: Number.isInteger(id) });
+export const useBlocks = () => useQuery({ queryKey: ['social-blocks'], queryFn: () => api<{ items: { accountType: string; accountId: number; name: string }[] }>('/social/blocks') });
+
+export function useInvalidateSocial() {
+  const qc = useQueryClient();
+  return () => { void qc.invalidateQueries({ queryKey: ['social-feed'] }); void qc.invalidateQueries({ queryKey: ['social-post'] }); void qc.invalidateQueries({ queryKey: ['social-comments'] }); };
+}
+
+// Moderasi (perangkat desa)
+export type ModItem = {
+  kind: 'post' | 'comment'; id: number; status: string; author: string; authorId: number; authorRt: string | null; category: string; content: string;
+  photos: string[]; youtubeThumb: string | null; reports: number; reasons: string[]; createdAt: string; postId?: number;
+};
+export const useModQueue = () => useQuery({ queryKey: ['mod-queue'], queryFn: () => api<{ mode: string; pending: ModItem[]; flagged: ModItem[] }>('/staff/social/queue') });
+export const useSocialSettings = () => useQuery({ queryKey: ['mod-settings'], queryFn: () => api<{ mode: 'off' | 'post' | 'pre'; bannedWords: string[] }>('/staff/social/settings') });

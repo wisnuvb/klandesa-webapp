@@ -36,6 +36,14 @@ export default function Saya() {
         </View>
       </Card>
       ) : null}
+      {!isStaff ? (
+        <Card onPress={() => router.push('/warga/blokir')} label="Akun diblokir">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Ionicons name="ban-outline" size={24} color={colors.text} />
+            <Text style={{ flex: 1, fontSize: 17, fontWeight: '600', color: colors.text }}>Akun diblokir di Warga</Text>
+          </View>
+        </Card>
+      ) : null}
       <ContactVillageButton />
       <View style={{ height: 8 }} />
       {!isStaff ? <Button label="Hapus akun" variant="link" onPress={() => router.push('/hapus-akun')} /> : null}
