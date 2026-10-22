@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
 import { roleCan, normalizeVillageRole } from "@/lib/permissions";
+import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { generateActivationCode, hashActivationCode, isValidNik, normalizeActivationCode, normalizeNik } from "@/lib/mobile/citizen";
 
 const ACTIVATE_TTL_MS = 30 * 24 * 3600 * 1000;
@@ -18,6 +19,9 @@ export async function POST(req: NextRequest) {
   if (!roleCan("residents", "update", normalizeVillageRole(ctx.role))) {
     return mobileError("FORBIDDEN", "Anda tidak punya akses membuat kode.", 403);
   }
+
+  const rl = await checkRateLimitDb(limiterKey("act-codes", ctx.accountId), { max: 60, windowMs: 60 * 60_000 });
+  if (!rl.ok) return mobileError("RATE_LIMITED", "Terlalu banyak kode dibuat dalam satu jam.", 429, { retryAfterSec: rl.retryAfterSec });
 
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   const purpose = body?.purpose === "RESET" ? "RESET" : body?.purpose === "ACTIVATE" ? "ACTIVATE" : null;

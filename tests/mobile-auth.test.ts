@@ -81,3 +81,33 @@ describe("rate limit", () => {
     assert.equal(checkMobileRateLimit(k, o, 1500).ok, true);
   });
 });
+
+import { createHmac } from "crypto";
+import { clientIp, limiterKey } from "../lib/mobile/rate-limit.ts";
+
+describe("pemisahan kunci token mobile", () => {
+  it("token bertanda AUTH_SECRET langsung (bukan kunci turunan) ditolak walau audience benar", () => {
+    const direct = jwt.sign({ t: "staff", id: 1, villageId: 1, role: "admin", sub: "staff:1" }, getResolvedAuthSecret(), { audience: "klandesa-mobile", expiresIn: 60 });
+    assert.equal(verifyMobileAccessToken(direct), null);
+  });
+  it("token bertanda kunci turunan yang benar diterima", () => {
+    const derived = createHmac("sha256", getResolvedAuthSecret()).update("klandesa-mobile-access-token-v1").digest("hex");
+    const ok = jwt.sign({ t: "staff", id: 1, villageId: 1, role: "admin", sub: "staff:1" }, derived, { audience: "klandesa-mobile", expiresIn: 60 });
+    assert.equal(verifyMobileAccessToken(ok)?.id, 1);
+  });
+});
+
+describe("IP klien & kunci limiter", () => {
+  const req = (h: Record<string, string>) => new Request("https://x.test/", { headers: h });
+  it("utamakan X-Real-IP; XFF ambil entri TERAKHIR (bukan yang bisa dipalsukan klien)", () => {
+    assert.equal(clientIp(req({ "x-real-ip": "10.0.0.5", "x-forwarded-for": "1.2.3.4, 9.9.9.9" })), "10.0.0.5");
+    assert.equal(clientIp(req({ "x-forwarded-for": "6.6.6.6, 203.0.113.9" })), "203.0.113.9");
+    assert.equal(clientIp(req({})), "unknown");
+  });
+  it("kunci limiter pendek, stabil, dan tidak memuat data mentah", () => {
+    const k = limiterKey("reg-nik", 3, "3201010101010001");
+    assert.equal(k, limiterKey("reg-nik", 3, "3201010101010001"));
+    assert.ok(!k.includes("3201"));
+    assert.ok(k.length <= 120);
+  });
+});

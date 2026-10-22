@@ -9,6 +9,8 @@ import { normalizeVillageRole } from "@/lib/permissions";
 
 // Sama dengan route web /api/attendance/qr yang menandatangani QR.
 const qrSecret = () => process.env.AUTH_SECRET ?? "your-secret-key";
+// Di produksi tanpa AUTH_SECRET, QR yang ditandatangani dengan kunci bawaan bisa dipalsukan siapa saja → tolak.
+const qrSecretMissingInProd = () => process.env.NODE_ENV === "production" && !process.env.AUTH_SECRET;
 
 /** Absen masuk dengan QR kantor atau GPS (add-on). Satu kali per hari; panggilan ulang mengembalikan catatan yang sudah ada. */
 export async function POST(req: NextRequest) {
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest) {
 
   let gpsFix: { lat: number; lng: number } | null = null;
   if (method === "QR") {
+    if (qrSecretMissingInProd()) return mobileError("INVALID_REQUEST", "Absensi QR belum dikonfigurasi dengan aman di server. Hubungi admin Klandesa.", 503);
     const token = typeof body?.token === "string" ? extractQrToken(body.token) : null;
     if (!token) return mobileError("INVALID_REQUEST", "QR tidak dikenali. Arahkan kamera ke QR absensi di layar admin desa.", 400);
     try {

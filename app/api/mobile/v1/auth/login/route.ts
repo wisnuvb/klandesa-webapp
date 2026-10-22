@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth";
 import { mobileError } from "@/lib/mobile/context";
-import { checkMobileRateLimit, clientIp } from "@/lib/mobile/rate-limit";
+import { checkRateLimitDb, clientIp, limiterKey } from "@/lib/mobile/rate-limit";
 import { createMobileSession } from "@/lib/mobile/sessions";
-import { loginCitizen } from "@/lib/mobile/citizen-login";
+import { getDummyHash, loginCitizen } from "@/lib/mobile/citizen-login";
 
 /**
  * Login satu pintu: `identifier` berisi "@" → perangkat desa (email), selain itu → warga (username).
@@ -12,11 +12,10 @@ import { loginCitizen } from "@/lib/mobile/citizen-login";
  */
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  const limited = checkMobileRateLimit(`login:${ip}`, { max: 10, windowMs: 60_000 });
-  if (!limited.ok) {
-    return mobileError("RATE_LIMITED", "Terlalu banyak percobaan. Coba lagi sebentar.", 429, {
-      retryAfterSec: limited.retryAfterSec,
-    });
+  // Batas per IP (semua identitas) — dihitung bersama lintas worker lewat DB.
+  const perIp = await checkRateLimitDb(limiterKey("login-ip", ip), { max: 30, windowMs: 10 * 60_000 });
+  if (!perIp.ok) {
+    return mobileError("RATE_LIMITED", "Terlalu banyak percobaan. Coba lagi sebentar.", 429, { retryAfterSec: perIp.retryAfterSec });
   }
 
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -25,13 +24,21 @@ export async function POST(req: NextRequest) {
   if (!identifier || !password || password.length > 200 || identifier.length > 255) {
     return mobileError("INVALID_REQUEST", "Username dan password harus diisi.", 400);
   }
+  // Batas per (IP + identitas): berlaku sama untuk identitas yang ada maupun tidak, jadi tidak membocorkan keberadaan akun.
+  const perId = await checkRateLimitDb(limiterKey("login-id", ip, identifier), { max: 8, windowMs: 15 * 60_000 });
+  if (!perId.ok) {
+    return mobileError("RATE_LIMITED", "Terlalu banyak percobaan. Coba lagi sebentar.", 429, { retryAfterSec: perId.retryAfterSec });
+  }
   if (!identifier.includes("@")) return loginCitizen(req, identifier, password);
   const email = identifier;
 
   const user = await prisma.user.findUnique({ where: { email }, include: { village: true } });
   // Pesan sama untuk email tak dikenal & password salah (anti-enumerasi akun).
   const invalid = () => mobileError("UNAUTHENTICATED", "Email atau password salah.", 401);
-  if (!user) return invalid();
+  if (!user) {
+    await verifyPassword(password, await getDummyHash()).catch(() => false); // samakan waktu respons
+    return invalid();
+  }
   if (!(await verifyPassword(password, user.password))) return invalid();
   if (!user.isActive) return mobileError("ACCOUNT_DISABLED", "Akun Anda tidak aktif. Hubungi admin desa.", 403);
   if (!user.village.isActive) {

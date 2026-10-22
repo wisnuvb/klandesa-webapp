@@ -14,7 +14,7 @@ import {
   validatePassword,
   validateUsername,
 } from "./citizen";
-import { checkMobileRateLimit, clientIp } from "./rate-limit";
+import { checkRateLimitDb, clientIp, limiterKey } from "./rate-limit";
 import { createMobileSession } from "./sessions";
 import { notifyVillageStaff } from "./notify";
 
@@ -31,10 +31,10 @@ export function deviceFromRequest(req: Request): Device {
   };
 }
 
-function limit(req: Request, nik: string, villageId: number) {
-  const ip = checkMobileRateLimit(`reg-ip:${clientIp(req)}`, { max: 10, windowMs: 10 * 60_000 });
+async function limit(req: Request, nik: string, villageId: number) {
+  const ip = await checkRateLimitDb(limiterKey("reg-ip", clientIp(req)), { max: 15, windowMs: 10 * 60_000 });
   if (!ip.ok) return ip;
-  return checkMobileRateLimit(`reg-nik:${villageId}:${nik}`, { max: 5, windowMs: 60 * 60_000 });
+  return checkRateLimitDb(limiterKey("reg-nik", villageId, nik), { max: 5, windowMs: 60 * 60_000 });
 }
 
 /**
@@ -115,7 +115,7 @@ export async function registerWithIdentity(req: Request, body: Record<string, un
   if (!Number.isInteger(villageId) || villageId <= 0 || !isValidNik(nik)) {
     return mobileError("INVALID_REQUEST", "Pilih desa dan isi NIK 16 digit.", 400);
   }
-  const rl = limit(req, nik, villageId);
+  const rl = await limit(req, nik, villageId);
   if (!rl.ok) return mobileError("RATE_LIMITED", "Terlalu banyak percobaan. Coba lagi nanti.", 429, { retryAfterSec: rl.retryAfterSec });
 
   const ymd = parseYmd(body.birthDate);
@@ -146,8 +146,11 @@ export async function registerWithCode(req: Request, body: Record<string, unknow
   if (!isValidNik(nik) || code.length !== 8) {
     return mobileError("INVALID_REQUEST", "Isi kode dari desa dan NIK 16 digit.", 400);
   }
-  const ip = checkMobileRateLimit(`reg-ip:${clientIp(req)}`, { max: 10, windowMs: 10 * 60_000 });
+  const ip = await checkRateLimitDb(limiterKey("reg-ip", clientIp(req)), { max: 15, windowMs: 10 * 60_000 });
   if (!ip.ok) return mobileError("RATE_LIMITED", "Terlalu banyak percobaan. Coba lagi nanti.", 429, { retryAfterSec: ip.retryAfterSec });
+  // Batas tebak kode per NIK (kode 8 karakter sulit ditebak, tapi jangan beri kesempatan tak terbatas).
+  const perNik = await checkRateLimitDb(limiterKey("reg-code-nik", nik), { max: 8, windowMs: 60 * 60_000 });
+  if (!perNik.ok) return mobileError("RATE_LIMITED", "Terlalu banyak percobaan. Coba lagi nanti.", 429, { retryAfterSec: perNik.retryAfterSec });
 
   const u = validateUsername(body.username);
   if (!u.ok) return mobileError("INVALID_REQUEST", u.message, 400, { field: "username" });
@@ -173,7 +176,13 @@ export async function registerWithCode(req: Request, body: Record<string, unknow
   const claimed = await prisma.$executeRaw`UPDATE activation_codes SET usedCount = usedCount + 1 WHERE id = ${row.id} AND usedCount < maxUses`;
   if (claimed !== 1) return mobileError("INVALID_REQUEST", "Kode sudah dipakai. Minta kode baru ke kantor desa.", 422);
 
-  const res = await createAccount(req, village, resident.id, resident.name, u.value, p.value, "code");
+  let res: Response;
+  try {
+    res = await createAccount(req, village, resident.id, resident.name, u.value, p.value, "code");
+  } catch (e) {
+    await prisma.$executeRaw`UPDATE activation_codes SET usedCount = GREATEST(usedCount - 1, 0) WHERE id = ${row.id}`;
+    throw e;
+  }
   if (res.status >= 400) {
     // Kembalikan pemakaian bila akun gagal dibuat (mis. username bentrok) agar warga bisa mencoba lagi.
     await prisma.$executeRaw`UPDATE activation_codes SET usedCount = GREATEST(usedCount - 1, 0) WHERE id = ${row.id}`;

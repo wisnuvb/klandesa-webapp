@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand, type PutObjectCommandInput } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
-import { checkMobileRateLimit } from "@/lib/mobile/rate-limit";
+import { checkMobileRateLimit, checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/mobile/report-logic";
 import { buildSpacesPublicUrl, getSpacesClient, getSpacesConfig } from "@/lib/spaces";
 
@@ -14,6 +14,10 @@ export async function POST(req: NextRequest) {
 
   const rl = checkMobileRateLimit(`presign:${ctx.accountId}`, { max: 30, windowMs: 10 * 60_000 });
   if (!rl.ok) return mobileError("RATE_LIMITED", "Terlalu banyak unggahan. Coba lagi sebentar.", 429, { retryAfterSec: rl.retryAfterSec });
+
+  // Kuota harian bersama lintas worker: cegah akun dipakai menghabiskan penyimpanan (maks 40 foto/hari ≈ 100 MB).
+  const daily = await checkRateLimitDb(limiterKey("presign-day", ctx.accountId), { max: 40, windowMs: 24 * 3600_000 });
+  if (!daily.ok) return mobileError("RATE_LIMITED", "Batas unggah foto hari ini tercapai. Coba lagi besok.", 429, { retryAfterSec: daily.retryAfterSec });
 
   const body = (await req.json().catch(() => null)) as { contentType?: unknown; fileSize?: unknown; kind?: unknown } | null;
   const folder = body?.kind === "social" ? "mobile-social" : "mobile-reports";

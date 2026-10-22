@@ -72,6 +72,11 @@ export async function POST(req: NextRequest) {
     target = member;
   }
 
+  const today = await prisma.mailRequest.count({ where: { residentId: me.id, createdAt: { gte: new Date(Date.now() - 24 * 3600 * 1000) } } });
+  if (today >= 10) {
+    return mobileError("RATE_LIMITED", "Batas permohonan surat hari ini tercapai. Coba lagi besok, atau datang ke kantor desa bila mendesak.", 429);
+  }
+
   const dup = await prisma.mailRequest.findFirst({
     where: { villageId: ctx.villageId, nik: target.nik, templateId: template.id, status: "pending" },
     select: { id: true },

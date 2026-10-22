@@ -2847,3 +2847,14 @@ model SocialBlock {
   @@index([blockerType, blockerId])
   @@map("social_blocks")
 }
+
+/// Pembatas laju bersama untuk endpoint auth mobile. Penghitung di memori tidak cukup karena
+/// webapp berjalan multi-worker (PM2 cluster) sehingga tiap worker punya hitungan sendiri.
+model MobileRateLimit {
+  key         String   @id @db.VarChar(120)
+  count       Int      @default(1)
+  windowStart DateTime @db.DateTime(3)
+
+  @@index([windowStart])
+  @@map("mobile_rate_limits")
+}

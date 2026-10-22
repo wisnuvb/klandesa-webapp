@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
 import { audit, requireStaff } from "@/lib/mobile/staff";
-import { checkMobileRateLimit } from "@/lib/mobile/rate-limit";
+import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 
 /** Tampilkan NIK/KK lengkap. Setiap permintaan dicatat di AuditLog dan dibatasi 30 per jam per pengguna. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const g = await requireStaff(req, "residents", "read");
   if (!g.ok) return g.response;
   const { ctx } = g;
-  const rl = checkMobileRateLimit(`reveal-nik:${ctx.userId}`, { max: 30, windowMs: 60 * 60_000 });
+  const rl = await checkRateLimitDb(limiterKey("reveal-nik", ctx.userId), { max: 30, windowMs: 60 * 60_000 });
   if (!rl.ok) return mobileError("RATE_LIMITED", "Batas melihat NIK lengkap per jam tercapai.", 429, { retryAfterSec: rl.retryAfterSec });
 
   const id = Number((await params).id);

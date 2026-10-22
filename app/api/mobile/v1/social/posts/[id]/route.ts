@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
 import { blockedPairs, requireSocial, serializePost } from "@/lib/mobile/social";
 import { canEditPost, checkPostContent, cleanText } from "@/lib/mobile/social-logic";
+import { deleteMobilePhotos } from "@/lib/mobile/storage";
 
 async function loadVisible(id: bigint, s: { ctx: { villageId: number }; account: { id: number } }) {
   const p = await prisma.socialPost.findFirst({
@@ -55,7 +56,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { s } = g;
   const id = (await params).id;
   if (!/^\d{1,18}$/.test(id)) return mobileError("INVALID_REQUEST", "Permintaan tidak valid.", 400);
-  const res = await prisma.socialPost.deleteMany({ where: { id: BigInt(id), villageId: s.ctx.villageId, authorType: "citizen", authorId: s.account.id } });
+  const own = await prisma.socialPost.findFirst({ where: { id: BigInt(id), villageId: s.ctx.villageId, authorType: "citizen", authorId: s.account.id }, select: { id: true, media: { select: { url: true } } } });
+  if (!own) return mobileError("INVALID_REQUEST", "Postingan tidak ditemukan.", 404);
+  const res = await prisma.socialPost.deleteMany({ where: { id: own.id } });
   if (res.count !== 1) return mobileError("INVALID_REQUEST", "Postingan tidak ditemukan.", 404);
+  if (own.media.length) void deleteMobilePhotos(own.media.map((m) => m.url), s.ctx.village.code, ["mobile-social"]);
   return new NextResponse(null, { status: 204 });
 }

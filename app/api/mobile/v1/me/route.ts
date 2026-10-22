@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
-import { checkMobileRateLimit } from "@/lib/mobile/rate-limit";
+import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
+import { deleteMobilePhotos } from "@/lib/mobile/storage";
 
 export async function GET(req: NextRequest) {
   const loaded = await requireMobileContext(req);
@@ -39,7 +40,7 @@ export async function DELETE(req: NextRequest) {
   if (!loaded.ok) return loaded.response;
   const { ctx } = loaded;
 
-  const rl = checkMobileRateLimit(`delete-account:${ctx.accountId}`, { max: 5, windowMs: 10 * 60_000 });
+  const rl = await checkRateLimitDb(limiterKey("delete-account", ctx.accountId), { max: 5, windowMs: 10 * 60_000 });
   if (!rl.ok) return mobileError("RATE_LIMITED", "Terlalu banyak percobaan. Coba lagi nanti.", 429, { retryAfterSec: rl.retryAfterSec });
 
   const body = (await req.json().catch(() => null)) as { password?: unknown } | null;
@@ -50,7 +51,21 @@ export async function DELETE(req: NextRequest) {
     return mobileError("INVALID_REQUEST", "Password salah. Masukkan password akun Anda untuk menghapus.", 403, { field: "password" });
   }
 
+  // Konten sosial: kumpulkan dulu foto & postingan yang akan terdampak hitungannya.
+  const myPosts = await prisma.socialPost.findMany({ where: { authorType: "citizen", authorId: acc.id }, select: { id: true, media: { select: { url: true } } }, take: 5000 });
+  const photoUrls = myPosts.flatMap((p) => p.media.map((m) => m.url));
+  const [likedPosts, commentedPosts] = await Promise.all([
+    prisma.socialLike.findMany({ where: { accountType: "citizen", accountId: acc.id }, select: { postId: true }, take: 5000 }),
+    prisma.socialComment.findMany({ where: { authorType: "citizen", authorId: acc.id }, select: { postId: true }, take: 5000 }),
+  ]);
+
   await prisma.$transaction([
+    prisma.socialPost.deleteMany({ where: { authorType: "citizen", authorId: acc.id } }), // media, komentar, like pada postingan ini ikut terhapus (cascade)
+    prisma.socialComment.deleteMany({ where: { authorType: "citizen", authorId: acc.id } }),
+    prisma.socialLike.deleteMany({ where: { accountType: "citizen", accountId: acc.id } }),
+    prisma.socialBookmark.deleteMany({ where: { accountType: "citizen", accountId: acc.id } }),
+    prisma.socialBlock.deleteMany({ where: { OR: [{ blockerType: "citizen", blockerId: acc.id }, { blockedType: "citizen", blockedId: acc.id }] } }),
+    prisma.socialReport.deleteMany({ where: { reporterType: "citizen", reporterId: acc.id } }),
     prisma.citizenReport.updateMany({
       where: { residentId: acc.residentId },
       data: { residentId: null, reporterName: "Warga (akun dihapus)", reporterNik: null },
@@ -63,5 +78,17 @@ export async function DELETE(req: NextRequest) {
     prisma.mobileSession.deleteMany({ where: { accountType: "citizen", accountId: acc.id } }),
     prisma.citizenAccount.delete({ where: { id: acc.id } }),
   ]);
+
+  // Hitung ulang penghitung pada postingan orang lain yang pernah disukai/dikomentari akun ini.
+  const touched = [...new Set([...likedPosts, ...commentedPosts].map((x) => x.postId))].slice(0, 2000);
+  for (const postId of touched) {
+    const [likes, comments] = await Promise.all([
+      prisma.socialLike.count({ where: { postId } }),
+      prisma.socialComment.count({ where: { postId, status: "PUBLISHED" } }),
+    ]);
+    await prisma.socialPost.updateMany({ where: { id: postId }, data: { likesCount: likes, commentsCount: comments } });
+  }
+  // Foto postingan dihapus dari penyimpanan (best-effort; foto laporan tetap sebagai arsip desa).
+  if (photoUrls.length) void deleteMobilePhotos(photoUrls, ctx.village.code, ["mobile-social"]);
   return new NextResponse(null, { status: 204 });
 }

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "crypto";
 import * as jwt from "jsonwebtoken";
 import { getResolvedAuthSecret } from "@/lib/auth-secret";
 
@@ -17,10 +17,14 @@ export type MobileAccessClaims = {
   role: string;
 };
 
+/**
+ * Kunci penandatangan token mobile diturunkan dari AUTH_SECRET lewat HMAC dengan label khusus,
+ * sehingga token mobile tidak pernah valid sebagai JWT web/NextAuth (dan sebaliknya) meski audience-nya diabaikan.
+ */
 function secret(): string {
-  const s = getResolvedAuthSecret();
-  if (!s) throw new Error("AUTH_SECRET belum diset");
-  return s;
+  const base = getResolvedAuthSecret();
+  if (!base) throw new Error("AUTH_SECRET belum diset");
+  return createHmac("sha256", base).update("klandesa-mobile-access-token-v1").digest("hex");
 }
 
 export function signMobileAccessToken(

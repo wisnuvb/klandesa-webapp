@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
-import { requireStaff } from "@/lib/mobile/staff";
+import { audit, requireStaff } from "@/lib/mobile/staff";
 import { checkMobileRateLimit } from "@/lib/mobile/rate-limit";
 import { maskNik } from "@/lib/mobile/mail-logic";
 import { ageFromBirthDate, planResidentSearch } from "@/lib/mobile/resident-logic";
@@ -11,11 +11,14 @@ export async function GET(req: NextRequest) {
   const g = await requireStaff(req, "residents", "read");
   if (!g.ok) return g.response;
   const { ctx } = g;
-  const rl = checkMobileRateLimit(`resident-search:${ctx.userId}`, { max: 60, windowMs: 60_000 });
+  const rl = checkMobileRateLimit(`resident-search:${ctx.userId}`, { max: 30, windowMs: 60_000 });
   if (!rl.ok) return mobileError("RATE_LIMITED", "Terlalu banyak pencarian. Coba lagi sebentar.", 429, { retryAfterSec: rl.retryAfterSec });
 
   const plan = planResidentSearch(req.nextUrl.searchParams.get("q"));
   if (plan.kind === "none") return NextResponse.json({ items: [], hint: "Ketik minimal 3 huruf nama, atau NIK/KK 16 angka." });
+
+  // Jejak pencarian (bukan hasil) untuk mendeteksi penarikan data massal oleh akun staf yang bocor.
+  void audit(ctx, req, "search", "residents", "-", { kind: plan.kind, len: plan.kind === "name" ? plan.term.length : 16 });
 
   const rows = await prisma.resident.findMany({
     where: {

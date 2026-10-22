@@ -20,5 +20,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!full?.contentHtml) return mobileError("INVALID_REQUEST", "Surat belum tersedia untuk diunduh. Hubungi kantor desa.", 404);
   await prisma.mailHistory.create({ data: { mailServiceId: letter.id, action: "downloaded_mobile", changes: { residentId: me.id } } }).catch(() => undefined);
 
-  return NextResponse.json({ title: full.templateName, letterNumber: full.letterNumber, html: full.contentHtml });
+  // HTML surat dibuat dari isian (termasuk teks dari warga). Bungkus dengan CSP ketat agar skrip/iframe/koneksi keluar
+  // tidak bisa berjalan di mesin cetak perangkat; gambar & gaya sebaris tetap diizinkan.
+  const csp = "default-src 'none'; img-src data: https:; style-src 'unsafe-inline' https:; font-src data: https:";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"></head><body>${full.contentHtml}</body></html>`;
+  return NextResponse.json({ title: full.templateName, letterNumber: full.letterNumber, html });
 }

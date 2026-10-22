@@ -5,7 +5,7 @@ import {
   hashActivationCode, isValidNik, namesMatch, normalizeActivationCode, normalizeNik, parseYmd, sameCalendarDay, validatePassword,
 } from "@/lib/mobile/citizen";
 import { setCitizenPassword } from "@/lib/mobile/citizen-login";
-import { checkMobileRateLimit, clientIp } from "@/lib/mobile/rate-limit";
+import { checkRateLimitDb, clientIp, limiterKey } from "@/lib/mobile/rate-limit";
 
 const GENERIC = "Data tidak cocok. Periksa kembali, atau minta kode reset ke kantor desa.";
 
@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
   if (!isValidNik(nik)) return mobileError("INVALID_REQUEST", "Isi NIK 16 digit.", 400);
   const villageIdRaw = Number(body.villageId);
 
-  const ip = checkMobileRateLimit(`pw-ip:${clientIp(req)}`, { max: 10, windowMs: 10 * 60_000 });
-  const perNik = checkMobileRateLimit(`pw-nik:${nik}`, { max: 5, windowMs: 60 * 60_000 });
+  const ip = await checkRateLimitDb(limiterKey("pw-ip", clientIp(req)), { max: 15, windowMs: 10 * 60_000 });
+  const perNik = await checkRateLimitDb(limiterKey("pw-nik", nik), { max: 5, windowMs: 60 * 60_000 });
   const blocked = !ip.ok ? ip : !perNik.ok ? perNik : null;
   if (blocked) return mobileError("RATE_LIMITED", "Terlalu banyak percobaan. Coba lagi nanti.", 429, { retryAfterSec: blocked.retryAfterSec });
 

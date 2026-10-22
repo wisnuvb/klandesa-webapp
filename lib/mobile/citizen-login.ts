@@ -2,14 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { mobileError } from "./context";
 import { deviceFromRequest } from "./citizen-register";
-import { lockoutMs, MAX_FAILED_LOGINS } from "./citizen";
+import { lockoutMs } from "./citizen";
 import { createMobileSession } from "./sessions";
 
 // Hash bcrypt valid sungguhan agar waktu respons username tak dikenal ≈ username dikenal (anti-enumerasi).
 let dummyHash: Promise<string> | null = null;
-const getDummyHash = () => (dummyHash ??= hashPassword("klandesa-dummy-password"));
+export const getDummyHash = () => (dummyHash ??= hashPassword("klandesa-dummy-password"));
 
-const BAD_CREDS = "Username atau password salah.";
+// Satu pesan untuk semua kegagalan (username tak dikenal, password salah, akun terkunci) agar penyerang
+// tidak bisa membedakan akun yang ada. Petunjuk pemulihan tetap diberikan kepada warga.
+const BAD_CREDS = "Username atau password salah. Jika berulang kali salah, akun dikunci sementara. Minta kode reset ke kantor desa bila perlu.";
 
 export async function loginCitizen(req: Request, username: string, password: string) {
   const account = await prisma.citizenAccount.findUnique({
@@ -23,13 +25,9 @@ export async function loginCitizen(req: Request, username: string, password: str
 
   const now = Date.now();
   if (account.lockedUntil && account.lockedUntil.getTime() > now) {
-    const mins = Math.max(1, Math.ceil((account.lockedUntil.getTime() - now) / 60_000));
-    return mobileError(
-      "RATE_LIMITED",
-      `Terlalu banyak percobaan salah. Coba lagi ${mins} menit lagi, atau minta kode reset ke kantor desa.`,
-      429,
-      { retryAfterSec: mins * 60 },
-    );
+    // Tetap lakukan perbandingan hash agar waktu respons sama, tapi jawab seperti kredensial salah.
+    await verifyPassword(password, account.passwordHash).catch(() => false);
+    return mobileError("UNAUTHENTICATED", BAD_CREDS, 401);
   }
 
   if (!(await verifyPassword(password, account.passwordHash))) {
@@ -39,9 +37,7 @@ export async function loginCitizen(req: Request, username: string, password: str
       where: { id: account.id },
       data: { failedAttempts: failed, lockedUntil: lock ? new Date(now + lock) : null },
     });
-    return mobileError("UNAUTHENTICATED", BAD_CREDS, 401, {
-      attemptsLeft: Math.max(0, MAX_FAILED_LOGINS - failed),
-    });
+    return mobileError("UNAUTHENTICATED", BAD_CREDS, 401);
   }
 
   if (account.status === "PENDING_VERIFY") {

@@ -16,6 +16,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   android: {
+    // Jangan ikutkan token/sesi ke backup Google (data SecureStore tidak bisa dipulihkan di perangkat lain dan bisa bocor lewat backup).
+    allowBackup: false,
     package: process.env.KLANDESA_ANDROID_PACKAGE ?? DEV_ANDROID_PACKAGE,
     // versionCode harus lebih tinggi dari versi Flutter terakhir di Play Store.
     versionCode: Number(process.env.KLANDESA_VERSION_CODE ?? 1),
