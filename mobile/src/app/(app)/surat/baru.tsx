@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Card } from '@/components/cards';
@@ -21,7 +21,9 @@ export default function NewMail() {
 
   const others = (family.data?.members ?? []).filter((m) => m.canActFor);
   const canChoose = others.length > 1;
-  const [step, setStep] = useState<Step>('purpose');
+  // Sebelum pengguna berpindah langkah, langkah awal mengikuti data keluarga yang dimuat ("untuk siapa" bila ada pilihan).
+  const [chosenStep, setStep] = useState<Step | null>(null);
+  const step: Step = chosenStep ?? (canChoose && !p.purpose ? 'who' : 'purpose');
   const [forId, setForId] = useState<number | null>(null);
   const [purpose, setPurpose] = useState(p.purpose ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -32,15 +34,6 @@ export default function NewMail() {
   const target = family.data?.members.find((m) => m.id === targetId);
   const total = canChoose ? 3 : 2;
   const pos = step === 'who' ? 1 : step === 'purpose' ? (canChoose ? 2 : 1) : canChoose ? 3 : 2;
-
-  // Daftar keluarga dimuat setelah layar tampil: tawarkan "untuk siapa" sekali, bila ada pilihan.
-  const offered = useRef(false);
-  useEffect(() => {
-    if (!offered.current && family.isSuccess && canChoose && !purpose) {
-      offered.current = true;
-      setStep('who');
-    }
-  }, [family.isSuccess, canChoose, purpose]);
 
   async function send() {
     setError(null);
