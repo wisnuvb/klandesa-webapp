@@ -1,0 +1,3 @@
+# Web (Next.js) tetap di root; aplikasi Expo warga/perangkat desa ada di mobile/.
+packages:
+  - 'mobile'

@@ -2545,3 +2545,58 @@ model SocialBenefitBeneficiary {
   @@index([nik])
   @@map("social_benefit_beneficiaries")
 }
+
+// ─── Mobile v2 (docs/MOBILE_V2_PLAN.md §6.3) ─────────────────────────────────
+
+/// Sesi aplikasi mobile. Refresh token disimpan sebagai hash SHA-256 dan diputar tiap dipakai.
+/// Memakai kembali token yang sudah diputar = indikasi pencurian → seluruh keluarga sesi dicabut.
+model MobileSession {
+  id        BigInt @id @default(autoincrement())
+  /// staff = User desa; citizen = CitizenAccount (Fase 1)
+  accountType String @db.VarChar(20)
+  accountId   Int
+  villageId   Int
+  /// Roles saat sesi dibuat, mis. "secretary" (staf) atau "citizen"
+  role        String @db.VarChar(50)
+
+  /// SHA-256 hex dari refresh token terkini
+  refreshHash String @unique @db.VarChar(64)
+  /// Mengelompokkan seluruh rotasi dari satu login; dicabut bersama bila terdeteksi reuse
+  familyId    String @db.VarChar(36)
+  /// Hash token sebelumnya (untuk deteksi reuse sekali putar)
+  prevHash    String? @db.VarChar(64)
+
+  deviceId   String? @db.VarChar(100)
+  platform   String? @db.VarChar(20)
+  appVersion String? @db.VarChar(20)
+
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+
+  @@index([accountType, accountId])
+  @@index([familyId])
+  @@index([prevHash])
+  @@index([expiresAt])
+  @@map("mobile_sessions")
+}
+
+/// Token push (Expo Push). Satu perangkat bisa berganti akun; token unik.
+model DeviceToken {
+  id          BigInt @id @default(autoincrement())
+  accountType String @db.VarChar(20)
+  accountId   Int
+  villageId   Int
+
+  expoToken  String   @unique @db.VarChar(255)
+  platform   String   @db.VarChar(20)
+  appVersion String?  @db.VarChar(20)
+  lastSeenAt DateTime @default(now())
+  disabledAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([accountType, accountId])
+  @@index([villageId])
+  @@map("device_tokens")
+}

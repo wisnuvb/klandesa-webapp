@@ -1,0 +1,22 @@
+{
+  "cli": { "appVersionSource": "remote" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "autoIncrement": true,
+      "env": { "EXPO_ANDROID_BUILD_ARCHS": "arm64-v8a" },
+      "android": { "buildType": "apk" }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "https://klandesa.com" },
+      "android": { "buildType": "app-bundle" }
+    }
+  },
+  "submit": { "production": { "android": { "track": "internal" } } }
+}

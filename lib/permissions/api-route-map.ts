@@ -70,6 +70,7 @@ const RBAC_EXCLUDED_PREFIXES = [
   "/api/coop",
   "/api/bumdes",
   "/api/auth",
+  "/api/mobile",
   "/api/kiosk/requests",
   "/api/kiosk/services",
   "/api/public",
