@@ -21,5 +21,4 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     versionCode: Number(process.env.KLANDESA_VERSION_CODE ?? 1),
   },
   plugins: ['expo-router', 'expo-secure-store'],
-  experiments: { typedRoutes: true },
 });

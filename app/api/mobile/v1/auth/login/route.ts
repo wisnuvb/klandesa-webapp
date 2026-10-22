@@ -4,10 +4,11 @@ import { verifyPassword } from "@/lib/auth";
 import { mobileError } from "@/lib/mobile/context";
 import { checkMobileRateLimit, clientIp } from "@/lib/mobile/rate-limit";
 import { createMobileSession } from "@/lib/mobile/sessions";
+import { loginCitizen } from "@/lib/mobile/citizen-login";
 
 /**
- * Login perangkat desa (email + password) — Fase 0.
- * Login warga (username + password) menyusul di Fase 1 dengan CitizenAccount.
+ * Login satu pintu: `identifier` berisi "@" → perangkat desa (email), selain itu → warga (username).
+ * Field lama `email` tetap diterima untuk kompatibilitas.
  */
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
@@ -19,11 +20,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const identifier = String(body?.identifier ?? body?.email ?? "").trim().toLowerCase();
   const password = typeof body?.password === "string" ? body.password : "";
-  if (!email || !password || password.length > 200) {
-    return mobileError("INVALID_REQUEST", "Email dan password harus diisi.", 400);
+  if (!identifier || !password || password.length > 200 || identifier.length > 255) {
+    return mobileError("INVALID_REQUEST", "Username dan password harus diisi.", 400);
   }
+  if (!identifier.includes("@")) return loginCitizen(req, identifier, password);
+  const email = identifier;
 
   const user = await prisma.user.findUnique({ where: { email }, include: { village: true } });
   // Pesan sama untuk email tak dikenal & password salah (anti-enumerasi akun).

@@ -73,6 +73,8 @@ model Village {
   mailServices           MailService[]
   mailRequests           MailRequest[]
   kioskDevices           KioskDevice[]
+  citizenAccounts        CitizenAccount[]
+  activationCodes        ActivationCode[]
   transactions           Transaction[]
   budgets                Budget[]
   potentials             Potential[]
@@ -404,6 +406,7 @@ model Resident {
 
   cooperativeMembers CooperativeMember[]
   posyanduVisits     PosyanduVisit[]
+  citizenAccount     CitizenAccount?
 
   @@unique([villageId, nik])
   @@index([villageId, name])
@@ -2599,4 +2602,63 @@ model DeviceToken {
   @@index([accountType, accountId])
   @@index([villageId])
   @@map("device_tokens")
+}
+
+/// Akun warga untuk aplikasi mobile (login username + password, tanpa OTP).
+/// Satu akun ↔ satu Resident. Lihat docs/MOBILE_V2_PRODUCT_SPEC.md §4.1.
+model CitizenAccount {
+  id         Int      @id @default(autoincrement())
+  villageId  Int
+  village    Village  @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  residentId Int      @unique
+  resident   Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  /// huruf kecil, unik di seluruh sistem
+  username     String @unique @db.VarChar(30)
+  passwordHash String @db.VarChar(255)
+
+  /// ACTIVE | PENDING_VERIFY (menunggu persetujuan desa) | SUSPENDED
+  status         String    @default("ACTIVE") @db.VarChar(20)
+  /// code | identity | manual | legacy
+  signupMethod   String    @default("identity") @db.VarChar(20)
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  deletedAt      DateTime?
+  /// Id akun di sistem lama (app Flutter) bila diimpor
+  legacyUserId   String?   @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([villageId, status])
+  @@map("citizen_accounts")
+}
+
+/// Kode sekali pakai dari desa: ACTIVATE (per KK, dicetak di lembar kode) atau RESET (per warga).
+model ActivationCode {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// ACTIVATE | RESET
+  purpose    String  @db.VarChar(20)
+  /// ACTIVATE: nomor KK; anggota KK mana pun boleh mendaftar dengan NIK-nya sendiri
+  kk         String? @db.VarChar(16)
+  /// RESET: warga pemilik akun
+  residentId Int?
+
+  /// SHA-256 hex dari kode yang dinormalisasi
+  codeHash    String  @unique @db.VarChar(64)
+  expiresAt   DateTime
+  /// ACTIVATE bisa dipakai beberapa anggota KK sampai maxUses
+  maxUses     Int     @default(1)
+  usedCount   Int     @default(0)
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([villageId, purpose])
+  @@index([kk])
+  @@index([expiresAt])
+  @@map("activation_codes")
 }

@@ -78,6 +78,16 @@ export async function requireMobileContext(
     claims.role = user.role;
   }
 
+  if (claims.t === "citizen") {
+    const acc = await prisma.citizenAccount.findUnique({
+      where: { id: claims.id },
+      select: { status: true, deletedAt: true, villageId: true },
+    });
+    if (!acc || acc.deletedAt || acc.status !== "ACTIVE" || acc.villageId !== claims.villageId) {
+      return { ok: false, response: mobileError("ACCOUNT_DISABLED", "Akun Anda tidak aktif. Hubungi kantor desa.", 403) };
+    }
+  }
+
   if (!opts.skipSubscription) {
     if (!isVillageSubscriptionActive(village, req.method)) {
       const readOnly = isVillageSubscriptionActive(village, "GET");
