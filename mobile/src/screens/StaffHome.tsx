@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
-import { Card, SectionTitle } from '@/components/cards';
-import { Body, Button, ErrorBanner, Screen } from '@/components/ui';
+import { ActionTile, Card, SectionTitle } from '@/components/cards';
+import { Body, Button, ErrorBanner, HomeBand, Screen } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { greetingId } from '@/lib/format';
 import { useStaffSummary } from '@/lib/queries';
@@ -30,22 +30,11 @@ export function StaffHome() {
   const first = (d?.userName || profile?.account.name || '').split(' ')[0] || 'Pak/Bu';
 
   return (
-    <Screen onRefresh={() => void q.refetch()} refreshing={q.isRefetching}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 14, color: colors.textMuted }}>{profile?.village.name} · Perangkat desa</Text>
-          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }} accessibilityRole="header">{greetingId(new Date().getHours())}, {first}</Text>
-        </View>
-        <Pressable onPress={() => router.push('/notifikasi')} accessibilityRole="button" accessibilityLabel={`Notifikasi, ${d?.unreadNotifications ?? 0} belum dibaca`} hitSlop={12} style={{ padding: 8 }}>
-          <Ionicons name="notifications-outline" size={28} color={colors.text} />
-          {d && d.unreadNotifications > 0 ? (
-            <View style={{ position: 'absolute', top: 2, right: 2, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{d.unreadNotifications > 9 ? '9+' : d.unreadNotifications}</Text>
-            </View>
-          ) : null}
-        </Pressable>
-      </View>
-
+    <Screen
+      onRefresh={() => void q.refetch()}
+      refreshing={q.isRefetching}
+      header={<HomeBand eyebrow={`${profile?.village.name} · Perangkat desa`} greeting={`${greetingId(new Date().getHours())}, ${first}`} unread={d?.unreadNotifications ?? 0} onBell={() => router.push('/notifikasi')} />}
+    >
       {q.isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} /> : null}
       {q.isError && !d ? (
         <View style={{ marginTop: spacing.md }}>
@@ -65,12 +54,20 @@ export function StaffHome() {
           <Stat label="Pendaftaran warga menunggu" value={d.counts.pendingSignups} tone="warn" onPress={() => router.push({ pathname: '/antrean', params: { tab: 'pendaftaran' } })} />
           <SectionTitle>AKSI CEPAT</SectionTitle>
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1 }}><Button label="Buat Pengumuman" variant="secondary" onPress={() => router.push('/staff/pengumuman')} /></View>
-            <View style={{ flex: 1 }}><Button label="Cari Warga" variant="secondary" onPress={() => router.push('/staff/warga')} /></View>
+            <ActionTile icon="megaphone-outline" label="Buat Pengumuman" primary onPress={() => router.push('/staff/pengumuman')} />
+            <ActionTile icon="search-outline" label="Cari Warga" onPress={() => router.push('/staff/warga')} />
           </View>
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-            <View style={{ flex: 1 }}><Button label="Moderasi Warga" variant="secondary" onPress={() => router.push('/staff/moderasi')} /></View>
-            <View style={{ flex: 1 }}><Button label="Pengaturan Warga" variant="secondary" onPress={() => router.push('/staff/pengaturan-warga')} /></View>
+            <ActionTile icon="shield-checkmark-outline" label="Moderasi Warga" onPress={() => router.push('/staff/moderasi')} />
+            <ActionTile icon="settings-outline" label="Pengaturan Warga" onPress={() => router.push('/staff/pengaturan-warga')} />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            <ActionTile icon="information-circle-outline" label="Pengaturan Info Desa" onPress={() => router.push('/staff/pengaturan-desa')} />
+            <ActionTile icon="create-outline" label="Koreksi Data Warga" onPress={() => router.push('/staff/koreksi')} />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            <ActionTile icon="ribbon-outline" label="Ketua RT" onPress={() => router.push('/staff/rt-penugasan')} />
+            <View style={{ flex: 1 }} />
           </View>
           <SectionTitle>SEDANG BERJALAN</SectionTitle>
           <Stat label="Laporan sedang ditangani" value={d.counts.processingReports} onPress={() => router.push({ pathname: '/antrean', params: { tab: 'laporan' } })} />

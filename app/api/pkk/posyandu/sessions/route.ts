@@ -8,6 +8,8 @@ import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+import { isAddonActive, pkkLimit } from "@/lib/modules/resource-limits";
+import { loadActiveModuleSubs } from "@/lib/modules/require-module";
 
 const SORT_KEYS = new Set(["sessionDate", "location", "visitCount"]);
 
@@ -41,7 +43,8 @@ export async function GET(req: NextRequest) {
       ...(searchFilter ?? {}),
     };
 
-    const [total, sessions] = await prisma.$transaction([
+    const [addons, total, sessions] = await Promise.all([
+      loadActiveModuleSubs(village.id),
       prisma.posyanduSession.count({ where }),
       prisma.posyanduSession.findMany({
         where,
@@ -54,6 +57,11 @@ export async function GET(req: NextRequest) {
         },
       }),
     ]);
+
+    const hasAddon = isAddonActive("pkk", addons);
+    const limit = pkkLimit(village.subscriptionPlan, village.subscriptionStatus, hasAddon);
+    const cap = limit?.posyanduSessions ?? null;
+    const isOverLimit = cap !== null && total > cap;
 
     return NextResponse.json({
       rows: sessions.map((s) => ({
@@ -74,6 +82,9 @@ export async function GET(req: NextRequest) {
         createdAt: s.createdAt.toISOString(),
       })),
       total,
+      limit: cap,
+      isOverLimit,
+      hiddenCount: isOverLimit ? total - cap! : 0,
     });
   } catch (e) {
     console.error("GET /api/pkk/posyandu/sessions", e);
@@ -89,6 +100,18 @@ export async function POST(req: NextRequest) {
     const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
+    }
+
+    const [addonsPost, sessionCount] = await Promise.all([
+      loadActiveModuleSubs(village.id),
+      prisma.posyanduSession.count({ where: { villageId: village.id } }),
+    ]);
+    const postLimit = pkkLimit(village.subscriptionPlan, village.subscriptionStatus, isAddonActive("pkk", addonsPost));
+    if (postLimit !== null && sessionCount >= postLimit.posyanduSessions) {
+      return NextResponse.json(
+        { error: "RESOURCE_LIMIT_REACHED", limit: postLimit.posyanduSessions, current: sessionCount, module: "pkk", billingUrl: "/billing?module=pkk" },
+        { status: 402 },
+      );
     }
 
     const body = await req.json().catch(() => null);

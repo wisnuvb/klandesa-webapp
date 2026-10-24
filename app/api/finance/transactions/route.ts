@@ -7,6 +7,8 @@ import {
 } from "@/lib/subscription";
 import { invalidateFinanceSummaryCache } from "@/lib/finance/summary-cache";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { isAddonActive, keuanganLimit } from "@/lib/modules/resource-limits";
+import { loadActiveModuleSubs } from "@/lib/modules/require-module";
 
 function generateTransactionNumber(type: string, date: Date) {
   const year = date.getFullYear();
@@ -49,22 +51,31 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    const rows = await prisma.transaction.findMany({
-      where,
-      orderBy: [{ transactionDate: "desc" }, { id: "desc" }],
-      take: 300,
-      select: {
-        id: true,
-        transactionNumber: true,
-        transactionDate: true,
-        type: true,
-        category: true,
-        description: true,
-        amount: true,
-        sdgGoalIds: true,
-        status: true,
-      },
-    });
+    const [addons, allRows] = await Promise.all([
+      loadActiveModuleSubs(village.id),
+      prisma.transaction.findMany({
+        where,
+        orderBy: [{ transactionDate: "desc" }, { id: "desc" }],
+        take: 1000,
+        select: {
+          id: true,
+          transactionNumber: true,
+          transactionDate: true,
+          type: true,
+          category: true,
+          description: true,
+          amount: true,
+          sdgGoalIds: true,
+          status: true,
+        },
+      }),
+    ]);
+
+    const hasAddon = isAddonActive("keuangan", addons);
+    const limit = keuanganLimit(village.subscriptionPlan, village.subscriptionStatus, hasAddon);
+    const cap = limit?.transaksiPerYear ?? null;
+    const isOverLimit = cap !== null && allRows.length > cap;
+    const rows = cap !== null ? allRows.slice(0, cap) : allRows;
 
     return NextResponse.json({
       success: true,
@@ -74,6 +85,10 @@ export async function GET(req: NextRequest) {
           transactionDate: r.transactionDate.toISOString(),
         })),
       ),
+      limit: cap,
+      total: allRows.length,
+      hiddenCount: isOverLimit ? allRows.length - cap! : 0,
+      isOverLimit,
     });
   } catch (err) {
     console.error("GET /api/finance/transactions error:", err);
@@ -104,6 +119,18 @@ export async function POST(req: NextRequest) {
 
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
+    }
+
+    const [addonsPost, currentCount] = await Promise.all([
+      loadActiveModuleSubs(village.id),
+      prisma.transaction.count({ where: { villageId: village.id } }),
+    ]);
+    const postLimit = keuanganLimit(village.subscriptionPlan, village.subscriptionStatus, isAddonActive("keuangan", addonsPost));
+    if (postLimit !== null && currentCount >= postLimit.transaksiPerYear) {
+      return NextResponse.json(
+        { error: "RESOURCE_LIMIT_REACHED", limit: postLimit.transaksiPerYear, current: currentCount, module: "keuangan", billingUrl: "/billing?module=keuangan" },
+        { status: 402 },
+      );
     }
 
     const categoryStr =

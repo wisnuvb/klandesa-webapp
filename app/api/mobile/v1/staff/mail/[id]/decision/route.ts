@@ -22,14 +22,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Update bersyarat: dua staf menekan bersamaan, hanya satu yang berhasil.
   const approve = body.decision === "approve";
   const res = await prisma.mailRequest.updateMany({
-    where: { id: BigInt(id), villageId: ctx.villageId, status: "pending" },
+    where: { id: BigInt(id), villageId: ctx.villageId, status: "pending", OR: [{ rtStatus: null }, { rtStatus: "approved" }] },
     data: {
       status: approve ? "approved" : "rejected",
       processedDate: new Date(),
       ...(approve ? { notes: note || null } : { rejectionReason: note }),
     },
   });
-  if (res.count !== 1) return mobileError("INVALID_REQUEST", "Permohonan ini sudah diproses atau tidak ditemukan.", 409);
+  if (res.count !== 1) return mobileError("INVALID_REQUEST", "Permohonan ini sudah diproses, masih menunggu Ketua RT, atau tidak ditemukan.", 409);
 
   void audit(ctx, req, approve ? "approve" : "reject", "mail_requests", id, { via: "mobile", note: note || undefined });
   void notifyMailRequestStatus(BigInt(id));

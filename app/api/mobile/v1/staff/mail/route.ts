@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const rows = await prisma.mailRequest.findMany({
     where: done
       ? { villageId: ctx.villageId, status: { in: ["approved", "rejected"] }, processedDate: { gte: new Date(Date.now() - 30 * 24 * 3600 * 1000) } }
-      : { villageId: ctx.villageId, status: "pending" },
+      : { villageId: ctx.villageId, status: "pending", OR: [{ rtStatus: null }, { rtStatus: "approved" }] }, // yang masih menunggu RT belum masuk antrean desa
     orderBy: done ? { processedDate: "desc" } : { requestDate: "asc" }, // antrean: yang paling lama menunggu di atas
     take: 100,
   });

@@ -11,12 +11,14 @@
  * Set DATABASE_URL di .env server dengan connection_limit=5
  * (8 worker × 5 ≈ 40 koneksi; sisakan quota untuk API mobile nanti).
  */
+const { port } = require("./config/port.json");
+
 module.exports = {
   apps: [
     {
       name: "klandesa-webapp",
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 2042",
+      args: `start -p ${port}`,
       cwd: "/var/www/html/klandesa/klandesa-webapp",
       // Setengah vCPU untuk webapp; sisanya untuk MySQL, Nginx, API mobile.
       instances: 8,

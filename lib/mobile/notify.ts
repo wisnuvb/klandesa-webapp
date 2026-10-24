@@ -4,7 +4,7 @@ import { sendPushToAccount } from "./push";
 import type { MobileAccountType } from "./tokens";
 
 export type NotifyInput = {
-  type: "mail_status" | "report_status" | "announcement" | "system";
+  type: "mail_status" | "report_status" | "announcement" | "data_change" | "system";
   title: string;
   body?: string | null;
   deepLink?: string | null;

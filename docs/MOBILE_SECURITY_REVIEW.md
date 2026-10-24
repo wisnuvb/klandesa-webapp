@@ -46,3 +46,13 @@ Metode: **tinjauan kode statis + tes unit**. Belum ada uji dinamis (tidak ada se
 - [ ] Uji ketahanan login: 9 percobaan salah dari satu IP harus 429 seragam untuk username ada maupun tidak ada; cek tidak ada beda pesan.
 - [ ] Hapus akun uji: pastikan postingan, komentar, like, dan foto hilang.
 - [x] Fallback `"your-secret-key"` sudah dihapus (web & mobile). **Catatan rilis:** token login web lama yang ditandatangani dengan kunci bawaan tidak berlaku lagi; pengguna perlu login ulang, dan QR absensi yang masih tampil di layar perlu dimuat ulang.
+
+
+## Tambahan 2026-10-24 (Fase B dan C) — belum ditinjau ulang secara dinamis
+Route baru: `village/profile|budget-summary`, `benefits/mine`, `me/data-changes`, `staff/village-info`, `staff/data-changes[/:id/decision]`, `rt/*`, `staff/rt-assignments[/:id]`, halaman publik `/verifikasi-surat/<token>`. Ditinjau lewat kode dan tes unit saja.
+- Semua route memakai `requireMobileContext`/`requireStaff`/`requireRt`; query selalu memuat `villageId` dari token, bukan dari klien. `requireRt` membaca penugasan RT dari DB di setiap permintaan (pencabutan berlaku langsung).
+- RT lain / RW lain / desa lain mendapat 404 yang sama dengan "tidak ada" (tidak membocorkan keberadaan permohonan).
+- NIK/KK selalu tersamar di semua DTO RT dan antrean koreksi. `benefits/mine` mengambil NIK dari akun.
+- Koreksi data: kolom identitas tidak diterapkan otomatis; kolom otomatis dibatasi daftar putih di server.
+- Token verifikasi surat: HMAC dari `AUTH_SECRET` (kunci turunan khusus), perbandingan waktu-konstan, pesan gagal tunggal. Halaman publik tanpa pembatas laju; pertimbangkan batas di Nginx bila ada penyalahgunaan.
+- Terbuka: `rt/residents` memberi daftar warga RT (tersamar); pencarian dibatasi 40/menit tetapi belum dicatat di AuditLog (RT bukan akun staf). Pertimbangkan tabel audit untuk akses RT.

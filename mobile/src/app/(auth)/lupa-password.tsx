@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
+import { Body, Button, ErrorBanner, Field, Hero, Screen, Title } from '@/components/ui';
 import { ApiError, post } from '@/lib/api';
 import { dateInputToIso, digitsOnly, formatCodeInput, formatDateInput } from '@/lib/form';
 
@@ -48,7 +48,7 @@ export default function ForgotPassword() {
 
   return (
     <Screen footer={<Button label="Simpan password baru" onPress={submit} loading={busy} />}>
-      <Body>{mode === 'code' ? 'Minta kode reset ke kantor desa atau ketua RT, lalu isi di sini.' : 'Isi data diri Anda seperti saat mendaftar.'}</Body>
+      <Hero icon="key-outline" title="Atur ulang password" subtitle={mode === 'code' ? 'Minta kode reset ke kantor desa atau ketua RT, lalu isi di sini.' : 'Isi data diri Anda seperti saat mendaftar.'} />
       <ErrorBanner message={error} />
       <Field label="NIK (16 angka)" value={nik} onChangeText={(t) => setNik(digitsOnly(t, 16))} keyboardType="number-pad" maxLength={16} />
       {mode === 'code' ? (

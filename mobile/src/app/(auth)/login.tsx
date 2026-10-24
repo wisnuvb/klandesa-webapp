@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { Body, Button, ErrorBanner, Field, Screen } from '@/components/ui';
+import { Button, ErrorBanner, Field, Hero, Screen } from '@/components/ui';
 import { ApiError, post, type Tokens } from '@/lib/api';
 import { useSession, type Profile } from '@/state/session';
 
@@ -32,12 +32,12 @@ export default function Login() {
 
   return (
     <Screen
-      footer={<Button label="Masuk" onPress={submit} loading={busy} />}
+      footer={<Button label="Masuk" icon="log-in-outline" onPress={submit} loading={busy} />}
     >
-      <Body muted>Masuk dengan username dan password yang Anda buat saat mendaftar. Perangkat desa memakai email.</Body>
+      <Hero icon="person-circle-outline" title="Selamat datang kembali" subtitle="Masuk dengan username dan password yang Anda buat saat mendaftar. Perangkat desa memakai email." />
       <ErrorBanner message={error} />
-      <Field label="Username" value={identifier} onChangeText={setIdentifier} autoComplete="username" textContentType="username" returnKeyType="next" />
-      <Field label="Password" value={password} onChangeText={setPassword} secret autoComplete="current-password" textContentType="password" returnKeyType="go" onSubmitEditing={submit} />
+      <Field label="Username" icon="person-outline" value={identifier} onChangeText={setIdentifier} autoComplete="username" textContentType="username" returnKeyType="next" />
+      <Field label="Password" icon="lock-closed-outline" value={password} onChangeText={setPassword} secret autoComplete="current-password" textContentType="password" returnKeyType="go" onSubmitEditing={submit} />
       <Button label="Lupa password?" variant="link" onPress={() => router.push('/lupa-password')} />
       <Button label="Belum punya akun? Daftar" variant="link" onPress={() => router.push('/daftar')} />
     </Screen>

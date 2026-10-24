@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { api, post, refreshSession, setAccessToken, setSessionExpiredHandler, type Tokens } from '@/lib/api';
+import { clearOutbox } from '@/lib/outbox';
 import { queryClient } from '@/lib/queries';
 import { profileStore, refreshTokenStore } from '@/lib/storage';
 
@@ -28,7 +29,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(async () => {
     setAccessToken(null);
     queryClient.clear(); // jangan bocorkan data akun sebelumnya ke akun berikutnya
-    await Promise.all([refreshTokenStore.clear(), profileStore.clear()]);
+    await Promise.all([refreshTokenStore.clear(), profileStore.clear(), clearOutbox()]);
     setProfile(null);
     setStatus('signedOut');
   }, []);

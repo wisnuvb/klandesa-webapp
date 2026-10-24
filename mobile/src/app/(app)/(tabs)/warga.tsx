@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Card, Empty } from '@/components/cards';
 import { PostCard } from '@/components/post-card';
-import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
+import { Body, Button, ErrorBanner, Field, Screen, Title, ALL_EDGES } from '@/components/ui';
 import { ApiError, post } from '@/lib/api';
 import { useFeed, useSocialConfig, type FeedFilter } from '@/lib/queries';
 import { colors, spacing } from '@/theme';
@@ -23,7 +23,7 @@ function Terms({ rules, onAccepted }: { rules: string[]; onAccepted: () => void 
     catch (e) { setError(e instanceof ApiError ? e.message : 'Gagal menyimpan. Coba lagi.'); setBusy(false); }
   }
   return (
-    <Screen footer={<Button label="Saya setuju, masuk ke Warga" loading={busy} onPress={accept} />}>
+    <Screen edges={ALL_EDGES} footer={<Button label="Saya setuju, masuk ke Warga" loading={busy} onPress={accept} />}>
       <Title>Aturan komunitas</Title>
       <Body muted>Warga adalah ruang bersama warga desa Anda. Agar nyaman untuk semua:</Body>
       <ErrorBanner message={error} />
@@ -52,11 +52,11 @@ export default function Warga() {
   const items = feed.data?.pages.flatMap((p) => p.items) ?? [];
   const official = feed.data?.pages[0]?.official ?? [];
 
-  if (cfg.isLoading) return <Screen><ActivityIndicator color={colors.primary} /></Screen>;
+  if (cfg.isLoading) return <Screen edges={ALL_EDGES}><ActivityIndicator color={colors.primary} /></Screen>;
   if (cfg.isError) {
     const reason = cfg.error instanceof ApiError ? (cfg.error.extra.reason as string | undefined) : undefined;
     return (
-      <Screen>
+      <Screen edges={ALL_EDGES}>
         <Title>Warga</Title>
         {reason === 'SOCIAL_OFF' ? <Body>Fitur Warga belum diaktifkan di desa Anda. Tanyakan ke kantor desa.</Body> : (
           <>
@@ -112,7 +112,7 @@ export default function Warga() {
         }
         renderItem={({ item }) => <PostCard p={item} onTag={(t) => { setSearching(true); setText(t); }} />}
         ListEmptyComponent={feed.isLoading ? <ActivityIndicator color={colors.primary} /> : <Empty title={filter === 'saved' ? 'Belum ada postingan tersimpan' : 'Belum ada postingan'} hint="Jadilah yang pertama berbagi kegiatan di desa." />}
-        ListFooterComponent={feed.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={{ margin: 16 }} /> : null}
+        ListFooterComponent={feed.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={{ margin: 16 }} /> : undefined}
       />
       {!c.muted ? (
         <Pressable onPress={() => router.push('/warga/baru')} accessibilityRole="button" accessibilityLabel="Buat postingan"

@@ -12,6 +12,8 @@ import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+import { isAddonActive, petaLimit } from "@/lib/modules/resource-limits";
+import { loadActiveModuleSubs } from "@/lib/modules/require-module";
 
 function serializeProject(p: {
   id: number;
@@ -83,7 +85,8 @@ export async function GET(req: NextRequest) {
       ...(searchFilter ?? {}),
     };
 
-    const [total, rows] = await prisma.$transaction([
+    const [addons, total, rows] = await Promise.all([
+      loadActiveModuleSubs(village.id),
       prisma.infrastructureProject.count({ where }),
       prisma.infrastructureProject.findMany({
         where,
@@ -93,9 +96,17 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    const hasAddon = isAddonActive("peta-infrastruktur", addons);
+    const limit = petaLimit(village.subscriptionPlan, village.subscriptionStatus, hasAddon);
+    const cap = limit?.projects ?? null;
+    const isOverLimit = cap !== null && total > cap;
+
     return NextResponse.json({
       rows: rows.map(serializeProject),
       total,
+      limit: cap,
+      isOverLimit,
+      hiddenCount: isOverLimit ? total - cap! : 0,
     });
   } catch (e) {
     console.error("GET /api/gis/projects", e);
@@ -111,6 +122,18 @@ export async function POST(req: NextRequest) {
     const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
+    }
+
+    const [addonsPost, projectCount] = await Promise.all([
+      loadActiveModuleSubs(village.id),
+      prisma.infrastructureProject.count({ where: { villageId: village.id } }),
+    ]);
+    const postLimit = petaLimit(village.subscriptionPlan, village.subscriptionStatus, isAddonActive("peta-infrastruktur", addonsPost));
+    if (postLimit !== null && projectCount >= postLimit.projects) {
+      return NextResponse.json(
+        { error: "RESOURCE_LIMIT_REACHED", limit: postLimit.projects, current: projectCount, module: "peta-infrastruktur", billingUrl: "/billing?module=peta-infrastruktur" },
+        { status: 402 },
+      );
     }
 
     const body = await req.json().catch(() => null);

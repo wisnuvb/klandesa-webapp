@@ -9,6 +9,8 @@ import {
   parseRequiredString,
   parseTransactionDirection,
 } from "@/lib/bumdes/schemas";
+import { isAddonActive, bumdesLimit } from "@/lib/modules/resource-limits";
+import { loadActiveModuleSubs } from "@/lib/modules/require-module";
 
 export async function GET(req: NextRequest) {
   const loaded = await loadBumdesApiContext(req, { requireExisting: true });
@@ -20,22 +22,36 @@ export async function GET(req: NextRequest) {
   const unitIdParam = req.nextUrl.searchParams.get("unitId");
   const unitId = unitIdParam ? parseInt(unitIdParam, 10) : undefined;
 
-  const entries = await prisma.bumdesTransaction.findMany({
-    where: {
-      bumdesId: loaded.ctx.bumdes!.id,
-      ...(Number.isFinite(unitId) ? { unitId } : {}),
-    },
-    orderBy: [{ entryDate: "desc" }, { id: "desc" }],
-    include: {
-      unit: { select: { id: true, name: true, category: true } },
-      createdUser: { select: { id: true, name: true } },
-    },
-    take: 500,
-  });
+  const { village } = loaded.ctx;
+  const [addons, allEntries] = await Promise.all([
+    loadActiveModuleSubs(village.id),
+    prisma.bumdesTransaction.findMany({
+      where: {
+        bumdesId: loaded.ctx.bumdes!.id,
+        ...(Number.isFinite(unitId) ? { unitId } : {}),
+      },
+      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
+      include: {
+        unit: { select: { id: true, name: true, category: true } },
+        createdUser: { select: { id: true, name: true } },
+      },
+      take: 1000,
+    }),
+  ]);
+
+  const hasAddon = isAddonActive("bumdes", addons);
+  const limit = bumdesLimit(village.subscriptionPlan, village.subscriptionStatus, hasAddon);
+  const cap = limit?.transactions ?? null;
+  const isOverLimit = cap !== null && allEntries.length > cap;
+  const entries = cap !== null ? allEntries.slice(0, cap) : allEntries;
 
   return NextResponse.json({
     success: true,
     data: toJSONSafe(entries),
+    limit: cap,
+    total: allEntries.length,
+    hiddenCount: isOverLimit ? allEntries.length - cap! : 0,
+    isOverLimit,
   });
 }
 
@@ -48,6 +64,19 @@ export async function POST(req: NextRequest) {
 
   const deny = requireBumdesManage(loaded.ctx);
   if (deny) return deny;
+
+  const { village } = loaded.ctx;
+  const [addonsPost, txCount] = await Promise.all([
+    loadActiveModuleSubs(village.id),
+    prisma.bumdesTransaction.count({ where: { bumdesId: loaded.ctx.bumdes!.id } }),
+  ]);
+  const postLimit = bumdesLimit(village.subscriptionPlan, village.subscriptionStatus, isAddonActive("bumdes", addonsPost));
+  if (postLimit !== null && txCount >= postLimit.transactions) {
+    return NextResponse.json(
+      { error: "RESOURCE_LIMIT_REACHED", limit: postLimit.transactions, current: txCount, module: "bumdes", billingUrl: "/billing?module=bumdes" },
+      { status: 402 },
+    );
+  }
 
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") {

@@ -1,3 +1,4 @@
+import { port as APP_PORT } from "@/config/port.json";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -87,7 +88,7 @@ export async function GET(req: Request) {
   const totalEvents = row._count.events;
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
   const proto = req.headers.get("x-forwarded-proto") || "http";
-  const origin = host ? `${proto}://${host}` : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:2042";
+  const origin = host ? `${proto}://${host}` : process.env.NEXT_PUBLIC_SITE_URL || `http://localhost:${APP_PORT}`;
   const shareUrl =
     partnerRow?.publicPageEnabled &&
     partnerRow.status === "active" &&

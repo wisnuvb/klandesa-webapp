@@ -4,6 +4,7 @@ import { verifyPassword } from "@/lib/auth";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
 import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { deleteMobilePhotos } from "@/lib/mobile/storage";
+import { getRtAssignment } from "@/lib/mobile/rt";
 
 export async function GET(req: NextRequest) {
   const loaded = await requireMobileContext(req);
@@ -16,16 +17,20 @@ export async function GET(req: NextRequest) {
     name = u?.name ?? "";
   }
   let username: string | undefined;
+  const roles: { role: "rt"; rt: string; rw: string | null }[] = [];
   if (ctx.accountType === "citizen") {
     const a = await prisma.citizenAccount.findUnique({
       where: { id: ctx.accountId },
-      select: { username: true, resident: { select: { name: true } } },
+      select: { username: true, residentId: true, resident: { select: { name: true } } },
     });
     name = a?.resident.name ?? "";
     username = a?.username;
+    const rt = a ? await getRtAssignment(ctx.villageId, a.residentId) : null;
+    if (rt) roles.push({ role: "rt", rt: rt.rt, rw: rt.rw });
   }
   return NextResponse.json({
     account: { type: ctx.accountType, id: ctx.accountId, name, username, role: ctx.role },
+    roles,
     village: { id: ctx.village.id, code: ctx.village.code, name: ctx.village.name, logoUrl: ctx.village.logoUrl },
   });
 }
@@ -72,6 +77,8 @@ export async function DELETE(req: NextRequest) {
     }),
     prisma.mailRequest.updateMany({ where: { residentId: acc.residentId }, data: { residentId: null } }),
     prisma.mailRequest.updateMany({ where: { onBehalfResidentId: acc.residentId }, data: { onBehalfResidentId: null } }),
+    // Akun dihapus → penugasan RT dicabut agar permohonan tidak menunggu petugas yang tidak ada lagi.
+    prisma.villageRoleAssignment.updateMany({ where: { residentId: acc.residentId }, data: { isActive: false } }),
     prisma.activationCode.deleteMany({ where: { residentId: acc.residentId } }),
     prisma.userNotification.deleteMany({ where: { accountType: "citizen", accountId: acc.id } }),
     prisma.deviceToken.deleteMany({ where: { accountType: "citizen", accountId: acc.id } }),

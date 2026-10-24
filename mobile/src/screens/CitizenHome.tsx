@@ -1,12 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
-import { Card, Empty, SectionTitle, StepDots, STAGE_COLOR } from '@/components/cards';
-import { Body, Button, ErrorBanner, Screen } from '@/components/ui';
+import { ActionTile, Card, Empty, MenuRow, SectionTitle, StepDots, STAGE_COLOR } from '@/components/cards';
+import { Body, Button, ErrorBanner, HomeBand, Screen } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { greetingId, timeAgoId } from '@/lib/format';
 import { useHome } from '@/lib/queries';
+import { useOutboxCount } from '@/lib/use-outbox';
 import { useSession } from '@/state/session';
 import { colors, spacing } from '@/theme';
 
@@ -15,26 +15,20 @@ export function CitizenHome() {
   const home = useHome();
   const first = profile?.account.name?.split(' ')[0] ?? 'Warga';
   const d = home.data;
+  const waiting = useOutboxCount(profile?.account.id);
 
   return (
-    <Screen onRefresh={() => void home.refetch()} refreshing={home.isRefetching}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 14, color: colors.textMuted }}>{profile?.village.name}</Text>
-          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }} accessibilityRole="header">
-            {greetingId(new Date().getHours())}, {first}
-          </Text>
-        </View>
-        <Pressable onPress={() => router.push('/notifikasi')} accessibilityRole="button" accessibilityLabel={`Notifikasi, ${d?.unreadNotifications ?? 0} belum dibaca`} hitSlop={12} style={{ padding: 8 }}>
-          <Ionicons name="notifications-outline" size={28} color={colors.text} />
-          {d && d.unreadNotifications > 0 ? (
-            <View style={{ position: 'absolute', top: 2, right: 2, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{d.unreadNotifications > 9 ? '9+' : d.unreadNotifications}</Text>
-            </View>
-          ) : null}
-        </Pressable>
+    <Screen
+      onRefresh={() => void home.refetch()}
+      refreshing={home.isRefetching}
+      header={<HomeBand eyebrow={profile?.village.name} greeting={`${greetingId(new Date().getHours())}, ${first}`} unread={d?.unreadNotifications ?? 0} onBell={() => router.push('/notifikasi')} />}
+    >
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <ActionTile icon="document-text" label="Buat Surat" primary onPress={() => router.push('/layanan')} />
+        <ActionTile icon="megaphone-outline" label="Lapor Masalah" onPress={() => router.push('/lapor/baru')} />
       </View>
 
+      {waiting > 0 ? <Body muted>{waiting} kiriman menunggu sinyal. Akan dikirim otomatis.</Body> : null}
       {home.isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} /> : null}
       {home.isError && !d ? (
         <View style={{ marginTop: spacing.md }}>
@@ -62,11 +56,6 @@ export function CitizenHome() {
             ))
           )}
 
-          <View style={{ marginTop: spacing.md, flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1 }}><Button label="Buat Surat" onPress={() => router.push('/layanan')} /></View>
-            <View style={{ flex: 1 }}><Button label="Lapor Masalah" variant="secondary" onPress={() => router.push('/lapor/baru')} /></View>
-          </View>
-
           <SectionTitle>KABAR DESA</SectionTitle>
           {d.announcements.length === 0 ? (
             <Empty title="Belum ada kabar dari desa" />
@@ -80,6 +69,10 @@ export function CitizenHome() {
               </Card>
             ))
           )}
+
+          <SectionTitle>INFO DESA</SectionTitle>
+          <MenuRow icon="information-circle-outline" title="Kantor, perangkat, dan nomor penting" onPress={() => router.push('/info-desa')} />
+          <MenuRow icon="gift-outline" title="Bantuan saya" onPress={() => router.push('/bantuan')} />
         </>
       ) : null}
       {profile?.account.type === 'staff' ? <Body muted>Fitur khusus perangkat desa menyusul.</Body> : null}

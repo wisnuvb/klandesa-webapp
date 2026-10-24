@@ -27,3 +27,23 @@ export function greetingId(hour: number): string {
   if (hour < 18) return 'Selamat sore';
   return 'Selamat malam';
 }
+
+/** Rupiah ringkas untuk awam: "Rp 850 ribu", "Rp 1,2 juta", "Rp 3,4 miliar". Tanpa Intl agar konsisten di semua HP. */
+export function formatRupiahShort(amount: number): string {
+  const n = Math.max(0, Math.round(Number.isFinite(amount) ? amount : 0));
+  const fmt = (v: number, unit: string) => `Rp ${(Math.round(v * 10) / 10).toString().replace('.', ',')} ${unit}`;
+  if (n >= 1_000_000_000_000) return fmt(n / 1_000_000_000_000, 'triliun');
+  if (n >= 1_000_000_000) return fmt(n / 1_000_000_000, 'miliar');
+  if (n >= 1_000_000) return fmt(n / 1_000_000, 'juta');
+  if (n >= 1_000) return fmt(n / 1_000, 'ribu');
+  return `Rp ${n}`;
+}
+
+/** Nomor untuk tautan telepon: hanya digit dan "+" di depan. Kosong bila tidak layak dipanggil. */
+export function dialNumber(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const t = raw.trim();
+  const digits = t.replace(/\D/g, '');
+  if (digits.length < 3 || digits.length > 16) return null;
+  return `${t.startsWith('+') ? '+' : ''}${digits}`;
+}

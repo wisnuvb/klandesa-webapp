@@ -791,6 +791,15 @@ model MailRequest {
   /// Isian tambahan dari form (JSON)
   formData           Json?
 
+  /// Tahap pengantar RT (mobile). null = tanpa tahap RT; pending | approved | rejected. Lihat lib/mobile/rt-logic.ts.
+  rtStatus              String?   @db.VarChar(20)
+  rtNote                String?   @db.VarChar(300)
+  rtDecidedAt           DateTime? @db.DateTime(3)
+  rtDecidedByResidentId Int?
+  /// Snapshot RT/RW pemohon (sudah dinormalkan, mis. "3") agar antrean RT bisa difilter tanpa join.
+  applicantRt           String?   @db.VarChar(10)
+  applicantRw           String?   @db.VarChar(10)
+
   // Dates
   requestDate   DateTime  @default(now())
   processedDate DateTime?
@@ -802,6 +811,7 @@ model MailRequest {
   @@index([villageId, nik])
   @@index([villageId, channel])
   @@index([residentId, createdAt])
+  @@index([villageId, rtStatus, applicantRt, applicantRw])
   @@map("mail_requests")
 }
 
@@ -2699,7 +2709,7 @@ model UserNotification {
   accountId   Int
   villageId   Int
 
-  /// mail_status | report_status | announcement | system
+  /// mail_status | report_status | announcement | data_change | system
   type     String  @db.VarChar(30)
   title    String  @db.VarChar(160)
   body     String? @db.VarChar(500)
@@ -2712,6 +2722,54 @@ model UserNotification {
   @@index([accountType, accountId, createdAt(sort: Desc)])
   @@index([accountType, accountId, readAt])
   @@map("user_notifications")
+}
+
+/// Peran tambahan warga di tingkat lingkungan (RT). Satu warga satu penugasan per peran. Lihat lib/mobile/rt-logic.ts.
+model VillageRoleAssignment {
+  id         Int      @id @default(autoincrement())
+  villageId  Int
+  residentId Int
+  /// "rt" (dipakai sekarang); "rw" disiapkan
+  role       String   @db.VarChar(10)
+  /// Sudah dinormalkan ("3" untuk "RT 03")
+  rt         String?  @db.VarChar(10)
+  rw         String?  @db.VarChar(10)
+  isActive   Boolean  @default(true)
+  createdById Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([villageId, residentId, role])
+  @@index([villageId, role, isActive])
+  @@map("village_role_assignments")
+}
+
+/// Pengajuan koreksi data warga dari app (warga tidak mengedit data induk langsung). Lihat lib/mobile/data-change-logic.ts.
+model DataChangeRequest {
+  id                    Int       @id @default(autoincrement())
+  villageId             Int
+  /// Warga yang datanya dikoreksi
+  residentId            Int
+  /// Warga yang mengajukan (diri sendiri atau kepala keluarga)
+  requestedByResidentId Int
+  field                 String    @db.VarChar(30)
+  oldValue              String?   @db.Text
+  newValue              String    @db.Text
+  note                  String?   @db.VarChar(300)
+  /// pending | approved | rejected
+  status                String    @default("pending") @db.VarChar(20)
+  reviewedById          Int?
+  reviewedAt            DateTime? @db.DateTime(3)
+  reviewNote            String?   @db.VarChar(300)
+  /// Terisi bila perubahan sudah diterapkan otomatis ke data warga
+  appliedAt             DateTime? @db.DateTime(3)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([villageId, status, createdAt])
+  @@index([requestedByResidentId, createdAt])
+  @@index([residentId, field, status])
+  @@map("data_change_requests")
 }
 
 // ─── Sosial desa ("Warga") — docs/MOBILE_V2_PRODUCT_SPEC.md §14 ──────────────

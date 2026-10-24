@@ -14,7 +14,7 @@
     },
     "production": {
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_API_URL": "https://klandesa.com" },
+      "env": { "EXPO_PUBLIC_API_URL": "https://klandesa.com", "KLANDESA_ANDROID_PACKAGE": "com.klandesa.klan_desa" },
       "android": { "buildType": "app-bundle" }
     }
   },

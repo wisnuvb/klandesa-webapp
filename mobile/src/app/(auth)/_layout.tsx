@@ -1,15 +1,15 @@
 import { Stack } from 'expo-router';
 
+import { StackHeader } from '@/components/ui';
 import { colors } from '@/theme';
 
 export default function AuthLayout() {
   return (
     <Stack
       screenOptions={{
-        headerTintColor: colors.primary,
-        headerTitleStyle: { color: colors.text },
-        headerShadowVisible: false,
-        headerBackTitle: 'Kembali',
+        header: ({ options, back, navigation }) => (
+          <StackHeader title={typeof options.title === 'string' ? options.title : undefined} onBack={back && options.headerBackVisible !== false ? () => navigation.goBack() : undefined} />
+        ),
         contentStyle: { backgroundColor: colors.bg },
       }}
     >

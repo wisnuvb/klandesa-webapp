@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { Card, Empty, SectionTitle, StepDots, STAGE_COLOR } from '@/components/cards';
-import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
+import { Body, Button, ErrorBanner, Field, PageBand, Screen, Title, ALL_EDGES } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { formatDateId } from '@/lib/format';
 import { useReports, useRequests, useServices, type Service } from '@/lib/queries';
@@ -36,7 +36,7 @@ export default function Layanan() {
 
   if (profile?.account.type !== 'citizen') {
     return (
-      <Screen>
+      <Screen edges={ALL_EDGES}>
         <Title>Layanan</Title>
         <Body muted>Layanan surat untuk warga. Fitur perangkat desa menyusul.</Body>
       </Screen>
@@ -46,8 +46,7 @@ export default function Layanan() {
   const refresh = () => { void services.refetch(); void requests.refetch(); void reports.refetch(); };
 
   return (
-    <Screen onRefresh={refresh} refreshing={services.isRefetching || requests.isRefetching}>
-      <Title>Layanan</Title>
+    <Screen header={<PageBand title="Layanan" />} onRefresh={refresh} refreshing={services.isRefetching || requests.isRefetching}>
       <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 14, padding: 4, marginBottom: 16 }} accessibilityRole="tablist">
         {(['surat', 'laporan'] as const).map((t) => (
           <Pressable key={t} onPress={() => setTab(t)} accessibilityRole="tab" accessibilityState={{ selected: tab === t }}

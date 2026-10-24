@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Stage, Step } from '@/lib/queries';
-import { colors, spacing, TOUCH_MIN } from '@/theme';
+import { colors, shadow, spacing, TOUCH_MIN } from '@/theme';
 
 export const STAGE_COLOR: Record<Stage, string> = {
   sent: '#B26A00',
@@ -44,6 +45,106 @@ export function Card({ onPress, children, label }: { onPress?: () => void; child
   );
 }
 
+/** Baris menu bergaya daftar pengaturan: ikon bulat, judul, keterangan kanan opsional, dan panah. */
+export function MenuRow({ icon, title, trailing, danger, onPress }: {
+  icon: keyof typeof Ionicons.glyphMap; title: string; trailing?: string; danger?: boolean; onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={({ pressed }) => [d.row, pressed && { backgroundColor: colors.surface }]}
+    >
+      <View style={[d.rowIcon, danger && { backgroundColor: '#FDECEA' }]}>
+        <Ionicons name={icon} size={22} color={danger ? colors.danger : colors.primary} />
+      </View>
+      <Text style={[d.rowTitle, danger && { color: colors.danger }]}>{title}</Text>
+      {trailing ? <Text style={d.rowTrailing}>{trailing}</Text> : null}
+      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+    </Pressable>
+  );
+}
+
+/** Ubin aksi cepat berikon, untuk dua-tiga tindakan utama di beranda. */
+export function ActionTile({ icon, label, primary, onPress }: {
+  icon: keyof typeof Ionicons.glyphMap; label: string; primary?: boolean; onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [d.tile, primary ? { backgroundColor: colors.primary } : { backgroundColor: colors.primarySoft }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+    >
+      <Ionicons name={icon} size={28} color={primary ? '#fff' : colors.primary} />
+      <Text style={[d.tileText, { color: primary ? '#fff' : colors.primary }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Ubin layanan utama di beranda warga: ikon, nama tindakan, dan satu baris penjelasan agar langsung dimengerti. */
+export function ServiceTile({ icon, label, caption, primary, onPress }: {
+  icon: keyof typeof Ionicons.glyphMap; label: string; caption: string; primary?: boolean; onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. ${caption}`}
+      onPress={onPress}
+      style={({ pressed }) => [d.service, primary ? { backgroundColor: colors.primary } : { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
+    >
+      <View style={[d.serviceIcon, primary ? { backgroundColor: 'rgba(255,255,255,0.18)' } : { backgroundColor: colors.primarySoft }]}>
+        <Ionicons name={icon} size={28} color={primary ? '#fff' : colors.primary} />
+      </View>
+      <View>
+        <Text style={[d.serviceLabel, { color: primary ? '#fff' : colors.text }]}>{label}</Text>
+        <Text style={[d.serviceCaption, { color: primary ? 'rgba(255,255,255,0.88)' : colors.textMuted }]}>{caption}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+/** Pintasan bulat berlabel untuk menu sekunder (Info Desa, Bantuan, dst.). */
+export function ShortcutTile({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [d.shortcut, pressed && { opacity: 0.8 }]}>
+      <View style={d.shortcutIcon}>
+        <Ionicons name={icon} size={26} color={colors.primary} />
+      </View>
+      <Text style={d.shortcutLabel} numberOfLines={2}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Judul seksi dalam huruf biasa (bukan kapital kecil) supaya mudah dibaca. */
+export function SectionHeader({ children }: { children: string }) {
+  return <Text style={d.sectionHeader} accessibilityRole="header">{children}</Text>;
+}
+
+/** Keadaan kosong yang ramah: ikon, kalimat singkat, dan satu tindakan lanjutan bila ada. */
+export function EmptyState({ icon, title, hint, children }: { icon: keyof typeof Ionicons.glyphMap; title: string; hint?: string; children?: React.ReactNode }) {
+  return (
+    <View style={d.empty}>
+      <View style={d.emptyIcon}>
+        <Ionicons name={icon} size={28} color={colors.primary} />
+      </View>
+      <Text style={d.emptyTitle}>{title}</Text>
+      {hint ? <Text style={d.emptyHint}>{hint}</Text> : null}
+      {children}
+    </View>
+  );
+}
+
+/** Lencana kecil berwarna (mis. PENTING, kategori). */
+export function Chip({ label, tone = 'muted' }: { label: string; tone?: 'gold' | 'muted' }) {
+  return (
+    <View style={[d.chip, tone === 'gold' ? { backgroundColor: colors.goldSoft } : { backgroundColor: colors.surface }]}>
+      <Text style={[d.chipText, { color: tone === 'gold' ? colors.goldText : colors.textMuted }]}>{label}</Text>
+    </View>
+  );
+}
+
 export function SectionTitle({ children }: { children: string }) {
   return <Text style={d.section} accessibilityRole="header">{children}</Text>;
 }
@@ -58,7 +159,27 @@ export function Empty({ title, hint }: { title: string; hint?: string }) {
 }
 
 const d = StyleSheet.create({
+  service: { flex: 1, minHeight: 152, borderRadius: 22, padding: spacing.md, justifyContent: 'space-between', ...shadow.card },
+  serviceIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  serviceLabel: { fontSize: 19, fontWeight: '800' },
+  serviceCaption: { fontSize: 14, lineHeight: 19, marginTop: 2 },
+  shortcut: { flex: 1, alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
+  shortcutIcon: { width: 60, height: 60, borderRadius: 22, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', ...shadow.card },
+  shortcutLabel: { fontSize: 14, fontWeight: '600', color: colors.text, textAlign: 'center' },
+  sectionHeader: { fontSize: 20, fontWeight: '800', color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm },
+  empty: { alignItems: 'center', paddingVertical: spacing.lg, paddingHorizontal: spacing.md, backgroundColor: colors.bg, borderRadius: 20, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
+  emptyIcon: { width: 56, height: 56, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.text, textAlign: 'center' },
+  emptyHint: { fontSize: 15, lineHeight: 21, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
+  chip: { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  chipText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
+  row: { minHeight: TOUCH_MIN, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: 14 },
+  rowIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: colors.text },
+  rowTrailing: { fontSize: 14, fontWeight: '700', color: colors.danger },
+  tile: { flex: 1, minHeight: 92, borderRadius: 18, padding: spacing.md, justifyContent: 'space-between' },
+  tileText: { fontSize: 16, fontWeight: '700' },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.bg },
-  card: { minHeight: TOUCH_MIN, backgroundColor: colors.surface, borderRadius: 14, padding: spacing.md, marginBottom: spacing.sm },
+  card: { minHeight: TOUCH_MIN, backgroundColor: colors.bg, borderRadius: 18, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border, ...shadow.card },
   section: { fontSize: 13, fontWeight: '700', letterSpacing: 0.6, color: colors.textMuted, marginTop: spacing.md, marginBottom: spacing.sm },
 });

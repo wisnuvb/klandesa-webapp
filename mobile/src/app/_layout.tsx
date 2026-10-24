@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
-import { Screen, Title, Body } from '@/components/ui';
+import { Screen, Title, Body, ALL_EDGES } from '@/components/ui';
 import { APP_VERSION, fetchRemoteConfig, needsForceUpdate } from '@/lib/app-config';
 import { queryClient } from '@/lib/queries';
 import { SessionProvider, useSession } from '@/state/session';
@@ -22,7 +22,7 @@ function Gate() {
 
   if (mustUpdate) {
     return (
-      <Screen>
+      <Screen edges={ALL_EDGES}>
         <Title>Perbarui aplikasi</Title>
         <Body>Versi ini sudah terlalu lama. Silakan perbarui lewat Play Store agar layanan desa tetap berjalan.</Body>
         <Text style={{ color: colors.textMuted }}>Versi terpasang: {APP_VERSION}</Text>

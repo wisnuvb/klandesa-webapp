@@ -1,16 +1,19 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Text } from 'react-native';
+import { ActivityIndicator, Share, Text } from 'react-native';
 
 import { Body, Button, ErrorBanner, Screen, Title } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { formatDateId } from '@/lib/format';
 import { useAnnouncement } from '@/lib/queries';
+import { buildAnnouncementShare } from '@/lib/share';
+import { useSession } from '@/state/session';
 import { colors } from '@/theme';
 
 export default function Kabar() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const q = useAnnouncement(Number(id));
+  const village = useSession().profile?.village.name ?? '';
 
   if (q.isLoading) return <Screen><ActivityIndicator color={colors.primary} /></Screen>;
   if (q.isError || !q.data) {
@@ -23,7 +26,7 @@ export default function Kabar() {
   }
   const a = q.data;
   return (
-    <Screen>
+    <Screen footer={<Button label="Bagikan ke WhatsApp" icon="share-social-outline" onPress={() => void Share.share({ message: buildAnnouncementShare(a, village) })} />}>
       <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>{a.category.toUpperCase()}</Text>
       <Title>{a.title}</Title>
       <Body muted>{formatDateId(a.publishedAt)}</Body>

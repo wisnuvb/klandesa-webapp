@@ -1,3 +1,4 @@
+import { port as APP_PORT } from "@/config/port.json";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-session";
@@ -42,7 +43,7 @@ function requestOrigin(req: NextRequest): string {
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
   const proto = req.headers.get("x-forwarded-proto") || "http";
   if (host) return `${proto}://${host}`;
-  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:2042";
+  return process.env.NEXT_PUBLIC_SITE_URL || `http://localhost:${APP_PORT}`;
 }
 
 function serializePartner(row: {

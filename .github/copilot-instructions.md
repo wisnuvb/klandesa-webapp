@@ -17,7 +17,7 @@
 
 ## Build And Test
 
-- Start local development with `npm run dev`. This app runs on port `2042`, not the Next.js default.
+- Start local development with `npm run dev`. This app runs on the port in `config/port.json` (currently `2042`), not the Next.js default.
 - Use `npm run build` for production verification and `npm run lint .` before finishing substantial code changes.
 - Database workflows use `npm run db:seed`, `npm run db:verify-fk`, `npm run db:reset`, and `npm run db:studio`.
 - API smoke tests are documented in `TESTING.md` and can be run with `npm run test:api` after the dev server is running.

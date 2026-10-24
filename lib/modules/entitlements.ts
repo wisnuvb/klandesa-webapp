@@ -41,21 +41,24 @@ const CORE_STARTER_IDS = new Set([
   "arsip",
   "pengaturan-desa",
   "billing",
-]);
-
-const PROFESIONAL_IDS = new Set([
+  // Resource-limited modules — accessible to all tiers, capacity varies
   "keuangan",
-  "lingkungan",
-  "pertanian",
-  "partisipasi-rtrw",
   "bumdes",
   "pkk",
   "sdgs",
+  "peta-infrastruktur",
+  "sinkronisasi-data",
+]);
+
+const PROFESIONAL_IDS = new Set([
+  "lingkungan",
+  "pertanian",
+  "partisipasi-rtrw",
   "rpjmdes",
   "website",
 ]);
 
-const ENTERPRISE_IDS = new Set(["peta-infrastruktur", "sinkronisasi-data"]);
+const ENTERPRISE_IDS = new Set<string>();
 
 const ADDON_ONLY: Record<string, string> = {
   "asisten-ai": "ai_credits",
@@ -123,12 +126,24 @@ export type ActiveModuleSub = {
   expiryDate: Date;
 };
 
+/** Module IDs that are accessible to all tiers but with resource limits for Starter. */
+export const RESOURCE_LIMITED_IDS = new Set([
+  "keuangan",
+  "bumdes",
+  "pkk",
+  "sdgs",
+  "peta-infrastruktur",
+  "sinkronisasi-data",
+]);
+
 export type ModuleAccessResult = {
   entitled: boolean;
   source: "package" | "addon" | null;
   minPackageTier: PackageTier;
   addonMonthlyFee: number | null;
   locked: boolean;
+  /** True when the module is accessible but resource-limited (Starter without add-on). */
+  hasResourceLimit?: boolean;
   /** ISO expiry add-on bulanan (jika akses via add-on). */
   addonExpiry?: string | null;
   addonDaysRemaining?: number | null;
@@ -216,12 +231,20 @@ export function resolveModuleAccess(
     opts.subscriptionReadable &&
     (inPackage || hasAddon || websiteEntitled);
 
+  const hasResourceLimit =
+    RESOURCE_LIMITED_IDS.has(moduleId) &&
+    opts.subscriptionReadable &&
+    Boolean(entitled) &&
+    !hasAddon &&
+    effectiveTier === "starter";
+
   return {
     entitled: Boolean(entitled),
     source: inPackage ? "package" : hasAddon || websiteEntitled ? "addon" : null,
     minPackageTier: ent.minPackageTier,
     addonMonthlyFee: getModuleAddonMonthlyFee(addonCode),
     locked: opts.subscriptionReadable && !entitled,
+    hasResourceLimit,
     addonExpiry: activeAddon ? activeAddon.expiryDate.toISOString() : null,
     addonDaysRemaining,
   };

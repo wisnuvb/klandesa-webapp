@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import "@/env";
+import { port as APP_PORT } from "@/config/port.json";
 import { parse as parseCookieHeader } from "cookie";
 import type { NextAuthOptions, DefaultSession, Session } from "next-auth";
 import { cookies, headers } from "next/headers";
@@ -96,12 +97,12 @@ providers.push(
       turnstileToken: { label: "Turnstile", type: "text" },
     },
     async authorize(credentials) {
-      // Panggilan server→server ke API login: pakai NEXTAUTH_URL_INTERNAL (mis. http://127.0.0.1:2042)
-      // agar stabil; NEXTAUTH_URL tetap untuk origin di browser (mis. http://my.localhost:2042).
+      // Panggilan server→server ke API login: pakai NEXTAUTH_URL_INTERNAL (mis. http://127.0.0.1:<port>)
+      // agar stabil; NEXTAUTH_URL tetap untuk origin di browser (mis. http://my.localhost:<port>).
       const baseUrl =
         process.env.NEXTAUTH_URL_INTERNAL ||
         process.env.NEXTAUTH_URL ||
-        "http://127.0.0.1:2042";
+        `http://127.0.0.1:${APP_PORT}`;
 
       try {
         const res = await fetch(`${baseUrl}/api/auth/login`, {

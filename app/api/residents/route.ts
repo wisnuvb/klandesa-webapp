@@ -143,8 +143,21 @@ export async function GET(req: NextRequest) {
     const sortOrder =
       (url.searchParams.get("sortOrder") as "asc" | "desc") ?? undefined;
     const search = url.searchParams.get("search") ?? undefined;
-    const gender = url.searchParams.get("gender") ?? undefined; // Laki-laki, Perempuan
-    const status = url.searchParams.get("status") ?? undefined; // Belum Kawin, Kawin, Cerai Hidup, Cerai Mati
+    const gender = url.searchParams.get("gender") ?? undefined;
+    const status = url.searchParams.get("status") ?? undefined;
+    const religion = url.searchParams.get("religion") ?? undefined;
+    const education = url.searchParams.get("education") ?? undefined;
+    const occupation = url.searchParams.get("occupation") ?? undefined;
+    const familyRole = url.searchParams.get("familyRole") ?? undefined;
+    const hamlet = url.searchParams.get("hamlet") ?? undefined;
+    const rt = url.searchParams.get("rt") ?? undefined;
+    const rw = url.searchParams.get("rw") ?? undefined;
+    const ageMin = url.searchParams.get("ageMin") ?? undefined;
+    const ageMax = url.searchParams.get("ageMax") ?? undefined;
+    const isDisability = url.searchParams.get("isDisability") ?? undefined;
+    const isBpjsKis = url.searchParams.get("isBpjsKis") ?? undefined;
+    const isStunting = url.searchParams.get("isStunting") ?? undefined;
+    const isPregnant = url.searchParams.get("isPregnant") ?? undefined;
 
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
@@ -167,6 +180,36 @@ export async function GET(req: NextRequest) {
     ) {
       where.maritalStatus = status;
     }
+    if (religion) where.religion = religion;
+    if (education) where.education = education;
+    if (occupation) where.occupation = occupation;
+    if (familyRole) where.familyRole = familyRole;
+    if (hamlet) where.hamlet = { contains: hamlet };
+    if (rt) where.rt = rt;
+    if (rw) where.rw = rw;
+    if (ageMin || ageMax) {
+      const today = new Date();
+      const birthDateFilter: Prisma.DateTimeFilter = {};
+      if (ageMax) {
+        const minBirth = new Date(today);
+        minBirth.setFullYear(today.getFullYear() - Number(ageMax) - 1);
+        birthDateFilter.gte = minBirth;
+      }
+      if (ageMin) {
+        const maxBirth = new Date(today);
+        maxBirth.setFullYear(today.getFullYear() - Number(ageMin));
+        birthDateFilter.lte = maxBirth;
+      }
+      where.birthDate = birthDateFilter;
+    }
+    if (isDisability === "true") where.isDisability = true;
+    else if (isDisability === "false") where.isDisability = false;
+    if (isBpjsKis === "true") where.isBpjsKis = true;
+    else if (isBpjsKis === "false") where.isBpjsKis = false;
+    if (isStunting === "true") where.isStunting = true;
+    else if (isStunting === "false") where.isStunting = false;
+    if (isPregnant === "true") where.isPregnant = true;
+    else if (isPregnant === "false") where.isPregnant = false;
 
     let orderBy: Prisma.ResidentOrderByWithRelationInput | undefined = undefined;
     if (sortKey) {

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import { Card, Empty } from '@/components/cards';
-import { Button, ErrorBanner, Screen, Title } from '@/components/ui';
+import { Button, ErrorBanner, PageBand, Screen } from '@/components/ui';
 import { ApiError, post } from '@/lib/api';
 import { timeAgoId } from '@/lib/format';
 import {
@@ -140,8 +140,7 @@ export default function Antrean() {
   const invalidate = useInvalidateStaff();
 
   return (
-    <Screen onRefresh={invalidate} refreshing={summary.isRefetching}>
-      <Title>Antrean</Title>
+    <Screen header={<PageBand title="Antrean" />} onRefresh={invalidate} refreshing={summary.isRefetching}>
       <Segmented value={tab} onChange={setTab} badges={{ surat: c?.pendingMail, laporan: c?.newReports, pendaftaran: c?.pendingSignups }} />
       {tab === 'surat' ? <MailList /> : tab === 'laporan' ? <ReportList /> : <SignupList />}
     </Screen>

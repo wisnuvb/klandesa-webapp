@@ -5,7 +5,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Card, Empty, SectionTitle } from '@/components/cards';
-import { Body, Button, ErrorBanner, Screen, Title } from '@/components/ui';
+import { Body, Button, ErrorBanner, PageBand, Screen } from '@/components/ui';
 import { ApiError, post } from '@/lib/api';
 import { useAttendanceHistory, useAttendanceToday } from '@/lib/queries';
 import { colors, spacing } from '@/theme';
@@ -45,8 +45,7 @@ export default function Absen() {
   const s = history.data?.summary;
 
   return (
-    <Screen onRefresh={refresh} refreshing={today.isRefetching}>
-      <Title>Absensi</Title>
+    <Screen header={<PageBand title="Absensi" />} onRefresh={refresh} refreshing={today.isRefetching}>
       {today.isLoading ? <ActivityIndicator color={colors.primary} /> : null}
       {today.isError ? <ErrorBanner message={today.error instanceof ApiError ? today.error.message : 'Gagal memuat absensi.'} /> : null}
       <ErrorBanner message={error} />

@@ -3,7 +3,9 @@ import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 
 import { registerPush } from '@/lib/push';
+import { useOutboxFlusher } from '@/lib/use-outbox';
 import { useSession } from '@/state/session';
+import { StackHeader } from '@/components/ui';
 import { colors } from '@/theme';
 
 function openDeepLink(data: unknown) {
@@ -12,7 +14,9 @@ function openDeepLink(data: unknown) {
 }
 
 export default function AppLayout() {
-  const isStaff = useSession().profile?.account.type === 'staff';
+  const profile = useSession().profile;
+  const isStaff = profile?.account.type === 'staff';
+  useOutboxFlusher(profile && !isStaff ? profile.account.id : undefined);
   useEffect(() => {
     void registerPush({ ask: false }); // perbarui token bila izin sudah diberikan sebelumnya
     // Ketuk notifikasi saat app dibuka (latar/depan) maupun dari kondisi tertutup.
@@ -24,15 +28,16 @@ export default function AppLayout() {
   return (
     <Stack
       screenOptions={{
-        headerTintColor: colors.primary,
-        headerTitleStyle: { color: colors.text },
-        headerShadowVisible: false,
-        headerBackTitle: 'Kembali',
+        header: ({ options, back, navigation }) => (
+          <StackHeader title={typeof options.title === 'string' ? options.title : undefined} onBack={back && options.headerBackVisible !== false ? () => navigation.goBack() : undefined} />
+        ),
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="notifikasi" options={{ title: 'Notifikasi' }} />
+      <Stack.Screen name="info-desa" options={{ title: 'Info desa' }} />
+      <Stack.Screen name="dana-desa" options={{ title: 'Dana desa' }} />
       <Stack.Protected guard={!isStaff}>
         <Stack.Screen name="surat/baru" options={{ title: 'Buat surat' }} />
         <Stack.Screen name="surat/[id]" options={{ title: 'Status surat' }} />
@@ -40,6 +45,9 @@ export default function AppLayout() {
         <Stack.Screen name="lapor/baru" options={{ title: 'Lapor masalah' }} />
         <Stack.Screen name="lapor/[id]" options={{ title: 'Status laporan' }} />
         <Stack.Screen name="keluarga" options={{ title: 'Keluarga saya' }} />
+        <Stack.Screen name="bantuan" options={{ title: 'Bantuan saya' }} />
+        <Stack.Screen name="koreksi" options={{ title: 'Koreksi data' }} />
+        <Stack.Screen name="rt/surat/[id]" options={{ title: 'Pengantar RT' }} />
         <Stack.Screen name="hapus-akun" options={{ title: 'Hapus akun' }} />
         <Stack.Screen name="warga/baru" options={{ title: 'Postingan baru' }} />
         <Stack.Screen name="warga/[id]" options={{ title: 'Postingan' }} />
@@ -57,6 +65,9 @@ export default function AppLayout() {
         <Stack.Screen name="staff/warga/[id]" options={{ title: 'Data warga' }} />
         <Stack.Screen name="staff/moderasi" options={{ title: 'Moderasi Warga' }} />
         <Stack.Screen name="staff/pengaturan-warga" options={{ title: 'Pengaturan Warga' }} />
+        <Stack.Screen name="staff/rt-penugasan" options={{ title: 'Ketua RT' }} />
+        <Stack.Screen name="staff/koreksi" options={{ title: 'Koreksi data warga' }} />
+        <Stack.Screen name="staff/pengaturan-desa" options={{ title: 'Pengaturan Info Desa' }} />
       </Stack.Protected>
     </Stack>
   );

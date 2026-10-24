@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatDateId, greetingId, timeAgoId } from '../src/lib/format.ts';
+import { dialNumber, formatDateId, formatRupiahShort, greetingId, timeAgoId } from '../src/lib/format.ts';
 
 describe('format tanggal & waktu', () => {
   it('tanggal Indonesia', () => {
@@ -21,5 +21,23 @@ describe('format tanggal & waktu', () => {
     assert.equal(greetingId(13), 'Selamat siang');
     assert.equal(greetingId(16), 'Selamat sore');
     assert.equal(greetingId(20), 'Selamat malam');
+  });
+});
+
+describe('format rupiah & telepon', () => {
+  it('rupiah ringkas', () => {
+    assert.equal(formatRupiahShort(0), 'Rp 0');
+    assert.equal(formatRupiahShort(850), 'Rp 850');
+    assert.equal(formatRupiahShort(850_000), 'Rp 850 ribu');
+    assert.equal(formatRupiahShort(1_240_000), 'Rp 1,2 juta');
+    assert.equal(formatRupiahShort(3_450_000_000), 'Rp 3,5 miliar');
+    assert.equal(formatRupiahShort(-5), 'Rp 0');
+    assert.equal(formatRupiahShort(Number.NaN), 'Rp 0');
+  });
+  it('nomor telepon', () => {
+    assert.equal(dialNumber(' (0334) 123-456 '), '0334123456');
+    assert.equal(dialNumber('+62 812-3456'), '+628123456');
+    assert.equal(dialNumber('12'), null);
+    assert.equal(dialNumber(null), null);
   });
 });

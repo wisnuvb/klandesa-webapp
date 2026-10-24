@@ -6,7 +6,7 @@ export const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
 });
 
-export type Step = { key: 'sent' | 'review' | 'done'; label: string; state: 'done' | 'current' | 'todo' | 'failed'; at: string | null };
+export type Step = { key: 'sent' | 'rt' | 'review' | 'done'; label: string; state: 'done' | 'current' | 'todo' | 'failed'; at: string | null };
 export type Stage = 'sent' | 'approved' | 'ready' | 'rejected' | 'working' | 'done';
 
 export type Home = {
@@ -106,7 +106,7 @@ export type StaffMailRow = { id: number; number: string; type: string; name: str
 export type StaffMailDetail = StaffMailRow & {
   note: string | null; notes: string | null; rejectionReason: string | null;
   purpose: string; resident: { address: string; rt: string | null; rw: string | null; hamlet: string | null; birthDate: string; birthplace: string; occupation: string | null } | null;
-  letterIssued: boolean; canDecide: boolean;
+  letterIssued: boolean; canDecide: boolean; waitingRt?: boolean;
 };
 export type StaffReportRow = { id: number; title: string; category: string; status: string; stage: Stage; reporter: string; photos: number; thumb: string | null; createdAt: string; source: 'mobile' | 'web' };
 export type StaffReportDetail = {
@@ -206,3 +206,71 @@ export type ModItem = {
 };
 export const useModQueue = () => useQuery({ queryKey: ['mod-queue'], queryFn: () => api<{ mode: string; pending: ModItem[]; flagged: ModItem[] }>('/staff/social/queue') });
 export const useSocialSettings = () => useQuery({ queryKey: ['mod-settings'], queryFn: () => api<{ mode: 'off' | 'post' | 'pre'; bannedWords: string[] }>('/staff/social/settings') });
+
+export type VillageProfile = {
+  village: { name: string; district: string; regency: string; province: string; address: string; postalCode: string | null; phone: string | null; email: string | null; website: string | null; logoUrl: string | null };
+  serviceHours: string | null;
+  emergencyContacts: { label: string; phone: string }[];
+  budgetPublic: boolean;
+  officials: { id: number; name: string; position: string; photoUrl: string | null }[];
+};
+export type BudgetSummaryResponse = {
+  enabled: boolean;
+  year: number | null;
+  years: number[];
+  summary: { totalBudget: number; totalRealized: number; percent: number; categories: { name: string; budget: number; realized: number; percent: number }[] } | null;
+};
+export type BenefitsMine = {
+  entries: { id: number; programName: string; periodLabel: string | null; status: string; summary: string }[];
+  disclaimers: string[];
+  nationalResources: { title: string; description: string; href: string }[];
+};
+
+export const useVillageProfile = () => useQuery({ queryKey: ['village-profile'], queryFn: () => api<VillageProfile>('/village/profile'), staleTime: 10 * 60_000 });
+export const useBudgetSummary = (year?: number) =>
+  useQuery({ queryKey: ['budget-summary', year ?? 'latest'], queryFn: () => api<BudgetSummaryResponse>(`/village/budget-summary${year ? `?year=${year}` : ''}`), staleTime: 10 * 60_000 });
+export const useBenefits = () => useQuery({ queryKey: ['benefits-mine'], queryFn: () => api<BenefitsMine>('/benefits/mine'), staleTime: 5 * 60_000 });
+
+export type VillageInfoSettings = { budgetPublic: boolean; emergencyContacts: { label: string; phone: string }[]; serviceHours: string | null; rtApproval: boolean };
+export const useVillageInfoSettings = () => useQuery({ queryKey: ['village-info-settings'], queryFn: () => api<VillageInfoSettings>('/staff/village-info') });
+
+export type DataChangeRow = {
+  id: number; forName: string; field: string; fieldLabel: string; newValue: string | null;
+  status: 'pending' | 'approved' | 'rejected'; statusLabel: string; applied: boolean; reviewNote: string | null; createdAt: string;
+};
+export const useDataChanges = () => useQuery({ queryKey: ['data-changes'], queryFn: () => api<{ items: DataChangeRow[] }>('/me/data-changes') });
+export function useCreateDataChange() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (b: { residentId: number; field: string; value: string; note?: string }) => post<{ id: number }>('/me/data-changes', b),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['data-changes'] }),
+  });
+}
+
+export type StaffDataChange = {
+  id: number; residentName: string; nikMasked: string | null; field: string; fieldLabel: string; oldValue: string | null; newValue: string | null;
+  note: string | null; autoApply: boolean; status: string; reviewNote: string | null; applied: boolean; createdAt: string;
+};
+export const useStaffDataChanges = (scope: 'pending' | 'done') =>
+  useQuery({ queryKey: ['staff-data-changes', scope], queryFn: () => api<{ items: StaffDataChange[] }>(`/staff/data-changes?scope=${scope}`) });
+
+
+export type MeRole = { role: 'rt'; rt: string; rw: string | null };
+export const useMe = () => useQuery({ queryKey: ['me'], queryFn: () => api<{ roles: MeRole[] }>('/me'), staleTime: 5 * 60_000 });
+export const useRtRole = () => useMe().data?.roles.find((r) => r.role === 'rt') ?? null;
+
+export type RtRequestRow = { id: number; type: string; name: string; nikMasked: string; purpose: string; onBehalf: boolean; rtStatus: string; createdAt: string; decidedAt: string | null };
+export type RtRequestDetail = {
+  id: number; type: string; name: string; nikMasked: string; purpose: string; note: string | null; onBehalf: boolean; createdAt: string;
+  rtStatus: string; rtNote: string | null; decidedAt: string | null; canDecide: boolean;
+  resident: { address: string; birthDate: string; occupation: string | null; familyRole: string } | null;
+};
+export type RtResident = { id: number; name: string; nikMasked: string; familyRole: string; birthDate: string; gender: string; kkMasked: string | null };
+
+export const useRtSummary = (enabled = true) => useQuery({ queryKey: ['rt-summary'], queryFn: () => api<{ name: string; rt: string; rw: string | null; pendingRequests: number }>('/rt/summary'), enabled, refetchInterval: 120_000 });
+export const useRtRequests = (scope: 'pending' | 'done') => useQuery({ queryKey: ['rt-requests', scope], queryFn: () => api<{ items: RtRequestRow[] }>(`/rt/requests?scope=${scope}`) });
+export const useRtRequest = (id: number) => useQuery({ queryKey: ['rt-request', id], queryFn: () => api<RtRequestDetail>(`/rt/requests/${id}`), enabled: Number.isInteger(id) });
+export const useRtResidents = (q: string) => useQuery({ queryKey: ['rt-residents', q], queryFn: () => api<{ items: RtResident[]; capped: boolean }>(`/rt/residents?q=${encodeURIComponent(q)}`), staleTime: 30_000 });
+
+export type RtAssignment = { id: number; residentId: number; name: string; nikMasked: string | null; rt: string | null; rw: string | null; hasAccount: boolean };
+export const useRtAssignments = () => useQuery({ queryKey: ['rt-assignments'], queryFn: () => api<{ items: RtAssignment[] }>('/staff/rt-assignments') });

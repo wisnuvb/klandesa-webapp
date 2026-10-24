@@ -8,6 +8,8 @@ import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+import { isAddonActive, pkkLimit } from "@/lib/modules/resource-limits";
+import { loadActiveModuleSubs } from "@/lib/modules/require-module";
 
 const SORT_KEYS = new Set(["rt", "rw", "leaderName", "memberCount", "sessionCount"]);
 
@@ -41,7 +43,8 @@ export async function GET(req: NextRequest) {
       ...(searchFilter ?? {}),
     };
 
-    const [total, rows] = await prisma.$transaction([
+    const [addons, total, rows] = await Promise.all([
+      loadActiveModuleSubs(village.id),
       prisma.dasawisma.count({ where }),
       prisma.dasawisma.findMany({
         where,
@@ -53,6 +56,11 @@ export async function GET(req: NextRequest) {
         },
       }),
     ]);
+
+    const hasAddon = isAddonActive("pkk", addons);
+    const limit = pkkLimit(village.subscriptionPlan, village.subscriptionStatus, hasAddon);
+    const cap = limit?.dasawisma ?? null;
+    const isOverLimit = cap !== null && total > cap;
 
     return NextResponse.json({
       rows: rows.map((d) => ({
@@ -66,6 +74,9 @@ export async function GET(req: NextRequest) {
         updatedAt: d.updatedAt.toISOString(),
       })),
       total,
+      limit: cap,
+      isOverLimit,
+      hiddenCount: isOverLimit ? total - cap! : 0,
     });
   } catch (e) {
     console.error("GET /api/pkk/dasawisma", e);
@@ -81,6 +92,18 @@ export async function POST(req: NextRequest) {
     const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
+    }
+
+    const [addonsPost, dasawismaCount] = await Promise.all([
+      loadActiveModuleSubs(village.id),
+      prisma.dasawisma.count({ where: { villageId: village.id } }),
+    ]);
+    const postLimit = pkkLimit(village.subscriptionPlan, village.subscriptionStatus, isAddonActive("pkk", addonsPost));
+    if (postLimit !== null && dasawismaCount >= postLimit.dasawisma) {
+      return NextResponse.json(
+        { error: "RESOURCE_LIMIT_REACHED", limit: postLimit.dasawisma, current: dasawismaCount, module: "pkk", billingUrl: "/billing?module=pkk" },
+        { status: 402 },
+      );
     }
 
     const body = await req.json().catch(() => null);

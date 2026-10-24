@@ -1,18 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   DataTable,
   type DataTableFetchParams,
   type DataTableFetchResult,
 } from "@/components/ui/data-table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Plus,
   MoreVertical,
@@ -20,6 +13,7 @@ import {
   FileText,
   Download,
   Upload,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { DetailResidentModal } from "./DetailResidentModal";
@@ -36,6 +30,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Resident } from "@prisma/client";
 import { ExportDataModal } from "./ExportDataModal";
+import {
+  FilterWargaModal,
+  type WargaFilters,
+  DEFAULT_FILTERS,
+  countActiveFilters,
+} from "./FilterWargaModal";
 
 interface DataWargaTableProps {
   refreshKey?: number;
@@ -48,25 +48,17 @@ export const DataWargaTable = ({
   onRefresh,
   setShowExcelDialog,
 }: DataWargaTableProps) => {
-  const [filterGender, setFilterGender] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filters, setFilters] = useState<WargaFilters>(DEFAULT_FILTERS);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [selectedResident, setSelectedResident] = useState<Resident | null>(
-    null
-  );
+  const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [, setExportFormat] = useState<"excel" | "csv" | "pdf">(
-    "excel"
-  );
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [, setExportFormat] = useState<"excel" | "csv" | "pdf">("excel");
 
-  // Memoize filters object to prevent unnecessary re-renders
-  const filters = useMemo(
-    () => ({ gender: filterGender, status: filterStatus }),
-    [filterGender, filterStatus]
-  );
+  const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
 
   // Memoize initialSort to prevent unnecessary re-renders
   const initialSort = useMemo(
@@ -90,35 +82,29 @@ export const DataWargaTable = ({
   );
 
   const fetchWarga = useCallback(
-    async (
-      params: DataTableFetchParams
-    ): Promise<DataTableFetchResult<Resident>> => {
-      const filters = (params.filters ?? {}) as {
-        gender?: "all" | "Laki-laki" | "Perempuan";
-        status?:
-          | "all"
-          | "Belum Menikah"
-          | "Menikah"
-          | "Cerai Hidup"
-          | "Cerai Mati";
-      };
+    async (params: DataTableFetchParams): Promise<DataTableFetchResult<Resident>> => {
+      const f = (params.filters ?? {}) as unknown as WargaFilters;
       const qs = new URLSearchParams();
       qs.set("page", String(params.page));
       qs.set("pageSize", String(params.pageSize));
       if (params.sortKey) qs.set("sortKey", params.sortKey);
       if (params.sortOrder) qs.set("sortOrder", params.sortOrder);
       if (params.search) qs.set("search", params.search);
-      if (filters.gender && filters.gender !== "all")
-        qs.set("gender", filters.gender);
-      if (filters.status && filters.status !== "all") {
-        const map: Record<string, string> = {
-          "Belum Menikah": "Belum Menikah",
-          Menikah: "Menikah",
-          "Cerai Hidup": "Cerai Hidup",
-          "Cerai Mati": "Cerai Mati",
-        };
-        qs.set("status", map[filters.status] ?? filters.status);
-      }
+      if (f.gender && f.gender !== "all") qs.set("gender", f.gender);
+      if (f.status && f.status !== "all") qs.set("status", f.status);
+      if (f.religion && f.religion !== "all") qs.set("religion", f.religion);
+      if (f.education && f.education !== "all") qs.set("education", f.education);
+      if (f.occupation && f.occupation !== "all") qs.set("occupation", f.occupation);
+      if (f.familyRole && f.familyRole !== "all") qs.set("familyRole", f.familyRole);
+      if (f.hamlet?.trim()) qs.set("hamlet", f.hamlet.trim());
+      if (f.rt?.trim()) qs.set("rt", f.rt.trim());
+      if (f.rw?.trim()) qs.set("rw", f.rw.trim());
+      if (f.ageMin) qs.set("ageMin", f.ageMin);
+      if (f.ageMax) qs.set("ageMax", f.ageMax);
+      if (f.isDisability !== "all") qs.set("isDisability", f.isDisability);
+      if (f.isBpjsKis !== "all") qs.set("isBpjsKis", f.isBpjsKis);
+      if (f.isStunting !== "all") qs.set("isStunting", f.isStunting);
+      if (f.isPregnant !== "all") qs.set("isPregnant", f.isPregnant);
       const res = await fetch(`/api/residents?${qs.toString()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Gagal memuat data");
@@ -141,34 +127,20 @@ export const DataWargaTable = ({
 
     return (
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="gender">JK:</Label>
-          <Select value={filterGender} onValueChange={setFilterGender}>
-            <SelectTrigger id="gender" className="w-30">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua</SelectItem>
-              <SelectItem value="Laki-laki">Laki-laki</SelectItem>
-              <SelectItem value="Perempuan">Perempuan</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor="status">Status:</Label>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger id="status" className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua</SelectItem>
-              <SelectItem value="Belum Menikah">Belum Menikah</SelectItem>
-              <SelectItem value="Menikah">Menikah</SelectItem>
-              <SelectItem value="Cerai Hidup">Cerai Hidup</SelectItem>
-              <SelectItem value="Cerai Mati">Cerai Mati</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowFilterModal(true)}
+          className="gap-2 relative"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filter
+          {activeFilterCount > 0 && (
+            <Badge className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+              {activeFilterCount}
+            </Badge>
+          )}
+        </Button>
+
         <div className="ml-auto space-x-2">
           <Button onClick={() => setShowAddModal(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Tambah Warga
@@ -204,7 +176,7 @@ export const DataWargaTable = ({
         </div>
       </div>
     );
-  }, [filterGender, filterStatus, setShowExcelDialog]);
+  }, [activeFilterCount, setShowExcelDialog]);
 
   return (
     <Card>
@@ -221,11 +193,18 @@ export const DataWargaTable = ({
           initialPageSize={10}
           initialSort={initialSort}
           rowKey={(w) => w.id}
-          filters={filters}
+          filters={filters as unknown as Record<string, unknown>}
           toolbar={toolbar}
           manualRefreshKey={refreshKey}
         />
       </CardContent>
+
+      <FilterWargaModal
+        open={showFilterModal}
+        onOpenChange={setShowFilterModal}
+        filters={filters}
+        onApply={setFilters}
+      />
 
       <DetailResidentModal
         resident={selectedResident}
@@ -250,8 +229,8 @@ export const DataWargaTable = ({
         open={showExportModal}
         onOpenChange={setShowExportModal}
         currentFilters={{
-          gender: filterGender,
-          status: filterStatus,
+          gender: filters.gender,
+          status: filters.status,
         }}
       />
     </Card>

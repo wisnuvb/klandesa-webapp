@@ -1,4 +1,5 @@
 import { requireAuthSecret } from "@/lib/auth-secret";
+import { port as APP_PORT } from "@/config/port.json";
 import jwt from "jsonwebtoken";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,7 +8,7 @@ function getOrigin(req: NextRequest) {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   if (host) return `${proto}://${host}`;
   if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL.replace(/\/$/, "");
-  return "http://localhost:3000";
+  return `http://localhost:${APP_PORT}`;
 }
 
 /**

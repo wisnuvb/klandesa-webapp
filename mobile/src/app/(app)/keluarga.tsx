@@ -33,12 +33,14 @@ export default function Keluarga() {
           {m.canActFor ? (
             <View style={{ marginTop: spacing.sm }}>
               <Button label="Buat surat untuk ini" variant="secondary" onPress={() => router.push('/layanan')} />
+              <Button label="Koreksi data ini" variant="link" onPress={() => router.push({ pathname: '/koreksi', params: { residentId: String(m.id) } })} />
             </View>
           ) : null}
         </Card>
       ))}
-      <Body muted>Ada data yang salah? Sampaikan ke kantor desa agar diperbaiki.</Body>
-      <ContactVillageButton label="Hubungi Kantor Desa untuk koreksi" />
+      <Body muted>Ada data yang salah? Ajukan koreksi, perangkat desa akan memeriksanya.</Body>
+      <Button label="Ajukan koreksi data" onPress={() => router.push('/koreksi')} />
+      <ContactVillageButton label="Hubungi Kantor Desa" />
     </Screen>
   );
 }

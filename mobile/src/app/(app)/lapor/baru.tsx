@@ -9,7 +9,9 @@ import { ActivityIndicator, Pressable, Switch, Text, View } from 'react-native';
 import { Card } from '@/components/cards';
 import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
 import { ApiError } from '@/lib/api';
+import { addToOutbox } from '@/lib/outbox';
 import { useCreateReport } from '@/lib/queries';
+import { useSession } from '@/state/session';
 import { uploadReportPhoto } from '@/lib/upload';
 import { colors, spacing } from '@/theme';
 
@@ -28,6 +30,8 @@ const ORDER: Step[] = ['photo', 'issue', 'place', 'review'];
 
 export default function NewReport() {
   const create = useCreateReport();
+  const accountId = useSession().profile?.account.id;
+  const [queued, setQueued] = useState(false);
   const [step, setStep] = useState<Step>('photo');
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [category, setCategory] = useState<string | null>(null);
@@ -92,18 +96,35 @@ export default function NewReport() {
 
   async function send() {
     setError(null);
+    const input = {
+      category: category!, content: content.trim(), photos: photos.map((p) => p.url!).filter(Boolean),
+      isAnonymous: anon, isPublic,
+      ...(coords ? { location: { lat: coords.lat, lng: coords.lng } } : {}),
+      ...(note.trim() ? { locationNote: note.trim() } : {}),
+    };
     try {
-      const r = await create.mutateAsync({
-        category: category!, content: content.trim(), photos: photos.map((p) => p.url!).filter(Boolean),
-        isAnonymous: anon, isPublic,
-        ...(coords ? { location: { lat: coords.lat, lng: coords.lng } } : {}),
-        ...(note.trim() ? { locationNote: note.trim() } : {}),
-      });
+      const r = await create.mutateAsync(input);
       setDoneId(r.id);
       setStep('done');
     } catch (e) {
+      // Tanpa sinyal: simpan di HP dan kirim otomatis nanti, jangan buang ketikan warga.
+      if (e instanceof ApiError && e.code === 'NETWORK' && accountId != null && (await addToOutbox(accountId, 'report', `Laporan: ${content.trim().slice(0, 40)}`, input))) {
+        setQueued(true);
+        setStep('done');
+        return;
+      }
       setError(e instanceof ApiError ? e.message : 'Terjadi kesalahan. Coba lagi.');
     }
+  }
+
+  if (step === 'done' && queued) {
+    return (
+      <Screen footer={<Button label="Kembali ke beranda" onPress={() => router.replace('/')} />}>
+        <Title>Laporan tersimpan</Title>
+        <Body>Sinyal sedang tidak ada. Laporan Anda aman di HP dan akan dikirim otomatis saat sinyal kembali.</Body>
+        <Body muted>Buka aplikasi sesekali agar pengirimannya jalan.</Body>
+      </Screen>
+    );
   }
 
   if (step === 'done' && doneId) {

@@ -3,7 +3,8 @@
 # Script untuk testing API endpoints
 # Jalankan: npm run test:api
 
-API_URL="http://localhost:3000/api"
+PORT=$(node -p "require('./config/port.json').port")
+API_URL="http://localhost:${PORT}/api"
 VILLAGE_CODE="DESA001"
 
 echo "🧪 Testing Village Potentials API Endpoints"

@@ -6,7 +6,9 @@ import { Card } from '@/components/cards';
 import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { registerPush } from '@/lib/push';
+import { addToOutbox } from '@/lib/outbox';
 import { useCreateRequest, useFamily } from '@/lib/queries';
+import { useSession } from '@/state/session';
 import { colors, spacing } from '@/theme';
 
 const QUICK_PURPOSES = ['Melamar kerja', 'Bank / pinjaman', 'Sekolah / beasiswa', 'Urusan instansi', 'Lainnya'];
@@ -18,6 +20,8 @@ export default function NewMail() {
   const templateId = Number(p.templateId);
   const family = useFamily();
   const create = useCreateRequest();
+  const accountId = useSession().profile?.account.id;
+  const [queued, setQueued] = useState(false);
 
   const others = (family.data?.members ?? []).filter((m) => m.canActFor);
   const canChoose = others.length > 1;
@@ -37,17 +41,34 @@ export default function NewMail() {
 
   async function send() {
     setError(null);
+    const input = {
+      templateId, purpose: purpose.trim(),
+      ...(targetId && targetId !== selfId ? { forResidentId: targetId } : {}),
+    };
     try {
-      const r = await create.mutateAsync({
-        templateId, purpose: purpose.trim(),
-        ...(targetId && targetId !== selfId ? { forResidentId: targetId } : {}),
-      });
+      const r = await create.mutateAsync(input);
       setCreatedId(r.id);
       setStep('done');
       void registerPush({ ask: true }); // momen kontekstual: "mau diberi tahu bila surat selesai?"
     } catch (e) {
+      // Tanpa sinyal: simpan di HP dan kirim otomatis nanti.
+      if (e instanceof ApiError && e.code === 'NETWORK' && accountId != null && (await addToOutbox(accountId, 'mail', `Surat: ${p.name}`, input))) {
+        setQueued(true);
+        setStep('done');
+        return;
+      }
       setError(e instanceof ApiError ? e.message : 'Terjadi kesalahan. Coba lagi.');
     }
+  }
+
+  if (step === 'done' && queued) {
+    return (
+      <Screen footer={<Button label="Kembali ke beranda" onPress={() => router.replace('/')} />}>
+        <Title>Surat tersimpan</Title>
+        <Body>Sinyal sedang tidak ada. Permohonan {p.name} aman di HP dan akan dikirim otomatis saat sinyal kembali.</Body>
+        <Body muted>Buka aplikasi sesekali agar pengirimannya jalan.</Body>
+      </Screen>
+    );
   }
 
   if (step === 'done' && createdId) {

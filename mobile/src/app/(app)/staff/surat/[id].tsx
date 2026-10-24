@@ -104,6 +104,7 @@ export default function StaffMailDetail() {
       <Row k="Catatan pemohon" v={r.note} />
 
       {r.status === 'pending' && !res ? <ErrorBanner message="NIK pemohon tidak cocok dengan data penduduk. Periksa sebelum menyetujui." /> : null}
+      {r.waitingRt ? <Body muted>Menunggu pengantar Ketua RT. Permohonan bisa diputuskan desa setelah RT menyetujui.</Body> : null}
       {r.canDecide && !rejecting ? (
         <Body muted>Setelah disetujui, terbitkan suratnya di web (menu Layanan Surat) agar warga bisa mengunduh PDF-nya dari aplikasi.</Body>
       ) : null}

@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
 import { getCitizenResident } from "@/lib/mobile/citizen-data";
 import { canActForMember, describeMailRequest } from "@/lib/mobile/mail-logic";
-import { notifyVillageStaff } from "@/lib/mobile/notify";
+import { notifyAccount, notifyVillageStaff } from "@/lib/mobile/notify";
+import { listActiveRts } from "@/lib/mobile/rt";
+import { normalizeRtCode, readRtApproval, rtOfficersFor, shouldRequireRt } from "@/lib/mobile/rt-logic";
 
 function requestNumber(villageCode: string): string {
   const d = new Date();
@@ -85,6 +87,15 @@ export async function POST(req: NextRequest) {
     return mobileError("INVALID_REQUEST", `Permohonan ${template.name} untuk ${target.name} masih diproses desa. Tunggu hasilnya dulu.`, 409, { existingId: Number(dup.id) });
   }
 
+  // Tahap pengantar RT (bila desa menyalakan dan ada Ketua RT aktif untuk RT/RW pemohon).
+  const [loc, villageRow, activeRts] = await Promise.all([
+    prisma.resident.findUnique({ where: { id: target.id }, select: { rt: true, rw: true } }),
+    prisma.village.findUnique({ where: { id: ctx.villageId }, select: { settings: true } }),
+    listActiveRts(ctx.villageId),
+  ]);
+  const applicant = { rt: loc?.rt ?? null, rw: loc?.rw ?? null };
+  const needRt = shouldRequireRt({ villageEnabled: readRtApproval(villageRow?.settings), applicant, requesterResidentId: me.id, activeRts });
+
   const created = await prisma.mailRequest.create({
     data: {
       villageId: ctx.villageId,
@@ -99,10 +110,22 @@ export async function POST(req: NextRequest) {
       onBehalfResidentId: target.id === me.id ? null : target.id,
       templateId: template.id,
       formData: note ? { note } : undefined,
+      rtStatus: needRt ? "pending" : null,
+      applicantRt: normalizeRtCode(applicant.rt),
+      applicantRw: normalizeRtCode(applicant.rw),
     },
   });
-  void notifyVillageStaff(ctx.villageId, "mail", {
-    type: "mail_status", title: "Permohonan surat baru", body: `${template.name} - ${target.name}`, deepLink: `/staff/surat/${Number(created.id)}`,
-  });
+  if (needRt) {
+    // Menunggu RT dulu; staf desa baru diberi tahu setelah RT setuju.
+    const officers = rtOfficersFor(applicant, activeRts);
+    const accounts = await prisma.citizenAccount.findMany({ where: { residentId: { in: officers }, status: "ACTIVE" }, select: { id: true } });
+    await Promise.all(accounts.map((a) => notifyAccount("citizen", a.id, ctx.villageId, {
+      type: "mail_status", title: "Pengantar RT menunggu Anda", body: `${template.name} - ${target.name}`, deepLink: `/rt/surat/${Number(created.id)}`,
+    })));
+  } else {
+    void notifyVillageStaff(ctx.villageId, "mail", {
+      type: "mail_status", title: "Permohonan surat baru", body: `${template.name} - ${target.name}`, deepLink: `/staff/surat/${Number(created.id)}`,
+    });
+  }
   return NextResponse.json({ id: Number(created.id), number: created.requestNumber }, { status: 201 });
 }

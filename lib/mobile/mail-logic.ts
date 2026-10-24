@@ -3,7 +3,7 @@
 export type StepState = "done" | "current" | "todo" | "failed";
 export type MailStage = "sent" | "approved" | "ready" | "rejected";
 
-export type MailStep = { key: "sent" | "review" | "done"; label: string; state: StepState; at: string | null };
+export type MailStep = { key: "sent" | "rt" | "review" | "done"; label: string; state: StepState; at: string | null };
 
 export type MailRequestView = {
   stage: MailStage;
@@ -19,15 +19,18 @@ type MailRow = {
   processedDate: Date | null;
   notes: string | null;
   rejectionReason: string | null;
+  /** Tahap pengantar RT (null = tidak ada tahap RT). */
+  rtStatus?: string | null;
+  rtDecidedAt?: Date | null;
 };
 
-const iso = (d: Date | null) => (d ? d.toISOString() : null);
+const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
 /**
  * Status DB (pending/approved/rejected) → bahasa warga. `letterReady` = surat sudah diterbitkan
  * (MailService selesai) sehingga bisa diunduh; bila belum, "disetujui" berarti diproses/ambil di kantor desa.
  */
-export function describeMailRequest(row: MailRow, letterReady: boolean): MailRequestView {
+function describeBase(row: MailRow, letterReady: boolean): MailRequestView {
   const sent: MailStep = { key: "sent", label: "Terkirim", state: "done", at: iso(row.requestDate) };
 
   if (row.status === "rejected") {
@@ -73,6 +76,35 @@ export function describeMailRequest(row: MailRow, letterReady: boolean): MailReq
       { key: "done", label: "Selesai", state: "todo", at: null },
     ],
   };
+}
+
+/** Sisipkan langkah "Pengantar RT" bila permohonan melewati RT. Penolakan RT tampil sebagai langkah RT yang gagal. */
+export function describeMailRequest(row: MailRow, letterReady: boolean): MailRequestView {
+  const base = describeBase(row, letterReady);
+  if (row.rtStatus == null) return base;
+  const [sent, ...rest] = base.steps;
+
+  if (row.rtStatus === "pending" && row.status === "pending") {
+    return {
+      stage: "sent",
+      title: "Menunggu Pak/Bu RT",
+      next: "Permohonan Anda sedang menunggu pengantar dari Ketua RT. Setelah itu baru diperiksa desa.",
+      steps: [sent, { key: "rt", label: "Pengantar RT", state: "current", at: null }, { key: "review", label: "Diperiksa desa", state: "todo", at: null }, rest[rest.length - 1]],
+    };
+  }
+  if (row.rtStatus === "rejected") {
+    return {
+      ...base,
+      next: row.rejectionReason ? `${row.rejectionReason}. Perbaiki lalu kirim lagi, atau temui Ketua RT.` : base.next,
+      steps: [
+        sent,
+        { key: "rt", label: "Pengantar RT", state: "failed", at: iso(row.rtDecidedAt ?? row.processedDate) },
+        { key: "review", label: "Diperiksa desa", state: "todo", at: null },
+        rest[rest.length - 1],
+      ],
+    };
+  }
+  return { ...base, steps: [sent, { key: "rt", label: "Pengantar RT", state: "done", at: iso(row.rtDecidedAt) }, ...rest] };
 }
 
 export type ServiceInput = { id: number; name: string; category: string };

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { toJSONSafe } from "@/utils/json";
 import { loadBumdesApiContext, requireBumdesManage } from "@/lib/bumdes/api-context";
 import { parseOptionalString, parseRequiredString } from "@/lib/bumdes/schemas";
+import { isAddonActive, bumdesLimit } from "@/lib/modules/resource-limits";
+import { loadActiveModuleSubs } from "@/lib/modules/require-module";
 
 export async function GET(req: NextRequest) {
   const loaded = await loadBumdesApiContext(req, { requireExisting: true });
@@ -11,17 +13,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "BUMDes belum dibuat" }, { status: 404 });
   }
 
-  const units = await prisma.bumdesUnit.findMany({
-    where: { bumdesId: loaded.ctx.bumdes!.id },
-    orderBy: [{ status: "asc" }, { name: "asc" }],
-    include: {
-      _count: { select: { transactions: true } },
-    },
-  });
+  const { village } = loaded.ctx;
+  const [addons, units] = await Promise.all([
+    loadActiveModuleSubs(village.id),
+    prisma.bumdesUnit.findMany({
+      where: { bumdesId: loaded.ctx.bumdes!.id },
+      orderBy: [{ status: "asc" }, { name: "asc" }],
+      include: {
+        _count: { select: { transactions: true } },
+      },
+    }),
+  ]);
+
+  const hasAddon = isAddonActive("bumdes", addons);
+  const limit = bumdesLimit(village.subscriptionPlan, village.subscriptionStatus, hasAddon);
+  const cap = limit?.units ?? null;
+  const isOverLimit = cap !== null && units.length > cap;
+  const rows = cap !== null ? units.slice(0, cap) : units;
 
   return NextResponse.json({
     success: true,
-    data: toJSONSafe(units),
+    data: toJSONSafe(rows),
+    limit: cap,
+    total: units.length,
+    hiddenCount: isOverLimit ? units.length - cap! : 0,
+    isOverLimit,
   });
 }
 
@@ -34,6 +50,19 @@ export async function POST(req: NextRequest) {
 
   const deny = requireBumdesManage(loaded.ctx);
   if (deny) return deny;
+
+  const { village } = loaded.ctx;
+  const [addonsPost, currentCount] = await Promise.all([
+    loadActiveModuleSubs(village.id),
+    prisma.bumdesUnit.count({ where: { bumdesId: loaded.ctx.bumdes!.id } }),
+  ]);
+  const postLimit = bumdesLimit(village.subscriptionPlan, village.subscriptionStatus, isAddonActive("bumdes", addonsPost));
+  if (postLimit !== null && currentCount >= postLimit.units) {
+    return NextResponse.json(
+      { error: "RESOURCE_LIMIT_REACHED", limit: postLimit.units, current: currentCount, module: "bumdes", billingUrl: "/billing?module=bumdes" },
+      { status: 402 },
+    );
+  }
 
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") {

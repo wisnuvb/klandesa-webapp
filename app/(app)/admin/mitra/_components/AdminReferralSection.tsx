@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { port as APP_PORT } from "@/config/port.json";
 import { buildPartnerSharePath } from "@/lib/partner/public-page";
 
 type ReferralCodeRow = {
@@ -62,7 +63,7 @@ function formatDate(value: string): string {
 }
 
 function baseUrl(): string {
-  if (typeof window === "undefined") return "http://localhost:2042";
+  if (typeof window === "undefined") return `http://localhost:${APP_PORT}`;
   return window.location.origin;
 }
 

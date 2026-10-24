@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Lock, RefreshCw } from "lucide-react";
+import { Lock, RefreshCw, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ export type ModuleCatalogItem = {
   minPackageTier: PackageTier;
   addonMonthlyFee: number | null;
   locked: boolean;
+  hasResourceLimit?: boolean;
   addonExpiry?: string | null;
   addonDaysRemaining?: number | null;
 };
@@ -37,7 +38,7 @@ export function ModuleCatalogCard({
   const items = Object.entries(modules)
     .filter(([id]) => !["dashboard", "billing", "pengaturan-desa"].includes(id))
     .map(([id, m]) => ({ id, ...m }))
-    .filter((m) => m.locked || m.addonMonthlyFee != null)
+    .filter((m) => m.locked || m.hasResourceLimit || m.addonMonthlyFee != null)
     .sort((a, b) => a.minPackageTier.localeCompare(b.minPackageTier));
 
   if (items.length === 0) return null;
@@ -47,7 +48,7 @@ export function ModuleCatalogCard({
       <CardHeader>
         <CardTitle>Modul & Add-on</CardTitle>
         <CardDescription>
-          Aktifkan modul di luar paket Anda dengan langganan bulanan
+          Hapus batasan atau aktifkan akses penuh dengan langganan bulanan
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -86,7 +87,12 @@ export function ModuleCatalogCard({
                       tier={item.minPackageTier}
                       locked={item.locked}
                     />
-                    {item.entitled && !item.locked && (
+                    {item.hasResourceLimit && (
+                      <span className="text-xs text-amber-600 font-medium">
+                        Terbatas
+                      </span>
+                    )}
+                    {item.entitled && !item.locked && !item.hasResourceLimit && (
                       <span
                         className={
                           addonExpiringSoon
@@ -133,6 +139,23 @@ export function ModuleCatalogCard({
                       <>
                         <Lock className="h-3 w-3 mr-1" />
                         Aktifkan
+                      </>
+                    )}
+                  </Button>
+                )}
+                {item.hasResourceLimit && item.addonMonthlyFee != null && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={checkoutLoading === item.id}
+                    onClick={activatePayload}
+                  >
+                    {checkoutLoading === item.id ? (
+                      "Memproses..."
+                    ) : (
+                      <>
+                        <Zap className="h-3 w-3 mr-1" />
+                        Aktifkan Full Access
                       </>
                     )}
                   </Button>

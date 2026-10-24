@@ -2,6 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Body, Button, ErrorBanner, Screen, Title } from '@/components/ui';
@@ -10,6 +11,7 @@ import { spacing } from '@/theme';
 
 /** Pindai QR absensi yang ditampilkan admin di web (berlaku 5 menit). */
 export default function ScanQr() {
+  const insets = useSafeAreaInsets();
   const [perm, requestPerm] = useCameraPermissions();
   const qc = useQueryClient();
   const busy = useRef(false);
@@ -60,7 +62,7 @@ export default function ScanQr() {
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={(e) => void onScan(e.data)}
       />
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, backgroundColor: 'rgba(0,0,0,0.65)' }}>
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.lg + insets.bottom, backgroundColor: 'rgba(0,0,0,0.65)' }}>
         <ErrorBanner message={error} />
         <Text style={{ color: '#fff', fontSize: 18, textAlign: 'center', fontWeight: '600' }}>Arahkan kamera ke QR absensi</Text>
         <Text style={{ color: '#ddd', fontSize: 14, textAlign: 'center', marginTop: 4 }}>Minta admin menampilkan QR di menu Absensi web (berlaku 5 menit).</Text>

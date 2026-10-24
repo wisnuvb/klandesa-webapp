@@ -31,6 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     status: r.status, notes: r.notes, rejectionReason: r.rejectionReason, createdAt: r.requestDate, processedAt: r.processedDate,
     resident: resident ? { address: resident.address, rt: resident.rt, rw: resident.rw, hamlet: resident.hamlet, birthDate: resident.birthDate, birthplace: resident.birthplace, occupation: resident.occupation } : null,
     letterIssued: !!letter,
-    canDecide: r.status === "pending" && roleCan("mail", "update", normalizeVillageRole(ctx.role)),
+    waitingRt: r.rtStatus === "pending", rtStatus: r.rtStatus, rtNote: r.rtNote,
+    canDecide: r.status === "pending" && r.rtStatus !== "pending" && roleCan("mail", "update", normalizeVillageRole(ctx.role)),
   });
 }
