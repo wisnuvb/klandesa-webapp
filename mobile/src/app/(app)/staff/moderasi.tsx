@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Card, Chip, Empty, SectionTitle } from '@/components/cards';

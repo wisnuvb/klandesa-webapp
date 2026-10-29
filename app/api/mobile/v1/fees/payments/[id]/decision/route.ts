@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
 import { notifyAccount } from "@/lib/mobile/notify";
-import { ownCharge, requireFeeActor } from "@/lib/mobile/fees";
+import { auditFee, ownCharge, requireFeeActor } from "@/lib/mobile/fees";
 
 /** Konfirmasi atau tolak laporan bayar warga. Menolak wajib beralasan. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const res = await prisma.feePayment.updateMany({ where: { id: pay.id, status: "pending" }, data: { status: confirm ? "confirmed" : "rejected", decidedAt: new Date(), decisionNote: note || null } });
   if (res.count !== 1) return mobileError("INVALID_REQUEST", "Laporan ini sudah diputuskan.", 409);
 
+  void auditFee(req, a, confirm ? "confirm_fee_payment" : "reject_fee_payment", "fee_payments", pay.id, { chargeId: pay.chargeId, amount: pay.amount, note: note || undefined });
   if (own.charge.headResidentId) {
     const acc = await prisma.citizenAccount.findUnique({ where: { residentId: own.charge.headResidentId }, select: { id: true, status: true } });
     if (acc?.status === "ACTIVE") {

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Text } from 'react-native';
+import { Text } from '@/components/text';
 
 import { StepTitle } from '@/components/cards';
 import { Button, ErrorBanner, Field, Screen, StepProgress } from '@/components/ui';

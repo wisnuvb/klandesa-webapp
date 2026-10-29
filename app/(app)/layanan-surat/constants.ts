@@ -3,6 +3,7 @@ import {
   DEFAULT_FOOTER_CONFIG,
 } from "@/components/template-builder/types";
 import { MOCK_LETTER_WITH_TEMPLATE } from "@/data/mockLetterWithTemplate";
+import { escapeHtml } from "@/lib/html-escape";
 import type {
   DesaSettings,
   TemplateHeader,
@@ -226,8 +227,8 @@ export function generateHeader(nomor_surat: string, jenis_surat: string): string
     </tr>
   </table>
   <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
-    <div style="text-decoration: underline; font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">${jenis_surat}</div>
-    <div style="font-size: 13px; margin-top: 4px;">Nomor : ${nomor_surat}</div>
+    <div style="text-decoration: underline; font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">${escapeHtml(jenis_surat)}</div>
+    <div style="font-size: 13px; margin-top: 4px;">Nomor : ${escapeHtml(nomor_surat)}</div>
   </div>
 </div>`;
 }
@@ -258,7 +259,7 @@ export function generateFooter(footer: TemplateFooter, tanggal_surat: string): s
         <div>${locationPrefix}</div>
       </td>
       <td width="50%" style="text-align: center; vertical-align: top;">
-        <div>${locationPrefix}, ${tanggal_surat}</div>
+        <div>${locationPrefix}, ${escapeHtml(tanggal_surat)}</div>
         <div style="margin-bottom: 80px;">${signerTitle}</div>
         <div style="font-weight: 700; text-decoration: underline;">${signerName}</div>
       </td>

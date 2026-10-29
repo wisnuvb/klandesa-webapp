@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { InfoBox } from '@/components/cards';
 import { Button, ErrorBanner, Field, Screen } from '@/components/ui';

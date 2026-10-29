@@ -3,9 +3,22 @@ import { useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { createContext, forwardRef, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View,
-  type TextInputInstance, type TextInputProps, type ViewStyle,
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  type TextInputInstance,
+  type TextInputProps,
+  type ViewStyle,
 } from 'react-native';
+import { Text } from '@/components/text';
+import { useFontScale } from '@/state/font-scale';
 import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 
 import { colors, spacing, TOUCH_MIN } from '@/theme';
@@ -122,12 +135,12 @@ export function PageBand({ title, right }: { title: string; right?: ReactNode })
   );
 }
 
-/** Pita hijau tua rata dan ramping. Status bar putih hanya selama layar ini tampil; layar lain tetap gelap. */
-function DeepBand({ children }: { children: ReactNode }) {
+/** Pita hijau tua rata dan ramping. Status bar putih hanya selama layar ini tampil; layar lain tetap gelap. `rounded` melengkungkan sudut bawah. */
+function DeepBand({ children, rounded }: { children: ReactNode; rounded?: boolean }) {
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
   return (
-    <View style={{ backgroundColor: colors.primaryDeep }}>
+    <View style={[{ backgroundColor: colors.primaryDeep }, rounded && { borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }]}>
       {focused ? <StatusBar style="light" /> : null}
       <View style={{ paddingTop: insets.top + spacing.sm, paddingBottom: spacing.sm + spacing.xs, paddingLeft: insets.left + spacing.md, paddingRight: insets.right + spacing.md }}>
         {children}
@@ -148,9 +161,9 @@ export function BandButton({ icon, label, onPress, children }: { icon: keyof typ
 }
 
 /** Pita beranda: nama desa, sapaan, dan tombol notifikasi berlencana. */
-export function HomeBand({ eyebrow, greeting, unread, onBell }: { eyebrow?: string; greeting: string; unread: number; onBell: () => void }) {
+export function HomeBand({ eyebrow, greeting, unread, onBell, rounded }: { eyebrow?: string; greeting: string; unread: number; onBell: () => void; rounded?: boolean }) {
   return (
-    <DeepBand>
+    <DeepBand rounded={rounded}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, minHeight: 44 }}>
         <View style={{ flex: 1 }}>
           {eyebrow ? <Text style={{ fontSize: 13, fontWeight: '600', letterSpacing: 0.2, color: colors.goldLight }} numberOfLines={1}>{eyebrow}</Text> : null}
@@ -257,6 +270,7 @@ type FieldProps = TextInputProps & { label: string; error?: string | null; hint?
 export const Field = forwardRef<TextInputInstance, FieldProps>(function Field({ label, error, hint, secret, icon, onFocus, onBlur, ...rest }, ref) {
   const [hidden, setHidden] = useState(!!secret);
   const [focused, setFocused] = useState(false);
+  const { scale } = useFontScale();
   return (
     <View style={{ marginBottom: spacing.md }}>
       <Text style={s.label}>{label}</Text>
@@ -264,7 +278,7 @@ export const Field = forwardRef<TextInputInstance, FieldProps>(function Field({ 
         {icon ? <Ionicons name={icon} size={20} color={focused ? colors.primary : colors.textMuted} style={{ marginRight: spacing.sm }} /> : null}
         <TextInput
           ref={ref}
-          style={s.input}
+          style={[s.input, scale > 1 && { fontSize: 18 * scale }]}
           placeholderTextColor={colors.placeholder}
           secureTextEntry={hidden}
           autoCapitalize="none"

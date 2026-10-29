@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
-import { requireFeeActor } from "@/lib/mobile/fees";
+import { auditFee, requireFeeActor } from "@/lib/mobile/fees";
 import { cashScope } from "@/lib/mobile/fees-report";
 import { isOwnReportPhotoUrl } from "@/lib/mobile/report-logic";
 import { validateCashEntry } from "@/lib/mobile/fees-logic";
@@ -33,5 +33,6 @@ export async function POST(req: NextRequest) {
     },
     select: { id: true },
   });
+  void auditFee(req, a, "create_cash_entry", "cash_entries", created.id, { type: v.type, amount: v.amount, category: v.category, hasReceipt: Boolean(r) });
   return NextResponse.json({ id: created.id }, { status: 201 });
 }

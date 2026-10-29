@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Chip, EmptyState, InfoBox, type Tone } from '@/components/cards';
 import { ErrorBanner, Field, Screen, StepProgress } from '@/components/ui';

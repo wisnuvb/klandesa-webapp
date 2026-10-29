@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
-import { ownSchedule, requireFeeActor } from "@/lib/mobile/fees";
+import { auditFee, ownSchedule, requireFeeActor } from "@/lib/mobile/fees";
 import { isOwnReportPhotoUrl } from "@/lib/mobile/report-logic";
 import { getSpacesConfig } from "@/lib/spaces";
 import { isPeriod, comparePeriods } from "@/lib/mobile/fees-logic";
@@ -34,5 +34,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if (Object.keys(data).length === 0) return mobileError("INVALID_REQUEST", "Tidak ada yang diubah.", 400);
   await prisma.feeSchedule.update({ where: { id: s.id }, data });
+  void auditFee(req, g.actor, "update_fee_schedule", "fee_schedules", s.id, { fields: Object.keys(data), isActive: data.isActive });
   return new NextResponse(null, { status: 204 });
 }

@@ -1,7 +1,8 @@
 "use client";
 
+import { supportWhatsAppHref } from "@/lib/support";
 import Link from "next/link";
-import { AlertCircle, Crown, MapPin, TrendingUp } from "lucide-react";
+import { AlertCircle, Crown, MapPin, MessageCircle, TrendingUp } from "lucide-react";
 import { motion } from "motion/react";
 import type { AttendanceStats, SubscriptionTier } from "../types";
 import type { PricingTier } from "../pricing";
@@ -9,6 +10,7 @@ import { planLabelFromTier } from "../pricing";
 
 export function PlanSidebar({
   currentTier,
+  isLengkap,
   stats,
   recommendedTier,
   onUpgradeClick,
@@ -17,6 +19,8 @@ export function PlanSidebar({
   onGpsAddonClick,
 }: {
   currentTier: SubscriptionTier;
+  /** Paket Lengkap: kapasitas tetap 10 perangkat, tidak ada upgrade tier absensi. */
+  isLengkap: boolean;
   stats: AttendanceStats;
   recommendedTier: PricingTier;
   onUpgradeClick: () => void;
@@ -38,10 +42,10 @@ export function PlanSidebar({
 
         <div className="mb-4">
           <div className="text-2xl font-bold mb-1">
-            {planLabelFromTier(currentTier)}
+            {isLengkap ? "Paket Lengkap" : planLabelFromTier(currentTier)}
           </div>
           <div className="text-teal-100 text-sm">
-            {stats.totalStaff}/{stats.staffLimit} Pegawai
+            {stats.totalStaff}/{stats.staffLimit} {isLengkap ? "Perangkat" : "Pegawai"}
           </div>
         </div>
 
@@ -61,12 +65,12 @@ export function PlanSidebar({
           </div>
           <p className="text-xs text-teal-100 mt-1.5">
             {stats.isOverLimit
-              ? `⚠️ ${stats.hiddenCount} pegawai terkunci`
+              ? `⚠️ ${stats.hiddenCount} ${isLengkap ? "perangkat belum tercakup" : "pegawai terkunci"}`
               : `${stats.staffLimit - stats.totalStaff} slot tersisa`}
           </p>
         </div>
 
-        {stats.isOverLimit && (
+        {stats.isOverLimit && !isLengkap && (
           <div className="bg-red-500 rounded-lg p-3 mb-4">
             <p className="text-white text-sm font-medium flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
@@ -75,7 +79,7 @@ export function PlanSidebar({
           </div>
         )}
 
-        {stats.isOverLimit && (
+        {stats.isOverLimit && !isLengkap && (
           <div className="bg-teal-800 rounded-lg p-3 mb-4">
             <p className="text-xs text-teal-100 mb-1">💡 Rekomendasi:</p>
             <p className="text-white text-sm font-semibold">
@@ -87,13 +91,25 @@ export function PlanSidebar({
           </div>
         )}
 
-        <button
-          onClick={onUpgradeClick}
-          className="w-full bg-white text-teal-700 font-semibold py-2.5 px-4 rounded-lg hover:bg-teal-50 transition-colors flex items-center justify-center gap-2"
-        >
-          <TrendingUp className="w-4 h-4" />
-          Upgrade Paket
-        </button>
+        {isLengkap ? (
+          <a
+            href={supportWhatsAppHref("Halo, kami ingin menambah kapasitas absensi di Paket Lengkap.")}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-white text-teal-700 font-semibold py-2.5 px-4 rounded-lg hover:bg-teal-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <MessageCircle className="w-4 h-4" />
+            Tambah kapasitas
+          </a>
+        ) : (
+          <button
+            onClick={onUpgradeClick}
+            className="w-full bg-white text-teal-700 font-semibold py-2.5 px-4 rounded-lg hover:bg-teal-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <TrendingUp className="w-4 h-4" />
+            Upgrade Paket
+          </button>
+        )}
 
         {!gpsAddonActive ? (
           <button

@@ -172,14 +172,14 @@ export function LayananSurat() {
     async (template: TemplateBody) => {
       if (template.is_catalog) return;
 
-      const suratWarning =
+      const suratNote =
         template.usage_count > 0
-          ? `\n\n${template.usage_count} surat di riwayat yang memakai template ini akan ikut dihapus.`
-          : "";
+          ? `\n\n${template.usage_count} surat di riwayat yang memakai template ini tetap tersimpan. Template hanya disembunyikan dari daftar.`
+          : "\n\nTemplate ini belum dipakai, sehingga akan dihapus permanen.";
 
       const okDelete = await appConfirm({
         title: "Hapus template?",
-        description: `Hapus template "${template.name}"?${suratWarning}\n\nTindakan ini tidak dapat dibatalkan.`,
+        description: `Hapus template "${template.name}"?${suratNote}`,
         confirmLabel: "Hapus",
         tone: "destructive",
       });

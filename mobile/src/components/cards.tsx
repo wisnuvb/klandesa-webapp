@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import type { Stage, Step } from '@/lib/queries';
 import { colors, shadow, spacing, TOUCH_MIN } from '@/theme';
@@ -102,6 +103,41 @@ export function ServiceTile({ icon, label, caption, primary, onPress }: {
         <Text style={[d.serviceCaption, { color: primary ? 'rgba(255,255,255,0.88)' : colors.textMuted }]}>{caption}</Text>
       </View>
     </Pressable>
+  );
+}
+
+/**
+ * Ubin menu dua kolom: ikon, nama tindakan, dan satu baris penjelasan. Jumlah ganjil: ubin terakhir melebar penuh.
+ * Lebih lapang dan ramah daripada daftar baris panjang bergaya pengaturan.
+ */
+export function TileGrid({ items }: { items: { icon: keyof typeof Ionicons.glyphMap; title: string; caption: string; onPress: () => void }[] }) {
+  const rows: (typeof items)[] = [];
+  for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+  return (
+    <View style={{ gap: 12 }}>
+      {rows.map((row) => (
+        <View key={row[0]!.title} style={{ flexDirection: 'row', gap: 12 }}>
+          {row.map((it) => (
+            <Pressable
+              key={it.title}
+              accessibilityRole="button"
+              accessibilityLabel={`${it.title}. ${it.caption}`}
+              onPress={it.onPress}
+              style={({ pressed }) => [d.feature, row.length === 1 && d.featureWide, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
+            >
+              <View style={d.featureIcon}>
+                <Ionicons name={it.icon} size={24} color={colors.primary} />
+              </View>
+              <View style={{ flex: row.length === 1 ? 1 : undefined }}>
+                <Text style={d.featureTitle}>{it.title}</Text>
+                <Text style={d.featureCaption}>{it.caption}</Text>
+              </View>
+              {row.length === 1 ? <Ionicons name="chevron-forward" size={20} color={colors.textMuted} /> : null}
+            </Pressable>
+          ))}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -317,6 +353,11 @@ const d = StyleSheet.create({
   serviceIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   serviceLabel: { fontSize: 19, fontWeight: '800' },
   serviceCaption: { fontSize: 14, lineHeight: 19, marginTop: 2 },
+  feature: { flex: 1, minHeight: 128, borderRadius: 20, padding: spacing.md, justifyContent: 'space-between', backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, ...shadow.card },
+  featureWide: { minHeight: 80, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: spacing.md },
+  featureIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  featureTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
+  featureCaption: { fontSize: 14, lineHeight: 19, color: colors.textMuted, marginTop: 2 },
   shortcut: { flex: 1, alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
   shortcutIcon: { width: 60, height: 60, borderRadius: 22, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', ...shadow.card },
   shortcutLabel: { fontSize: 14, fontWeight: '600', color: colors.text, textAlign: 'center' },

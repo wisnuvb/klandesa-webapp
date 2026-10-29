@@ -1,5 +1,8 @@
 "use client";
 
+import { isLengkapPlan } from "@/lib/billing/lengkap";
+import { attendanceCapacityAdminMessage } from "@/lib/attendance/capacity";
+import { supportWhatsAppHref } from "@/lib/support";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Download, Filter, QrCode, Search } from "lucide-react";
 import { motion } from "motion/react";
@@ -49,6 +52,7 @@ export default function AbsensiClient() {
     hiddenCount: 0,
   });
   const [currentTier, setCurrentTier] = useState<SubscriptionTier>("FREE");
+  const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
   const [gpsAddon, setGpsAddon] = useState<AttendanceTodayResponse["gpsAddon"]>(
     {
       active: false,
@@ -113,6 +117,7 @@ export default function AbsensiClient() {
         setRows(data.rows);
         setStats(data.stats);
         setCurrentTier(data.plan.tier);
+        setSubscriptionPlan(data.plan.subscriptionPlan);
         setGpsAddon(data.gpsAddon);
         setCanManageGpsOffice(data.canManageGpsOffice);
         if (data.gpsAddon.officeLat != null) {
@@ -338,6 +343,7 @@ export default function AbsensiClient() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <PlanSidebar
           currentTier={currentTier}
+          isLengkap={isLengkapPlan(subscriptionPlan)}
           stats={stats}
           recommendedTier={recommendedTier}
           onUpgradeClick={() => setShowUpgradeModal(true)}
@@ -497,10 +503,26 @@ export default function AbsensiClient() {
                     )}
                     {stats.isOverLimit && (
                       <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                        Paket saat ini membatasi {stats.staffLimit} pegawai.
-                        {stats.hiddenCount > 0
-                          ? ` ${stats.hiddenCount} pegawai lainnya tidak ditampilkan.`
-                          : ""}
+                        {isLengkapPlan(subscriptionPlan) ? (
+                          <>
+                            {attendanceCapacityAdminMessage(stats.staffLimit, stats.hiddenCount)}{" "}
+                            <a
+                              href={supportWhatsAppHref("Halo, kami ingin menambah kapasitas absensi di Paket Lengkap.")}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium underline"
+                            >
+                              Hubungi Klandesa
+                            </a>
+                          </>
+                        ) : (
+                          <>
+                            Paket saat ini membatasi {stats.staffLimit} pegawai.
+                            {stats.hiddenCount > 0
+                              ? ` ${stats.hiddenCount} pegawai lainnya tidak ditampilkan.`
+                              : ""}
+                          </>
+                        )}
                       </div>
                     )}
                     <AttendanceTable rows={filteredRows} />

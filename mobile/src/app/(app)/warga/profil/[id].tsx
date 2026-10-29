@@ -1,5 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
+import { Text } from '@/components/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar, Chip, EmptyState, SectionHeader } from '@/components/cards';

@@ -53,6 +53,10 @@ interface Permohonan {
   catatan?: string;
   requestNumber?: string;
   processedDate?: string;
+  /** Tahap pengantar RT: null bila desa tidak memakainya untuk permohonan ini. */
+  rtStatus?: "pending" | "approved" | "rejected" | null;
+  rtNote?: string;
+  rtLabel?: string;
 }
 
 const getStatusBadge = (status: Permohonan["status"]) => {
@@ -86,6 +90,33 @@ const getStatusBadge = (status: Permohonan["status"]) => {
         </Badge>
       );
   }
+};
+
+const getRtBadge = (item: Permohonan) => {
+  if (!item.rtStatus) return null;
+  const label = item.rtLabel ?? "RT";
+  if (item.rtStatus === "pending") {
+    return (
+      <Badge variant="outline" className="gap-1 mt-1 border-amber-400 text-amber-700" title={`Menunggu pengantar ${label}`}>
+        <Clock className="h-3 w-3" />
+        Menunggu {label}
+      </Badge>
+    );
+  }
+  if (item.rtStatus === "approved") {
+    return (
+      <Badge variant="outline" className="gap-1 mt-1 border-green-500 text-green-700" title={`Disetujui ${label}`}>
+        <CheckCircle className="h-3 w-3" />
+        {label} setuju
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="gap-1 mt-1 border-red-400 text-red-700" title={item.rtNote ?? `Ditolak ${label}`}>
+      <XCircle className="h-3 w-3" />
+      {label} menolak
+    </Badge>
+  );
 };
 
 const formatDate = (dateStr: string) => {
@@ -354,7 +385,12 @@ export function PermohonanWarga() {
                               {item.lampiran.length}
                             </Badge>
                           </TableCell>
-                          <TableCell>{getStatusBadge(item.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col items-start">
+                              {getStatusBadge(item.status)}
+                              {getRtBadge(item)}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="ghost"

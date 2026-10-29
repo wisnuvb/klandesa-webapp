@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Linking, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card, Chip, EmptyState, MenuGroup, SectionHeader } from '@/components/cards';
 import { ErrorBanner, Screen } from '@/components/ui';

@@ -26,6 +26,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/finance/sdg-spending", resource: "finance" },
   { prefix: "/api/finance/village-budgets", resource: "anggaran" },
   { prefix: "/api/finance", resource: "finance" },
+  { prefix: "/api/iuran", resource: "rtrw" },
   { prefix: "/api/mail-requests/export", resource: "mail", suffixActions: { "": "export" } },
   { prefix: "/api/mail-requests", resource: "mail" },
   { prefix: "/api/mail-templates", resource: "mail" },

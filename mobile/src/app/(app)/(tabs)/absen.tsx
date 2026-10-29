@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { Text } from '@/components/text';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Card, Empty, SectionTitle } from '@/components/cards';

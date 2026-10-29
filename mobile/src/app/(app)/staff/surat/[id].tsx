@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { ContactVillageButton } from '@/components/contact';
 import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';

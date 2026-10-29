@@ -65,3 +65,12 @@ Route baru: `fees/*` (jadwal, tagihan, pembayaran, kas, rekap, laporan; `?scope=
 - Kas yang dibatalkan tidak dihapus (jejak), dan tidak dihitung. CSV menetralkan rumus (`=`, `+`, `-`, `@`).
 - Terbuka: tidak ada AuditLog untuk aksi Ketua RT (bukan akun staf); pembayaran/penghapusan oleh bendahara hanya tercatat di kolom `recordedBy*`. Job `cron/fees` memakai `CRON_SECRET` (bandingkan string biasa, sama dengan job lain).
 - Uang: Klandesa tidak memegang dana; tidak ada pembayaran online.
+
+## Tambahan 2026-10-29 (penutupan celah) — belum ditinjau dinamis
+- **Selesai:** aksi Ketua RT (setuju/tolak surat) dan seluruh aksi iuran/kas (jadwal, catat/konfirmasi/tolak bayar, bebaskan, kas, batal kas) kini masuk `audit_logs`.
+  Staf lewat `userId`; Ketua RT lewat `metadata.actor` (`{type:"rt", residentId, name, rt, rw}`) karena `AuditLog.userId` hanya untuk staf. Kegagalan mencatat tidak menggagalkan aksi (sama dengan audit staf).
+- **Selesai:** `CRON_SECRET` dibandingkan dengan `timingSafeEqual` (hash SHA-256 kedua sisi, jadi panjang tidak bocor). Berlaku untuk `cron/fees` dan `cron/sync-regional-news`.
+- Route baru web `GET /api/iuran/overview`: sesi desa + izin `rtrw` + modul `partisipasi-rtrw`; hanya agregat per RT/desa (tanpa nama warga).
+- Route baru `GET /api/regional/mobile-usage`: sesi regional, hanya desa yang ikut agregat; hanya jumlah akun.
+- Route baru `POST /api/mobile/v1/telemetry/crash` (publik, tanpa login): dibatasi 20/menit/IP (di memori per worker) dan 16 KB; teks disamarkan di server (email, token, deret angka ≥ 9 digit) dan hanya ditulis ke log (`mobile_crash`), tidak ke DB. Risiko: bisa dibanjiri laporan palsu yang mengisi log (dampak rendah); pertimbangkan pembatas di Nginx.
+- Terbuka: pembatas laju crash memakai memori per worker (batas efektif = batas × jumlah worker).

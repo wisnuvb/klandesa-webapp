@@ -71,6 +71,7 @@ model Village {
   requests               Request[]
   mailTemplates          MailTemplate[]
   mailServices           MailService[]
+  mailNumberCounters     MailNumberCounter[]
   mailRequests           MailRequest[]
   kioskDevices           KioskDevice[]
   citizenAccounts        CitizenAccount[]
@@ -668,8 +669,14 @@ model MailService {
   // Dynamic Form Data (JSONB)
   formData Json // All dynamic fields from template
 
-  // Generated Content (Immutable snapshot)
-  contentHtml String? @db.Text
+  /**
+   * Dokumen v2 yang dipakai surat ini, dibekukan saat surat dibuat — mengubah/menghapus
+   * template tidak mengubah surat lama. Null untuk surat berformat lama.
+   */
+  templateSnapshot Json?
+
+  // Generated Content (Immutable snapshot) — HTML hasil render server, bukan dari klien
+  contentHtml String? @db.MediumText
 
   // Status
   status String @default("draft") @db.VarChar(50) // draft, completed, archived, cancelled
@@ -696,6 +703,23 @@ model MailService {
   @@index([templateId])
   @@index([villageId, templateId, letterDateKey])
   @@map("mail_services")
+}
+
+/**
+ * Penghitung nomor surat per desa dan lingkup (kunci buku agenda + periode reset).
+ * Dinaikkan di dalam transaksi dengan row lock agar nomor tidak ganda dan tidak bolong
+ * bila pembuatan surat dibatalkan.
+ */
+model MailNumberCounter {
+  id        BigInt   @id @default(autoincrement())
+  villageId Int
+  village   Village  @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  scopeKey  String   @db.VarChar(80)
+  lastValue Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([villageId, scopeKey])
+  @@map("mail_number_counters")
 }
 
 model MailHistory {

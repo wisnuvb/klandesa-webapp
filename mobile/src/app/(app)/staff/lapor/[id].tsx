@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { STAGE_COLOR } from '@/components/cards';
 import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';

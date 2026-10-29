@@ -34,6 +34,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { IuranKasTab } from "./_components/IuranKasTab";
 
 type ActivityRow = {
   id: number;
@@ -224,7 +225,12 @@ export default function PartisipasiRtrwPage() {
           <TabsList>
             <TabsTrigger value="activities">Kegiatan</TabsTrigger>
             <TabsTrigger value="proposals">Usulan Warga</TabsTrigger>
+            <TabsTrigger value="iuran">Iuran &amp; Kas</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="iuran">
+            <IuranKasTab />
+          </TabsContent>
 
           <TabsContent value="activities" className="space-y-4">
             <Can resource="rtrw" action="create">

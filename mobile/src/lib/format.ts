@@ -6,6 +6,14 @@ export function formatDateId(iso: string | Date): string {
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+/** "Kamis, 29 Oktober 2026" (zona waktu perangkat), untuk sapaan di beranda. */
+export function formatDayDateId(iso: string | Date): string {
+  const d = new Date(iso);
+  return `${DAYS[d.getDay()]}, ${formatDateId(d)}`;
+}
+
 /** "baru saja" · "5 menit lalu" · "2 jam lalu" · "kemarin" · "3 hari lalu" · tanggal bila > 7 hari. */
 export function timeAgoId(iso: string | Date, now = Date.now()): string {
   const diff = Math.max(0, now - new Date(iso).getTime());

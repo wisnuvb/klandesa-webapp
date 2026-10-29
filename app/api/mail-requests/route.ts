@@ -72,6 +72,9 @@ export async function GET(req: NextRequest) {
       catatan: row.notes || row.rejectionReason || undefined,
       requestNumber: row.requestNumber,
       processedDate: row.processedDate?.toISOString(),
+      rtStatus: row.rtStatus ?? null,
+      rtNote: row.rtNote ?? undefined,
+      rtLabel: row.applicantRt ? `RT ${row.applicantRt}${row.applicantRw ? `/RW ${row.applicantRw}` : ""}` : undefined,
     }));
 
     return NextResponse.json({

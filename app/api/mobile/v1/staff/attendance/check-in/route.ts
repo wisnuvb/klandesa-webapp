@@ -1,3 +1,5 @@
+import { attendanceCapacityFullMessage } from "@/lib/attendance/capacity";
+import { isOfficialWithinAttendanceCapacity } from "@/lib/attendance/capacity-server";
 import { NextRequest, NextResponse } from "next/server";
 import * as jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   const village = await prisma.village.findUnique({
     where: { id: ctx.villageId },
-    select: { absensiGpsAddonActive: true, absensiOfficeLat: true, absensiOfficeLng: true, absensiCheckInRadiusMeters: true },
+    select: { subscriptionPlan: true, absensiGpsAddonActive: true, absensiOfficeLat: true, absensiOfficeLng: true, absensiCheckInRadiusMeters: true },
   });
   if (!village) return mobileError("VILLAGE_INACTIVE", "Desa tidak ditemukan.", 404);
 
@@ -83,6 +85,9 @@ export async function POST(req: NextRequest) {
   if (existing?.checkInAt) {
     return NextResponse.json({ alreadyCheckedIn: true, checkInAt: existing.checkInAt, status: existing.status, statusLabel: STATUS_LABEL[existing.status] ?? existing.status });
   }
+
+  const capacity = await isOfficialWithinAttendanceCapacity({ villageId: ctx.villageId, officialId: official.id, subscriptionPlan: village.subscriptionPlan });
+  if (!capacity.allowed) return mobileError("FORBIDDEN", attendanceCapacityFullMessage(capacity.limit), 403, { reason: "ATTENDANCE_CAPACITY_FULL" });
 
   await prisma.attendance.upsert({
     where: { villageId_officialId_attendanceDate: { villageId: ctx.villageId, officialId: official.id, attendanceDate: day } },

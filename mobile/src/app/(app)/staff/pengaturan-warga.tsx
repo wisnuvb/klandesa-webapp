@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text } from 'react-native';
+import { ActivityIndicator, Pressable } from 'react-native';
+import { Text } from '@/components/text';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';

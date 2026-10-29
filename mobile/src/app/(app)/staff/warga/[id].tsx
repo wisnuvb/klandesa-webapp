@@ -1,7 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Linking, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Share, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card } from '@/components/cards';
 import { Body, Button, ErrorBanner, Screen, Title } from '@/components/ui';

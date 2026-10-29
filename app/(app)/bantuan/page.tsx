@@ -1,12 +1,10 @@
 import Link from "next/link";
+import { SUPPORT_EMAIL, supportWhatsAppHref } from "@/lib/support";
 import { ArrowRight, BookOpen, CreditCard, Mail, MessageCircle, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata = { title: "Bantuan | Klandesa" };
-
-const SUPPORT_WHATSAPP = "6282320337777";
-const SUPPORT_EMAIL = "wisnuvb@gmail.com";
 
 const guides = [
   {
@@ -24,7 +22,7 @@ const guides = [
 ] as const;
 
 export default function BantuanPage() {
-  const waHref = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent("Halo, saya butuh bantuan menggunakan Klandesa.")}`;
+  const waHref = supportWhatsAppHref();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

@@ -1,3 +1,5 @@
+import { fillPlaceholders } from "../lib/letters/fill";
+
 /**
  * Variabel placeholder `{KEY}` / `{{KEY}}` untuk template surat — tanpa dependensi React.
  * Dipakai `templateRenderer` dan `FooterSignatureBlock` tanpa siklus impor.
@@ -97,30 +99,15 @@ export function expandTemplateVariableData(
 
 /**
  * Ganti placeholder di teks: `{KEY}`, `{{KEY}}`, `{{ KEY }}` (spasi diabaikan).
+ * Satu lintasan lewat `fillPlaceholders`: nilai yang disisipkan tidak diproses ulang, dan
+ * placeholder tak dikenal dibiarkan apa adanya.
  */
 export const replaceVariables = (
   text: string,
   data: Record<string, string>,
 ): string => {
   if (text == null || text === "") return "";
-  const expanded = expandTemplateVariableData(data);
-  let result = text;
-
-  const keys = Object.keys(expanded).sort((a, b) => b.length - a.length);
-  for (const key of keys) {
-    const value = expanded[key] ?? "";
-    result = result.split(`{${key}}`).join(value);
-    result = result.split(`{{${key}}}`).join(value);
-    result = result.split(`{{ ${key} }}`).join(value);
-  }
-
-  result = result.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (full, inner: string) => {
-    const k = inner.trim();
-    if (expanded[k] !== undefined) return expanded[k]!;
-    return full;
-  });
-
-  return result;
+  return fillPlaceholders(text, expandTemplateVariableData(data));
 };
 
 /**

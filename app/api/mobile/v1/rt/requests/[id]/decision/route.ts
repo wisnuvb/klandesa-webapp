@@ -4,6 +4,7 @@ import { mobileError } from "@/lib/mobile/context";
 import { requireRt } from "@/lib/mobile/rt";
 import { canRtAccessRequest, canRtDecide } from "@/lib/mobile/rt-logic";
 import { notifyAccount, notifyVillageStaff } from "@/lib/mobile/notify";
+import { auditAs } from "@/lib/mobile/audit-actor";
 
 /** Ketua RT setuju (pengantar) atau menolak permohonan warganya. Setuju → masuk antrean desa; tolak → warga diminta memperbaiki. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -33,7 +34,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (res.count !== 1) return mobileError("INVALID_REQUEST", "Permohonan ini sudah diputuskan.", 409);
 
-  // Catatan jejak: RT bukan akun staf, jadi dicatat lewat riwayat kolom (rtDecidedByResidentId) dan notifikasi.
+  // RT bukan akun staf: pelaku dicatat di AuditLog.metadata.actor (selain kolom rtDecidedByResidentId).
+  void auditAs(req, ctx.villageId, { type: "rt", residentId: ctx.residentId, name: ctx.name, rt: ctx.scope.rt, rw: ctx.scope.rw }, approve ? "rt_approve" : "rt_reject", "mail_requests", Number(r.id), { note: note || undefined });
   if (r.residentId) {
     const acc = await prisma.citizenAccount.findUnique({ where: { residentId: r.residentId }, select: { id: true, status: true } });
     if (acc?.status === "ACTIVE") {

@@ -3,7 +3,8 @@ import { Image } from 'expo-image';
 import { router, useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type TextInputInstance } from 'react-native';
+import { Pressable, StyleSheet, View, type TextInputInstance } from 'react-native';
+import { Text } from '@/components/text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, ErrorBanner, Field, Screen } from '@/components/ui';

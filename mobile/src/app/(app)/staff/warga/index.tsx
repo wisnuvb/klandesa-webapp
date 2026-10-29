@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text } from 'react-native';
+import { ActivityIndicator } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card, Empty } from '@/components/cards';
 import { Body, ErrorBanner, Field, Screen } from '@/components/ui';

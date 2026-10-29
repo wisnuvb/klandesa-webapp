@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Text } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Button, ResultState, Screen } from '@/components/ui';
 import { colors } from '@/theme';

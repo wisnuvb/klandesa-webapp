@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
-import { Alert, Animated, FlatList, Linking, Pressable, Share, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Alert, Animated, FlatList, Linking, Pressable, Share, View, type LayoutChangeEvent } from 'react-native';
+import { Text } from '@/components/text';
 
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Avatar } from '@/components/cards';

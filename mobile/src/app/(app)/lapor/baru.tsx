@@ -4,7 +4,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Switch, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card } from '@/components/cards';
 import { Body, Button, ErrorBanner, Field, ResultState, Screen, StepProgress, Title } from '@/components/ui';

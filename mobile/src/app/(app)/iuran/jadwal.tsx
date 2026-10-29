@@ -1,7 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card, Empty, SectionTitle } from '@/components/cards';
 import { AmountField, Chips, ProofPhoto } from '@/components/fees';

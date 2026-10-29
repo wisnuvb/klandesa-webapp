@@ -2,7 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card, Chip, SectionHeader, StatusHero, Timeline } from '@/components/cards';
 import { ContactVillageButton } from '@/components/contact';

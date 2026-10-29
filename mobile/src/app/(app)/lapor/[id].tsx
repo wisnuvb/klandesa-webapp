@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card, Chip, InfoBox, SectionHeader, StatusHero, Timeline } from '@/components/cards';
 import { ContactVillageButton } from '@/components/contact';

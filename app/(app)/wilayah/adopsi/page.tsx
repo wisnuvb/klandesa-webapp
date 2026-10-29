@@ -46,11 +46,29 @@ type AdoptionData = {
   }>;
 };
 
+type UsageData = {
+  totals: { belum: number; sepi: number; aktif: number; activeCitizens30d: number; citizenAccounts: number };
+  villages: Array<{
+    code: string;
+    name: string;
+    district: string;
+    citizenAccounts: number;
+    activeCitizens7d: number;
+    activeCitizens30d: number;
+    activeStaff30d: number;
+    lastActiveAt: string | null;
+    status: "belum" | "sepi" | "aktif";
+  }>;
+};
+
+const USAGE_LABEL = { belum: "Belum dipakai", sepi: "Sepi 30 hari", aktif: "Aktif" } as const;
+
 export default function WilayahAdopsiPage() {
   const { data: session } = useSession();
   const [data, setData] = useState<AdoptionData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [usage, setUsage] = useState<UsageData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +93,17 @@ export default function WilayahAdopsiPage() {
         if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/regional/mobile-usage", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => !cancelled && j && setUsage(j as UsageData))
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -137,6 +166,51 @@ export default function WilayahAdopsiPage() {
               </CardContent>
             </Card>
           </div>
+
+          {usage && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pemakaian aplikasi warga</CardTitle>
+                <CardDescription>
+                  {usage.totals.aktif} desa aktif, {usage.totals.sepi} sepi, {usage.totals.belum} belum dipakai.
+                  Aktif berarti ada warga yang membuka aplikasi dalam 30 hari terakhir. Hanya jumlah akun, tanpa data pribadi.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Desa</TableHead>
+                      <TableHead className="text-right">Akun warga</TableHead>
+                      <TableHead className="text-right">Aktif 7 hari</TableHead>
+                      <TableHead className="text-right">Aktif 30 hari</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Terakhir dipakai</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {usage.villages.map((v) => (
+                      <TableRow key={v.code}>
+                        <TableCell>
+                          {v.name}
+                          <span className="block text-xs text-muted-foreground">{v.district}</span>
+                        </TableCell>
+                        <TableCell className="text-right">{v.citizenAccounts}</TableCell>
+                        <TableCell className="text-right">{v.activeCitizens7d}</TableCell>
+                        <TableCell className="text-right">{v.activeCitizens30d}</TableCell>
+                        <TableCell>
+                          <Badge variant={v.status === "aktif" ? "default" : "outline"}>{USAGE_LABEL[v.status]}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {v.lastActiveAt ? new Date(v.lastActiveAt).toLocaleDateString("id-ID") : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

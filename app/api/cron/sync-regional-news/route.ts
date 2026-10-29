@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCronSecret, isRegionalNewsEnabled } from "@/lib/regional-news/config";
+import { isValidCronAuth } from "@/lib/regional-news/cron-auth";
 import { syncAllActiveRegions } from "@/lib/regional-news/service";
 
 function unauthorized() {
@@ -15,8 +16,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const auth = req.headers.get("authorization")?.trim();
-  if (auth !== `Bearer ${secret}`) return unauthorized();
+  if (!isValidCronAuth(req.headers.get("authorization"), secret)) return unauthorized();
 
   if (!isRegionalNewsEnabled()) {
     return NextResponse.json(

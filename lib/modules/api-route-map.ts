@@ -11,6 +11,7 @@ export const API_ROUTE_MODULE_MAP: Array<{ prefix: string; moduleId: string }> =
   { prefix: "/api/lingkungan", moduleId: "lingkungan" },
   { prefix: "/api/pertanian", moduleId: "pertanian" },
   { prefix: "/api/rtrw", moduleId: "partisipasi-rtrw" },
+  { prefix: "/api/iuran", moduleId: "partisipasi-rtrw" },
 ];
 
 export function resolveModuleIdFromApiPath(pathname: string): string | null {

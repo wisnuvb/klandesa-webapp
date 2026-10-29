@@ -5,6 +5,8 @@ import { mobileError, requireMobileContext } from "@/lib/mobile/context";
 import { checkMobileRateLimit, checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/mobile/report-logic";
 import { buildSpacesPublicUrl, getSpacesClient, getSpacesConfig } from "@/lib/spaces";
+import { evaluateMediaQuota, mediaQuotaFullMessage } from "@/lib/mobile/media-quota";
+import { getVillageMobileMediaBytes, noteMobileMediaUpload } from "@/lib/mobile/media-usage";
 
 /** Presigned PUT untuk foto laporan warga dan postingan Warga (jpeg/png/webp, maks 2,5 MB). Foto sudah dikompres di HP. Perangkat desa hanya boleh untuk postingan Warga dan bukti iuran/kas. */
 export async function POST(req: NextRequest) {
@@ -30,13 +32,23 @@ export async function POST(req: NextRequest) {
     return mobileError("INVALID_REQUEST", "Ukuran foto terlalu besar. Maksimal 2,5 MB.", 400);
   }
 
+  // Kuota foto per desa (pengaman biaya penyimpanan). Gagal terbuka: bila penyimpanan tidak bisa dihitung, unggahan tetap jalan.
+  const cfg = getSpacesConfig();
+  try {
+    const used = await getVillageMobileMediaBytes(ctx.village.code, cfg.bucket);
+    if (!evaluateMediaQuota(used, size).ok) {
+      return mobileError("FORBIDDEN", mediaQuotaFullMessage(), 403, { reason: "MEDIA_QUOTA_FULL" });
+    }
+  } catch (e) {
+    console.error("[mobile presign] gagal menghitung kuota foto", e);
+  }
+
   const now = new Date();
   const key = [
     "villages", ctx.village.code, folder, String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"),
     `${globalThis.crypto.randomUUID()}.${ext}`,
   ].join("/");
 
-  const cfg = getSpacesConfig();
   const aclOn = process.env.SPACES_USE_OBJECT_ACL !== "false";
   const input: PutObjectCommandInput = {
     Bucket: cfg.bucket,
@@ -49,5 +61,6 @@ export async function POST(req: NextRequest) {
   const uploadHeaders: Record<string, string> = { "Content-Type": contentType };
   if (aclOn) uploadHeaders["x-amz-acl"] = input.ACL as string;
 
+  noteMobileMediaUpload(ctx.village.code, size);
   return NextResponse.json({ uploadUrl, fileUrl: buildSpacesPublicUrl(key), uploadHeaders });
 }

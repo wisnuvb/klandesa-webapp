@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Pressable, TextInput, View } from 'react-native';
+import { Text } from '@/components/text';
+import { useFontScale } from '@/state/font-scale';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -26,6 +28,7 @@ export default function PostDetail() {
   const keyboard = useKeyboardVisible();
   const listRef = useRef<FlatList<SocialComment>>(null);
   const [text, setText] = useState('');
+  const { scale: fontScale } = useFontScale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<SocialComment | null>(null);
@@ -103,7 +106,7 @@ export default function PostDetail() {
                 <TextInput
                   value={text} onChangeText={setText} placeholder="Tulis komentar…" placeholderTextColor={colors.placeholder}
                   multiline maxLength={max} accessibilityLabel="Komentar" textAlignVertical="center"
-                  style={{ maxHeight: 120, minHeight: 44, paddingVertical: 10, fontSize: 16, lineHeight: 22, color: colors.text }}
+                  style={{ maxHeight: 120, minHeight: 44, paddingVertical: 10, fontSize: 16 * fontScale, lineHeight: 22 * fontScale, color: colors.text }}
                 />
                 {left <= 80 ? <Text style={{ alignSelf: 'flex-end', fontSize: 11, color: left <= 20 ? colors.danger : colors.textMuted, marginBottom: 4 }}>{left}</Text> : null}
               </View>

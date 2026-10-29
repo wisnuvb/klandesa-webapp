@@ -3,6 +3,9 @@ import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { readJsonBody } from "@/lib/http/read-json";
+import { villageTemplateScope } from "@/lib/mail/template-access";
+import { TEMPLATE_LIMITS, validateTemplateInput } from "@/lib/mail/template-guard";
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,7 +19,7 @@ export async function GET(req: NextRequest) {
 
     const templates = await prisma.mailTemplate.findMany({
       where: {
-        OR: [{ villageId: village.id }, { isGlobal: true }],
+        ...villageTemplateScope(village.id),
         isActive: true,
       },
       orderBy: { createdAt: "desc" },
@@ -61,23 +64,24 @@ export async function POST(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const body = await req.json();
-    const { name, description, category, templateStructure, contentTemplate } = body;
-
-    if (!name?.trim() || !category?.trim() || templateStructure == null) {
-      return NextResponse.json(
-        { error: "Missing required fields: name, category, or templateStructure" },
-        { status: 400 },
-      );
+    const parsed = await readJsonBody(req, TEMPLATE_LIMITS.requestBytes);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: parsed.status });
     }
+    const checked = validateTemplateInput(parsed.body, "create");
+    if (!checked.ok) {
+      return NextResponse.json({ error: checked.error }, { status: 400 });
+    }
+    const { name, description, category, templateStructure, contentTemplate } =
+      checked.value;
 
     const template = await prisma.mailTemplate.create({
       data: {
         villageId: village.id,
-        name,
-        description: description || "",
-        category,
-        templateStructure,
+        name: name!,
+        description: description ?? "",
+        category: category!,
+        templateStructure: templateStructure as Prisma.InputJsonValue,
         contentTemplate: contentTemplate ?? "",
         isGlobal: false,
       },
@@ -107,14 +111,24 @@ export async function PATCH(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const body = await req.json();
-    const id = Number(body.id);
-    if (!Number.isFinite(id) || id <= 0) {
+    const parsed = await readJsonBody(req, TEMPLATE_LIMITS.requestBytes);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+    }
+    const body = parsed.body as Record<string, unknown> | null;
+    const id = Number(body?.id);
+    if (!Number.isInteger(id) || id <= 0) {
       return NextResponse.json({ error: "Field id wajib dan valid" }, { status: 400 });
+    }
+
+    const checked = validateTemplateInput(body, "update");
+    if (!checked.ok) {
+      return NextResponse.json({ error: checked.error }, { status: 400 });
     }
 
     const owned = await prisma.mailTemplate.findFirst({
       where: { id, villageId: village.id },
+      select: { id: true },
     });
 
     if (!owned) {
@@ -127,14 +141,16 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    const { name, description, category, templateStructure, contentTemplate, isActive } =
+      checked.value;
     const data: Prisma.MailTemplateUpdateInput = {};
-    if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim();
-    if (typeof body.description === "string") data.description = body.description;
-    if (typeof body.category === "string" && body.category.trim())
-      data.category = body.category.trim();
-    if (body.templateStructure !== undefined) data.templateStructure = body.templateStructure;
-    if (typeof body.contentTemplate === "string") data.contentTemplate = body.contentTemplate;
-    if (typeof body.isActive === "boolean") data.isActive = body.isActive;
+    if (name !== undefined) data.name = name;
+    if (description !== undefined) data.description = description;
+    if (category !== undefined) data.category = category;
+    if (templateStructure !== undefined)
+      data.templateStructure = templateStructure as Prisma.InputJsonValue;
+    if (contentTemplate !== undefined) data.contentTemplate = contentTemplate;
+    if (isActive !== undefined) data.isActive = isActive;
 
     const updated = await prisma.mailTemplate.update({
       where: { id },

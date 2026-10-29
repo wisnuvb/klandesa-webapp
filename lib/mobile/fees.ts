@@ -4,6 +4,7 @@ import { mobileError } from "./context";
 import { requireStaff } from "./staff";
 import { requireRt } from "./rt";
 import { notifyAccount } from "./notify";
+import { auditAs } from "./audit-actor";
 import { residentInScope, rtCodeVariants } from "./rt-logic";
 import {
   chargeStatus, dueDateOf, FEE_CATEGORY_LABEL, pickHead, periodsToGenerate, type FeeCategory,
@@ -40,6 +41,12 @@ export async function requireFeeActor(
     return { ok: true, actor: { kind: "desa", villageId: g.ctx.villageId, villageCode: g.ctx.village.code, byType: "staff", byId: g.ctx.userId, name: g.ctx.name, rt: null, rw: null } };
   }
   return { ok: false, response: mobileError("INVALID_REQUEST", "Cakupan tidak valid.", 400) };
+}
+
+/** Catat aksi iuran/kas ke AuditLog: staf desa lewat userId, Ketua RT lewat metadata.actor. */
+export function auditFee(req: Request, a: FeeActor, action: string, entity: string, entityId: string | number | bigint, changes?: Record<string, unknown>) {
+  const actor = a.kind === "rt" ? ({ type: "rt", residentId: a.byId, name: a.name, rt: a.rt, rw: a.rw } as const) : ({ type: "staff", userId: a.byId } as const);
+  return auditAs(req, a.villageId, actor, action, entity, entityId, { scope: a.kind, ...changes });
 }
 
 /** Filter jadwal yang boleh disentuh pelaku. */

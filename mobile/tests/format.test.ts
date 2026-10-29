@@ -1,11 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dialNumber, formatDateId, formatRupiahFull, formatRupiahShort, greetingId, parseRupiahInput, periodLabelId, shiftPeriod, timeAgoId } from '../src/lib/format.ts';
+import { dialNumber, formatDateId, formatDayDateId, formatRupiahFull, formatRupiahShort, greetingId, parseRupiahInput, periodLabelId, shiftPeriod, timeAgoId } from '../src/lib/format.ts';
 
 describe('format tanggal & waktu', () => {
   it('tanggal Indonesia', () => {
     assert.equal(formatDateId(new Date(2026, 9, 20, 12)), '20 Oktober 2026');
+  });
+  it('hari dan tanggal Indonesia', () => {
+    assert.equal(formatDayDateId(new Date(2026, 9, 29, 12)), 'Kamis, 29 Oktober 2026');
+    assert.equal(formatDayDateId(new Date(2026, 9, 25, 12)), 'Minggu, 25 Oktober 2026');
   });
   it('waktu relatif', () => {
     const now = new Date(2026, 9, 22, 12, 0, 0).getTime();

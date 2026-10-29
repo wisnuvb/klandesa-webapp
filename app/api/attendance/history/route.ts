@@ -2,14 +2,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-
-type SubscriptionTier =
-  | "FREE"
-  | "TIER_6_10"
-  | "TIER_11_20"
-  | "TIER_21_30"
-  | "TIER_31_50"
-  | "CUSTOM";
+import { mapVillagePlanToTier, maxHistoryDaysForTier } from "@/lib/attendance/capacity";
 
 type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "LEAVE";
 type CheckInMethod = "QR" | "GPS";
@@ -46,23 +39,6 @@ function parseDateParam(value: string | null) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d;
-}
-
-function mapVillagePlanToTier(plan: string | null | undefined): SubscriptionTier {
-  const value = (plan ?? "").toLowerCase();
-  if (value === "enterprise") return "TIER_31_50";
-  if (value === "profesional" || value === "professional") return "TIER_11_20";
-  if (value === "starter" || value === "lengkap") return "TIER_6_10";
-  return "FREE";
-}
-
-function maxHistoryDaysForTier(tier: SubscriptionTier) {
-  if (tier === "FREE") return 7;
-  if (tier === "TIER_6_10") return 30;
-  if (tier === "TIER_11_20") return 90;
-  if (tier === "TIER_21_30") return 180;
-  if (tier === "TIER_31_50") return 365;
-  return 365;
 }
 
 function diffDaysInclusive(from: Date, to: Date) {

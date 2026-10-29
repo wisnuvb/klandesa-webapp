@@ -140,6 +140,16 @@ Semua datanya sudah ada di backend; pekerjaannya DTO + layar.
 - [ ] **Temuan terpisah:** modul `keuangan` di registry tidak punya `billingAddon`, sehingga `resolveModuleAccess` tidak mengenali add-on Keuangan yang aktif (API pembatasan memakai peta lain). Kemungkinan bug lama; perlu diperiksa sebelum Keuangan dijual sebagai add-on.
 ---
 
+### Penutupan celah setelah Fase E (2026-10-29)
+- [x] AuditLog untuk aksi Ketua RT dan semua aksi iuran/kas (`lib/mobile/audit-actor.ts`).
+- [x] Dashboard web: tab **Iuran & Kas** (rekap per RT/desa, hanya baca) di Kegiatan RT/RW; lencana status RT di Permohonan Warga.
+- [x] Dashboard kabupaten: kartu "Pemakaian aplikasi warga" (belum dipakai / sepi / aktif) di Adopsi digital.
+- [x] Ukuran huruf dalam aplikasi (Normal/Besar/Sangat besar) di menu Saya.
+- [x] Pelaporan crash (layar cadangan + log server `mobile_crash`) sebagai langkah awal; belum sekelas Sentry.
+- [x] `CRON_SECRET` dibandingkan dengan waktu-konstan.
+- [x] Panduan uji staging: `docs/STAGING_GUIDE.md`.
+- [ ] Belum: pengumuman/kegiatan RT dan lapor tamu, migrasi akun lama, Siskeudes dua arah, penagihan lisensi kabupaten, Sentry/Crashlytics penuh.
+
 ## 4. Growth dan onboarding (inilah yang membuat harga murah menguntungkan)
 
 | Tuas | Praktik |

@@ -8,6 +8,15 @@ import {
 } from "@/lib/mail/letterFormSnapshot";
 import { letterDateKeyFromInput } from "@/lib/mail/letterDateKey";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { readJsonBody } from "@/lib/http/read-json";
+import {
+  LETTER_LIMITS,
+  cleanLine,
+  parseLetterDate,
+  parseLetterStatus,
+  parseSignerRole,
+  sanitizeFormData,
+} from "@/lib/mail/letter-input";
 
 export async function PATCH(
   req: NextRequest,
@@ -22,6 +31,9 @@ export async function PATCH(
     }
 
     const { id: idRaw } = await params;
+    if (!/^\d{1,18}$/.test(idRaw)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const mailId = BigInt(idRaw);
 
     const existing = await prisma.mailService.findFirst({
@@ -32,34 +44,15 @@ export async function PATCH(
       return NextResponse.json({ error: "Surat tidak ditemukan" }, { status: 404 });
     }
 
-    const body = await req.json();
-    const {
-      letterNumber,
-      letterDate,
-      applicantName,
-      applicantNik,
-      signerRole,
-      signerName,
-      formData,
-      status,
-      contentHtml,
-    } = body;
+    const parsed = await readJsonBody(req, LETTER_LIMITS.requestBytes);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+    }
+    const body = (parsed.body ?? {}) as Record<string, unknown>;
 
-    const normalizedFormData: Record<string, string> =
-      formData && typeof formData === "object" ? formData : {};
-    const requestedLetterNumber = String(
-      letterNumber ?? normalizedFormData.NOMOR_SURAT ?? existing.letterNumber,
-    ).trim();
-    const finalLetterNumber =
-      requestedLetterNumber || `${village.code?.toUpperCase() || "SURAT"}/${Date.now()}`;
-
-    if (
-      !applicantName ||
-      typeof applicantName !== "string" ||
-      !applicantNik ||
-      typeof applicantNik !== "string" ||
-      !normalizedFormData
-    ) {
+    const applicantName = cleanLine(body.applicantName, LETTER_LIMITS.applicantNameLength);
+    const applicantNik = cleanLine(body.applicantNik, LETTER_LIMITS.applicantNikLength);
+    if (!applicantName || !applicantNik) {
       return NextResponse.json(
         {
           error: "Missing required fields: applicantName, applicantNik, or formData",
@@ -67,6 +60,37 @@ export async function PATCH(
         { status: 400 },
       );
     }
+
+    const form = sanitizeFormData(body.formData);
+    if (!form.ok) {
+      return NextResponse.json({ error: form.error }, { status: 400 });
+    }
+    const normalizedFormData = form.value;
+
+    const rawNumber =
+      (typeof body.letterNumber === "string" || typeof body.letterNumber === "number") &&
+      String(body.letterNumber).trim()
+        ? String(body.letterNumber)
+        : (normalizedFormData.NOMOR_SURAT ?? existing.letterNumber);
+    const requestedLetterNumber = cleanLine(rawNumber, LETTER_LIMITS.letterNumberLength);
+    if (requestedLetterNumber === null) {
+      return NextResponse.json({ error: "Nomor surat tidak valid" }, { status: 400 });
+    }
+    const finalLetterNumber =
+      requestedLetterNumber || `${village.code?.toUpperCase() || "SURAT"}/${Date.now()}`;
+
+    const statusParsed = body.status === undefined ? null : parseLetterStatus(body.status);
+    if (body.status !== undefined && !statusParsed) {
+      return NextResponse.json({ error: "Status surat tidak valid" }, { status: 400 });
+    }
+
+    const resolvedLetterDate =
+      body.letterDate == null ? existing.letterDate : parseLetterDate(body.letterDate);
+    if (!resolvedLetterDate) {
+      return NextResponse.json({ error: "Tanggal surat tidak valid" }, { status: 400 });
+    }
+    const signerRole = parseSignerRole(body.signerRole);
+    const signerName = cleanLine(body.signerName ?? "", LETTER_LIMITS.signerNameLength) || null;
 
     const template = await prisma.mailTemplate.findUnique({
       where: { id: Number(existing.templateId) },
@@ -86,11 +110,8 @@ export async function PATCH(
       finalLetterNumber,
     );
 
-    const requestedStatus =
-      typeof status === "string" &&
-      ["draft", "completed", "archived"].includes(status)
-        ? (status as "draft" | "completed" | "archived")
-        : ((existing.status as string) ?? "draft");
+    const requestedStatus: "draft" | "completed" | "archived" =
+      statusParsed ?? ((existing.status as "draft" | "completed" | "archived") ?? "draft");
 
     let nextCompletedAt = existing.completedAt;
     if (requestedStatus === "completed") {
@@ -101,20 +122,16 @@ export async function PATCH(
       nextCompletedAt = existing.completedAt;
     }
 
-    const resolvedLetterDate = letterDate ? new Date(letterDate) : existing.letterDate;
     const letterDateKeyVal = letterDateKeyFromInput(resolvedLetterDate);
 
     const baseUpdate = {
       letterNumber: finalLetterNumber,
       letterDate: resolvedLetterDate,
       letterDateKey: letterDateKeyVal,
-      applicantName: applicantName.trim().slice(0, 255),
-      applicantNik: applicantNik.trim().slice(0, 16),
+      applicantName,
+      applicantNik,
       signerRole: signerRole || existing.signerRole || "kepala_desa",
-      signerName:
-        typeof signerName === "string" && signerName.trim().length > 0
-          ? signerName.trim().slice(0, 255)
-          : null,
+      signerName,
       formData: persistedFormData,
       status: requestedStatus,
       completedAt: nextCompletedAt,
@@ -122,15 +139,10 @@ export async function PATCH(
       templateCategory: template.category,
     };
 
-    const contentPatch =
-      "contentHtml" in body && (contentHtml === null || typeof contentHtml === "string")
-        ? { contentHtml: contentHtml ?? null }
-        : {};
-
     await prisma.$transaction(async (tx) => {
       await tx.mailService.update({
         where: { id: mailId },
-        data: { ...baseUpdate, ...contentPatch },
+        data: baseUpdate,
       });
 
       await tx.mailHistory.create({
@@ -168,7 +180,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(
-      { error: err?.message || "Terjadi kesalahan server" },
+      { error: "Terjadi kesalahan server" },
       { status: 500 },
     );
   }

@@ -1,3 +1,5 @@
+import { attendanceCapacityFullMessage } from "@/lib/attendance/capacity";
+import { isOfficialWithinAttendanceCapacity } from "@/lib/attendance/capacity-server";
 import { requireAuthSecret } from "@/lib/auth-secret";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { requireVillageApiContext } from "@/lib/api-village-context";
@@ -315,6 +317,18 @@ export async function POST(req: NextRequest) {
         villageName: village.name,
         villageCode: village.code,
       });
+    }
+
+    const capacity = await isOfficialWithinAttendanceCapacity({
+      villageId,
+      officialId: official.id,
+      subscriptionPlan: village.subscriptionPlan,
+    });
+    if (!capacity.allowed) {
+      return NextResponse.json(
+        { error: attendanceCapacityFullMessage(capacity.limit), code: "ATTENDANCE_CAPACITY_FULL" },
+        { status: 403 },
+      );
     }
 
     await prisma.attendance.upsert({

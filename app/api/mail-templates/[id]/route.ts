@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 /**
- * Hapus template milik desa. Surat (`MailService`) yang masih memakai template ini
- * ikut dihapus (riwayat & lampiran mengikuti cascade ke `mail_services`).
+ * Hapus template milik desa. Surat (`MailService`) adalah arsip resmi, jadi tidak pernah
+ * ikut terhapus: bila template masih dipakai surat, template hanya diarsipkan
+ * (`isActive=false`, tidak muncul lagi di daftar), dan baru dihapus permanen bila belum
+ * pernah dipakai.
  */
 export async function DELETE(
   req: NextRequest,
@@ -42,16 +44,29 @@ export async function DELETE(
       );
     }
 
-    let deletedLetters = 0;
-    await prisma.$transaction(async (tx) => {
-      const del = await tx.mailService.deleteMany({
-        where: { templateId: id, villageId: village.id },
-      });
-      deletedLetters = del.count;
-      await tx.mailTemplate.delete({ where: { id } });
+    const letterCount = await prisma.mailService.count({
+      where: { templateId: id },
     });
+    if (letterCount > 0) {
+      await prisma.mailTemplate.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      return NextResponse.json({ ok: true, archived: true, keptLetters: letterCount });
+    }
 
-    return NextResponse.json({ ok: true, deletedLetters });
+    try {
+      await prisma.mailTemplate.delete({ where: { id } });
+    } catch (err) {
+      // Surat baru saja dibuat dengan template ini (balapan) → arsipkan saja.
+      if ((err as { code?: string })?.code === "P2003") {
+        await prisma.mailTemplate.update({ where: { id }, data: { isActive: false } });
+        return NextResponse.json({ ok: true, archived: true, keptLetters: 1 });
+      }
+      throw err;
+    }
+
+    return NextResponse.json({ ok: true, archived: false, keptLetters: 0 });
   } catch (err) {
     console.error("DELETE /api/mail-templates/[id] error:", err);
     return NextResponse.json(

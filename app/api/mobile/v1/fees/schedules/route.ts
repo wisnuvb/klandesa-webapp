@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
-import { audit, requireStaff } from "@/lib/mobile/staff";
-import { categoryLabel, ensureCharges, requireFeeActor, scheduleScope } from "@/lib/mobile/fees";
+import { auditFee, categoryLabel, ensureCharges, requireFeeActor, scheduleScope } from "@/lib/mobile/fees";
 import { isOwnReportPhotoUrl } from "@/lib/mobile/report-logic";
 import { validateSchedule } from "@/lib/mobile/fees-logic";
 import { getSpacesConfig } from "@/lib/spaces";
@@ -42,9 +41,6 @@ export async function POST(req: NextRequest) {
     },
   });
   const made = await ensureCharges(created);
-  if (a.kind === "desa") {
-    const ctx = await requireStaff(req, "finance", "create");
-    if (ctx.ok) void audit(ctx.ctx, req, "create_fee_schedule", "fee_schedules", created.id, { name: created.name, amount: created.amount });
-  }
+  void auditFee(req, a, "create_fee_schedule", "fee_schedules", created.id, { name: created.name, amount: created.amount, recurrence: created.recurrence });
   return NextResponse.json({ id: created.id, chargesCreated: made }, { status: 201 });
 }

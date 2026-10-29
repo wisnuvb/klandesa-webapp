@@ -1,4 +1,5 @@
-import { ActivityIndicator, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Share, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card, SectionTitle } from '@/components/cards';
 import { Body, Button, ErrorBanner, Screen } from '@/components/ui';

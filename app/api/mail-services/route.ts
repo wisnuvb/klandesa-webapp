@@ -8,6 +8,16 @@ import {
 } from "@/lib/mail/letterFormSnapshot";
 import { letterDateKeyFromInput } from "@/lib/mail/letterDateKey";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { readJsonBody } from "@/lib/http/read-json";
+import { villageTemplateScope } from "@/lib/mail/template-access";
+import {
+  LETTER_LIMITS,
+  cleanLine,
+  parseLetterDate,
+  parseLetterStatus,
+  parseSignerRole,
+  sanitizeFormData,
+} from "@/lib/mail/letter-input";
 
 export async function GET(req: NextRequest) {
   try {
@@ -74,42 +84,63 @@ export async function POST(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const body = await req.json();
-    const {
-      templateId,
-      letterNumber,
-      letterDate,
-      applicantName,
-      applicantNik,
-      signerRole,
-      signerName,
-      formData,
-      status,
-      contentHtml,
-    } = body;
+    const parsed = await readJsonBody(req, LETTER_LIMITS.requestBytes);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+    }
+    const body = (parsed.body ?? {}) as Record<string, unknown>;
 
-    const normalizedFormData: Record<string, string> =
-      formData && typeof formData === "object" ? formData : {};
-    const requestedLetterNumber = String(
-      letterNumber || normalizedFormData.NOMOR_SURAT || ""
-    ).trim();
-    const fallbackLetterNumber = `${village.code?.toUpperCase() || "SURAT"}/${new Date()
-      .toISOString()
-      .replace(/[-:.TZ]/g, "")}`;
-    const finalLetterNumber = requestedLetterNumber || fallbackLetterNumber;
-
-    if (!templateId || !applicantName || !applicantNik || !formData) {
+    const templateId = Number(body.templateId);
+    const applicantName = cleanLine(body.applicantName, LETTER_LIMITS.applicantNameLength);
+    const applicantNik = cleanLine(body.applicantNik, LETTER_LIMITS.applicantNikLength);
+    if (!Number.isInteger(templateId) || templateId <= 0 || !applicantName || !applicantNik) {
       return NextResponse.json(
         {
           error:
             "Missing required fields: templateId, applicantName, applicantNik, or formData",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const template = await prisma.mailTemplate.findUnique({
-      where: { id: Number(templateId) },
+    const form = sanitizeFormData(body.formData);
+    if (!form.ok) {
+      return NextResponse.json({ error: form.error }, { status: 400 });
+    }
+    const normalizedFormData = form.value;
+
+    const statusParsed = body.status === undefined ? "draft" : parseLetterStatus(body.status);
+    if (!statusParsed) {
+      return NextResponse.json({ error: "Status surat tidak valid" }, { status: 400 });
+    }
+    const status = statusParsed;
+
+    const rawNumber =
+      (typeof body.letterNumber === "string" || typeof body.letterNumber === "number") &&
+      String(body.letterNumber).trim()
+        ? String(body.letterNumber)
+        : (normalizedFormData.NOMOR_SURAT ?? "");
+    const requestedLetterNumber = cleanLine(rawNumber, LETTER_LIMITS.letterNumberLength);
+    if (requestedLetterNumber === null) {
+      return NextResponse.json({ error: "Nomor surat tidak valid" }, { status: 400 });
+    }
+    const fallbackLetterNumber = `${village.code?.toUpperCase() || "SURAT"}/${new Date()
+      .toISOString()
+      .replace(/[-:.TZ]/g, "")}`;
+    const finalLetterNumber = requestedLetterNumber || fallbackLetterNumber;
+
+    const resolvedLetterDate =
+      body.letterDate == null ? new Date() : parseLetterDate(body.letterDate);
+    if (!resolvedLetterDate) {
+      return NextResponse.json({ error: "Tanggal surat tidak valid" }, { status: 400 });
+    }
+
+    const signerRole = parseSignerRole(body.signerRole) ?? "kepala_desa";
+    const signerName = cleanLine(body.signerName ?? "", LETTER_LIMITS.signerNameLength) || null;
+
+    // Hanya template milik desa ini atau katalog global yang aktif.
+    const template = await prisma.mailTemplate.findFirst({
+      where: { id: templateId, isActive: true, ...villageTemplateScope(village.id) },
       select: {
         id: true,
         name: true,
@@ -133,7 +164,6 @@ export async function POST(req: NextRequest) {
       finalLetterNumber,
     );
 
-    const resolvedLetterDate = letterDate ? new Date(letterDate) : new Date();
     const letterDateKeyVal = letterDateKeyFromInput(resolvedLetterDate);
 
     const mail = await prisma.$transaction(async (tx) => {
@@ -148,14 +178,12 @@ export async function POST(req: NextRequest) {
           letterDateKey: letterDateKeyVal,
           applicantName,
           applicantNik,
-          signerRole: signerRole || "kepala_desa",
-          signerName:
-            typeof signerName === "string" && signerName.trim().length > 0
-              ? signerName.trim().slice(0, 255)
-              : null,
+          signerRole,
+          signerName,
           formData: persistedFormData,
-          contentHtml: contentHtml || null,
-          status: status || "draft",
+          // `contentHtml` dari klien tidak diterima (HTML tak tepercaya); dokumen dirender server-side.
+          contentHtml: null,
+          status,
           createdBy,
           completedAt: status === "completed" ? new Date() : null,
         },
@@ -166,7 +194,7 @@ export async function POST(req: NextRequest) {
           mailServiceId: created.id,
           action: status === "completed" ? "completed" : "created",
           changes: {
-            status: status || "draft",
+            status,
             letterNumber: finalLetterNumber,
           },
           changedBy: createdBy,
@@ -203,7 +231,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: err?.message || "Terjadi kesalahan server" },
+      { error: "Terjadi kesalahan server" },
       { status: 500 }
     );
   }

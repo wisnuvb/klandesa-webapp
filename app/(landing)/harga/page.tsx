@@ -65,6 +65,7 @@ const includedGroups = [
     items: [
       "Aplikasi untuk warga, perangkat desa, dan RT (pengantar surat, siaran)",
       "Warga: kabar desa dengan foto, komentar, dan moderasi — bisa dimatikan desa",
+      "Kuota foto aplikasi seluler 5 GB per desa (setara belasan ribu foto)",
     ],
   },
   {

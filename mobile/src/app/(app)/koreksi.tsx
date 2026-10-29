@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Card, ChoiceChip, Chip, EmptyState, InfoBox, SectionHeader, StepTitle, type Tone } from '@/components/cards';
 import { Button, ErrorBanner, Field, Screen } from '@/components/ui';

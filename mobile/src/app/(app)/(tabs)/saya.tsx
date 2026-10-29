@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { MenuGroup, SectionHeader } from '@/components/cards';
 import { Button, PageBand, Screen } from '@/components/ui';
@@ -9,6 +10,7 @@ import { APP_VERSION, compareVersions, fetchRemoteConfig } from '@/lib/app-confi
 import { resolveApiBase } from '@/lib/api-base';
 import { dialNumber } from '@/lib/format';
 import { useHome, useRtRole } from '@/lib/queries';
+import { FONT_SCALES, useFontScale } from '@/state/font-scale';
 import { useSession } from '@/state/session';
 import { colors, shadow, spacing } from '@/theme';
 
@@ -21,6 +23,30 @@ function Pill({ icon, label, tone = 'green' }: { icon: keyof typeof Ionicons.gly
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: gold ? colors.goldSoft : colors.primarySoft }}>
       <Ionicons name={icon} size={15} color={gold ? colors.goldText : colors.primary} />
       <Text style={{ fontSize: 14, fontWeight: '700', color: gold ? colors.goldText : colors.primary }}>{label}</Text>
+    </View>
+  );
+}
+
+/** Pilihan ukuran huruf. Tombol besar, ada teks dan tanda terpilih (bukan hanya warna); contoh kalimat langsung ikut berubah. */
+function FontSizeCard() {
+  const { key, setKey } = useFontScale();
+  return (
+    <View style={{ backgroundColor: colors.bg, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.md, ...shadow.card }}>
+      <View accessibilityRole="radiogroup" style={{ gap: spacing.sm }}>
+        {FONT_SCALES.map((o) => {
+          const on = o.key === key;
+          return (
+            <Pressable
+              key={o.key} onPress={() => setKey(o.key)} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={`Ukuran huruf ${o.label}`}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: 12, borderWidth: 1.5, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primarySoft : pressed ? colors.surface : colors.bg })}
+            >
+              <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={22} color={on ? colors.primary : colors.textMuted} />
+              <Text style={{ fontSize: 16, fontWeight: on ? '700' : '500', color: colors.text }}>{o.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={{ fontSize: 16, lineHeight: 24, color: colors.textMuted }}>Contoh: surat keterangan Anda sedang diperiksa kantor desa.</Text>
     </View>
   );
 }
@@ -95,6 +121,9 @@ export default function Saya() {
 
       <SectionHeader>Desa</SectionHeader>
       <MenuGroup items={village} />
+
+      <SectionHeader>Ukuran huruf</SectionHeader>
+      <FontSizeCard />
 
       <SectionHeader>Bantuan dan privasi</SectionHeader>
       <MenuGroup items={help} />

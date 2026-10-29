@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 
 const KEYS = { refresh: 'kd.refresh', profile: 'kd.profile', device: 'kd.device' } as const;
+const PREF_PREFIX = 'kd.pref.';
 
 async function get(key: string): Promise<string | null> {
   try {
@@ -53,3 +54,9 @@ export async function getDeviceId(): Promise<string> {
   await set(KEYS.device, id);
   return id;
 }
+
+/** Preferensi tampilan (bukan rahasia), misalnya ukuran huruf. Tidak dihapus saat keluar akun: ini milik perangkat. */
+export const prefStore = {
+  get: (name: string) => get(PREF_PREFIX + name),
+  set: (name: string, value: string) => set(PREF_PREFIX + name, value),
+};

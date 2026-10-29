@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Share, View } from 'react-native';
+import { Text } from '@/components/text';
 
 import { Chip } from '@/components/cards';
 import { Button, ErrorBanner, Screen } from '@/components/ui';

@@ -14,6 +14,7 @@ import type {
   LetterHistory,
   TemplateData,
 } from "../types";
+import { escapeHtml } from "@/lib/html-escape";
 import { generateHeader, generateFooter } from "../constants";
 import { buildPreviewData } from "./letterPreview";
 
@@ -151,14 +152,15 @@ export function generateLetterPreviewHtml(
 
   const headerHTML = generateHeader(letter.letter_number, letter.template_name.toUpperCase());
 
-  let bodyContent = template.content_template;
+  // Teks template dan isian warga bukan HTML: di-escape sebelum masuk ke dangerouslySetInnerHTML.
+  let bodyContent = escapeHtml(template.content_template);
   Object.entries(letter.form_data).forEach(([key, value]) => {
-    bodyContent = bodyContent.replaceAll(`{${key}}`, value);
+    bodyContent = bodyContent.replaceAll(`{${key}}`, escapeHtml(value));
   });
 
   const footerHTML = generateFooter(footer, letter.form_data.TANGGAL_SURAT || "");
 
-  return `${headerHTML}<div class="body-surat" style="font-size: 14px; line-height: 1.8; text-align: justify; margin: 20px 0;">${bodyContent}</div>${footerHTML}`;
+  return `${headerHTML}<div class="body-surat" style="font-size: 14px; line-height: 1.8; text-align: justify; margin: 20px 0; white-space: pre-wrap;">${bodyContent}</div>${footerHTML}`;
 }
 
 /**

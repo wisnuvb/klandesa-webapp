@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-
-type SubscriptionTier =
-  | "FREE"
-  | "TIER_6_10"
-  | "TIER_11_20"
-  | "TIER_21_30"
-  | "TIER_31_50"
-  | "CUSTOM";
+import { mapVillagePlanToTier, staffLimitForTier } from "@/lib/attendance/capacity";
 
 type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "LEAVE";
 type CheckInMethod = "QR" | "GPS";
@@ -24,25 +17,6 @@ function endOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(23, 59, 59, 999);
   return d;
-}
-
-function mapVillagePlanToTier(
-  plan: string | null | undefined,
-): SubscriptionTier {
-  const value = (plan ?? "").toLowerCase();
-  if (value === "enterprise") return "TIER_31_50";
-  if (value === "profesional" || value === "professional") return "TIER_11_20";
-  if (value === "starter" || value === "lengkap") return "TIER_6_10";
-  return "FREE";
-}
-
-function staffLimitForTier(tier: SubscriptionTier) {
-  if (tier === "FREE") return 5;
-  if (tier === "TIER_6_10") return 10;
-  if (tier === "TIER_11_20") return 20;
-  if (tier === "TIER_21_30") return 30;
-  if (tier === "TIER_31_50") return 50;
-  return 50;
 }
 
 function toTimeString(date: Date | null) {

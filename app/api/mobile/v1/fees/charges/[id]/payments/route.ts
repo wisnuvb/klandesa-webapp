@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
 import { notifyAccount } from "@/lib/mobile/notify";
-import { ownCharge, requireFeeActor, withStatus } from "@/lib/mobile/fees";
+import { auditFee, ownCharge, requireFeeActor, withStatus } from "@/lib/mobile/fees";
 import { isOwnReportPhotoUrl } from "@/lib/mobile/report-logic";
 import { validatePayment } from "@/lib/mobile/fees-logic";
 import { getSpacesConfig } from "@/lib/spaces";
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
     select: { id: true },
   });
+  void auditFee(req, a, "record_fee_payment", "fee_payments", p.id, { chargeId: own.charge.id, amount: v.amount, method: v.method, hasProof: Boolean(proof) });
   if (own.charge.headResidentId) {
     const acc = await prisma.citizenAccount.findUnique({ where: { residentId: own.charge.headResidentId }, select: { id: true, status: true } });
     if (acc?.status === "ACTIVE") {

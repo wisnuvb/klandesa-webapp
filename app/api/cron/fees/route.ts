@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCronSecret } from "@/lib/regional-news/config";
+import { isValidCronAuth } from "@/lib/regional-news/cron-auth";
 import { ensureCharges, withStatus } from "@/lib/mobile/fees";
 import { needsReminder } from "@/lib/mobile/fees-logic";
 import { notifyAccount } from "@/lib/mobile/notify";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const secret = getCronSecret();
   if (!secret) return NextResponse.json({ error: "CRON_SECRET belum dikonfigurasi" }, { status: 503 });
-  if (req.headers.get("authorization")?.trim() !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isValidCronAuth(req.headers.get("authorization"), secret)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const now = new Date();
   const schedules = await prisma.feeSchedule.findMany({ where: { isActive: true }, take: 5000 });
