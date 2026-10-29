@@ -13,10 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatIdr } from "@/lib/billing/catalog";
+import { BILLING_CATALOG, formatIdr } from "@/lib/billing/catalog";
 
 type RuleRow = {
   closingBonusAmount: string | number;
+  closingBonusPercent: string | number | null;
   subscriptionSharePercent: string | number;
   isActive: boolean;
 };
@@ -42,6 +43,7 @@ function BadgeCount({ n }: { n: number }) {
 export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
   const [rule, setRule] = useState<RuleRow | null>(null);
   const [closing, setClosing] = useState("");
+  const [closingPct, setClosingPct] = useState("");
   const [pct, setPct] = useState("");
   const [isActiveRule, setIsActiveRule] = useState(true);
   const [accrued, setAccrued] = useState<CommRow[]>([]);
@@ -65,6 +67,7 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
       if (d.rule) {
         setRule(d.rule);
         setClosing(String(d.rule.closingBonusAmount ?? ""));
+        setClosingPct(d.rule.closingBonusPercent == null ? "" : String(d.rule.closingBonusPercent));
         setPct(String(d.rule.subscriptionSharePercent ?? ""));
         setIsActiveRule(d.rule.isActive);
       }
@@ -95,6 +98,7 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           closingBonusAmount: Number(closing),
+          closingBonusPercent: closingPct.trim() === "" ? null : Number(closingPct),
           subscriptionSharePercent: Number(pct),
           isActive: isActiveRule,
         }),
@@ -192,9 +196,27 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div>
-            <Label htmlFor={`closing-${partnerId}`}>Closing bonus (IDR)</Label>
+            <Label htmlFor={`closing-pct-${partnerId}`}>Bonus closing (% harga paket)</Label>
+            <Input
+              id={`closing-pct-${partnerId}`}
+              value={closingPct}
+              onChange={(e) => setClosingPct(e.target.value)}
+              type="number"
+              min={0}
+              max={100}
+              step={0.01}
+              placeholder="kosong = pakai nominal"
+            />
+            {closingPct.trim() !== "" && Number.isFinite(Number(closingPct)) ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                = {formatIdr(Math.round((BILLING_CATALOG.desa_package.tiers.lengkap.setupFee * Number(closingPct)) / 100))} per desa
+              </p>
+            ) : null}
+          </div>
+          <div>
+            <Label htmlFor={`closing-${partnerId}`}>Nominal tetap (IDR, bila % kosong)</Label>
             <Input
               id={`closing-${partnerId}`}
               value={closing}

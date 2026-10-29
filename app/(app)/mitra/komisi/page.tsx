@@ -25,7 +25,8 @@ import {
   Tooltip as RechartsTooltip,
   CartesianGrid,
 } from "recharts";
-import { formatIdr } from "@/lib/billing/catalog";
+import { BILLING_CATALOG, formatIdr } from "@/lib/billing/catalog";
+import { closingBonusFor } from "@/lib/partner/commission-math";
 import { hasPartnerPortalAccess } from "@/lib/partner-session";
 
 type SummaryResponse = {
@@ -37,6 +38,7 @@ type SummaryResponse = {
   };
   rule?: {
     closingBonusAmount: string | number;
+    closingBonusPercent?: string | number | null;
     subscriptionSharePercent: string | number;
     isActive: boolean;
   } | null;
@@ -179,7 +181,16 @@ export default function MitraKomisiPage() {
         <Card className="border-blue-900/30 bg-muted/40">
           <CardContent className="py-4 text-sm">
             <span className="font-medium">Skema aktif Anda: </span>
-            closing bonus {formatIdr(Number(summary.rule.closingBonusAmount ?? 0))},{" "}
+            closing bonus{" "}
+            {summary.rule.closingBonusPercent != null
+              ? `${Number(summary.rule.closingBonusPercent)}% dari harga paket (${formatIdr(
+                  closingBonusFor(
+                    { closingBonusPercent: Number(summary.rule.closingBonusPercent), closingBonusAmount: 0 },
+                    BILLING_CATALOG.desa_package.tiers.lengkap.setupFee,
+                  ),
+                )} per desa saat ini)`
+              : formatIdr(Number(summary.rule.closingBonusAmount ?? 0))}
+            ,{" "}
             {Number(summary.rule.subscriptionSharePercent ?? 0)}% dari tagihan lunas yang
             memenuhi syarat.
             {!summary.rule.isActive ? (

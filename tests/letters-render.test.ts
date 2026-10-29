@@ -124,7 +124,11 @@ describe("renderer: keamanan", () => {
   });
 
   it("tidak ada dangerouslySetInnerHTML di komponen & render-html", () => {
-    const files = readdirSync("components/letters").map((n) => `components/letters/${n}`);
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : [],
+      );
+    const files = [...walk("components/letters"), ...walk("lib/letters/editor")];
     files.push("lib/letters/render-html.tsx");
     assert.ok(files.length >= 2);
     for (const file of files) {

@@ -8,7 +8,10 @@ function envNumber(key: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Komisi flat per closing desa pertama kali tertaut mitra (IDR). */
+/** Bonus closing sebagai % dari harga Paket Lengkap yang berlaku (2026-10-29: 10% dari Rp3,5 jt = Rp350.000). */
+export const DEFAULT_PARTNER_CLOSING_BONUS_PERCENT = envNumber("PARTNER_DEFAULT_CLOSING_BONUS_PERCENT", 10);
+
+/** Nominal tetap per closing (IDR); hanya cadangan untuk aturan yang tidak memakai persentase. */
 export const DEFAULT_PARTNER_CLOSING_BONUS_IDR = envNumber(
   "PARTNER_DEFAULT_CLOSING_BONUS_IDR",
   500_000,

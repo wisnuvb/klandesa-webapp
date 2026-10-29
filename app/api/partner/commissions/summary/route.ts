@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
           ? null
           : {
               closingBonusAmount: rule.closingBonusAmount,
+              closingBonusPercent: rule.closingBonusPercent,
               subscriptionSharePercent: rule.subscriptionSharePercent,
               isActive: rule.isActive,
               effectiveFrom: rule.effectiveFrom,

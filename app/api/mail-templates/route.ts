@@ -152,6 +152,27 @@ export async function PATCH(req: NextRequest) {
     if (contentTemplate !== undefined) data.contentTemplate = contentTemplate;
     if (isActive !== undefined) data.isActive = isActive;
 
+    // Penyimpanan otomatis dari editor mengirim `expectedUpdatedAt`: bila template sudah diubah
+    // di tempat lain sejak dimuat, tolak (409) agar dua operator tidak saling menimpa.
+    const expectedRaw = body?.expectedUpdatedAt;
+    if (expectedRaw !== undefined) {
+      const expected = typeof expectedRaw === "string" ? new Date(expectedRaw) : null;
+      if (!expected || Number.isNaN(expected.getTime())) {
+        return NextResponse.json({ error: "expectedUpdatedAt tidak valid" }, { status: 400 });
+      }
+      const res = await prisma.mailTemplate.updateMany({
+        where: { id, villageId: village.id, updatedAt: expected },
+        data: data as Prisma.MailTemplateUpdateManyMutationInput,
+      });
+      if (res.count === 0) {
+        return NextResponse.json(
+          { error: "Template ini sudah diubah di tempat lain. Muat ulang untuk melihat versi terbaru." },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json(await prisma.mailTemplate.findUnique({ where: { id } }));
+    }
+
     const updated = await prisma.mailTemplate.update({
       where: { id },
       data,

@@ -302,7 +302,7 @@ Satu app, **peran menentukan tampilan**. Warga yang juga RT / perangkat melihat 
 | Like | **Ya** (♥, hitungan) | Umpan balik ringan |
 | Komentar | **Ya** — datar (1 tingkat), balas dengan @nama; maks 500 karakter | Thread bersarang membingungkan |
 | Follow akun | **Tidak** — semua warga desa otomatis satu "lingkaran" | Di desa semua saling kenal; follow = beban |
-| Feed algoritmik | **Tidak** — urut waktu terbaru + postingan resmi desa disematkan | Transparan, tidak ada "kenapa postingan saya tak muncul" |
+| Feed algoritmik | **Ya, bertahap (2026-10-29)** — tab "Untuk Anda" + "Terbaru" (urut waktu); postingan resmi desa tetap disematkan; aktif otomatis hanya di desa yang cukup ramai | Dibalik atas permintaan pemilik; risiko gelembung/keadilan ditangani pagar di `docs/SOCIAL_FEED_RANKING.md` |
 | Stories/Reels/DM/live | **Tidak** (v2) | Di luar kemampuan moderasi |
 | Hashtag | Ya, sederhana (#gotongroyong); tanpa halaman tren | Memudahkan cari kegiatan |
 | Explore | **Filter**: Semua · RT saya · Kegiatan · Usaha · Foto | Pengganti explore, cocok skala desa |

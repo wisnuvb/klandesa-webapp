@@ -14,6 +14,8 @@ interface TemplateGridProps {
   onDeleteTemplate: (template: TemplateBody) => void;
   /** Buka modal salin / editor untuk template katalog bawaan. */
   onCustomizeCatalogTemplate?: (template: TemplateBody) => void;
+  /** Jenis surat katalog v2: salin ke desa lalu ubah di editor kanvas. */
+  onSesuaikanTemplate?: (template: TemplateBody) => void;
 }
 
 export function TemplateGrid({
@@ -23,6 +25,7 @@ export function TemplateGrid({
   onEditTemplate,
   onDeleteTemplate,
   onCustomizeCatalogTemplate,
+  onSesuaikanTemplate,
 }: TemplateGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -94,6 +97,18 @@ export function TemplateGrid({
                         <FileEdit className="h-4 w-4 shrink-0" />
                         Gunakan
                       </Button>
+                      {template.schema_version === 2 && onSesuaikanTemplate && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          title="Salin ke desa lalu ubah tampilannya"
+                          onClick={() => onSesuaikanTemplate(template)}
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="hidden sm:inline text-xs">Sesuaikan</span>
+                        </Button>
+                      )}
                       {template.schema_version === 2 && (
                         <Button
                           variant="outline"
@@ -148,12 +163,7 @@ export function TemplateGrid({
                       variant="outline"
                       size="sm"
                       className="gap-1"
-                      title={
-                        template.schema_version === 2
-                          ? "Editor kanvas segera hadir"
-                          : "Ubah template"
-                      }
-                      disabled={template.schema_version === 2}
+                      title="Ubah template"
                       onClick={() => onEditTemplate(template)}
                     >
                       <Edit className="h-4 w-4" />

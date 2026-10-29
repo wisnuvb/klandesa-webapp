@@ -1,9 +1,11 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { BillingProductType } from "@/lib/billing/catalog";
+import { BILLING_CATALOG, type BillingProductType } from "@/lib/billing/catalog";
 import {
   DEFAULT_PARTNER_CLOSING_BONUS_IDR,
+  DEFAULT_PARTNER_CLOSING_BONUS_PERCENT,
   DEFAULT_PARTNER_SUBSCRIPTION_SHARE_PERCENT,
 } from "@/lib/partner/defaults";
+import { closingBonusFor, subscriptionShareFor } from "@/lib/partner/commission-math";
 
 /** Tipe ledger komisi mitra — harus sama dengan nilai persist di DB (`PartnerCommissionEntry.type`). */
 export const PARTNER_COMMISSION_TYPES = ["CLOSING", "SUBSCRIPTION", "ADJUSTMENT"] as const;
@@ -44,6 +46,7 @@ export async function ensurePartnerCommissionRule(
   partnerId: number,
 ): Promise<{
   closingBonusAmount: Prisma.Decimal;
+  closingBonusPercent: Prisma.Decimal | null;
   subscriptionSharePercent: Prisma.Decimal;
   isActive: boolean;
 }> {
@@ -56,13 +59,14 @@ export async function ensurePartnerCommissionRule(
     data: {
       partnerId,
       closingBonusAmount: DEFAULT_PARTNER_CLOSING_BONUS_IDR,
+      closingBonusPercent: DEFAULT_PARTNER_CLOSING_BONUS_PERCENT,
       subscriptionSharePercent: DEFAULT_PARTNER_SUBSCRIPTION_SHARE_PERCENT,
     },
   });
   return created;
 }
 
-/** Accrual komisi flat ketika admin pertama kali menautkan desa ke mitra (dalam transaksi DB yang sama). */
+/** Accrual bonus closing (% dari harga Paket Lengkap yang berlaku) ketika admin pertama kali menautkan desa ke mitra (dalam transaksi DB yang sama). */
 export async function accrueClosingCommissionInTx(
   tx: DbTx,
   params: { partnerId: number; villageId: number },
@@ -70,8 +74,14 @@ export async function accrueClosingCommissionInTx(
   const rule = await ensurePartnerCommissionRule(tx, params.partnerId);
   if (!rule.isActive) return;
 
-  const bonus = Number(rule.closingBonusAmount);
-  if (!Number.isFinite(bonus) || bonus <= 0) return;
+  const bonus = closingBonusFor(
+    {
+      closingBonusPercent: rule.closingBonusPercent == null ? null : Number(rule.closingBonusPercent),
+      closingBonusAmount: Number(rule.closingBonusAmount),
+    },
+    BILLING_CATALOG.desa_package.tiers.lengkap.setupFee,
+  );
+  if (bonus <= 0) return;
 
   await tx.partnerCommissionEntry.create({
     data: {
@@ -116,10 +126,7 @@ export async function accrueSubscriptionCommissionInTx(
   const rule = await ensurePartnerCommissionRule(tx, partnerId);
   if (!rule.isActive) return;
 
-  const pct = Number(rule.subscriptionSharePercent);
-  if (!Number.isFinite(pct) || pct <= 0) return;
-
-  const share = Math.round((params.invoiceAmount * pct) / 100);
+  const share = subscriptionShareFor(params.invoiceAmount, Number(rule.subscriptionSharePercent));
   if (share <= 0) return;
 
   await tx.partnerCommissionEntry.create({

@@ -242,8 +242,8 @@ export function rankForYou(cands: Candidate[], profile: Profile, ctx: { now: num
     const n = RANKING.maxConsecutiveAuthor;
     return !(authors.length >= n && authors.slice(-n).every((a) => a === key(c)));
   };
-  const take = (e: Entry, why: Why | null) => {
-    pool.splice(pool.indexOf(e), 1);
+  const take = (rest: Entry[], e: Entry, why: Why | null) => {
+    rest.splice(rest.indexOf(e), 1);
     authors.push(key(e.c));
     out.push({ id: e.c.id, why });
   };
@@ -256,12 +256,16 @@ export function rankForYou(cands: Candidate[], profile: Profile, ctx: { now: num
       const pick = pool
         .filter((e) => !e.pinned && e.aff >= 0 && e.aff <= RANKING.exploreAffinityMax && allowed(e.c))
         .sort((a, b) => byNew(a.c, b.c))[0];
-      if (pick) { take(pick, { kind: "explore", label: "Kabar baru dari warga lain" }); continue; }
+      if (pick) { take(pool, pick, { kind: "explore", label: "Kabar baru dari warga lain" }); continue; }
     }
     const pick = pool.find((e) => allowed(e.c)) ?? pool[0]!;
-    take(pick, pick.pinned ? null : reasonOf(pick.c, profile, viewerRt, pick.c.authorName));
+    take(pool, pick, pick.pinned ? null : reasonOf(pick.c, profile, viewerRt, pick.c.authorName));
   }
-  return [...out, ...older.map((c) => ({ id: c.id, why: null }))];
+
+  // Ekor di luar jendela tetap urut waktu, tetapi aturan variasi penulis berlaku di seluruh feed.
+  const tail: Entry[] = older.map((c) => ({ c, score: 0, aff: 0, pinned: false }));
+  while (tail.length) take(tail, tail.find((e) => allowed(e.c)) ?? tail[0]!, null);
+  return out;
 }
 
 /** Cursor "Untuk Anda": waktu acuan (agar skor konsisten antarhalaman) dan posisi. Cursor angka biasa = urut waktu. */

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import {
   DEFAULT_PARTNER_CLOSING_BONUS_IDR,
+  DEFAULT_PARTNER_CLOSING_BONUS_PERCENT,
   DEFAULT_PARTNER_SUBSCRIPTION_SHARE_PERCENT,
 } from "@/lib/partner/defaults";
 import { toJSONSafe } from "@/utils/json";
@@ -33,6 +34,7 @@ export async function GET(
       data: {
         partnerId: pid,
         closingBonusAmount: DEFAULT_PARTNER_CLOSING_BONUS_IDR,
+        closingBonusPercent: DEFAULT_PARTNER_CLOSING_BONUS_PERCENT,
         subscriptionSharePercent: DEFAULT_PARTNER_SUBSCRIPTION_SHARE_PERCENT,
       },
     }));
@@ -57,6 +59,8 @@ export async function PATCH(
 
   const body = (await req.json().catch(() => null)) as {
     closingBonusAmount?: unknown;
+    /** Angka 0–100, atau null untuk kembali ke nominal tetap. Tidak dikirim = tidak diubah. */
+    closingBonusPercent?: unknown;
     subscriptionSharePercent?: unknown;
     isActive?: unknown;
   } | null;
@@ -67,6 +71,12 @@ export async function PATCH(
 
   const closingBonusAmount =
     body.closingBonusAmount == null ? undefined : Number(body.closingBonusAmount);
+  const closingBonusPercent =
+    body.closingBonusPercent === undefined
+      ? undefined
+      : body.closingBonusPercent === null || body.closingBonusPercent === ""
+        ? null
+        : Number(body.closingBonusPercent);
   const subscriptionSharePercent =
     body.subscriptionSharePercent == null
       ? undefined
@@ -78,6 +88,12 @@ export async function PATCH(
     (!Number.isFinite(closingBonusAmount) || closingBonusAmount < 0)
   ) {
     return NextResponse.json({ error: "closingBonusAmount tidak valid" }, { status: 400 });
+  }
+  if (
+    closingBonusPercent != null &&
+    (!Number.isFinite(closingBonusPercent) || closingBonusPercent < 0 || closingBonusPercent > 100)
+  ) {
+    return NextResponse.json({ error: "closingBonusPercent harus 0–100" }, { status: 400 });
   }
   if (
     subscriptionSharePercent !== undefined &&
@@ -96,12 +112,15 @@ export async function PATCH(
     create: {
       partnerId: pid,
       closingBonusAmount: closingBonusAmount ?? DEFAULT_PARTNER_CLOSING_BONUS_IDR,
+      closingBonusPercent:
+        closingBonusPercent === undefined ? DEFAULT_PARTNER_CLOSING_BONUS_PERCENT : closingBonusPercent,
       subscriptionSharePercent:
         subscriptionSharePercent ?? DEFAULT_PARTNER_SUBSCRIPTION_SHARE_PERCENT,
       isActive: isActive ?? true,
     },
     update: {
       ...(closingBonusAmount !== undefined ? { closingBonusAmount } : {}),
+      ...(closingBonusPercent !== undefined ? { closingBonusPercent } : {}),
       ...(subscriptionSharePercent !== undefined ? { subscriptionSharePercent } : {}),
       ...(isActive !== undefined ? { isActive } : {}),
     },

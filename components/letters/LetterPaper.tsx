@@ -752,7 +752,10 @@ function renderSignature(b: Extract<LeafBlock, { type: "signature" }>, ctx: Ctx)
 
 // ------------------------------------------------------------------ kertas
 
-export function LetterPaper({ doc, values, mode = "preview", qrSrc, onFieldClick, className }: LetterPaperProps) {
+export type LetterPaperFrameProps = LetterPaperProps & { children?: ReactNode };
+
+/** Bingkai kertas (ukuran, margin, font) + kop; isi diberikan pemanggil. Dipakai juga oleh editor kanvas. */
+export function LetterPaperFrame({ doc, values, mode = "preview", qrSrc, onFieldClick, className, children }: LetterPaperFrameProps) {
   const ctx: Ctx = { doc, values, mode, qrSrc, onFieldClick };
   const { w, h } = paperMm(doc);
   const m = doc.page.margin;
@@ -779,7 +782,28 @@ export function LetterPaper({ doc, values, mode = "preview", qrSrc, onFieldClick
       }}
     >
       {Kop(ctx)}
-      {doc.body.map((b) => renderBlock(b, ctx))}
+      {children}
     </div>
   );
+}
+
+export type LetterBlockViewProps = {
+  doc: LetterDocument;
+  values: LetterValues;
+  block: Block;
+  mode?: LetterPaperMode;
+  qrSrc?: string;
+  onFieldClick?: (ref: string) => void;
+};
+
+/** Satu bagian surat persis seperti di kertas (tanpa bingkai). Dipakai editor kanvas untuk membungkus tiap bagian. */
+export function LetterBlockView({ doc, values, block, mode = "preview", qrSrc, onFieldClick }: LetterBlockViewProps) {
+  const ctx: Ctx = { doc, values, mode, qrSrc, onFieldClick };
+  return <>{renderBlock(block, ctx)}</>;
+}
+
+export function LetterPaper(props: LetterPaperProps) {
+  const { doc, values, mode = "preview", qrSrc, onFieldClick } = props;
+  const ctx: Ctx = { doc, values, mode, qrSrc, onFieldClick };
+  return <LetterPaperFrame {...props}>{doc.body.map((b) => renderBlock(b, ctx))}</LetterPaperFrame>;
 }

@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
   const [villages, arsipSubs] = await Promise.all([
     prisma.village.findMany({
       where: {
+        // Desa paket lama (Starter/Profesional/Enterprise) dibiarkan: mereka sudah membayar di muka dan tidak ditagih bulanan.
+        subscriptionPlan: "lengkap",
         OR: [
           { subscriptionStatus: "grace" },
           {

@@ -1,6 +1,6 @@
 # Rencana: Pembuatan Surat Sederhana & Kanvas Template
 
-Status: **Fase 0 selesai. Fase 1 selesai. Fase 2 selesai di backend dan terhubung ke halaman Layanan Surat; editor kanvas (Fase 3) belum ada.**
+Status: **Fase 0, 1, 2 selesai. Fase 3 (editor kanvas) terbangun dan terhubung ke halaman Layanan Surat; masih menunggu uji peramban penuh dan pembersihan builder lama.**
 Diperbarui: 2026-10-29.
 
 ## Tujuan
@@ -11,7 +11,7 @@ Perangkat desa (termasuk operator awam) dapat membuat surat dan mengubah tata le
 
 | Keputusan | Pilihan |
 |---|---|
-| Teks kaya di dalam bagian | Tiptap (belum dipasang; Fase 3) |
+| Teks kaya di dalam bagian | Tiptap (terpasang; hanya bold/italic/underline/hardBreak + node isian) |
 | Drag-and-drop | dnd-kit, dengan alternatif tombol & keyboard (WCAG 2.2) |
 | Migrasi template lama | **Tidak ada.** Versi ini belum dipakai desa; skema v2 menggantikan langsung |
 | Cetak | CSS `@page` (F4 bawaan) lebih dulu; PDF server-side bila perlu |
@@ -100,11 +100,22 @@ Antarmuka:
 - [x] Komposer layar terbagi (lihat bagian status di bawah bila belum selesai).
 - [ ] Paginasi dan filter sisi server untuk riwayat.
 
-**Keterbatasan sementara (sampai Fase 3):** template v2 belum bisa diubah desa karena editor kanvas belum ada; tombol "Ubah" dinonaktifkan untuk template v2. Builder lama masih bisa membuat template berformat lama yang berjalan lewat dialog lama.
+**Catatan:** builder lama masih dipakai hanya untuk mengubah template berformat lama; template v2 diubah lewat editor kanvas (Fase 3).
 
-### Fase 3 — Kanvas template
+### Fase 3 — Kanvas template (terbangun; uji peramban berjalan)
 
-Satu halaman penuh, edit langsung di kertas, sisip lewat `+` atau `/`, isian sebagai chip, drag-and-drop dengan alternatif keyboard, atur halaman (F4 bawaan), undo/redo, autosave, riwayat versi, "Cek surat". Hapus builder lama (~7.100 baris).
+Halaman `/layanan-surat/editor` (`?templateId=` ubah, `?start=` mulai baru dari kosong/contoh, `?forkFromId=` salin template katalog lalu ubah). Entry point: "Ubah" (template v2), "Template Baru" (dialog pilihan awal), "Sesuaikan" (katalog v2).
+
+- [x] Inti editor murni dan teruji (`lib/letters/editor/*`): operasi blok (termasuk kolom/bersyarat), id, pemakaian peran/isian/daftar (hapus ditolak bila masih dipakai), 24 preset bagian, konversi inline↔Tiptap, riwayat undo/redo (batas 100, penggabungan ketikan), `useDocumentEditor`.
+- [x] Persistensi (`editor/_hooks/useTemplateDocument`): autosave 1,5 dtk, backoff, konflik via `expectedUpdatedAt`, peringatan tutup tab, mulai dari contoh/kosong.
+- [x] Kanvas edit-di-tempat (`components/letters/editor/canvas`): klik bagian → sunting di kertas, chip isian, `/` pemilih isian, `+` menu bagian, dnd-kit dengan alternatif tombol dan keyboard, hapus dengan "Urungkan", zoom kertas.
+- [x] Panel samping (`components/letters/editor/panels`): Bagian + inspector, Orang & isian, Halaman + penomoran, Cek surat.
+- [x] Tombol "Ubah" template v2 diaktifkan; "Template Baru" memakai editor baru.
+- [ ] Uji peramban penuh pada halaman editor sungguhan (dengan login, AppShell, dan penyimpanan ke DB).
+- [ ] Hapus builder lama (~7.100 baris) setelah editor teruji dan tidak ada template format lama yang tersisa.
+- [ ] Riwayat versi template.
+
+**Batasan yang diketahui:** label baris memo/header tabel/tembusan hanya diubah di panel; tabel belum bisa tambah baris/kolom dari kertas; isian grup tidak bisa disisipkan sebagai chip; inspector `memo`, `signature`, `table` minimal; susunan tanda tangan "pemohon + saksi" hanya dari panel Sisipkan.
 
 ### Fase 4 — Pelengkap
 

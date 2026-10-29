@@ -49,7 +49,7 @@ Setelah itu cek: tabel `fee_schedules`, `fee_charges`, `fee_payments`, `cash_ent
   0 18 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/fees
   ```
   (18:00 UTC = 01:00 WIB.) Tanpa ini tagihan hanya dibuat saat jadwal dibuat atau dibuka, dan pengingat tidak terkirim.
-- **Job harian pengingat perpanjangan**: panggil `POST /api/cron/subscription-reminders` dengan header yang sama, sekali sehari (mis. 02:00 WIB). Mengirim email via Brevo ke admin/kepala desa dan membuat notifikasi di lonceng aplikasi: trial (7, 3, 1 hari sebelum berakhir, dan saat berakhir), langganan berbayar (30, 7, 1 hari, dan saat berakhir), add-on arsip (7, 1 hari, dan saat berakhir). Aman dijalankan berulang (satu pengingat tidak dikirim dua kali). Mengembalikan 503 bila `CRON_SECRET` atau Brevo belum dikonfigurasi.
+- **Job harian pengingat perpanjangan**: panggil `POST /api/cron/subscription-reminders` dengan header yang sama, sekali sehari (mis. 02:00 WIB). Mengirim email via Brevo ke admin/kepala desa dan membuat notifikasi di lonceng aplikasi. Pengingat langganan hanya untuk desa Paket Lengkap (desa paket lama tidak ditagih bulanan, jadi tidak diingatkan); pengingat arsip untuk semua desa. Jadwal: trial (7, 3, 1 hari sebelum berakhir, dan saat berakhir), langganan berbayar (30, 7, 1 hari, dan saat berakhir), add-on arsip (7, 1 hari, dan saat berakhir). Aman dijalankan berulang (satu pengingat tidak dikirim dua kali). Mengembalikan 503 bila `CRON_SECRET` atau Brevo belum dikonfigurasi.
   ```cron
   0 19 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/subscription-reminders
   ```
@@ -124,6 +124,7 @@ Hal yang masih di luar panduan ini: keystore dan upload key Play Store, Sentry/C
 - [ ] Add-on arsip: beli 20 GB → kuota naik; di halaman Arsip muncul "aktif hingga"; perpanjang menyambung sisa waktu; kapasitas lebih kecil saat add-on aktif ditolak; setelah `expiryDate` lewat kuota kembali 5 GB, file tetap ada, unggahan baru terblokir bila melebihi.
 - [ ] Absensi: desa Paket Lengkap dengan 11+ perangkat aktif, perangkat ke-11 absen lewat web **dan** HP → ditolak dengan pesan kapasitas; desa Starter lama tidak terpengaruh.
 - [ ] Kuota foto seluler 5 GB: sementara turunkan `MOBILE_MEDIA_QUOTA_BYTES` di staging, unggah foto → ditolak dengan pesan "Penyimpanan foto desa sedang penuh".
+- [ ] Komisi mitra: hubungkan desa ke mitra → entri CLOSING = 10% x harga Paket Lengkap (Rp350.000 pada Rp3,5 jt); bayar Paket Lengkap lewat desa itu → entri SUBSCRIPTION = 10% invoice. Di admin/mitra kolom "Bonus closing (% harga paket)" menampilkan perkiraan nominal; kosongkan untuk memakai nominal tetap.
 - [ ] Penghitung foto (`village_media_usage`): unggah foto → `mobileBytes` bertambah; hapus postingan Warga yang berfoto → berkurang. Pada unggahan pertama desa yang sudah punya foto, baris terisi dari isi bucket (sekali saja). Jalankan `npx tsx scripts/reconcile-mobile-media.ts <kodeDesa>` untuk mencocokkan ulang dengan bucket.
 - [ ] Kredit AI: kirim pertanyaan → saldo berkurang 1; saldo 0 → ditolak (402); panggilan AI gagal → saldo dikembalikan; beli paket kredit → saldo bertambah sesuai paket.
 - [ ] `POST /api/cron/subscription-reminders` tanpa header → 401; email uji terkirim ke admin desa; dijalankan dua kali → tidak ada email ganda.

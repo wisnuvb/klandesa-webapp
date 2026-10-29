@@ -158,6 +158,15 @@ describe("rankForYou: pagar", () => {
     assert.notEqual(rankForYou([...others, old], new Map(), ctx)[0]!.id, 7778);
   });
 
+  it("aturan variasi penulis juga berlaku di ekor urut waktu (di luar jendela)", () => {
+    const head = many(RANKING.minWindowPosts, (i) => ({ ageH: 1 + i, authorId: 10 + (i % 9) }));
+    const tail = many(6, (i) => ({ id: 6000 + i, authorId: 77, ageH: 200 + i })).concat(many(3, (i) => ({ id: 6100 + i, authorId: 78, ageH: 300 + i })));
+    const r = rankForYou([...head, ...tail], new Map(), ctx);
+    const who = new Map([...head, ...tail].map((c) => [c.id, c.authorId]));
+    for (let i = 2; i < r.length; i++) assert.ok(!(who.get(r[i]!.id) === who.get(r[i - 1]!.id) && who.get(r[i]!.id) === who.get(r[i - 2]!.id)), `urutan ${i}`);
+    assert.equal(r.length, head.length + tail.length);
+  });
+
   it("postingan lebih lama dari jendela menyusul urut waktu setelah yang diperingkat", () => {
     const inW = many(RANKING.minWindowPosts, (i) => ({ ageH: 1 + i }));
     const outW = [post({ id: 8001, ageH: 200 }), post({ id: 8002, ageH: 300 })];

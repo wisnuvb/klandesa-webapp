@@ -71,7 +71,7 @@ export default function MinatSaya() {
             {learning ? 'Aktif. Matikan bila Anda tidak ingin dipelajari; minat yang sudah ada ikut dihapus.' : 'Mati. Tidak ada yang dicatat. Tab Terbaru tetap menampilkan semuanya.'}
           </Text>
         </View>
-        <Switch value={learning} disabled={busy || q.isLoading} onValueChange={(v) => void toggle(v)} trackColor={{ true: colors.primary, false: colors.border }} accessibilityLabel="Pelajari minat saya" />
+        <Switch value={learning} disabled={busy || q.isLoading} onValueChange={(v) => void toggle(v)} trackColor={{ true: colors.primary, false: colors.border }} thumbColor="#FFFFFF" accessibilityLabel="Pelajari minat saya" />
       </View>
 
       <SectionHeader>Yang saya tangkap sejauh ini</SectionHeader>

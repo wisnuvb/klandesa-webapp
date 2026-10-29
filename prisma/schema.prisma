@@ -1763,7 +1763,10 @@ model PartnerCommissionRule {
   partnerId Int     @unique
   partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
+  /// Nominal tetap; hanya dipakai bila closingBonusPercent kosong (aturan khusus per mitra).
   closingBonusAmount         Decimal @default(500000.00) @db.Decimal(15, 2)
+  /// Bonus closing sebagai % dari harga Paket Lengkap yang berlaku (lib/partner/commission-math.ts); mengalahkan nominal tetap.
+  closingBonusPercent        Decimal? @db.Decimal(5, 2)
   subscriptionSharePercent Decimal @default(10.00) @db.Decimal(5, 2)
 
   effectiveFrom DateTime @default(now())

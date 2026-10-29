@@ -41,6 +41,7 @@ import { CreateLetterDialog } from "./_components/CreateLetterDialog";
 import { TemplatePreviewDialog } from "./_components/TemplatePreviewDialog";
 import { LetterHistoryTab } from "./_components/LetterHistoryTab";
 import { V2TemplatePreviewDialog } from "./_components/V2Views";
+import { NewTemplateDialog } from "./editor/_components/NewTemplateDialog";
 import {
   parseSignerRoleFromForm,
   signerDisplayName,
@@ -103,6 +104,7 @@ export function LayananSurat() {
     useState<TemplateBody | null>(null);
 
   const [v2Preview, setV2Preview] = useState<TemplateBody | null>(null);
+  const [showNewTemplate, setShowNewTemplate] = useState(false);
 
   /** Jenis surat berformat dokumen v2 dibuat lewat halaman komposer; format lama lewat dialog lama. */
   const startLetter = useCallback(
@@ -180,9 +182,13 @@ export function LayananSurat() {
   const handleEditTemplateClick = useCallback(
     (template: TemplateBody) => {
       if (template.is_catalog) return;
+      if (template.schema_version === 2) {
+        router.push(`/layanan-surat/editor?templateId=${template.id}`);
+        return;
+      }
       openTemplateEditor(template);
     },
-    [openTemplateEditor],
+    [openTemplateEditor, router],
   );
 
   const handleDeleteTemplate = useCallback(
@@ -545,11 +551,7 @@ export function LayananSurat() {
                 </div>
                 <Button
                   className="gap-2"
-                  onClick={() => {
-                    setEditingTemplate(null);
-                    setTemplateBuilderSession((s) => s + 1);
-                    setShowTemplateBuilder(true);
-                  }}
+                  onClick={() => setShowNewTemplate(true)}
                 >
                   <Plus className="h-4 w-4" />
                   Template Baru
@@ -578,6 +580,9 @@ export function LayananSurat() {
               }}
               onEditTemplate={handleEditTemplateClick}
               onDeleteTemplate={handleDeleteTemplate}
+              onSesuaikanTemplate={(template) =>
+                router.push(`/layanan-surat/editor?forkFromId=${template.id}`)
+              }
               onCustomizeCatalogTemplate={(template) =>
                 template.schema_version === 2
                   ? startLetter(template)
@@ -671,6 +676,14 @@ export function LayananSurat() {
           )
         }
         desaSettings={desaSettings}
+      />
+
+      <NewTemplateDialog
+        open={showNewTemplate}
+        onOpenChange={setShowNewTemplate}
+        onChoose={(startId) =>
+          router.push(`/layanan-surat/editor?start=${encodeURIComponent(startId)}`)
+        }
       />
 
       <MultiPageTemplateBuilder

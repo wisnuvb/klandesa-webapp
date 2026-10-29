@@ -46,6 +46,9 @@ function Terms({ rules, onAccepted }: { rules: string[]; onAccepted: () => void 
       </View>
       <View style={{ marginTop: spacing.md }}>
         <InfoBox>Setiap postingan dan komentar bisa dilaporkan. Anda juga bisa memblokir akun yang mengganggu.</InfoBox>
+        <View style={{ marginTop: spacing.sm }}>
+          <InfoBox icon="sparkles-outline">Tab “Untuk Anda” memilihkan postingan dari yang pernah Anda sukai, buka, simpan, dan bagikan. Datanya hanya dipakai di Warga desa Anda. Anda bisa mematikan atau menghapusnya kapan saja lewat tombol Atur di tab Warga.</InfoBox>
+        </View>
       </View>
     </Screen>
   );

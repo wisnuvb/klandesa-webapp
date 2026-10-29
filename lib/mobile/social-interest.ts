@@ -145,14 +145,16 @@ export async function resetProfile(me: Me): Promise<void> {
   ]);
 }
 
-/** Izinkan atau tolak dipelajari. Menolak menghapus profil dan menghentikan pencatatan minat. */
+/** Izinkan atau tolak dipelajari. Menolak menghapus semua riwayat dan menghentikan pencatatan. */
 export async function setLearning(me: Me, learn: boolean): Promise<void> {
   if (learn) {
     await prisma.socialInterest.deleteMany({ where: { accountType: me.type, accountId: me.id, key: NO_LEARN_KEY } });
     return;
   }
+  // Menolak berarti riwayat perilakunya ikut dihapus: profil minat dan jejak per postingan (termasuk yang pernah dikurangi).
   await prisma.$transaction([
     prisma.socialInterest.deleteMany({ where: { accountType: me.type, accountId: me.id } }),
+    prisma.socialPostSignal.deleteMany({ where: { accountType: me.type, accountId: me.id } }),
     prisma.socialInterest.create({ data: { accountType: me.type, accountId: me.id, key: NO_LEARN_KEY, score: 1 } }),
   ]);
 }
