@@ -1,6 +1,6 @@
 # Rencana: Pembuatan Surat Sederhana & Kanvas Template
 
-Status: **Fase 0, 1, 2 selesai. Fase 3 (editor kanvas) terbangun dan terhubung ke halaman Layanan Surat; masih menunggu uji peramban penuh dan pembersihan builder lama.**
+Status: **Fase 0, 1, 2 selesai. Fase 3 (editor kanvas) terbangun, terhubung ke halaman Layanan Surat, dan lolos uji asap Chromium (harness tanpa auth); belum diuji di AppShell dengan login dan DB nyata.**
 Diperbarui: 2026-10-29.
 
 ## Tujuan
@@ -102,7 +102,7 @@ Antarmuka:
 
 **Catatan:** builder lama masih dipakai hanya untuk mengubah template berformat lama; template v2 diubah lewat editor kanvas (Fase 3).
 
-### Fase 3 — Kanvas template (terbangun; uji peramban berjalan)
+### Fase 3 — Kanvas template (terbangun; uji asap peramban lulus)
 
 Halaman `/layanan-surat/editor` (`?templateId=` ubah, `?start=` mulai baru dari kosong/contoh, `?forkFromId=` salin template katalog lalu ubah). Entry point: "Ubah" (template v2), "Template Baru" (dialog pilihan awal), "Sesuaikan" (katalog v2).
 
@@ -111,9 +111,12 @@ Halaman `/layanan-surat/editor` (`?templateId=` ubah, `?start=` mulai baru dari 
 - [x] Kanvas edit-di-tempat (`components/letters/editor/canvas`): klik bagian → sunting di kertas, chip isian, `/` pemilih isian, `+` menu bagian, dnd-kit dengan alternatif tombol dan keyboard, hapus dengan "Urungkan", zoom kertas.
 - [x] Panel samping (`components/letters/editor/panels`): Bagian + inspector, Orang & isian, Halaman + penomoran, Cek surat.
 - [x] Tombol "Ubah" template v2 diaktifkan; "Template Baru" memakai editor baru.
-- [ ] Uji peramban penuh pada halaman editor sungguhan (dengan login, AppShell, dan penyimpanan ke DB).
+- [x] Uji asap Chromium via harness (teks, chip, sisip, drag/keyboard, panel, layar 390px, alur simpan dengan API palsu). Jeda ketik dev-mode: median 13 ms (5 bagian) / 23 ms (45 bagian), P90 78 ms.
+- [ ] Uji pada halaman editor sungguhan (login, AppShell: posisi sticky/tinggi, simpan ke DB, RBAC/tenant).
 - [ ] Hapus builder lama (~7.100 baris) setelah editor teruji dan tidak ada template format lama yang tersisa.
 - [ ] Riwayat versi template.
+
+**Catatan UX dari uji peramban (belum diputuskan):** kertas turun ±48px saat bagian pertama dipilih (bilah alat jadi dua baris); tombol `+` menumpang di tepi bawah bagian pendek; pegangan seret 36×32 px (< target 44 px); bilah alat tiga baris & zoom awal ±40% di HP.
 
 **Batasan yang diketahui:** label baris memo/header tabel/tembusan hanya diubah di panel; tabel belum bisa tambah baris/kolom dari kertas; isian grup tidak bisa disisipkan sebagai chip; inspector `memo`, `signature`, `table` minimal; susunan tanda tangan "pemohon + saksi" hanya dari panel Sisipkan.
 

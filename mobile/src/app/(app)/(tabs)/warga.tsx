@@ -56,13 +56,13 @@ function Terms({ rules, onAccepted }: { rules: string[]; onAccepted: () => void 
 
 function Shortcut({ label, icon, on, onPress }: { label: string; icon: IconName; on: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={label} style={({ pressed }) => [{ width: 72, alignItems: 'center', gap: 6, marginRight: 8 }, pressed && { opacity: 0.8 }]}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={label} style={({ pressed }) => [{ width: 80, alignItems: 'center', gap: 6, marginRight: 4 }, pressed && { opacity: 0.8 }]}>
       <View style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 2.5, borderColor: on ? colors.gold : colors.border, padding: 3, backgroundColor: colors.bg }}>
         <View style={{ flex: 1, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.primaryDeep : colors.primarySoft }}>
           <Ionicons name={icon} size={24} color={on ? colors.goldLight : colors.primary} />
         </View>
       </View>
-      <Text style={{ fontSize: 13.5, fontWeight: on ? '800' : '600', color: on ? colors.text : colors.textMuted }} numberOfLines={1}>{label}</Text>
+      <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 13.5, fontWeight: on ? '800' : '600', color: on ? colors.text : colors.textMuted }} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
@@ -94,7 +94,7 @@ function Composer({ name, onPress }: { name: string; onPress: () => void }) {
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Tulis postingan baru" style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.bg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: 8 }, pressed && { opacity: 0.85 }]}>
       <Avatar name={name} size={42} />
       <View style={{ flex: 1, minHeight: 46, borderRadius: 23, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 16, justifyContent: 'center' }}>
-        <Text style={{ fontSize: 16, color: colors.textMuted }} numberOfLines={1}>Apa kabar hari ini, {first}?</Text>
+        <Text style={{ fontSize: 16, color: colors.textMuted }} numberOfLines={2}>Apa kabar, {first}?</Text>
       </View>
       <Ionicons name="images" size={28} color={colors.primary} />
     </Pressable>
@@ -184,7 +184,7 @@ export default function Warga() {
               {searching ? <Field label="Cari kata atau #tag" icon="search-outline" value={text} onChangeText={setText} placeholder="contoh: #gotongroyong" autoFocus /> : null}
               {official.map((a) => (
                 <Card key={a.id} onPress={() => router.push(`/kabar/${a.id}`)} label={`Kabar resmi desa: ${a.title}`}>
-                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                     <Chip label="KABAR RESMI DESA" tone="gold" icon="shield-checkmark" />
                     <Chip label={a.category.toUpperCase()} />
                   </View>

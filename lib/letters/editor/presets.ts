@@ -211,7 +211,7 @@ function build(doc: LetterDocument, preset: PresetId, id: string): Built {
       return { doc, block: { id, type: "pageBreak" } };
     case "gambar":
       // Alamat gambar tidak boleh kosong menurut skema; ini penanda yang harus diganti operator.
-      return { doc, block: { id, type: "image", src: "/placeholder-gambar.png", alt: "Ganti gambar ini", widthMm: 40, align: "center" } };
+      return { doc, block: { id, type: "image", src: "/placeholder-gambar.svg", alt: "Ganti gambar ini", widthMm: 40, align: "center" } };
     case "kode_qr":
       return { doc, block: { id, type: "qr", sizeMm: 22, align: "right" } };
   }

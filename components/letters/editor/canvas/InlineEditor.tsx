@@ -81,6 +81,7 @@ export default function InlineEditor({
         "aria-multiline": "true",
         "aria-label": ariaLabel,
         spellcheck: "true",
+        lang: "id",
         class: "outline-none min-h-[1.2em]",
       },
       handleTextInput(view, from, _to, text) {

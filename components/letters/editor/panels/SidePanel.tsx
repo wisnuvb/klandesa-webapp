@@ -82,9 +82,9 @@ export function SidePanel({ editor, onReveal, className, open: openProp, onOpenC
 
   const badge =
     summary.errors > 0 ? (
-      <span className="ml-1 rounded-full bg-destructive px-1.5 text-xs font-semibold text-white" aria-hidden>{summary.errors}</span>
+      <span className="absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] font-semibold leading-4 text-white" aria-hidden>{summary.errors}</span>
     ) : summary.hints > 0 ? (
-      <span className="ml-1 rounded-full bg-muted px-1.5 text-xs font-semibold text-foreground" aria-hidden>{summary.hints}</span>
+      <span className="absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-muted px-1 text-center text-[10px] font-semibold leading-4 text-foreground" aria-hidden>{summary.hints}</span>
     ) : null;
 
   return (
@@ -120,7 +120,7 @@ export function SidePanel({ editor, onReveal, className, open: openProp, onOpenC
         )}
       >
         <div className="flex items-center gap-1 border-b px-2 pt-2 lg:pt-0">
-          <div role="tablist" aria-label="Bagian panel" className="flex min-w-0 flex-1 gap-1 overflow-x-auto" aria-orientation="horizontal">
+          <div role="tablist" aria-label="Bagian panel" className="grid min-w-0 flex-1 grid-cols-4 gap-1" aria-orientation="horizontal">
             {TABS.map((t, i) => {
               const selected = tab === t.id;
               const Icon = t.icon;
@@ -137,13 +137,15 @@ export function SidePanel({ editor, onReveal, className, open: openProp, onOpenC
                   onClick={() => setTab(t.id)}
                   onKeyDown={(e) => onTabKey(e, i)}
                   className={cn(
-                    "flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                    "flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 border-b-2 px-0.5 py-1 text-xs font-medium leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                     selected ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <Icon className="h-4 w-4" aria-hidden />
-                  {t.label}
-                  {t.id === "cek" && badge}
+                  <span className="relative">
+                    <Icon className="h-4 w-4" aria-hidden />
+                    {t.id === "cek" && badge}
+                  </span>
+                  <span className="text-center">{t.label}</span>
                   {t.id === "cek" && summary.total > 0 && <span className="sr-only">, {summary.label}</span>}
                 </button>
               );

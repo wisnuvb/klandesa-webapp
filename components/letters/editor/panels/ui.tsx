@@ -32,7 +32,7 @@ export const controlClass =
   "block w-full min-h-11 rounded-md border border-input bg-input-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive";
 
 export const labelClass = "mb-1 block text-sm font-medium text-foreground";
-export const hintClass = "mt-1 text-xs text-muted-foreground";
+export const hintClass = "mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]";
 
 export function FieldError({ id, children }: { id?: string; children: ReactNode }) {
   if (!children) return null;

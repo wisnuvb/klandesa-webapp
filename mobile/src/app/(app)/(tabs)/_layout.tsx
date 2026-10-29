@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Text as RNText } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InTabsContext } from '@/components/ui';
@@ -32,7 +33,10 @@ export default function TabsLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
-          tabBarLabelStyle: { fontSize: 13, fontWeight: '600' },
+          // Label tab dibatasi pembesarannya (maks. 1,2×): dengan 4-5 tab, huruf lebih besar membuatnya terpotong ("Beran…").
+          tabBarLabel: ({ color, children }) => (
+            <RNText numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontSize: 13, fontWeight: '600', color }}>{children}</RNText>
+          ),
           tabBarStyle: { height: 60 + insets.bottom, paddingBottom: Math.max(insets.bottom, 8), paddingTop: 6 },
         }}
       >
