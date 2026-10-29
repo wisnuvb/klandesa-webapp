@@ -4,6 +4,7 @@ import { mobileError } from "@/lib/mobile/context";
 import { asAccountType, blockedPairs, isMe, requireSocial } from "@/lib/mobile/social";
 import { notifyAccount } from "@/lib/mobile/notify";
 import { COMMENTS_PER_HOUR, checkCommentContent, cleanText } from "@/lib/mobile/social-logic";
+import { learnFromPost } from "@/lib/mobile/social-interest";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const g = await requireSocial(req);
@@ -65,5 +66,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const dup = await prisma.userNotification.count({ where: { accountType: target, accountId: post.authorId, deepLink: link, type: "system", createdAt: { gte: new Date(Date.now() - 3600_000) } } });
     if (!dup) void notifyAccount(target, post.authorId, s.ctx.villageId, { type: "system", title: `${s.account.name} berkomentar di postingan Anda`, body: text.slice(0, 100), deepLink: link });
   }
+  void learnFromPost(s.me, post.id, "comment");
   return NextResponse.json({ id: Number(c.id) }, { status: 201 });
 }

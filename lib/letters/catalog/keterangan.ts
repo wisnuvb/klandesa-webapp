@@ -1,0 +1,282 @@
+/** Katalog surat keterangan (kategori "Keterangan"). */
+import {
+  KEPERLUAN, PEMOHON, PEMOHON_LENGKAP, PEMOHON_NARASI, PEMOHON_RINGKAS,
+  datelineSurat, f, field, judul, kadesSignature, letter, para, pembuka, pemohonData,
+  penutup, personData, saksiGroup, saksiKadesSignature, t,
+  type CatalogEntry,
+} from "./helpers";
+
+const keperluanKalimat = (id: string) => para(id, t("Surat keterangan ini dibuat untuk keperluan "), f("isian.keperluan"), t("."));
+
+export const KETERANGAN: CatalogEntry[] = [
+  {
+    catalogKey: "cat_sk_domisili",
+    name: "Surat Keterangan Domisili",
+    description: "Menerangkan tempat tinggal sah warga untuk keperluan administrasi.",
+    category: "Keterangan",
+    document: letter({
+      klasifikasi: "474",
+      fields: [KEPERLUAN],
+      body: [
+        judul("SURAT KETERANGAN DOMISILI"),
+        pembuka(),
+        pemohonData(PEMOHON_LENGKAP),
+        para("isi", t("Berdasarkan data dan catatan di desa kami, yang bersangkutan adalah benar bertempat tinggal di alamat tersebut di atas.")),
+        keperluanKalimat("keperluan_kalimat"),
+        penutup(),
+        kadesSignature(),
+      ],
+    }),
+  },
+  {
+    catalogKey: "cat_sk_sktm",
+    name: "Surat Keterangan Tidak Mampu (SKTM)",
+    description: "Keterangan ekonomi untuk bantuan sosial atau sekolah.",
+    category: "Keterangan",
+    document: letter({
+      klasifikasi: "400",
+      fields: [KEPERLUAN],
+      body: [
+        judul("SURAT KETERANGAN TIDAK MAMPU"),
+        pembuka(),
+        pemohonData(PEMOHON_NARASI),
+        para("isi", t("Berdasarkan pengamatan dan pengakuan setempat, yang bersangkutan tergolong keluarga tidak mampu.")),
+        keperluanKalimat("keperluan_kalimat"),
+        penutup(),
+        kadesSignature(),
+      ],
+    }),
+  },
+  {
+    catalogKey: "cat_sk_penghasilan",
+    name: "Surat Keterangan Penghasilan",
+    description: "Penghasilan rata-rata untuk beasiswa, bantuan, atau bank.",
+    category: "Keterangan",
+    document: letter({
+      klasifikasi: "400",
+      fields: [KEPERLUAN],
+      body: [
+        judul("SURAT KETERANGAN PENGHASILAN"),
+        pembuka(),
+        pemohonData(PEMOHON_NARASI),
+        // Nominal diisi dari data warga (dapat diubah di tempat) dan ditulis dengan huruf.
+        para(
+          "isi",
+          t("Yang bersangkutan berpenghasilan rata-rata "),
+          f("pemohon.penghasilan", "rupiah", "-"),
+          t(" per bulan (terbilang: "),
+          f("pemohon.penghasilan", "terbilang_rupiah", "-"),
+          t(")."),
+        ),
+        keperluanKalimat("keperluan_kalimat"),
+        penutup(),
+        kadesSignature(),
+      ],
+    }),
+  },
+  {
+    catalogKey: "cat_sk_usaha",
+    name: "Surat Keterangan Usaha",
+    description: "Menerangkan nama/jenis lokasi usaha warga.",
+    category: "Keterangan",
+    document: letter({
+      klasifikasi: "500",
+      fields: [
+        field("nama_usaha", "Nama usaha", "text"),
+        field("jenis_usaha", "Jenis usaha", "text", { placeholder: "mis. toko kelontong" }),
+        field("alamat_usaha", "Alamat usaha", "longtext"),
+        field("lama_usaha", "Lama usaha berjalan", "text", { required: false, placeholder: "mis. sejak 2018" }),
+        KEPERLUAN,
+      ],
+      body: [
+        judul("SURAT KETERANGAN USAHA"),
+        pembuka(),
+        pemohonData(PEMOHON_RINGKAS),
+        para(
+          "isi",
+          t("Bahwa nama tersebut mempunyai usaha "),
+          f("isian.jenis_usaha"),
+          t(" dengan nama "),
+          f("isian.nama_usaha"),
+          t(" yang berlokasi di "),
+          f("isian.alamat_usaha"),
+          t("."),
+        ),
+        { id: "lama", type: "conditional", when: { ref: "isian.lama_usaha", op: "filled" }, children: [
+          para("lama_kalimat", t("Usaha tersebut telah berjalan "), f("isian.lama_usaha"), t(".")),
+        ] },
+        para("izin", t("Keterangan ini diberikan untuk keperluan "), f("isian.keperluan"), t(" sepanjang tidak bertentangan dengan ketentuan perundang-undangan.")),
+        penutup(),
+        kadesSignature(),
+      ],
+    }),
+  },
+  {
+    catalogKey: "cat_sk_berkelakuan_baik",
+    name: "Surat Keterangan Kelakuan Baik",
+    description: "Tidak kedapatan tilang/catatan bermasalah tertentu tingkat desa.",
+    category: "Keterangan",
+    document: letter({
+      klasifikasi: "300",
+      fields: [KEPERLUAN],
+      body: [
+        judul("SURAT KETERANGAN KELAKUAN BAIK"),
+        pembuka(),
+        pemohonData(PEMOHON_NARASI),
+        para("isi", t("Bahwa nama tersebut dikenal berkelakuan baik dalam lingkungan masyarakat desa sesuai data yang ada.")),
+        keperluanKalimat("keperluan_kalimat"),
+        penutup(),
+        kadesSignature(),
+      ],
+    }),
+  },
+  {
+    // Pola Lumajang/Perbup: N ahli waris, dua saksi atau lebih, diketahui Kepala Desa dan Camat.
+    catalogKey: "cat_sk_ahli_waris",
+    name: "Surat Keterangan Ahli Waris",
+    description: "Mengurai hubungan pewaris untuk administrasi pusara/harta.",
+    category: "Keterangan",
+    document: letter({
+      klasifikasi: "474",
+      people: [PEMOHON, { id: "almarhum", label: "Almarhum/ah (pewaris)" }],
+      fields: [
+        field("tempat_meninggal", "Tempat meninggal", "text"),
+        KEPERLUAN,
+      ],
+      groups: [
+        {
+          id: "ahli_waris", label: "Ahli waris", min: 1, max: 15, personRows: true,
+          fields: [
+            field("nama", "Nama", "text"),
+            field("ttl", "Tempat/Tgl Lahir", "text"),
+            field("nik", "NIK", "text"),
+            field("pekerjaan", "Pekerjaan", "text", { required: false }),
+            field("hubungan", "Hubungan dengan almarhum/ah", "text", { placeholder: "mis. anak kandung" }),
+          ],
+        },
+        saksiGroup(2, 5),
+      ],
+      body: [
+        judul("SURAT KETERANGAN AHLI WARIS"),
+        pembuka(),
+        personData("almarhum", ["nama", "nik", "ttl", "alamat_lengkap", "tanggal_meninggal"], "data_almarhum"),
+        para(
+          "isi",
+          t("Telah meninggal dunia pada tanggal "),
+          f("almarhum.tanggal_meninggal", "tanggal"),
+          t(" di "),
+          f("isian.tempat_meninggal"),
+          t(", dan meninggalkan ahli waris sebagai berikut:"),
+        ),
+        {
+          id: "tabel_ahli_waris", type: "repeatTable", group: "ahli_waris",
+          columns: [
+            { label: "Nama", field: "nama" },
+            { label: "Tempat/Tgl Lahir", field: "ttl" },
+            { label: "NIK", field: "nik" },
+            { label: "Pekerjaan", field: "pekerjaan" },
+            { label: "Hubungan", field: "hubungan" },
+          ],
+        },
+        para("pengurus", t("Surat ini dibuat atas permohonan "), f("pemohon.nama"), t(" berdasarkan sepengetahuan kami dan saksi-saksi.")),
+        keperluanKalimat("keperluan_kalimat"),
+        penutup(),
+        {
+          id: "ttd", type: "signature",
+          dateline: datelineSurat,
+          slots: [
+            { id: "saksi", who: { kind: "grup", group: "saksi" }, caption: [t("Saksi,")] },
+            { id: "kades", who: { kind: "pejabat", official: "kades" }, caption: [t("Mengetahui,")], stamp: true },
+            { id: "camat", who: { kind: "pejabat", official: "camat" }, caption: [t("Camat,")], stamp: true },
+          ],
+        },
+      ],
+    }),
+  },
+  {
+    catalogKey: "cat_sk_kehilangan",
+    name: "Surat Keterangan Kehilangan",
+    description: "Keterangan kehilangan barang atau dokumen (tingkat pengantaran ke kapolsek/disduk).",
+    category: "Keterangan",
+    document: letter({
+      klasifikasi: "300",
+      fields: [
+        field("barang_hilang", "Barang/dokumen yang hilang", "longtext", { placeholder: "mis. KTP-el, SIM, ijazah" }),
+        field("tanggal_hilang", "Perkiraan tanggal hilang", "date"),
+        field("lokasi_hilang", "Perkiraan tempat hilang", "text"),
+        KEPERLUAN,
+      ],
+      body: [
+        judul("SURAT KETERANGAN KEHILANGAN"),
+        pembuka(),
+        pemohonData(PEMOHON_RINGKAS),
+        para(
+          "isi",
+          t("Telah kehilangan "),
+          f("isian.barang_hilang"),
+          t(" pada sekitar tanggal "),
+          f("isian.tanggal_hilang"),
+          t(" di "),
+          f("isian.lokasi_hilang"),
+          t(". Keterangan ini diberikan sesuai pengakuan yang bersangkutan."),
+        ),
+        keperluanKalimat("keperluan_kalimat"),
+        penutup(),
+        kadesSignature(),
+      ],
+    }),
+  },
+  {
+    catalogKey: "cat_sk_pertanahan_ringkas",
+    name: "Surat Keterangan Pertanahan (ringkas)",
+    description: "Mengurai kepemilikan/penguasaan atas tanah (sesuaikan ketentuan setempat).",
+    category: "Keterangan",
+    document: letter({
+      klasifikasi: "590",
+      fields: [
+        field("lokasi", "Lokasi tanah", "longtext"),
+        field("luas", "Luas tanah (m²)", "number"),
+        field("status_penguasaan", "Asal penguasaan", "choice", { options: ["Milik sendiri", "Warisan", "Jual beli", "Hibah", "Lainnya"] }),
+        field("bukti_hak", "Bukti/no. berkas (NOP, SPPT, Letter C)", "text", { required: false }),
+        field("batas_utara", "Batas utara", "text"),
+        field("batas_timur", "Batas timur", "text"),
+        field("batas_selatan", "Batas selatan", "text"),
+        field("batas_barat", "Batas barat", "text"),
+        KEPERLUAN,
+      ],
+      groups: [saksiGroup(2, 5)],
+      body: [
+        judul("SURAT KETERANGAN PERTANAHAN"),
+        pembuka(),
+        pemohonData(PEMOHON_RINGKAS),
+        para(
+          "isi",
+          t("Menguasai sebidang tanah seluas "),
+          f("isian.luas", "angka"),
+          t(" m² yang terletak di "),
+          f("isian.lokasi"),
+          t(" dengan asal penguasaan "),
+          f("isian.status_penguasaan", "lower"),
+          t(", dengan batas-batas sebagai berikut:"),
+        ),
+        {
+          id: "batas", type: "table", bordered: true,
+          columns: [{ label: "Arah", widthPct: 30 }, { label: "Berbatasan dengan" }],
+          rows: [
+            [[t("Utara")], [f("isian.batas_utara")]],
+            [[t("Timur")], [f("isian.batas_timur")]],
+            [[t("Selatan")], [f("isian.batas_selatan")]],
+            [[t("Barat")], [f("isian.batas_barat")]],
+          ],
+        },
+        { id: "bukti", type: "conditional", when: { ref: "isian.bukti_hak", op: "filled" }, children: [
+          para("bukti_kalimat", t("Bukti/berkas pendukung: "), f("isian.bukti_hak"), t(".")),
+        ] },
+        // Surat desa bukan alas hak resmi di semua daerah; sebagian Perbup mensyaratkan rekomendasi pemda.
+        para("catatan", t("Surat keterangan ini dibuat untuk keperluan "), f("isian.keperluan"), t(" dan tidak menggantikan sertifikat hak atas tanah.")),
+        penutup(),
+        saksiKadesSignature(),
+      ],
+    }),
+  },
+];

@@ -335,7 +335,7 @@ export default function PricingPage() {
               </div>
               <h3 className="text-lg text-gray-900 mb-1">Penyimpanan arsip</h3>
               <p className="text-sm text-gray-600 mb-4">
-                {INCLUDED_STORAGE_GB} GB sudah termasuk. Tambah kapasitas bila arsip dan dokumen desa bertambah.
+                {INCLUDED_STORAGE_GB} GB sudah termasuk. Tambah kapasitas dengan langganan bulanan; file tidak dihapus bila langganan berakhir.
               </p>
               <ul className="divide-y divide-gray-200 text-sm">
                 {storageTiers.map((tier) => (

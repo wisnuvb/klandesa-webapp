@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError, requireMobileContext, type MobileContext } from "./context";
 import { displayName, readCustomBannedWords, readSocialMode, youtubeThumb, youtubeWatchUrl, type SocialMode } from "./social-logic";
+import { forYouAvailable, isHoldout, readFeedSetting, type FeedSetting } from "./social-ranking";
 import type { MobileAccountType } from "./tokens";
 
 export type SocialAccess = {
   ctx: MobileContext;
   mode: SocialMode;
+  /** Pengaturan desa untuk urutan feed: auto | on | off (lihat social-ranking.ts). */
+  feedSetting: FeedSetting;
   bannedWords: string[];
   /** Siapa yang membuka Warga: warga (CitizenAccount) atau perangkat desa (User). `account.id` selalu sama dengan `me.id`. */
   me: { type: MobileAccountType; id: number };
@@ -42,7 +45,7 @@ export async function requireSocial(
     return {
       ok: true,
       s: {
-        ctx, mode: staffMode, bannedWords: readCustomBannedWords(village?.settings), muted: false, me: { type: "staff", id: user.id },
+        ctx, mode: staffMode, feedSetting: readFeedSetting(village?.settings), bannedWords: readCustomBannedWords(village?.settings), muted: false, me: { type: "staff", id: user.id },
         account: { id: user.id, createdAt: user.createdAt, termsAt: user.createdAt, status: "OK", mutedUntil: null, name: user.name.trim().slice(0, 60), rt: null },
       },
     };
@@ -72,10 +75,24 @@ export async function requireSocial(
   return {
     ok: true,
     s: {
-      ctx, mode, bannedWords: readCustomBannedWords(village?.settings), muted, me: { type: "citizen", id: acc.id },
+      ctx, mode, feedSetting: readFeedSetting(village?.settings), bannedWords: readCustomBannedWords(village?.settings), muted, me: { type: "citizen", id: acc.id },
       account: { id: acc.id, createdAt: acc.createdAt, termsAt: acc.socialTermsAt, status: acc.socialStatus, mutedUntil: acc.socialMutedUntil, name: displayName(acc.resident.name), rt: acc.resident.rt },
     },
   };
+}
+
+/**
+ * Apakah tab "Untuk Anda" tersedia untuk akun ini. Hanya warga (perangkat desa selalu melihat urut waktu agar bisa
+ * memoderasi semuanya), dan hanya bila desa tidak mematikannya, cukup ramai (mode otomatis), dan bukan akun pembanding.
+ */
+export async function forYouFor(s: Pick<SocialAccess, "me" | "feedSetting" | "ctx">, now = Date.now()): Promise<boolean> {
+  if (s.me.type !== "citizen") return false;
+  const holdout = isHoldout(s.me.type, s.me.id);
+  if (s.feedSetting === "off" || holdout) return false;
+  const weekly = s.feedSetting === "auto"
+    ? await prisma.socialPost.count({ where: { villageId: s.ctx.villageId, status: "PUBLISHED", createdAt: { gte: new Date(now - 7 * 86_400_000) } } })
+    : 0;
+  return forYouAvailable(s.feedSetting, weekly, holdout);
 }
 
 type PostRow = {

@@ -77,6 +77,10 @@ export interface TemplateBody {
    * Jika ada, template ini menggantikan entri katalog dengan `catalog_key` yang sama untuk desa ini.
    */
   inherits_catalog_key: string | null;
+  /** 2 = dokumen v2 (kanvas); 1/undefined = format lama (builder lama). */
+  schema_version?: 1 | 2;
+  /** Dokumen v2 mentah (hanya bila schema_version = 2). */
+  document?: unknown;
 }
 
 export interface LetterHistory {
@@ -96,4 +100,6 @@ export interface LetterHistory {
   form_data: Record<string, string>;
   /** Template dengan format blocks untuk rendering modern */
   templateData?: TemplateData;
+  /** 2 = surat dokumen v2 (detail diambil dari /api/letters/[id]). */
+  schema_version?: 1 | 2;
 }

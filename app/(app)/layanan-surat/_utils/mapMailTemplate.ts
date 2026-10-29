@@ -6,6 +6,7 @@ import type { TemplateBody } from "../types";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapApiMailTemplateToBody(t: any): TemplateBody {
   const ts = t.templateStructure || {};
+  const isV2 = ts.schemaVersion === 2;
   const isGlobal = Boolean(t.isGlobal);
   const villageId = t.villageId ?? t.village_id;
   const isCatalog = isGlobal && (villageId == null || villageId === undefined);
@@ -36,5 +37,7 @@ export function mapApiMailTemplateToBody(t: any): TemplateBody {
     is_catalog: isCatalog,
     catalog_key: t.catalogKey ?? null,
     inherits_catalog_key: t.inheritsCatalogKey ?? null,
+    schema_version: isV2 ? 2 : 1,
+    document: isV2 ? ts : undefined,
   };
 }

@@ -4,6 +4,7 @@ import { mobileError } from "@/lib/mobile/context";
 import { isMe, requireSocial } from "@/lib/mobile/social";
 import { notifyVillageStaff } from "@/lib/mobile/notify";
 import { HIDE_REPORT_THRESHOLD, isReportReason } from "@/lib/mobile/social-logic";
+import { hidePostFor, learnFromPost } from "@/lib/mobile/social-interest";
 
 /**
  * Laporkan postingan/komentar. Satu pelapor satu kali per konten; ≥3 pelapor berbeda → konten
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
     if ((e as { code?: string }).code === "P2002") return new NextResponse(null, { status: 204 }); // sudah pernah melapor: idempoten
     throw e;
   }
+
+  // Yang dilaporkan tidak pernah tampil lagi di "Untuk Anda" pelapor, dan minat pada penulis/topik ini diturunkan.
+  if (targetType === "post") { void hidePostFor(s.me, s.ctx.villageId, targetId); void learnFromPost(s.me, targetId, "report"); }
 
   const unique = await prisma.socialReport.count({ where: { targetType, targetId, status: "OPEN" } });
   // Konten perangkat desa tidak disembunyikan otomatis (agar tak bisa dibungkam lewat laporan massal); moderator tetap diberi tahu.

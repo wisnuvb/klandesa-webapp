@@ -87,4 +87,6 @@ export interface PlanDetail {
 export interface VillageStorageInfo {
   subscriptionPlan: string;
   storageLimitGb: number;
+  /** ISO; add-on kapasitas arsip berlangganan yang masih aktif (null bila tidak ada). */
+  addonExpiry?: string | null;
 }

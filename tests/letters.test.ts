@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- tes memutasi dokumen JSON mentah */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { applyFormat, formatTanggalId, formatHariId, parseDigits, terbilang, TERBILANG_MAX } from "../lib/letters/format.ts";
@@ -331,5 +332,40 @@ describe("values: penyelesai rujukan", async () => {
     assert.equal(evaluateCondition({ ref: "isian.x", op: "neq", value: "Ya" }, v), false);
     assert.equal(evaluateCondition({ ref: "isian.y", op: "empty" }, v), true);
     assert.equal(evaluateCondition({ ref: "isian.x", op: "filled" }, v), true);
+  });
+});
+
+describe("server: baris grup dari data warga", async () => {
+  const { parseLetterInput, assembleValues } = await import("../lib/letters/server/input.ts");
+  const { deriveFormSpec } = await import("../lib/letters/document/form-spec.ts");
+  const { emptyLetterValues } = await import("../lib/letters/values.ts");
+  const doc = (validateDocument(FIXTURES.ahliWaris) as { ok: true; doc: any }).doc;
+  const spec = deriveFormSpec(doc);
+  const warga: ResidentLike = {
+    nik: "3201012801850001", kk: null, name: "Ahmad", birthplace: "Pasuruan", birthDate: new Date(1985, 0, 28),
+    gender: "Laki-laki", religion: "Islam", maritalStatus: "Kawin", familyRole: "Anak", address: "Jl. A",
+    rt: null, rw: null, hamlet: null, occupation: "Petani", education: null, nationality: "Indonesia",
+    fatherName: null, motherName: null, income: null, deathDate: null, phone: null,
+  };
+  const base = { people: { pemohon: { manual: { nama: "P" } }, almarhum: { manual: { nama: "A" } } }, fields: { keperluan: "x" } };
+  const run = (rows: unknown) => {
+    const parsed = parseLetterInput({ ...base, groups: { ahli_waris: rows, saksi: [{ values: { nama: "S1" } }, { values: { nama: "S2" } }] } }, doc, spec, "completed");
+    assert.ok(parsed.ok, JSON.stringify(parsed));
+    const r = assembleValues({
+      input: parsed.value, residents: new Map([[7, warga]]), doc,
+      context: { desa: {}, pejabat: emptyLetterValues().pejabat }, date: new Date(2026, 9, 29), nomor: "",
+    });
+    assert.ok(r.ok);
+    return r.value.groups.ahli_waris[0];
+  };
+
+  it("tidak dikirim = pakai data warga", () => {
+    assert.equal(run([{ residentId: 7, values: {} }]).pekerjaan, "Petani");
+  });
+  it('dikirim "" = sengaja dikosongkan', () => {
+    assert.equal(run([{ residentId: 7, values: { pekerjaan: "" } }]).pekerjaan, "");
+  });
+  it("dikirim nilai = menimpa data warga", () => {
+    assert.equal(run([{ residentId: 7, values: { pekerjaan: "Guru" } }]).pekerjaan, "Guru");
   });
 });

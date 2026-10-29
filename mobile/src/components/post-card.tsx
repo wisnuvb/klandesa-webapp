@@ -10,6 +10,8 @@ import { Avatar } from '@/components/cards';
 import { ApiError, api, post } from '@/lib/api';
 import { EMBED } from '@/lib/embed';
 import { timeAgoId } from '@/lib/format';
+import { trackHide, trackOpen, trackShare } from '@/lib/social-signals';
+import type { FeedSrc } from '@/lib/social-signals-logic';
 import { useInvalidateSocial, type SocialPost } from '@/lib/queries';
 import { useSession } from '@/state/session';
 import { colors, spacing } from '@/theme';
@@ -42,17 +44,20 @@ function Burst({ value }: { value: Animated.Value }) {
   );
 }
 
+/** Foto tegak 4:5 seperti Instagram: lebih lega untuk wajah dan kegiatan, dan tetap muat di layar HP kecil. */
+const MEDIA_RATIO = 4 / 5;
+
 function Photos({ photos, idx, onIdx, onTap, burst }: { photos: string[]; idx: number; onIdx: (i: number) => void; onTap: () => void; burst: Animated.Value }) {
   const [w, setW] = useState(0);
   return (
-    <View onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)} style={{ width: '100%', aspectRatio: 1, backgroundColor: colors.surface }}>
+    <View onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)} style={{ width: '100%', aspectRatio: MEDIA_RATIO, backgroundColor: colors.surface }}>
       {w > 0 ? (
         <FlatList
           horizontal pagingEnabled showsHorizontalScrollIndicator={false} data={photos} keyExtractor={(u) => u}
           onMomentumScrollEnd={(e) => onIdx(Math.round(e.nativeEvent.contentOffset.x / w))}
           renderItem={({ item }) => (
             <Pressable onPress={onTap} accessibilityRole="imagebutton" accessibilityLabel="Foto postingan. Ketuk dua kali untuk menyukai.">
-              <Image source={{ uri: item }} style={{ width: w, height: w }} contentFit="cover" transition={150} />
+              <Image source={{ uri: item }} style={{ width: w, height: w / MEDIA_RATIO }} contentFit="cover" transition={150} />
             </Pressable>
           )}
         />
@@ -60,6 +65,11 @@ function Photos({ photos, idx, onIdx, onTap, burst }: { photos: string[]; idx: n
       {photos.length > 1 ? (
         <View pointerEvents="none" style={{ position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(12,20,16,0.6)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 }} accessibilityLabel={`Foto ${idx + 1} dari ${photos.length}`}>
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{idx + 1}/{photos.length}</Text>
+        </View>
+      ) : null}
+      {photos.length > 1 ? (
+        <View pointerEvents="none" style={{ position: 'absolute', bottom: 10, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 5 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {photos.map((_, i) => <View key={i} style={{ width: i === idx ? 8 : 6, height: i === idx ? 8 : 6, borderRadius: 4, backgroundColor: i === idx ? '#fff' : 'rgba(255,255,255,0.55)' }} />)}
         </View>
       ) : null}
       <Burst value={burst} />
@@ -101,19 +111,28 @@ function LinkCard({ link }: { link: NonNullable<SocialPost['link']> }) {
   );
 }
 
-function IconButton({ onPress, label, children }: { onPress: () => void; label: string; children: ReactNode }) {
+/**
+ * Tombol aksi berlabel kata ("Suka", "Komentar", "Bagikan") seperti Facebook: warga yang belum hafal ikon tetap paham.
+ * Jumlahnya tampil di baris teks di bawah kartu, bukan di tombol.
+ */
+function ActionButton({ onPress, label, text, color, children }: { onPress: () => void; label: string; text?: string; color?: string; children: ReactNode }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={6} style={({ pressed }) => [{ minHeight: 44, minWidth: 36, flexDirection: 'row', alignItems: 'center', gap: 6 }, pressed && { opacity: 0.6 }]}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={4} style={({ pressed }) => [{ minHeight: 48, paddingRight: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }, pressed && { opacity: 0.6 }]}>
       {children}
+      {text ? <Text style={{ fontSize: 14.5, fontWeight: '600', color: color ?? colors.text }}>{text}</Text> : null}
     </Pressable>
   );
 }
 
-export function PostCard({ p, detail, onTag }: { p: SocialPost; detail?: boolean; onTag?: (tag: string) => void }) {
+/** Ikon WhatsApp dengan hijau yang cukup kontras di atas putih (hijau resmi #25D366 terlalu pucat). */
+const WA_GREEN = '#128C7E';
+
+export function PostCard({ p, detail, onTag, src }: { p: SocialPost; detail?: boolean; onTag?: (tag: string) => void; /** Dari tab mana kartu ini dilihat; dipakai pencatat sinyal dan menu "Kurangi". */ src?: FeedSrc }) {
   const [liked, setLiked] = useState(p.liked);
   const [likes, setLikes] = useState(p.likes);
   const [saved, setSaved] = useState(p.saved);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dimmed, setDimmed] = useState(false);
   const [idx, setIdx] = useState(0);
   const [pop] = useState(() => new Animated.Value(1));
   const [burst] = useState(() => new Animated.Value(0));
@@ -141,6 +160,7 @@ export function PostCard({ p, detail, onTag }: { p: SocialPost; detail?: boolean
     try { await post(`/social/posts/${p.id}/bookmark`, { saved: next }); } catch { setSaved(!next); }
   }
   async function shareWa() {
+    if (src) trackShare(p.id, src);
     const text = `${p.author.name} di Warga Klandesa:\n\n${p.content.slice(0, 280)}${p.content.length > 280 ? '…' : ''}${p.link ? `\n${p.link.url}` : ''}\n\nBuka aplikasi Klandesa untuk melihat selengkapnya.`;
     const wa = `whatsapp://send?text=${encodeURIComponent(text)}`;
     if (await Linking.canOpenURL(wa).catch(() => false)) void Linking.openURL(wa);
@@ -155,7 +175,20 @@ export function PostCard({ p, detail, onTag }: { p: SocialPost; detail?: boolean
     catch (e) { Alert.alert('Gagal', e instanceof ApiError ? e.message : 'Coba lagi.'); }
   }
   const openProfile = () => router.push({ pathname: '/warga/profil/[id]', params: { id: String(p.author.id), type: p.author.type, name: p.author.name, rt: p.author.rt ?? '' } });
-  const open = () => { if (!detail) router.push(`/warga/${p.id}`); };
+  const open = () => {
+    if (detail) return;
+    if (src) trackOpen(p.id, src);
+    router.push(`/warga/${p.id}`);
+  };
+  const explain = () => Alert.alert(
+    'Kenapa saya melihat ini?',
+    `${p.why?.label ?? 'Postingan ini termasuk yang baru dari warga desa'}.\n\n"Untuk Anda" memilih dari yang pernah Anda sukai, buka, simpan, atau bagikan. Tab "Terbaru" selalu menampilkan semuanya urut waktu.`,
+    [{ text: 'Atur minat saya', onPress: () => router.push('/warga/minat') }, { text: 'Tutup', style: 'cancel' }],
+  );
+  function dim(on: boolean) {
+    setDimmed(on);
+    if (src) trackHide(p.id, src, on);
+  }
 
   /** Ketuk dua kali pada media = suka (seperti Instagram); ketuk sekali membuka detail. */
   function tapMedia() {
@@ -177,6 +210,8 @@ export function PostCard({ p, detail, onTag }: { p: SocialPost; detail?: boolean
         { icon: 'trash-outline', label: 'Hapus postingan', danger: true, onPress: () => Alert.alert('Hapus postingan?', 'Tidak bisa dikembalikan.', [{ text: 'Batal', style: 'cancel' }, { text: 'Hapus', style: 'destructive', onPress: () => void del() }]) },
       ]
     : [
+        ...(src === 'forYou' ? [{ icon: 'eye-off-outline' as const, label: 'Kurangi yang seperti ini', caption: 'Lebih jarang tampil di Untuk Anda', onPress: () => dim(true) }] : []),
+        ...(p.why ? [{ icon: 'help-circle-outline' as const, label: 'Kenapa saya melihat ini?', onPress: explain }] : []),
         { icon: 'person-outline', label: `Lihat profil ${p.author.name}`, onPress: openProfile },
         { icon: 'flag-outline', label: 'Laporkan postingan', caption: 'Melanggar aturan komunitas', onPress: () => router.push({ pathname: '/warga/laporkan', params: { targetType: 'post', targetId: String(p.id) } }) },
         // Akun resmi perangkat desa tidak bisa diblokir, dan perangkat desa tidak memblokir (mereka memoderasi).
@@ -187,6 +222,18 @@ export function PostCard({ p, detail, onTag }: { p: SocialPost; detail?: boolean
   const textPanel = !p.photos.length && !p.link && p.content.length > 0 && p.content.length <= TEXT_PANEL_MAX;
   const captionLong = p.content.length > 110 || (p.content.match(/\n/g)?.length ?? 0) >= 2;
   const showCaption = p.content.length > 0 && !textPanel;
+
+  if (dimmed) {
+    return (
+      <View style={{ backgroundColor: colors.bg, marginBottom: 8, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <Ionicons name="eye-off-outline" size={24} color={colors.textMuted} />
+        <Text style={{ flex: 1, fontSize: 15, lineHeight: 21, color: colors.textMuted }}>Baik. Postingan seperti ini akan lebih jarang muncul di Untuk Anda. Tetap ada di tab Terbaru.</Text>
+        <Pressable onPress={() => dim(false)} accessibilityRole="button" accessibilityLabel="Batalkan, tampilkan lagi" style={({ pressed }) => [{ minHeight: 44, paddingHorizontal: 14, borderRadius: 14, backgroundColor: colors.primarySoft, justifyContent: 'center' }, pressed && { opacity: 0.8 }]}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.primary }}>Batal</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={{ backgroundColor: colors.bg, marginBottom: 8 }}>
@@ -199,6 +246,9 @@ export function PostCard({ p, detail, onTag }: { p: SocialPost; detail?: boolean
               {authorIsStaff ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} accessibilityLabel="Akun resmi perangkat desa" /> : null}
             </View>
             {meta ? <Text style={{ fontSize: 12.5, color: colors.textMuted, marginTop: 1 }} numberOfLines={1}>{meta}</Text> : null}
+            {p.why && src === 'forYou' ? (
+              <Text onPress={explain} accessibilityRole="button" accessibilityLabel={`${p.why.label}. Ketuk untuk penjelasan.`} style={{ fontSize: 12.5, fontWeight: '600', color: colors.goldText, marginTop: 1 }} numberOfLines={1}>{p.why.label}</Text>
+            ) : null}
           </View>
         </Pressable>
         <Pressable onPress={() => setMenuOpen(true)} accessibilityRole="button" accessibilityLabel="Menu postingan" hitSlop={8} style={({ pressed }) => [{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
@@ -222,27 +272,20 @@ export function PostCard({ p, detail, onTag }: { p: SocialPost; detail?: boolean
         </Pressable>
       ) : null}
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 12, paddingTop: 4 }}>
-        <IconButton onPress={() => void toggleLike()} label={`${liked ? 'Batal suka' : 'Suka'}, ${likes} suka`}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 12, paddingRight: 4, paddingTop: 2 }}>
+        <ActionButton onPress={() => void toggleLike()} label={`${liked ? 'Batal suka' : 'Suka'}, ${likes} suka`} text="Suka" color={liked ? colors.danger : undefined}>
           <Animated.View style={{ transform: [{ scale: pop }] }}><Ionicons name={liked ? 'heart' : 'heart-outline'} size={27} color={liked ? colors.danger : colors.text} /></Animated.View>
-          {likes > 0 ? <Text style={{ fontSize: 14.5, fontWeight: '600', color: colors.text }}>{likes}</Text> : null}
-        </IconButton>
-        <IconButton onPress={open} label={`Komentar, ${p.comments}`}>
+        </ActionButton>
+        <ActionButton onPress={open} label={`Komentar, ${p.comments}`} text="Komentar">
           <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
-          {p.comments > 0 ? <Text style={{ fontSize: 14.5, fontWeight: '600', color: colors.text }}>{p.comments}</Text> : null}
-        </IconButton>
-        <IconButton onPress={() => void shareWa()} label="Bagikan ke WhatsApp">
-          <Ionicons name="paper-plane-outline" size={24} color={colors.text} />
-        </IconButton>
+        </ActionButton>
+        <ActionButton onPress={() => void shareWa()} label="Bagikan lewat WhatsApp" text="Bagikan" color={WA_GREEN}>
+          <Ionicons name="logo-whatsapp" size={25} color={WA_GREEN} />
+        </ActionButton>
         <View style={{ flex: 1 }} />
-        <IconButton onPress={() => void toggleSave()} label={saved ? 'Hapus dari simpanan' : 'Simpan'}>
-          <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={24} color={saved ? colors.primary : colors.text} />
-        </IconButton>
-        {p.photos.length > 1 ? (
-          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 4, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            {p.photos.map((_, i) => <View key={i} style={{ width: 6.5, height: 6.5, borderRadius: 4, backgroundColor: i === idx ? colors.primary : colors.border }} />)}
-          </View>
-        ) : null}
+        <Pressable onPress={() => void toggleSave()} accessibilityRole="button" accessibilityLabel={saved ? 'Hapus dari simpanan' : 'Simpan'} hitSlop={4} style={({ pressed }) => [{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
+          <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={25} color={saved ? colors.primary : colors.text} />
+        </Pressable>
       </View>
 
       <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>

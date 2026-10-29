@@ -10,13 +10,12 @@ export function mobileMediaPrefix(villageCode: string): string {
   return `villages/${villageCode}/mobile-`;
 }
 
-export function evaluateMediaQuota(
-  usedBytes: number,
-  incomingBytes: number,
-  limitBytes: number = MOBILE_MEDIA_QUOTA_BYTES,
-): { ok: boolean; remainingBytes: number } {
-  const remainingBytes = Math.max(0, limitBytes - Math.max(0, usedBytes));
-  return { ok: incomingBytes <= remainingBytes, remainingBytes };
+/**
+ * Pemakaian tertinggi yang masih membuat `incomingBytes` muat dalam batas (dipakai sebagai syarat `UPDATE ... WHERE used <= ceiling`
+ * agar pemesanan atomik). Negatif bila satu unggahan saja sudah melewati batas.
+ */
+export function reserveCeiling(incomingBytes: number, limitBytes: number = MOBILE_MEDIA_QUOTA_BYTES): number {
+  return limitBytes - incomingBytes;
 }
 
 export function mediaQuotaFullMessage(): string {

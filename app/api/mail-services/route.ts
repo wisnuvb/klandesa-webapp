@@ -28,42 +28,64 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
+    // Daftar dibatasi agar muatan tidak tumbuh tanpa batas; filter/pencarian server menyusul.
+    const LIMIT = 500;
     const rows = await prisma.mailService.findMany({
       where: { villageId: village.id },
       orderBy: { createdAt: "desc" },
-      include: {
-        template: {
-          select: {
-            name: true,
-            category: true,
-            templateStructure: true,
-          },
-        },
-        createdUser: {
-          select: {
-            name: true,
-          },
-        },
+      take: LIMIT,
+      select: {
+        id: true,
+        letterNumber: true,
+        templateId: true,
+        templateName: true,
+        templateCategory: true,
+        applicantName: true,
+        applicantNik: true,
+        signerRole: true,
+        status: true,
+        createdAt: true,
+        completedAt: true,
+        formData: true,
+        createdUser: { select: { name: true } },
       },
     });
 
-    const mappedRows = rows.map((row) => ({
-      id: Number(row.id),
-      letter_number: row.letterNumber,
-      template_id: row.templateId,
-      template_name: row.templateName || row.template?.name || "Template Surat",
-      template_category: row.templateCategory || row.template?.category || "Lainnya",
-      applicant_name: row.applicantName,
-      applicant_nik: row.applicantNik,
-      signer_role: row.signerRole || "kepala_desa",
-      status: row.status as "draft" | "completed" | "archived",
-      created_at: row.createdAt.toISOString(),
-      created_by: row.createdUser?.name || "Admin Desa",
-      completed_at: row.completedAt ? row.completedAt.toISOString() : null,
-      content_html: row.contentHtml || "",
-      form_data: (row.formData as Record<string, string>) || {},
-      templateData: row.template?.templateStructure || undefined,
-    }));
+    // Dokumen v2 diambil lewat GET /api/letters/[id] saat dibuka. Surat v2 diketahui dari bentuk formData; struktur template lama hanya dimuat untuk surat lama,
+    // satu kali per template (bukan satu salinan per surat).
+    const isV2 = (fd: unknown) =>
+      !!fd && typeof fd === "object" && (fd as { schemaVersion?: unknown }).schemaVersion === 2;
+    const legacyIds = [...new Set(rows.filter((r) => !isV2(r.formData)).map((r) => r.templateId))];
+    const structures = legacyIds.length
+      ? await prisma.mailTemplate.findMany({
+          where: { id: { in: legacyIds } },
+          select: { id: true, name: true, category: true, templateStructure: true },
+        })
+      : [];
+    const byId = new Map(structures.map((t) => [t.id, t]));
+
+    const mappedRows = rows.map((row) => {
+      const v2 = isV2(row.formData);
+      const tpl = v2 ? undefined : byId.get(row.templateId);
+      return {
+        id: Number(row.id),
+        letter_number: row.letterNumber,
+        template_id: row.templateId,
+        template_name: row.templateName || tpl?.name || "Template Surat",
+        template_category: row.templateCategory || tpl?.category || "Lainnya",
+        applicant_name: row.applicantName,
+        applicant_nik: row.applicantNik,
+        signer_role: row.signerRole || "kepala_desa",
+        status: row.status as "draft" | "completed" | "archived",
+        created_at: row.createdAt.toISOString(),
+        created_by: row.createdUser?.name || "Admin Desa",
+        completed_at: row.completedAt ? row.completedAt.toISOString() : null,
+        content_html: "",
+        form_data: v2 ? {} : ((row.formData as Record<string, string>) || {}),
+        templateData: tpl?.templateStructure || undefined,
+        schema_version: v2 ? 2 : 1,
+      };
+    });
 
     return NextResponse.json(mappedRows);
   } catch (err) {

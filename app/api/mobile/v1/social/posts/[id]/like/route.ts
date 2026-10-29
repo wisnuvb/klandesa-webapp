@@ -4,6 +4,7 @@ import { mobileError } from "@/lib/mobile/context";
 import { asAccountType, isMe, requireSocial } from "@/lib/mobile/social";
 import { notifyAccount } from "@/lib/mobile/notify";
 import { LIKE_MILESTONES } from "@/lib/mobile/social-logic";
+import { learnFromPost } from "@/lib/mobile/social-interest";
 
 /** Atur suka: `{ liked: boolean }` (idempoten). Hitungan dijaga konsisten dengan baris like. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -32,5 +33,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } else {
     likes = (await prisma.socialPost.findUnique({ where: { id: post.id }, select: { likesCount: true } }))?.likesCount ?? 0;
   }
+  if (body.liked !== !!existing) void learnFromPost(s.me, post.id, body.liked ? "like" : "unlike");
   return NextResponse.json({ liked: body.liked, likes: Math.max(0, likes) });
 }

@@ -39,12 +39,14 @@ interface UpgradeModalProps {
   currentPlan: StoragePlan;
   /** Paket Lengkap: kuota dasar 5 GB sudah termasuk, jadi tidak ditampilkan sebagai paket berbayar. */
   includedStarter?: boolean;
+  /** ISO; masa berlaku add-on kapasitas arsip yang sedang aktif (null bila tidak ada). */
+  addonExpiry?: string | null;
   onClose: () => void;
   onUpgradePlan: (planId: StoragePlan) => void;
 }
 
 export function UpgradeModal(props: UpgradeModalProps) {
-  const { open, currentPlan, includedStarter, onClose, onUpgradePlan } = props;
+  const { open, currentPlan, includedStarter, addonExpiry, onClose, onUpgradePlan } = props;
   if (!open) return null;
 
   return (
@@ -70,6 +72,12 @@ export function UpgradeModal(props: UpgradeModalProps) {
             <p className="text-sm text-gray-600 mt-1">
               Pilih paket storage yang sesuai dengan kebutuhan desa Anda
             </p>
+            {addonExpiry && (
+              <p className="text-sm text-teal-700 mt-1">
+                Add-on kapasitas aktif hingga{" "}
+                {new Date(addonExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -91,6 +99,7 @@ export function UpgradeModal(props: UpgradeModalProps) {
                 (p) => p.id === currentPlan,
               );
               const canUpgrade = isPlanIndex > currentPlanIndex;
+              const canRenew = isCurrentPlan && Boolean(addonExpiry);
 
               return (
                 <motion.div
@@ -167,11 +176,13 @@ export function UpgradeModal(props: UpgradeModalProps) {
 
                   <button
                     onClick={() => {
-                      if (canUpgrade) onUpgradePlan(plan.id);
+                      if (canUpgrade || canRenew) onUpgradePlan(plan.id);
                     }}
-                    disabled={!canUpgrade}
+                    disabled={!canUpgrade && !canRenew}
                     className={`w-full py-2.5 px-4 rounded-lg font-semibold transition-all ${
-                      isCurrentPlan
+                      canRenew
+                        ? "bg-teal-600 text-white hover:bg-teal-700"
+                        : isCurrentPlan
                         ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                         : canUpgrade
                           ? plan.popular
@@ -180,11 +191,13 @@ export function UpgradeModal(props: UpgradeModalProps) {
                           : "bg-gray-100 text-gray-400 cursor-not-allowed"
                     }`}
                   >
-                    {isCurrentPlan
-                      ? "Paket Aktif"
-                      : canUpgrade
-                        ? "Upgrade Sekarang"
-                        : "Tidak Dapat Downgrade"}
+                    {canRenew
+                      ? "Perpanjang di Tagihan"
+                      : isCurrentPlan
+                        ? "Paket Aktif"
+                        : canUpgrade
+                          ? "Berlangganan di Tagihan"
+                          : "Tidak Dapat Downgrade"}
                   </button>
                 </motion.div>
               );
@@ -198,8 +211,8 @@ export function UpgradeModal(props: UpgradeModalProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
               {[
                 {
-                  title: "Kapasitas Langsung Bertambah",
-                  desc: "Kuota penyimpanan bertambah segera setelah pembayaran dikonfirmasi",
+                  title: "Berlangganan Bulanan",
+                  desc: "Kapasitas tambahan berlaku 1 bulan sejak pembayaran. Setelah berakhir, file tetap aman; unggahan baru terblokir bila pemakaian melebihi kuota dasar",
                 },
                 {
                   title: "File Tetap Aman",
@@ -219,180 +232,6 @@ export function UpgradeModal(props: UpgradeModalProps) {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-interface PaymentModalProps {
-  open: boolean;
-  selectedPlan: StoragePlan | null;
-  selectedPaymentMethod: PaymentMethod;
-  onSelectPaymentMethod: (m: PaymentMethod) => void;
-  onCancel: () => void;
-  onPay: () => void;
-}
-
-export function PaymentModal(props: PaymentModalProps) {
-  const {
-    open,
-    selectedPlan,
-    selectedPaymentMethod,
-    onSelectPaymentMethod,
-    onCancel,
-    onPay,
-  } = props;
-
-  if (!open || !selectedPlan) return null;
-
-  const plan = STORAGE_PLANS.find((p) => p.id === selectedPlan);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onCancel}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden"
-      >
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">
-              Pembayaran Upgrade Storage
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Selesaikan pembayaran untuk mengaktifkan paket baru Anda
-            </p>
-          </div>
-          <button
-            onClick={onCancel}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
-
-        <div className="p-6 flex-1 min-h-0 overflow-y-auto">
-          <div className="bg-linear-to-br from-teal-50 to-teal-100 rounded-xl p-6 mb-6">
-            <h4 className="font-semibold text-gray-900 mb-4">
-              Ringkasan Pesanan
-            </h4>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Paket Dipilih</span>
-                <span className="font-semibold text-gray-900">
-                  {plan?.name} Plan
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Storage</span>
-                <span className="font-semibold text-gray-900">
-                  {plan?.storageLabel}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Periode</span>
-                <span className="font-semibold text-gray-900">1 Bulan</span>
-              </div>
-              <div className="pt-3 border-t border-teal-200 flex justify-between items-center">
-                <span className="font-semibold text-gray-900">
-                  Total Pembayaran
-                </span>
-                <span className="text-2xl font-bold text-teal-600">
-                  Rp {plan?.price.toLocaleString("id-ID")}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-900 mb-4">
-              Pilih Metode Pembayaran
-            </h4>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                {
-                  id: "QRIS" as const,
-                  title: "QRIS",
-                  desc: "Scan & bayar",
-                  icon: "📱",
-                },
-                {
-                  id: "VA" as const,
-                  title: "Virtual Account",
-                  desc: "Transfer bank",
-                  icon: "🏦",
-                },
-                {
-                  id: "EWALLET" as const,
-                  title: "E-Wallet",
-                  desc: "OVO, Dana, dll",
-                  icon: "💳",
-                },
-              ].map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => onSelectPaymentMethod(m.id)}
-                  className={`p-4 border-2 rounded-xl transition-all ${
-                    selectedPaymentMethod === m.id
-                      ? "border-teal-600 bg-teal-50"
-                      : "border-gray-200 hover:border-teal-300"
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center mx-auto mb-2 shadow-sm">
-                      <span className="text-2xl">{m.icon}</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {m.title}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">{m.desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-900">
-                <p className="font-semibold mb-1">
-                  Pembayaran via LinkQu Payment Gateway
-                </p>
-                <p className="text-xs text-blue-700">
-                  Transaksi Anda dilindungi dengan sistem keamanan tingkat
-                  enterprise. Pembayaran akan diproses secara real-time.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={onCancel}
-              className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
-            >
-              Batal
-            </button>
-            <button
-              onClick={onPay}
-              className="flex-1 px-4 py-3 bg-linear-to-r from-teal-600 to-teal-700 text-white rounded-lg hover:from-teal-700 hover:to-teal-800 transition-all font-semibold shadow-sm"
-            >
-              <span className="inline-flex items-center justify-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                Bayar Sekarang
-              </span>
-            </button>
           </div>
         </div>
       </motion.div>

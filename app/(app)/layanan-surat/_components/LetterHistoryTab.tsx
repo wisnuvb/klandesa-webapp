@@ -1,6 +1,7 @@
 "use client";
 
 import { RefObject, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Eye,
@@ -47,6 +48,7 @@ import {
   renderHistoryLetterContent,
 } from "../_utils/templateConverter";
 import { useDesaSettings } from "../_hooks/useDesaSettings";
+import { V2LetterDialog } from "./V2Views";
 
 interface LetterHistoryTabProps {
   history: LetterHistory[];
@@ -85,6 +87,7 @@ export function LetterHistoryTab({
   onDuplicateLetter,
   onEditLetter,
 }: LetterHistoryTabProps) {
+  const router = useRouter();
   const { desaSettings } = useDesaSettings();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -93,7 +96,26 @@ export function LetterHistoryTab({
   const [selectedLetter, setSelectedLetter] = useState<LetterHistory | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
+  const [v2LetterId, setV2LetterId] = useState<number | null>(null);
+
+  /** Surat v2: hanya draf yang bisa diubah (di halaman komposer); "buat dari surat ini" membuka jenis suratnya. */
+  const canEdit = (l: LetterHistory) =>
+    Boolean(onEditLetter) && (l.schema_version !== 2 || l.status === "draft");
+  const editLetter = (l: LetterHistory) => {
+    if (l.schema_version === 2) router.push(`/layanan-surat/buat?surat=${l.id}`);
+    else onEditLetter?.(l);
+  };
+  const duplicateLetter = (l: LetterHistory) => {
+    if (l.schema_version === 2) router.push(`/layanan-surat/buat?templateId=${l.template_id}`);
+    else onDuplicateLetter(l.template_id, l.form_data, templates);
+  };
+
   const handlePreviewLetter = (letter: LetterHistory) => {
+    // Surat dokumen v2: isi diambil dari server saat dibuka (daftar tidak membawa dokumen).
+    if (letter.schema_version === 2) {
+      setV2LetterId(letter.id);
+      return;
+    }
     setSelectedLetter(letter);
     setShowPreview(true);
   };
@@ -279,18 +301,18 @@ export function LetterHistoryTab({
                     <Button size="sm" className="flex-1 gap-2" onClick={() => handlePreviewLetter(letter)}>
                       <Eye className="h-4 w-4" />Preview
                     </Button>
-                    {onEditLetter && (
+                    {canEdit(letter) && (
                       <Button
                         variant="secondary"
                         size="sm"
                         className="gap-2 shrink-0"
-                        onClick={() => onEditLetter(letter)}
+                        onClick={() => editLetter(letter)}
                         title="Edit surat"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={() => onDuplicateLetter(letter.template_id, letter.form_data, templates)} title="Buat dari surat ini">
+                    <Button variant="outline" size="sm" onClick={() => duplicateLetter(letter)} title="Buat surat sejenis">
                       <Copy className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => handlePreviewLetter(letter)}>
@@ -347,10 +369,10 @@ export function LetterHistoryTab({
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => handlePreviewLetter(letter)}><Eye className="h-4 w-4" /></Button>
-                          {onEditLetter && (
-                            <Button variant="ghost" size="sm" title="Edit" onClick={() => onEditLetter(letter)}><Pencil className="h-4 w-4" /></Button>
+                          {canEdit(letter) && (
+                            <Button variant="ghost" size="sm" title="Edit" onClick={() => editLetter(letter)}><Pencil className="h-4 w-4" /></Button>
                           )}
-                          <Button variant="ghost" size="sm" onClick={() => onDuplicateLetter(letter.template_id, letter.form_data, templates)}><Copy className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" title="Buat surat sejenis" onClick={() => duplicateLetter(letter)}><Copy className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => handlePreviewLetter(letter)}><Download className="h-4 w-4" /></Button>
                         </div>
                       </TableCell>
@@ -422,6 +444,14 @@ export function LetterHistoryTab({
           </div>
         </DialogContent>
       </Dialog>
+
+      <V2LetterDialog
+        letterId={v2LetterId}
+        open={v2LetterId !== null}
+        onOpenChange={(open) => {
+          if (!open) setV2LetterId(null);
+        }}
+      />
     </div>
   );
 }

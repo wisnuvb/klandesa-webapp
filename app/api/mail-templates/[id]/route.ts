@@ -2,6 +2,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { villageTemplateScope } from "@/lib/mail/template-access";
 
 /**
  * Hapus template milik desa. Surat (`MailService`) adalah arsip resmi, jadi tidak pernah
@@ -69,6 +70,42 @@ export async function DELETE(
     return NextResponse.json({ ok: true, archived: false, keptLetters: 0 });
   } catch (err) {
     console.error("DELETE /api/mail-templates/[id] error:", err);
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server" },
+      { status: 500 },
+    );
+  }
+}
+
+/** Satu template (milik desa atau katalog global) lengkap dengan dokumennya. */
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const loaded = await requireVillageApiContext(req);
+    if (!loaded.ok) return loaded.response;
+    const { village } = loaded.ctx;
+
+    if (!isVillageSubscriptionActive(village)) {
+      return subscriptionBlockedResponse(village);
+    }
+
+    const { id: raw } = await context.params;
+    const id = /^\d{1,9}$/.test(raw) ? Number(raw) : 0;
+    if (id <= 0) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
+
+    const row = await prisma.mailTemplate.findFirst({
+      where: { id, isActive: true, ...villageTemplateScope(village.id) },
+    });
+    if (!row) {
+      return NextResponse.json({ error: "Template tidak ditemukan" }, { status: 404 });
+    }
+    return NextResponse.json(row);
+  } catch (err) {
+    console.error("GET /api/mail-templates/[id] error:", err);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
       { status: 500 },

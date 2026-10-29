@@ -61,35 +61,50 @@ export function TemplateGrid({
                 <Badge variant="outline">{template.category}</Badge>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Penandatangan:</span>
-                <span className="text-xs font-medium">{signerRole}</span>
-              </div>
+              {template.schema_version !== 2 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Penandatangan:</span>
+                  <span className="text-xs font-medium">{signerRole}</span>
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Penggunaan:</span>
                 <span className="font-medium">{template.usage_count}x</span>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Field Input:</span>
-                <span className="font-medium">
-                  {template.variables.length} field
-                </span>
-              </div>
+              {template.schema_version !== 2 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Field Input:</span>
+                  <span className="font-medium">
+                    {template.variables.length} field
+                  </span>
+                </div>
+              )}
 
               <div className="flex flex-col gap-2 pt-2 border-t">
                 {template.is_catalog ? (
                   onCustomizeCatalogTemplate ? (
-                    <div className="flex w-full">
+                    <div className="flex w-full gap-2">
                       <Button
                         size="sm"
-                        className="min-w-0 flex-1 gap-2 rounded-r-none border-r-0"
+                        className="min-w-0 flex-1 gap-2"
                         onClick={() => onCustomizeCatalogTemplate(template)}
                       >
                         <FileEdit className="h-4 w-4 shrink-0" />
                         Gunakan
                       </Button>
+                      {template.schema_version === 2 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label={`Lihat contoh ${template.name}`}
+                          title="Lihat contoh"
+                          onClick={() => onPreviewTemplate(template)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <Button
@@ -133,7 +148,12 @@ export function TemplateGrid({
                       variant="outline"
                       size="sm"
                       className="gap-1"
-                      title="Ubah template"
+                      title={
+                        template.schema_version === 2
+                          ? "Editor kanvas segera hadir"
+                          : "Ubah template"
+                      }
+                      disabled={template.schema_version === 2}
                       onClick={() => onEditTemplate(template)}
                     >
                       <Edit className="h-4 w-4" />

@@ -46,6 +46,7 @@ export default function AppLayout() {
       <Stack.Screen name="warga/[id]" options={{ title: 'Postingan' }} />
       <Stack.Screen name="warga/profil/[id]" options={{ title: 'Profil' }} />
       <Stack.Screen name="warga/laporkan" options={{ title: 'Laporkan' }} />
+      <Stack.Screen name="warga/minat" options={{ title: 'Minat saya' }} />
       <Stack.Protected guard={!isStaff}>
         <Stack.Screen name="surat/baru" options={{ title: 'Buat surat' }} />
         <Stack.Screen name="surat/[id]" options={{ title: 'Status surat' }} />

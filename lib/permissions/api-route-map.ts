@@ -31,6 +31,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/mail-requests", resource: "mail" },
   { prefix: "/api/mail-templates", resource: "mail" },
   { prefix: "/api/mail-services", resource: "mail" },
+  { prefix: "/api/letters", resource: "mail" },
   { prefix: "/api/layanan-surat", resource: "mail" },
   { prefix: "/api/kiosk/settings", resource: "mail" },
   { prefix: "/api/kiosk/devices", resource: "mail" },

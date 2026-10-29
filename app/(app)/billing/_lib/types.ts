@@ -39,6 +39,8 @@ export type BillingStatusResponse = {
     startDate: string | null;
     expiry: string | null;
   };
+  /** Add-on kapasitas arsip berlangganan yang masih aktif. */
+  arsipAddon?: { planCode: string | null; storageGb: number; expiry: string } | null;
   entitlements:
     | {
         desaTier: string;

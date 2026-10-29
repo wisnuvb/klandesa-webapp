@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import ArsipDigitalClient from "./ArsipDigitalClient";
 import type { ArchiveEntry, ArchiveFolderEntry } from "./_types";
-import { effectiveVillageStorageLimitGb } from "@/lib/digitalArchive/quota";
+import { getActiveArsipAddon, getEffectiveStorageLimitGb } from "@/lib/digitalArchive/quota";
 
 export default async function ArsipPage() {
   const session = await auth();
@@ -99,16 +99,16 @@ export default async function ArsipPage() {
     updatedAt: f.updatedAt.toISOString(),
   }));
 
+  const arsipAddon = await getActiveArsipAddon(village.id);
+
   return (
     <ArsipDigitalClient
       initialEntries={entries}
       initialFolders={initialFolders}
       villageStorage={{
         subscriptionPlan: village.subscriptionPlan,
-        storageLimitGb: effectiveVillageStorageLimitGb(
-          village.subscriptionPlan,
-          village.storageLimit,
-        ),
+        storageLimitGb: await getEffectiveStorageLimitGb(village),
+        addonExpiry: arsipAddon?.expiryDate.toISOString() ?? null,
       }}
     />
   );

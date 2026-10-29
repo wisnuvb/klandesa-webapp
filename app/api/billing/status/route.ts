@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
 import { mapDesaTierToAddonTier, type DesaPackageTier } from "@/lib/billing/catalog";
-import { effectiveVillageStorageLimitGb } from "@/lib/digitalArchive/quota";
+import { getActiveArsipAddon, getEffectiveStorageLimitGb } from "@/lib/digitalArchive/quota";
+import { arsipGbForPlanCode } from "@/lib/digitalArchive/storage-limit";
 import { listModuleEntitlementsForVillage } from "@/lib/modules/entitlements";
 import { loadActiveModuleSubs } from "@/lib/modules/require-module";
 import { hasPurchasedLengkap } from "@/lib/billing/service";
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
         ? "profesional"
         : desaTier;
 
-    const [invoices, activeAddons, websiteSub, purchasedLengkap] = await Promise.all([
+    const [invoices, activeAddons, websiteSub, purchasedLengkap, arsipAddon, arsipLimitGb] = await Promise.all([
       prisma.billingInvoice.findMany({
         where: { villageId: village.id },
         orderBy: { createdAt: "desc" },
@@ -68,6 +69,8 @@ export async function GET(req: NextRequest) {
         select: { isActive: true, expiryDate: true },
       }),
       hasPurchasedLengkap(village.id),
+      getActiveArsipAddon(village.id),
+      getEffectiveStorageLimitGb(village),
     ]);
 
     const websiteActive =
@@ -105,6 +108,13 @@ export async function GET(req: NextRequest) {
         startDate: village.subscriptionDate?.toISOString() ?? null,
         expiry: village.subscriptionExpiry?.toISOString() ?? null,
       },
+      arsipAddon: arsipAddon
+        ? {
+            planCode: arsipAddon.planCode,
+            storageGb: arsipGbForPlanCode(arsipAddon.planCode),
+            expiry: arsipAddon.expiryDate.toISOString(),
+          }
+        : null,
       absensiGpsAddon: {
         active: village.absensiGpsAddonActive,
         officeLat: village.absensiOfficeLat ?? null,
@@ -119,10 +129,7 @@ export async function GET(req: NextRequest) {
               desaTier,
               absensiTier: mapDesaTierToAddonTier(addonBaseTier),
               arsipTier: mapDesaTierToAddonTier(addonBaseTier),
-              arsipStorageLimitGb: effectiveVillageStorageLimitGb(
-                village.subscriptionPlan,
-                village.storageLimit,
-              ),
+              arsipStorageLimitGb: arsipLimitGb,
             }
           : null,
       modules: Object.fromEntries(

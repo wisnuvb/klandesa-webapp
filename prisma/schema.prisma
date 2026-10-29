@@ -110,6 +110,7 @@ model Village {
   disasterPoints         DisasterPoint[]
   aiAssistantThreads     AiAssistantThread[]
   moduleSubscriptions    VillageModuleSubscription[]
+  mediaUsage             VillageMediaUsage?
 
   @@index([code])
   @@index([isActive])
@@ -117,6 +118,18 @@ model Village {
   @@index([regency, district])
   @@index([acquiredByPartnerId])
   @@map("villages")
+}
+
+/// Pemakaian penyimpanan foto aplikasi seluler per desa. Ditambah saat presign, dikurangi saat foto dihapus, dan dibaca
+/// tanpa menyentuh bucket. Baris dibuat saat unggahan pertama (diisi dari isi bucket sekali), lalu dikoreksi lewat
+/// scripts/reconcile-mobile-media.ts bila perlu.
+model VillageMediaUsage {
+  villageId   Int      @id
+  village     Village  @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  mobileBytes BigInt   @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@map("village_media_usage")
 }
 
 /// Akun dashboard agregat kabupaten/kecamatan (terpisah dari User per-desa).
@@ -2943,6 +2956,7 @@ model SocialPost {
   media    SocialPostMedia[]
   comments SocialComment[]
   likes    SocialLike[]
+  signals  SocialPostSignal[]
 
   @@index([villageId, status, createdAt(sort: Desc)])
   @@index([villageId, category, status, createdAt(sort: Desc)])
@@ -3020,6 +3034,50 @@ model SocialBookmark {
   @@unique([postId, accountType, accountId])
   @@index([accountType, accountId, createdAt])
   @@map("social_bookmarks")
+}
+
+/// Jejak ringan "apa yang dilihat/dibuka warga". Satu baris per (akun, postingan) yang di-upsert, bukan log mentah,
+/// agar tabel tetap kecil. Sumber data untuk pemeringkatan "Untuk Anda" dan pengukuran (docs/SOCIAL_FEED_RANKING.md).
+model SocialPostSignal {
+  id          BigInt     @id @default(autoincrement())
+  villageId   Int
+  postId      BigInt
+  post        SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  accountType String     @db.VarChar(10)
+  accountId   Int
+  /// Berapa kali tampil di layar (>= 1 detik), dipisah per tab agar bisa dibandingkan.
+  seenForYou  Int        @default(0)
+  seenLatest  Int        @default(0)
+  /// Berapa kali dibuka (detail/komentar), dipisah per tab.
+  openForYou  Int        @default(0)
+  openLatest  Int        @default(0)
+  shares      Int        @default(0)
+  /// "Kurangi yang seperti ini": postingan ini tidak ditampilkan lagi di "Untuk Anda" milik akun ini.
+  hidden      Boolean    @default(false)
+  firstSeenAt DateTime   @default(now())
+  lastSeenAt  DateTime   @default(now())
+
+  @@unique([postId, accountType, accountId])
+  @@index([accountType, accountId, lastSeenAt])
+  @@index([villageId, lastSeenAt])
+  @@map("social_post_signals")
+}
+
+/// Profil minat per akun: penghitung berbobot yang meluruh menurut waktu (lihat lib/mobile/social-ranking.ts).
+/// key: "cat:usaha" | "author:citizen:12" | "rt:03" | "tag:gotongroyong" | "kind:foto".
+/// key khusus "pref:no-learn" berarti akun menolak dipelajari minatnya (tidak ada pencatatan, profil dihapus).
+model SocialInterest {
+  id          BigInt   @id @default(autoincrement())
+  accountType String   @db.VarChar(10)
+  accountId   Int
+  key         String   @db.VarChar(80)
+  /// Nilai pada saat `touchedAt`; nilai efektif = score * 0.5^(umur / waktu paruh).
+  score       Float
+  touchedAt   DateTime @default(now())
+
+  @@unique([accountType, accountId, key])
+  @@index([accountType, accountId, score])
+  @@map("social_interests")
 }
 
 /// Laporan konten/akun oleh warga. Satu pelapor satu kali per target.

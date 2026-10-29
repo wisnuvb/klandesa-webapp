@@ -96,7 +96,7 @@ export function ModuleAddonCheckoutDialog(props: ModuleAddonCheckoutDialogProps)
         <DialogHeader>
           <DialogTitle>
             {checkoutStep === "payment" && activeInvoice
-              ? "Pembayaran modul"
+              ? "Pembayaran add-on"
               : `Aktifkan ${moduleLabel || "modul"}`}
           </DialogTitle>
           <DialogDescription>
@@ -279,7 +279,7 @@ export function ModuleAddonCheckoutDialog(props: ModuleAddonCheckoutDialogProps)
 
             {activeInvoice.status.toLowerCase() === "paid" ? (
               <p className="text-sm text-green-700">
-                Pembayaran diterima. Modul akan segera aktif.
+                Pembayaran diterima. Add-on akan segera aktif.
               </p>
             ) : (
               <>

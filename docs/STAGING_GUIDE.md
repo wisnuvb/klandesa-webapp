@@ -17,6 +17,7 @@ Perintah di bawah adalah contoh; sesuaikan dengan server Anda dan jangan jalanka
 | `SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`, `SPACES_ENDPOINT`, `SPACES_BUCKET`, `SPACES_REGION`, `SPACES_CDN_BASE_URL` | unggah foto (laporan, bukti iuran, QRIS) | gunakan bucket staging |
 | `EXPO_ACCESS_TOKEN` | kirim push notification | boleh kosong bila belum menguji push |
 | `LINKQU_*` | pembayaran paket (mode sandbox) | lihat dokumentasi LinkQu yang Anda pakai |
+| `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` | email pengingat perpanjangan (Brevo) | pengirim harus alamat/domain yang sudah diverifikasi di Brevo; `BREVO_SENDER_NAME` opsional (default "Klandesa") |
 
 ## 2. Terapkan migrasi (urut)
 Migrasi mobile yang belum pernah diterapkan di produksi, urut nama:
@@ -48,6 +49,10 @@ Setelah itu cek: tabel `fee_schedules`, `fee_charges`, `fee_payments`, `cash_ent
   0 18 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/fees
   ```
   (18:00 UTC = 01:00 WIB.) Tanpa ini tagihan hanya dibuat saat jadwal dibuat atau dibuka, dan pengingat tidak terkirim.
+- **Job harian pengingat perpanjangan**: panggil `POST /api/cron/subscription-reminders` dengan header yang sama, sekali sehari (mis. 02:00 WIB). Mengirim email via Brevo ke admin/kepala desa dan membuat notifikasi di lonceng aplikasi: trial (7, 3, 1 hari sebelum berakhir, dan saat berakhir), langganan berbayar (30, 7, 1 hari, dan saat berakhir), add-on arsip (7, 1 hari, dan saat berakhir). Aman dijalankan berulang (satu pengingat tidak dikirim dua kali). Mengembalikan 503 bila `CRON_SECRET` atau Brevo belum dikonfigurasi.
+  ```cron
+  0 19 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/subscription-reminders
+  ```
 - **Nginx**: teruskan IP asli (`X-Real-IP` / `X-Forwarded-For`) supaya pembatas laju per IP tidak menghitung semua orang sebagai satu IP;
   naikkan `client_max_body_size` agar unggahan foto tidak ditolak (foto diunggah langsung ke Spaces, tetapi tetap longgarkan batasnya).
 - Pastikan `https://STAGING/api/mobile/v1/config` terbuka dari HP (tanpa login) dan mengembalikan JSON.
@@ -111,3 +116,14 @@ Build produksi memakai `com.klandesa.klan_desa` dan keystore dari freelancer; **
 ## 7. Setelah lulus
 Catat temuan dan perbaiki sebelum onboarding desa sungguhan. Jangan menerapkan ke produksi sebelum bagian A–D lulus di staging.
 Hal yang masih di luar panduan ini: keystore dan upload key Play Store, Sentry/Crashlytics (bila ingin lebih dari log server), ikon final.
+
+### G. Paket Lengkap dan batasnya (baru)
+- [ ] Daftar desa baru: status trial berpaket `lengkap`; semua modul terbuka; kartu Tagihan tidak menampilkan modul sebagai add-on.
+- [ ] Desa trial membeli Paket Lengkap: ditagih **Rp3.500.000** (bukan Rp100.000). Setelah lunas, perpanjang 1 bulan ditagih **Rp100.000**.
+- [ ] Migrasi `20261029140000_trial_villages_to_lengkap` sudah diterapkan: desa trial/grace lama berpaket `lengkap`, desa berbayar tidak berubah.
+- [ ] Add-on arsip: beli 20 GB → kuota naik; di halaman Arsip muncul "aktif hingga"; perpanjang menyambung sisa waktu; kapasitas lebih kecil saat add-on aktif ditolak; setelah `expiryDate` lewat kuota kembali 5 GB, file tetap ada, unggahan baru terblokir bila melebihi.
+- [ ] Absensi: desa Paket Lengkap dengan 11+ perangkat aktif, perangkat ke-11 absen lewat web **dan** HP → ditolak dengan pesan kapasitas; desa Starter lama tidak terpengaruh.
+- [ ] Kuota foto seluler 5 GB: sementara turunkan `MOBILE_MEDIA_QUOTA_BYTES` di staging, unggah foto → ditolak dengan pesan "Penyimpanan foto desa sedang penuh".
+- [ ] Penghitung foto (`village_media_usage`): unggah foto → `mobileBytes` bertambah; hapus postingan Warga yang berfoto → berkurang. Pada unggahan pertama desa yang sudah punya foto, baris terisi dari isi bucket (sekali saja). Jalankan `npx tsx scripts/reconcile-mobile-media.ts <kodeDesa>` untuk mencocokkan ulang dengan bucket.
+- [ ] Kredit AI: kirim pertanyaan → saldo berkurang 1; saldo 0 → ditolak (402); panggilan AI gagal → saldo dikembalikan; beli paket kredit → saldo bertambah sesuai paket.
+- [ ] `POST /api/cron/subscription-reminders` tanpa header → 401; email uji terkirim ke admin desa; dijalankan dua kali → tidak ada email ganda.

@@ -89,7 +89,12 @@ export default function Page() {
         refreshInvoiceStatus={checkout.refreshInvoiceStatus}
       />
 
-      <ExtrasCard plan={data?.subscription.plan} />
+      <ExtrasCard
+        plan={data?.subscription.plan}
+        arsipAddon={data?.arsipAddon ?? null}
+        onActivate={moduleCheckout.openCheckout}
+        checkoutLoading={moduleCheckout.checkoutLoading}
+      />
 
       {data?.modules && (
         <ModuleCatalogCard

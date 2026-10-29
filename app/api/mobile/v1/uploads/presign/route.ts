@@ -5,8 +5,8 @@ import { mobileError, requireMobileContext } from "@/lib/mobile/context";
 import { checkMobileRateLimit, checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/mobile/report-logic";
 import { buildSpacesPublicUrl, getSpacesClient, getSpacesConfig } from "@/lib/spaces";
-import { evaluateMediaQuota, mediaQuotaFullMessage } from "@/lib/mobile/media-quota";
-import { getVillageMobileMediaBytes, noteMobileMediaUpload } from "@/lib/mobile/media-usage";
+import { MOBILE_MEDIA_QUOTA_BYTES, mediaQuotaFullMessage } from "@/lib/mobile/media-quota";
+import { releaseMobileMedia, reserveMobileMedia } from "@/lib/mobile/media-usage";
 
 /** Presigned PUT untuk foto laporan warga dan postingan Warga (jpeg/png/webp, maks 2,5 MB). Foto sudah dikompres di HP. Perangkat desa hanya boleh untuk postingan Warga dan bukti iuran/kas. */
 export async function POST(req: NextRequest) {
@@ -32,15 +32,17 @@ export async function POST(req: NextRequest) {
     return mobileError("INVALID_REQUEST", "Ukuran foto terlalu besar. Maksimal 2,5 MB.", 400);
   }
 
-  // Kuota foto per desa (pengaman biaya penyimpanan). Gagal terbuka: bila penyimpanan tidak bisa dihitung, unggahan tetap jalan.
+  // Kuota foto per desa (pengaman biaya penyimpanan), dibaca dari penghitung di database, bukan dari bucket.
+  // Gagal terbuka: bila penghitung tidak bisa dipakai, unggahan tetap jalan.
   const cfg = getSpacesConfig();
+  let reserved = false;
   try {
-    const used = await getVillageMobileMediaBytes(ctx.village.code, cfg.bucket);
-    if (!evaluateMediaQuota(used, size).ok) {
+    if (!(await reserveMobileMedia(ctx.village, cfg.bucket, size, MOBILE_MEDIA_QUOTA_BYTES))) {
       return mobileError("FORBIDDEN", mediaQuotaFullMessage(), 403, { reason: "MEDIA_QUOTA_FULL" });
     }
+    reserved = true;
   } catch (e) {
-    console.error("[mobile presign] gagal menghitung kuota foto", e);
+    console.error("[mobile presign] gagal memeriksa kuota foto", e);
   }
 
   const now = new Date();
@@ -57,10 +59,15 @@ export async function POST(req: NextRequest) {
     ContentLength: size,
     ...(aclOn ? { ACL: (cfg.uploadAcl || "public-read") as "public-read" | "private" } : {}),
   };
-  const uploadUrl = await getSignedUrl(getSpacesClient(), new PutObjectCommand(input), { expiresIn: 120 });
+  let uploadUrl: string;
+  try {
+    uploadUrl = await getSignedUrl(getSpacesClient(), new PutObjectCommand(input), { expiresIn: 120 });
+  } catch (e) {
+    if (reserved) await releaseMobileMedia(ctx.village.id, size).catch(() => undefined);
+    throw e;
+  }
   const uploadHeaders: Record<string, string> = { "Content-Type": contentType };
   if (aclOn) uploadHeaders["x-amz-acl"] = input.ACL as string;
 
-  noteMobileMediaUpload(ctx.village.code, size);
   return NextResponse.json({ uploadUrl, fileUrl: buildSpacesPublicUrl(key), uploadHeaders });
 }

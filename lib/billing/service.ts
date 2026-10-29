@@ -1,3 +1,9 @@
+import {
+  ARSIP_ADDON_MODULE_CODE,
+  isArsipAddonActive,
+  nextArsipExpiry,
+  validateArsipPurchase,
+} from "@/lib/digitalArchive/storage-limit";
 import { aiCreditPriceForCredits } from "@/lib/ai/credit-packages";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -215,8 +221,18 @@ async function prepareCheckoutLineItems(
       >
     )[tier];
     if (!tierInfo) throw new Error("Paket arsip tidak valid");
+    const activeArsip = await prisma.villageModuleSubscription.findUnique({
+      where: { villageId_moduleCode: { villageId: village.id, moduleCode: ARSIP_ADDON_MODULE_CODE } },
+      select: { planCode: true, status: true, expiryDate: true },
+    });
+    const purchase = validateArsipPurchase({
+      plan: village.subscriptionPlan,
+      tierCode: tier,
+      active: isArsipAddonActive(activeArsip) ? activeArsip : null,
+    });
+    if (!purchase.ok) throw new Error(purchase.error);
     lineItems.push({
-      name: `Arsip Digital (${tierInfo.name})`,
+      name: `Arsip Digital ${tierInfo.storageGb} GB (langganan bulanan)`,
       quantity: 1,
       unitAmount: tierInfo.monthlyFee,
       totalAmount: tierInfo.monthlyFee,
@@ -593,10 +609,21 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
       )[tier];
       if (!tierInfo) return;
 
-      await tx.village.update({
-        where: { id: invoice.villageId },
-        data: {
-          storageLimit: tierInfo.storageGb,
+      // Berlangganan bulanan: kapasitas berlaku sampai masa berlaku; setelah itu kuota kembali ke kuota dasar paket.
+      const existing = await tx.villageModuleSubscription.findUnique({
+        where: { villageId_moduleCode: { villageId: invoice.villageId, moduleCode: ARSIP_ADDON_MODULE_CODE } },
+        select: { planCode: true, status: true, expiryDate: true, startDate: true },
+      });
+      const active = isArsipAddonActive(existing) ? existing : null;
+      const expiry = nextArsipExpiry({ now, active, tierCode: tier });
+      await tx.villageModuleSubscription.upsert({
+        where: { villageId_moduleCode: { villageId: invoice.villageId, moduleCode: ARSIP_ADDON_MODULE_CODE } },
+        create: { villageId: invoice.villageId, moduleCode: ARSIP_ADDON_MODULE_CODE, planCode: tier, status: "active", startDate: now, expiryDate: expiry },
+        update: {
+          planCode: tier,
+          status: "active",
+          startDate: active && active.planCode === tier ? active.startDate : now,
+          expiryDate: expiry,
         },
       });
     }

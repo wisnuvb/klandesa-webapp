@@ -1,32 +1,37 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
-  arsipStorageLimitForDesaTierGb,
-  type DesaPackageTier,
-} from "@/lib/billing/catalog";
+  ARSIP_ADDON_MODULE_CODE,
+  arsipGbForPlanCode,
+  computeStorageLimitGb,
+  isArsipAddonActive,
+} from "./storage-limit";
 
-function normalizeVillagePlanToDesaTier(
-  plan: string | null | undefined,
-): DesaPackageTier {
-  const p = String(plan ?? "starter").toLowerCase();
-  if (p === "profesional" || p === "professional") return "profesional";
-  if (p === "enterprise") return "enterprise";
-  return "starter";
+/** Add-on kapasitas arsip yang masih aktif untuk desa ini (null bila tidak ada/sudah berakhir). */
+export async function getActiveArsipAddon(villageId: number) {
+  const sub = await prisma.villageModuleSubscription.findUnique({
+    where: { villageId_moduleCode: { villageId, moduleCode: ARSIP_ADDON_MODULE_CODE } },
+    select: { planCode: true, status: true, expiryDate: true },
+  });
+  return isArsipAddonActive(sub) ? sub : null;
 }
 
 /**
- * Kuota penyimpanan arsip (GB) untuk UI dan pengecekan upload:
- * pakai nilai di DB, tetapi tidak di bawah minimum paket desa (`arsip` di katalog billing).
- * Memperbaiki desa starter yang masih menyimpan default lama 1 GB.
+ * Kuota penyimpanan arsip (GB) untuk UI dan pengecekan upload: yang terbesar dari nilai di DB, kuota dasar paket,
+ * dan add-on kapasitas yang masih aktif. Setelah add-on berakhir kuota kembali turun; file tidak dihapus,
+ * hanya unggahan baru yang terblokir bila pemakaian melebihi kuota.
  */
-export function effectiveVillageStorageLimitGb(
-  subscriptionPlan: string | null | undefined,
-  storageLimitDb: number,
-): number {
-  const tier = normalizeVillagePlanToDesaTier(subscriptionPlan);
-  const planFloor = arsipStorageLimitForDesaTierGb(tier);
-  const stored = Math.max(0, Math.floor(Number(storageLimitDb) || 0));
-  return Math.max(stored, planFloor);
+export async function getEffectiveStorageLimitGb(village: {
+  id: number;
+  subscriptionPlan: string | null | undefined;
+  storageLimit: number;
+}): Promise<number> {
+  const addon = await getActiveArsipAddon(village.id);
+  return computeStorageLimitGb({
+    plan: village.subscriptionPlan,
+    storedGb: village.storageLimit,
+    activeAddonGb: arsipGbForPlanCode(addon?.planCode),
+  });
 }
 
 export type QuotaMeta = {

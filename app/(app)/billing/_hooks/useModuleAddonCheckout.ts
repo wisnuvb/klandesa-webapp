@@ -17,6 +17,8 @@ export type ModuleActivatePayload = {
   planCode: string;
   label: string;
   monthlyFee: number;
+  /** Default "module_addon". "arsip" = kapasitas arsip berlangganan bulanan. */
+  productType?: "module_addon" | "arsip";
 };
 
 type CheckoutStep = "method" | "payment";
@@ -31,6 +33,7 @@ export function useModuleAddonCheckout(params: {
   const [open, setOpen] = useState(false);
   const [moduleId, setModuleId] = useState<string | null>(null);
   const [planCode, setPlanCode] = useState<string | null>(null);
+  const [productType, setProductType] = useState<"module_addon" | "arsip">("module_addon");
   const [moduleLabel, setModuleLabel] = useState("");
   const [monthlyFee, setMonthlyFee] = useState<number | null>(null);
 
@@ -59,7 +62,7 @@ export function useModuleAddonCheckout(params: {
   const pendingModuleInvoice = useMemo(() => {
     if (!planCode) return null;
     const inv = (data?.invoices ?? []).find((x) => {
-      if (String(x.productType ?? "").toLowerCase() !== "module_addon")
+      if (String(x.productType ?? "").toLowerCase() !== productType)
         return false;
       if (String(x.planCode ?? "") !== planCode) return false;
       if (String(x.status ?? "").toLowerCase() !== "pending") return false;
@@ -67,7 +70,7 @@ export function useModuleAddonCheckout(params: {
       return new Date(x.expiresAt).getTime() > Date.now();
     });
     return inv ?? null;
-  }, [data?.invoices, planCode]);
+  }, [data?.invoices, planCode, productType]);
 
   useEffect(() => {
     if (!open || checkoutStep !== "method") return;
@@ -136,6 +139,7 @@ export function useModuleAddonCheckout(params: {
     (payload: ModuleActivatePayload) => {
       setModuleId(payload.moduleId);
       setPlanCode(payload.planCode);
+      setProductType(payload.productType ?? "module_addon");
       setModuleLabel(payload.label);
       setMonthlyFee(payload.monthlyFee);
       setCheckoutError(null);
@@ -147,7 +151,7 @@ export function useModuleAddonCheckout(params: {
       setSelectedBankCode("");
 
       const pending = (data?.invoices ?? []).find((x) => {
-        if (String(x.productType ?? "").toLowerCase() !== "module_addon")
+        if (String(x.productType ?? "").toLowerCase() !== (payload.productType ?? "module_addon"))
           return false;
         if (String(x.planCode ?? "") !== payload.planCode) return false;
         if (String(x.status ?? "").toLowerCase() !== "pending") return false;
@@ -188,7 +192,7 @@ export function useModuleAddonCheckout(params: {
       setCheckoutNotice(null);
 
       const body: Record<string, string> = {
-        productType: "module_addon",
+        productType,
         planCode,
         paymentMethod,
       };

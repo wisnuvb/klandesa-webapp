@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Plus,
@@ -39,6 +40,7 @@ import { TemplateGrid } from "./_components/TemplateGrid";
 import { CreateLetterDialog } from "./_components/CreateLetterDialog";
 import { TemplatePreviewDialog } from "./_components/TemplatePreviewDialog";
 import { LetterHistoryTab } from "./_components/LetterHistoryTab";
+import { V2TemplatePreviewDialog } from "./_components/V2Views";
 import {
   parseSignerRoleFromForm,
   signerDisplayName,
@@ -48,6 +50,7 @@ import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 const LAYANAN_SURAT_PAGE_TABS = ["templates", "history"] as const;
 
 export function LayananSurat() {
+  const router = useRouter();
   const { appAlert, appConfirm } = useAppDialogs();
   const { templates, history, isLoading, refetch } = useLayananSuratData();
   const { desaSettings } = useDesaSettings();
@@ -98,6 +101,20 @@ export function LayananSurat() {
   );
   const [catalogCustomizeTarget, setCatalogCustomizeTarget] =
     useState<TemplateBody | null>(null);
+
+  const [v2Preview, setV2Preview] = useState<TemplateBody | null>(null);
+
+  /** Jenis surat berformat dokumen v2 dibuat lewat halaman komposer; format lama lewat dialog lama. */
+  const startLetter = useCallback(
+    (template: TemplateBody) => {
+      if (template.schema_version === 2) {
+        router.push(`/layanan-surat/buat?templateId=${template.id}`);
+        return;
+      }
+      handleCreateSurat(template);
+    },
+    [router, handleCreateSurat],
+  );
 
   const openTemplateEditor = useCallback((template: TemplateBody) => {
     setEditingTemplate(template);
@@ -550,15 +567,21 @@ export function LayananSurat() {
           ) : (
             <TemplateGrid
               templates={filteredTemplates}
-              onCreateSurat={handleCreateSurat}
+              onCreateSurat={startLetter}
               onPreviewTemplate={(template) => {
+                if (template.schema_version === 2) {
+                  setV2Preview(template);
+                  return;
+                }
                 setPreviewTemplate(template);
                 setShowPreviewDialog(true);
               }}
               onEditTemplate={handleEditTemplateClick}
               onDeleteTemplate={handleDeleteTemplate}
               onCustomizeCatalogTemplate={(template) =>
-                setCatalogCustomizeTarget(template)
+                template.schema_version === 2
+                  ? startLetter(template)
+                  : setCatalogCustomizeTarget(template)
               }
             />
           )}
@@ -613,6 +636,18 @@ export function LayananSurat() {
         desaSettings={desaSettings}
         onSignerSlotRoleChange={handleSignerSlotRoleChange}
         onRefreshSignerPresetFromDesa={refreshSignerPresetFromDesa}
+      />
+
+      <V2TemplatePreviewDialog
+        template={
+          v2Preview
+            ? { name: v2Preview.name, document: v2Preview.document }
+            : null
+        }
+        open={v2Preview !== null}
+        onOpenChange={(open) => {
+          if (!open) setV2Preview(null);
+        }}
       />
 
       <TemplatePreviewDialog

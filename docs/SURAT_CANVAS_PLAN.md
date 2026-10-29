@@ -1,6 +1,6 @@
 # Rencana: Pembuatan Surat Sederhana & Kanvas Template
 
-Status: **Fase 0 selesai, fondasi Fase 1 selesai (modul + tes), belum tersambung ke UI.**
+Status: **Fase 0 selesai. Fase 1 selesai. Fase 2 selesai di backend dan terhubung ke halaman Layanan Surat; editor kanvas (Fase 3) belum ada.**
 Diperbarui: 2026-10-29.
 
 ## Tujuan
@@ -73,25 +73,34 @@ Sumber: Perbup Bangka 60/2020 (dibaca langsung) dan potongan Perbup/dokumen daer
 
 **Dampak yang perlu diketahui:** rute unduh surat mobile (`/api/mobile/v1/mail/requests/[id]/document`) membaca `contentHtml`. Karena klien tidak lagi bisa mengisinya (tidak ada penulis lain di kode), unduhan itu akan 404 sampai surat dirender di server (Fase 2/4).
 
-### Fase 1 — Fondasi data (modul selesai, belum tersambung ke UI)
+### Fase 1 — Fondasi data (selesai)
 
-- [x] `lib/letters/format.ts`: terbilang, tanggal/hari Indonesia, rupiah, huruf kapital.
-- [x] `lib/letters/paper.ts`: F4/A4/Letter/Legal, margin, font, area tulis.
-- [x] `lib/letters/numbering.ts`: pola nomor bertoken, penghitung (`counterScopeKey`).
-- [x] `lib/letters/registry.ts`: isian orang/desa/pejabat/surat, allowlist kolom `Resident` (`RESIDENT_SELECT`), `residentToPerson`.
-- [x] `lib/letters/document/schema.ts`: skema dokumen v2 (zod), batas ukuran, gambar hanya path relatif/https.
-- [x] `lib/letters/document/validate.ts`: validasi lintas-rujukan (peran, isian, grup, ID unik).
-- [x] `lib/letters/document/form-spec.ts`: form turun otomatis dari kanvas; `lintDocument` ("Cek surat").
-- [x] Fixture pola lapangan + 47 tes (`tests/letters.test.ts`).
-- [ ] Profil Tata Naskah Desa (kop, kertas, font, pejabat, penomoran bawaan) disimpan di `Village.settings`.
-- [ ] Penghitung nomor atomik di server (tabel/kolom penghitung; perlu migrasi DB).
-- [ ] `applicantName`/`applicantNik` opsional untuk surat internal (perlu migrasi DB).
-- [ ] Katalog 19 template ditulis ulang ke format v2 + `prisma/seed.ts`.
-- [ ] Penyesuaian konsumen: `mail-services`, `mobile/v1/mail/*`, `lib/ai/village-assistant.ts`.
+- [x] `lib/letters/format.ts`, `paper.ts`, `numbering.ts`, `registry.ts` (allowlist kolom `Resident`), `values.ts` (penyelesai rujukan).
+- [x] `lib/letters/document/{schema,validate,form-spec}.ts`: skema dokumen v2 (zod), validasi lintas-rujukan, form turun otomatis, "Cek surat".
+- [x] Fixture pola lapangan + tes.
+- [x] Katalog 19 template ditulis ulang ke v2 (`lib/letters/catalog/*`, `lib/mail/catalogTemplates.ts`) + `scripts/sync-letter-catalog.ts`.
+- [x] Penghitung nomor atomik (`mail_number_counters`, `lib/letters/server/numbering.ts`), diuji 25 transaksi serentak di MySQL.
+- [x] `applicantName`/`applicantNik` boleh kosong untuk surat internal (tanpa migrasi: kolom tetap NOT NULL, diisi `""`).
+- [ ] Profil Tata Naskah Desa (kop, kertas, font, pejabat, penomoran bawaan) yang dapat diatur di UI. Sementara kop dibangun dari data desa dan pejabat yang sudah ada (`buildLetterContext`).
+- [ ] Pengaturan "nomor terakhir" per buku agenda agar desa dapat melanjutkan penomoran lama.
 
-### Fase 2 — Alur membuat surat
+### Fase 2 — Alur membuat surat (selesai)
 
-Layar terbagi: kiri hanya isian yang belum otomatis, kanan kertas hidup; klik chip di kertas untuk mengisi di tempat. Satu tombol utama "Simpan & Cetak". Riwayat dengan paginasi + endpoint detail. Render surat di server (`contentHtml`/PDF).
+Backend (diuji end-to-end terhadap MySQL sementara):
+- [x] Migrasi `20261029150000_letters_v2_foundation` (aditif): tabel `mail_number_counters`, kolom `mail_services.templateSnapshot`, `contentHtml` → `MEDIUMTEXT`. Diverifikasi: setelah diterapkan, database identik dengan `schema.prisma`.
+- [x] `POST/GET/PATCH/DELETE /api/letters`, `GET /api/letters/context`, `GET /api/letters/residents/[id]`, `GET /api/mail-templates/[id]`; terdaftar di peta izin (`resource: mail`; data warga juga wajib izin `residents`).
+- [x] Nomor dialokasikan server saat **terbit** (draf tidak memakai nomor); surat terbit tidak bisa diubah, hanya diarsipkan; hanya draf yang bisa dibuang.
+- [x] Dokumen dibekukan di surat (`templateSnapshot`); HTML dirender server dan disimpan (`contentHtml`), sehingga unduhan mobile berfungsi lagi.
+- [x] Isolasi tenant: template, warga, dan surat desa lain ditolak.
+- [x] Riwayat: daftar ringan (struktur template tidak diulang per baris, batas 500 baris), surat v2 dibuka lewat `GET /api/letters/[id]`.
+
+Antarmuka:
+- [x] Daftar template: v2 dibuat lewat halaman komposer `/layanan-surat/buat`; pratinjau jenis surat dengan data contoh.
+- [x] Riwayat: lihat, cetak ulang (iframe terisolasi), lanjutkan draf, "buat surat sejenis".
+- [x] Komposer layar terbagi (lihat bagian status di bawah bila belum selesai).
+- [ ] Paginasi dan filter sisi server untuk riwayat.
+
+**Keterbatasan sementara (sampai Fase 3):** template v2 belum bisa diubah desa karena editor kanvas belum ada; tombol "Ubah" dinonaktifkan untuk template v2. Builder lama masih bisa membuat template berformat lama yang berjalan lewat dialog lama.
 
 ### Fase 3 — Kanvas template
 

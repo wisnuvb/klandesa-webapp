@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { isLengkapPlan } from "@/lib/billing/lengkap";
 import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence } from "motion/react";
@@ -11,7 +12,6 @@ import type {
   ArchiveFolderEntry,
   FileItem,
   FileType,
-  PaymentMethod,
   StoragePlan,
   ViewMode,
   VillageStorageInfo,
@@ -29,7 +29,6 @@ import { StorageSidebar } from "./_components/StorageSidebar";
 import { FileManager } from "./_components/FileManager";
 import {
   NewFolderModal,
-  PaymentModal,
   PreviewModal,
   UpgradeModal,
   UploadModal,
@@ -65,14 +64,11 @@ export function ArsipDigitalClient(props: Props) {
   const [newFolderName, setNewFolderName] = useState("");
   const [folderCreating, setFolderCreating] = useState(false);
 
-  const [currentPlan, setCurrentPlan] = useState<StoragePlan>(
+  const router = useRouter();
+  const [currentPlan] = useState<StoragePlan>(
     getCurrentPlanFromVillage(villageStorage),
   );
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<StoragePlan | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] =
-    useState<PaymentMethod>("QRIS");
 
   const files = useMemo(() => {
     return buildVirtualFsItems(entries, folders);
@@ -381,20 +377,10 @@ export function ArsipDigitalClient(props: Props) {
     }
   };
 
-  const handleUpgradePlan = (planId: StoragePlan) => {
-    setSelectedPlan(planId);
+  // Pembelian kapasitas dilakukan di halaman Tagihan (checkout nyata + masa berlaku bulanan).
+  const handleUpgradePlan = () => {
     setShowUpgradeModal(false);
-    setShowPaymentModal(true);
-  };
-
-  const handlePayment = () => {
-    if (!selectedPlan) return;
-    setCurrentPlan(selectedPlan);
-    setShowPaymentModal(false);
-    setSelectedPlan(null);
-    toast.success("Pembayaran berhasil", {
-      description: "Paket storage Anda telah di-upgrade.",
-    });
+    router.push("/billing#kapasitas");
   };
 
   const uploadArchive = useCallback(
@@ -543,24 +529,12 @@ export function ArsipDigitalClient(props: Props) {
           open={showUpgradeModal}
           currentPlan={currentPlan}
           includedStarter={isLengkapPlan(villageStorage.subscriptionPlan)}
+          addonExpiry={villageStorage.addonExpiry ?? null}
           onClose={() => setShowUpgradeModal(false)}
           onUpgradePlan={handleUpgradePlan}
         />
       </AnimatePresence>
 
-      <AnimatePresence>
-        <PaymentModal
-          open={showPaymentModal}
-          selectedPlan={selectedPlan}
-          selectedPaymentMethod={selectedPaymentMethod}
-          onSelectPaymentMethod={setSelectedPaymentMethod}
-          onCancel={() => {
-            setShowPaymentModal(false);
-            setSelectedPlan(null);
-          }}
-          onPay={handlePayment}
-        />
-      </AnimatePresence>
 
       <AnimatePresence>
         <UploadModal

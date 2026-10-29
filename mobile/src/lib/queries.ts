@@ -166,7 +166,7 @@ export const useResidentDetail = (id: number) => useQuery({ queryKey: ['resident
 // ── Warga (sosial desa) ─────────────────────────────────────────────────────
 
 export type SocialConfig = {
-  mode: 'post' | 'pre'; termsAccepted: boolean; muted: boolean; mutedUntil: string | null; me: { type: 'citizen' | 'staff'; name: string; rt: string | null };
+  mode: 'post' | 'pre'; feed: { forYou: boolean; learn: boolean }; termsAccepted: boolean; muted: boolean; mutedUntil: string | null; me: { type: 'citizen' | 'staff'; name: string; rt: string | null };
   rules: string[]; limits: { postChars: number; commentChars: number; photos: number };
   categories: string[]; reportReasons: string[];
 };
@@ -174,25 +174,30 @@ export type SocialPost = {
   id: number; author: { type: string; id: number; name: string; rt: string | null; mine: boolean }; content: string; category: string;
   photos: string[]; link: { provider: EmbedProvider; url: string; title: string | null; thumb: string | null } | null;
   likes: number; comments: number; liked: boolean; saved: boolean; mine: boolean; canEdit: boolean; pending: boolean; createdAt: string; editedAt: string | null;
+  /** Alasan tampil di "Untuk Anda" dalam bahasa awam; null bila tidak ada alasan yang cukup kuat. */
+  why?: { kind: 'author' | 'category' | 'tag' | 'rt' | 'explore'; label: string } | null;
 };
-export type FeedPage = { items: SocialPost[]; official: { id: number; title: string; excerpt: string; category: string; publishedAt: string }[]; nextCursor: string | null };
+export type FeedPage = { ranked?: boolean; items: SocialPost[]; official: { id: number; title: string; excerpt: string; category: string; publishedAt: string }[]; nextCursor: string | null };
 export type SocialComment = { id: number; author: { type: string; id: number; name: string; mine: boolean }; content: string; likes: number; liked: boolean; createdAt: string };
 export type FeedFilter = 'all' | 'rt' | 'kegiatan' | 'usaha' | 'foto' | 'saved';
+export type FeedSort = 'foryou' | 'latest';
 
 export const useSocialConfig = () => useQuery({ queryKey: ['social-config'], queryFn: () => api<SocialConfig>('/social/config'), retry: false, staleTime: 60_000 });
 
-export function useFeed(filter: FeedFilter, q: string, enabled = true) {
+export function useFeed(filter: FeedFilter, q: string, sort: FeedSort, enabled = true) {
   return useInfiniteQuery({
     enabled,
-    queryKey: ['social-feed', filter, q],
+    queryKey: ['social-feed', filter, q, sort],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
-      api<FeedPage>(`/social/feed?filter=${filter}${q ? `&q=${encodeURIComponent(q)}` : ''}${pageParam ? `&cursor=${pageParam}` : ''}`),
+      api<FeedPage>(`/social/feed?filter=${filter}${sort === 'foryou' ? '&sort=foryou' : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}${pageParam ? `&cursor=${pageParam}` : ''}`),
     getNextPageParam: (last) => last.nextCursor,
   });
 }
 export const useSocialPost = (id: number) => useQuery({ queryKey: ['social-post', id], queryFn: () => api<SocialPost>(`/social/posts/${id}`), enabled: Number.isInteger(id) });
 export const useSocialComments = (id: number) => useQuery({ queryKey: ['social-comments', id], queryFn: () => api<{ items: SocialComment[] }>(`/social/posts/${id}/comments`), enabled: Number.isInteger(id) });
+export type InterestItem = { label: string; kind: 'category' | 'author' | 'tag' | 'rt' | 'format'; strength: 1 | 2 | 3 };
+export const useSocialInterests = () => useQuery({ queryKey: ['social-interests'], queryFn: () => api<{ learning: boolean; forYou: boolean; items: InterestItem[] }>('/social/interests') });
 export const useBlocks = () => useQuery({ queryKey: ['social-blocks'], queryFn: () => api<{ items: { accountType: string; accountId: number; name: string }[] }>('/social/blocks') });
 
 export type AuthorPage = { author: { type: string; id: number; name: string | null; rt: string | null; mine: boolean; postsCount: number }; items: SocialPost[]; nextCursor: string | null };
@@ -217,7 +222,7 @@ export type ModItem = {
   photos: string[]; youtubeThumb: string | null; link: { provider: string; url: string } | null; reports: number; reasons: string[]; createdAt: string; postId?: number;
 };
 export const useModQueue = () => useQuery({ queryKey: ['mod-queue'], queryFn: () => api<{ mode: string; pending: ModItem[]; flagged: ModItem[] }>('/staff/social/queue') });
-export const useSocialSettings = () => useQuery({ queryKey: ['mod-settings'], queryFn: () => api<{ mode: 'off' | 'post' | 'pre'; bannedWords: string[] }>('/staff/social/settings') });
+export const useSocialSettings = () => useQuery({ queryKey: ['mod-settings'], queryFn: () => api<{ mode: 'off' | 'post' | 'pre'; bannedWords: string[]; feed: 'auto' | 'on' | 'off' }>('/staff/social/settings') });
 
 export type VillageProfile = {
   village: { name: string; district: string; regency: string; province: string; address: string; postalCode: string | null; phone: string | null; email: string | null; website: string | null; logoUrl: string | null };
@@ -347,3 +352,13 @@ export function useInvalidateFees() {
   const qc = useQueryClient();
   return () => Promise.all(['fee-summary', 'fee-charges', 'fee-claims', 'fee-schedules', 'fee-cash', 'my-fees'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
 }
+
+/** Pengukuran Warga untuk perangkat desa (docs/SOCIAL_FEED_RANKING.md). */
+export type CohortStats = { readers: number; seenPerReader: number; openRate: number; reactionsPerReader: number; sharesPerReader: number; hideRate: number };
+export type FeedMetrics = {
+  days: number; readers: number; cohorts: { forYou: CohortStats; holdout: CohortStats };
+  tabs: { forYou: { seen: number; openRate: number }; latest: { seen: number; openRate: number } };
+  fairness: { posts: number; authors: number; postsWithReaction: number; postsNeverSeen: number; top3AuthorShare: number };
+  reportRate: number; notes: string[];
+};
+export const useFeedMetrics = (days = 14) => useQuery({ queryKey: ['feed-metrics', days], queryFn: () => api<FeedMetrics>(`/staff/social/metrics?days=${days}`) });
