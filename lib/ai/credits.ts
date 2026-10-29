@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { AI_FREE_CREDITS } from "@/lib/ai/credit-packages";
 
-/** Sementara: tidak kurangi kredit per pesan AI. */
-export const AI_CREDITS_CONSUMPTION_ENABLED = false;
+/** Aktif sejak 2026-10-29: 1 kredit dipotong per pertanyaan (lihat reserveAiCredit). Harga paket: credit-packages.ts. */
+export const AI_CREDITS_CONSUMPTION_ENABLED = true;
 
-/** Kredit awal / top-up default per user. */
-export const DEFAULT_AI_CREDITS = 1000;
+/** Kredit gratis per pengguna saat akun dibuat. */
+export const DEFAULT_AI_CREDITS = AI_FREE_CREDITS;
 
 /** Pastikan user punya kredit default (untuk akun lama yang masih 0). */
 export async function ensureDefaultAiCredits(userId: number): Promise<number> {

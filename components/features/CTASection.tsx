@@ -77,7 +77,7 @@ export function CTASection({
             <div className="text-lg font-semibold text-white mb-1">Komunitas atau mitra desa?</div>
             <p className="text-sm text-white/80">
               <Link href="/mitra-klandesa" className="underline text-[#fde68a]">
-                Bergabung program mitra distribusi paket Starter–Enterprise Klandesa
+                Bergabung program mitra distribusi Paket Lengkap Klandesa
               </Link>
               .
             </p>

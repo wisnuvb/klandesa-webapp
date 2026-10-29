@@ -5,6 +5,7 @@ import { mapDesaTierToAddonTier, type DesaPackageTier } from "@/lib/billing/cata
 import { effectiveVillageStorageLimitGb } from "@/lib/digitalArchive/quota";
 import { listModuleEntitlementsForVillage } from "@/lib/modules/entitlements";
 import { loadActiveModuleSubs } from "@/lib/modules/require-module";
+import { hasPurchasedLengkap } from "@/lib/billing/service";
 import {
   getSubscriptionPhaseInfo,
   isVillagePaidSubscriptionActive,
@@ -30,9 +31,15 @@ export async function GET(req: NextRequest) {
 
     const desaTier = String(village.subscriptionPlan ?? "").toLowerCase() as DesaPackageTier;
     const hasDesaTier =
-      desaTier === "starter" || desaTier === "profesional" || desaTier === "enterprise";
+      desaTier === "starter" || desaTier === "profesional" || desaTier === "enterprise" || desaTier === "lengkap";
 
-    const [invoices, activeAddons, websiteSub] = await Promise.all([
+    // Trial desa paket lama dihitung profesional; trial Paket Lengkap tidak (mencoba apa yang dijual).
+    const addonBaseTier: DesaPackageTier =
+      String(village.subscriptionStatus ?? "").toLowerCase() === "trial" && desaTier !== "lengkap"
+        ? "profesional"
+        : desaTier;
+
+    const [invoices, activeAddons, websiteSub, purchasedLengkap] = await Promise.all([
       prisma.billingInvoice.findMany({
         where: { villageId: village.id },
         orderBy: { createdAt: "desc" },
@@ -60,6 +67,7 @@ export async function GET(req: NextRequest) {
         where: { villageId: village.id },
         select: { isActive: true, expiryDate: true },
       }),
+      hasPurchasedLengkap(village.id),
     ]);
 
     const websiteActive =
@@ -93,6 +101,7 @@ export async function GET(req: NextRequest) {
           phaseInfo.daysRemaining <= SUBSCRIPTION_EXPIRING_SOON_DAYS,
         plan: village.subscriptionPlan,
         status: village.subscriptionStatus,
+        hasPurchasedLengkap: purchasedLengkap,
         startDate: village.subscriptionDate?.toISOString() ?? null,
         expiry: village.subscriptionExpiry?.toISOString() ?? null,
       },
@@ -108,12 +117,8 @@ export async function GET(req: NextRequest) {
         hasDesaTier && subscriptionActive
           ? {
               desaTier,
-              absensiTier: mapDesaTierToAddonTier(
-                village.subscriptionStatus === "trial" ? "profesional" : desaTier,
-              ),
-              arsipTier: mapDesaTierToAddonTier(
-                village.subscriptionStatus === "trial" ? "profesional" : desaTier,
-              ),
+              absensiTier: mapDesaTierToAddonTier(addonBaseTier),
+              arsipTier: mapDesaTierToAddonTier(addonBaseTier),
               arsipStorageLimitGb: effectiveVillageStorageLimitGb(
                 village.subscriptionPlan,
                 village.storageLimit,

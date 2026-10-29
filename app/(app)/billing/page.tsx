@@ -2,6 +2,7 @@
 
 import { CheckoutDialog } from "./_components/CheckoutDialog";
 import { DesaPackagePurchaseCard } from "./_components/DesaPackagePurchaseCard";
+import { ExtrasCard } from "./_components/ExtrasCard";
 import { InvoiceHistoryCard } from "./_components/InvoiceHistoryCard";
 import { ModuleAddonCheckoutDialog } from "./_components/ModuleAddonCheckoutDialog";
 import { ModuleCatalogCard } from "./_components/ModuleCatalogCard";
@@ -87,6 +88,8 @@ export default function Page() {
         copyText={checkout.copyText}
         refreshInvoiceStatus={checkout.refreshInvoiceStatus}
       />
+
+      <ExtrasCard plan={data?.subscription.plan} />
 
       {data?.modules && (
         <ModuleCatalogCard

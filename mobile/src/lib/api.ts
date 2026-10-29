@@ -101,3 +101,12 @@ export async function api<T>(path: string, init: RequestInit & { auth?: boolean 
 
 export const post = <T,>(path: string, body: unknown, auth = true) =>
   api<T>(path, { method: 'POST', body: JSON.stringify(body), auth });
+
+/** Seperti `api`, tetapi mengembalikan isi teks (mis. CSV). */
+export async function apiText(path: string, init: RequestInit & { auth?: boolean } = {}): Promise<string> {
+  let res = await rawFetch(path, init);
+  if (res.status === 401 && init.auth !== false && (await refreshSession())) res = await rawFetch(path, init);
+  if (res.status === 401 && init.auth !== false) onSessionExpired?.();
+  if (!res.ok) throw await toError(res);
+  return res.text();
+}

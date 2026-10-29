@@ -204,8 +204,8 @@ export default function MitraPage() {
           <p className="text-gray-700 leading-relaxed mb-6">
             Klandesa adalah <strong className="font-semibold text-gray-900">platform operasional desa berbasis SDGs</strong>
             —dari data warga, surat daring, APBDes bertanda tujuan pembangunan, hingga unduhan format Kemendesa.
-            Pemda dan konsultan wilayah bisa menyusun kombinasi fitur (peta, PKK, BUMDes, AI) dengan paket Starter,
-            Profesional, atau Enterprise yang transparan untuk bagi hasil mitra Anda.
+            Semua fitur (peta, PKK, BUMDes, AI) sudah termasuk dalam satu Paket Lengkap dengan harga yang
+            transparan, sehingga mudah dijelaskan kepada desa dan jelas untuk bagi hasil mitra Anda.
           </p>
           <Link
             href="/platform"

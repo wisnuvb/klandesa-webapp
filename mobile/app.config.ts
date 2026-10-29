@@ -33,7 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // versionCode harus lebih tinggi dari versi Flutter terakhir di Play Store.
     versionCode: Number(process.env.KLANDESA_VERSION_CODE ?? 1),
   },
-  extra: { webPort: WEB_PORT },
+  extra: { webPort: WEB_PORT, eas: { projectId: 'c6b5efc1-899d-45ce-b8b2-ad0e14c7c9b5' } },
   plugins: [
     'expo-router',
     'expo-secure-store',

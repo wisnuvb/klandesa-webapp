@@ -5,8 +5,6 @@ import Link from "next/link";
 import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
 import { badgeLabelForStatus } from "@/lib/marketing/modules";
 import type { MarketingAudience, MarketingModuleItem } from "@/lib/marketing/modules";
-import { ModuleTierBadge } from "@/components/modules/ModuleTierBadge";
-import { getModuleEntitlement } from "@/lib/modules/entitlements";
 
 type Props = { modules: MarketingModuleItem[] };
 
@@ -86,12 +84,6 @@ export function ModuleCatalog({ modules }: Props) {
             <div className="flex items-start justify-between gap-2 mb-3 flex-wrap">
               <h2 className="font-semibold text-gray-900">{m.label}</h2>
               <div className="flex items-center gap-1 shrink-0">
-                {getModuleEntitlement(m.id) && (
-                  <ModuleTierBadge
-                    tier={getModuleEntitlement(m.id)!.minPackageTier}
-                    size="sm"
-                  />
-                )}
                 {m.status === "beta" && (
                   <span className="text-[10px] uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold tracking-wide">
                     {badgeLabelForStatus(m.status)}

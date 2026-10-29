@@ -7,6 +7,7 @@ import {
   BILLING_CATALOG,
   type DesaPackageTier,
 } from "@/lib/billing/catalog";
+import { visibleDesaTiers } from "@/lib/billing/lengkap";
 import type { BillingStatusResponse, CheckoutInvoice } from "../_lib/types";
 import { TierCard } from "./TierCard";
 import { statusBadgeVariant } from "../_lib/statusBadgeVariant";
@@ -23,7 +24,7 @@ type DesaPackagePurchaseCardProps = {
   bankLabelForInvoice: string | null;
   statusCheckLoading: boolean;
 
-  openCheckout: (tier: DesaPackageTier) => void;
+  openCheckout: (tier: DesaPackageTier, months?: number) => void;
   resumePendingInvoice: () => void;
   copyText: (text: string) => Promise<void>;
   refreshInvoiceStatus: (invoiceId: string) => Promise<void>;
@@ -69,13 +70,19 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {(
             Object.keys(BILLING_CATALOG.desa_package.tiers) as DesaPackageTier[]
-          ).map((tier) => (
+          )
+            // Desa baru hanya melihat Paket Lengkap; desa lama yang masih berbayar hanya melihat paketnya sendiri.
+            .filter((tier) =>
+              visibleDesaTiers({ plan: data?.subscription.plan, paid: data?.subscription.paid ?? false }).includes(tier),
+            )
+            .map((tier) => (
             <TierCard
               key={tier}
               tier={tier}
               currentPlan={data?.subscription.plan ?? null}
               subscriptionPaid={data?.subscription.paid ?? false}
               subscriptionPhase={data?.subscription.phase ?? data?.subscription.status}
+              hasPurchasedLengkap={data?.subscription.hasPurchasedLengkap}
               onOpenCheckout={openCheckout}
               checkoutLoading={checkoutLoading || Boolean(pendingInvoice)}
             />

@@ -56,3 +56,12 @@ Route baru: `village/profile|budget-summary`, `benefits/mine`, `me/data-changes`
 - Koreksi data: kolom identitas tidak diterapkan otomatis; kolom otomatis dibatasi daftar putih di server.
 - Token verifikasi surat: HMAC dari `AUTH_SECRET` (kunci turunan khusus), perbandingan waktu-konstan, pesan gagal tunggal. Halaman publik tanpa pembatas laju; pertimbangkan batas di Nginx bila ada penyalahgunaan.
 - Terbuka: `rt/residents` memberi daftar warga RT (tersamar); pencarian dibatasi 40/menit tetapi belum dicatat di AuditLog (RT bukan akun staf). Pertimbangkan tabel audit untuk akses RT.
+
+## Tambahan 2026-10-29 (Iuran & Kas) — belum ditinjau dinamis
+Route baru: `fees/*` (jadwal, tagihan, pembayaran, kas, rekap, laporan; `?scope=rt|desa`), `me/fees`, `me/fees/:id/claim`, `me/fees/kas`, `cron/fees`.
+- Pelaku dari token: `scope=rt` → `requireRt` (penugasan RT dari DB), `scope=desa` → `requireStaff("finance")`. Semua akses jadwal/tagihan/pembayaran melalui `ownSchedule/ownCharge` (cakupan RT/RW atau desa); di luar cakupan = 404 yang sama dengan tidak ada.
+- Warga hanya melihat/melapor tagihan KK miliknya (`kk` dari data akun, villageId dari token). Nominal pembayaran dibatasi sisa tagihan; laporan menunggu maks. 3 per tagihan; konfirmasi bersyarat (hanya satu yang berhasil) dan tidak boleh melebihi nominal tagihan.
+- URL foto bukti/nota/QRIS hanya dari unggahan desa ini (`mobile-fees`); kuota unggah harian yang sama.
+- Kas yang dibatalkan tidak dihapus (jejak), dan tidak dihitung. CSV menetralkan rumus (`=`, `+`, `-`, `@`).
+- Terbuka: tidak ada AuditLog untuk aksi Ketua RT (bukan akun staf); pembayaran/penghapusan oleh bendahara hanya tercatat di kolom `recordedBy*`. Job `cron/fees` memakai `CRON_SECRET` (bandingkan string biasa, sama dengan job lain).
+- Uang: Klandesa tidak memegang dana; tidak ada pembayaran online.

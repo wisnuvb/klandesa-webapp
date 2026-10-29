@@ -4,16 +4,14 @@ import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
-import { STAGE_COLOR } from '@/components/cards';
+import { Card, Chip, SectionHeader, StatusHero, Timeline } from '@/components/cards';
 import { ContactVillageButton } from '@/components/contact';
-import { Body, Button, ErrorBanner, Screen, Title } from '@/components/ui';
+import { Button, ErrorBanner, Screen } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { formatDateId } from '@/lib/format';
-import { useRequest, type Step } from '@/lib/queries';
+import { useRequest } from '@/lib/queries';
 import { colors, spacing } from '@/theme';
 
-const MARK: Record<Step['state'], string> = { done: '●', current: '◐', todo: '○', failed: '✕' };
-const MARK_COLOR: Record<Step['state'], string> = { done: colors.primary, current: '#B26A00', todo: colors.textMuted, failed: colors.danger };
 
 export default function MailDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,10 +38,10 @@ export default function MailDetail() {
     }
   }
 
-  if (q.isLoading) return <Screen><ActivityIndicator color={colors.primary} /></Screen>;
+  if (q.isLoading) return <Screen background={colors.canvas}><ActivityIndicator color={colors.primary} /></Screen>;
   if (q.isError || !q.data) {
     return (
-      <Screen>
+      <Screen background={colors.canvas}>
         <ErrorBanner message={q.error instanceof ApiError ? q.error.message : 'Gagal memuat status surat.'} />
         <Button label="Coba lagi" variant="secondary" onPress={() => void q.refetch()} />
       </Screen>
@@ -53,41 +51,39 @@ export default function MailDetail() {
 
   return (
     <Screen
+      background={colors.canvas}
       onRefresh={() => void q.refetch()}
       refreshing={q.isRefetching}
       footer={
-        r.canDownload ? <Button label="Unduh Surat (PDF)" loading={busy} onPress={download} />
-        : r.canRetry ? <Button label="Perbaiki & Kirim Lagi" onPress={() => router.push({ pathname: '/surat/baru', params: { templateId: String(r.templateId ?? ''), name: r.type, purpose: r.purpose } })} />
+        r.canDownload ? <Button label="Unduh Surat (PDF)" icon="download-outline" loading={busy} onPress={download} />
+        : r.canRetry ? <Button label="Perbaiki & Kirim Lagi" icon="refresh-outline" onPress={() => router.push({ pathname: '/surat/baru', params: { templateId: String(r.templateId ?? ''), name: r.type, purpose: r.purpose } })} />
         : undefined
       }
     >
-      <Title>{r.type}</Title>
-      <Body muted>untuk {r.forName} · No. {r.number}</Body>
+      <View style={{ gap: 4 }}>
+        <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }} accessibilityRole="header">{r.type}</Text>
+        <Text style={{ fontSize: 15, color: colors.textMuted }}>untuk {r.forName}</Text>
+        <View style={{ marginTop: 4 }}><Chip label={`No. ${r.number}`} icon="document-text-outline" /></View>
+      </View>
       <ErrorBanner message={error} />
 
-      <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: spacing.md, marginBottom: spacing.md }}>
-        <Text style={{ fontSize: 20, fontWeight: '700', color: STAGE_COLOR[r.stage] }}>{r.title}</Text>
-        <Text style={{ fontSize: 16, color: colors.text, marginTop: 6, lineHeight: 23 }}>{r.next}</Text>
-        {r.estimate ? <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8 }}>{r.estimate}</Text> : null}
-      </View>
-
-      {r.steps.map((s, i) => (
-        <View key={s.key} style={{ flexDirection: 'row', gap: 12, marginBottom: 14 }} accessible accessibilityLabel={`${s.label}: ${s.state === 'done' ? 'selesai' : s.state === 'current' ? 'sedang berjalan' : s.state === 'failed' ? 'perlu perbaikan' : 'belum'}${s.at ? `, ${formatDateId(s.at)}` : ''}`}>
-          <Text style={{ fontSize: 22, color: MARK_COLOR[s.state], width: 26, textAlign: 'center' }}>{MARK[s.state]}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 17, fontWeight: s.state === 'current' ? '700' : '500', color: colors.text }}>{i + 1}. {s.label}</Text>
-            {s.at ? <Text style={{ fontSize: 14, color: colors.textMuted }}>{formatDateId(s.at)}</Text> : null}
-          </View>
-        </View>
-      ))}
-
       <View style={{ marginTop: spacing.md }}>
-        <Text style={{ fontSize: 13, color: colors.textMuted }}>Keperluan</Text>
-        <Text style={{ fontSize: 17, color: colors.text }}>{r.purpose}</Text>
-        <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 10 }}>Dikirim</Text>
-        <Text style={{ fontSize: 17, color: colors.text }}>{formatDateId(r.createdAt)}</Text>
+        <StatusHero stage={r.stage} title={r.title} next={r.next} note={r.estimate} />
       </View>
-      <View style={{ marginTop: spacing.lg }}><ContactVillageButton /></View>
+
+      <SectionHeader>Perkembangan surat</SectionHeader>
+      <Card>
+        <Timeline steps={r.steps.map((s) => ({ ...s, at: s.at ? formatDateId(s.at) : null }))} />
+      </Card>
+
+      <SectionHeader>Rincian</SectionHeader>
+      <Card>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>Keperluan</Text>
+        <Text style={{ fontSize: 17, lineHeight: 24, color: colors.text, marginTop: 2 }}>{r.purpose}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginTop: spacing.md }}>Dikirim</Text>
+        <Text style={{ fontSize: 17, color: colors.text, marginTop: 2 }}>{formatDateId(r.createdAt)}</Text>
+      </Card>
+      <View style={{ marginTop: spacing.md }}><ContactVillageButton /></View>
     </Screen>
   );
 }

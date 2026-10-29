@@ -1,10 +1,28 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 
-import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
+import { InfoBox } from '@/components/cards';
+import { Button, ErrorBanner, Field, Screen } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { deleteAccount } from '@/lib/queries';
 import { useSession } from '@/state/session';
+import { colors, spacing } from '@/theme';
+
+/** Daftar singkat dengan ikon: apa yang terhapus dan apa yang tetap tersimpan. */
+function Points({ title, icon, color, bg, items }: { title: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string; items: string[] }) {
+  return (
+    <View style={{ backgroundColor: bg, borderRadius: 18, padding: spacing.md, gap: spacing.sm }}>
+      <Text style={{ fontSize: 17, fontWeight: '800', color }} accessibilityRole="header">{title}</Text>
+      {items.map((t) => (
+        <View key={t} style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' }}>
+          <Ionicons name={icon} size={20} color={color} style={{ marginTop: 1 }} />
+          <Text style={{ flex: 1, fontSize: 16, lineHeight: 22, color: colors.text }}>{t}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function HapusAkun() {
   const { signOut } = useSession();
@@ -33,15 +51,29 @@ export default function HapusAkun() {
   }
 
   return (
-    <Screen footer={<Button label="Hapus akun saya" loading={busy} onPress={confirm} />}>
-      <Title>Hapus akun</Title>
-      <Body>Yang akan dihapus: akun dan username Anda, perangkat yang terhubung, serta semua notifikasi.</Body>
-      <Body muted>
-        Yang tetap tersimpan di desa: data kependudukan dan arsip surat yang pernah diajukan, karena itu catatan administrasi desa. Laporan Anda
-        tetap ada tetapi tanpa nama dan NIK Anda. Anda bisa mendaftar lagi kapan saja.
-      </Body>
-      <ErrorBanner message={error} />
-      <Field label="Password" value={password} onChangeText={setPassword} secret autoComplete="current-password" hint="Untuk memastikan ini benar-benar Anda." />
+    <Screen background={colors.canvas} footer={<Button label="Hapus akun saya" icon="trash-outline" loading={busy} onPress={confirm} style={{ backgroundColor: colors.danger }} />}>
+      <InfoBox tone="warn">Penghapusan akun bersifat permanen dan tidak bisa dibatalkan.</InfoBox>
+      <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+        <Points
+          title="Yang akan dihapus"
+          icon="close-circle"
+          color={colors.danger}
+          bg="#FDECEA"
+          items={['Akun dan username Anda', 'Perangkat yang terhubung', 'Semua notifikasi']}
+        />
+        <Points
+          title="Yang tetap tersimpan di desa"
+          icon="checkmark-circle"
+          color={colors.primary}
+          bg={colors.primarySoft}
+          items={['Data kependudukan dan arsip surat yang pernah diajukan, karena itu catatan administrasi desa', 'Laporan Anda tetap ada, tetapi tanpa nama dan NIK Anda']}
+        />
+        <Text style={{ fontSize: 15, lineHeight: 21, color: colors.textMuted }}>Anda bisa mendaftar lagi kapan saja.</Text>
+      </View>
+      <View style={{ marginTop: spacing.md }}>
+        <ErrorBanner message={error} />
+        <Field label="Password" icon="lock-closed-outline" placeholder="Masukkan password Anda" value={password} onChangeText={setPassword} secret autoComplete="current-password" hint="Untuk memastikan ini benar-benar Anda." />
+      </View>
     </Screen>
   );
 }

@@ -5,6 +5,7 @@ import {
   type BillingPaymentMethod,
 } from "@/lib/billing/service";
 import type { BillingProductType } from "@/lib/billing/catalog";
+import { LENGKAP_INCLUDED_ADDON_CODES, isLengkapPlan } from "@/lib/billing/lengkap";
 import {
   isAllowedLinkquVaBankCode,
   resolveLinkquBankCode,
@@ -147,6 +148,29 @@ export async function POST(req: NextRequest) {
         { error: "productType tidak valid" },
         { status: 400 },
       );
+    }
+
+    if (isLengkapPlan(village.subscriptionPlan)) {
+      // Fitur sudah termasuk di Paket Lengkap; cegah desa membayar dua kali.
+      if (productType === "module_addon" && LENGKAP_INCLUDED_ADDON_CODES.has(planCode)) {
+        return NextResponse.json(
+          {
+            error:
+              planCode === "website"
+                ? "Website Desa dibeli lewat menu Website (pilih template), bukan add-on modul."
+                : "Modul ini sudah termasuk di Paket Lengkap, tidak perlu add-on.",
+          },
+          { status: 400 },
+        );
+      }
+      // Tier absensi menimpa subscriptionPlan desa saat dibayar (lihat callback). Untuk Paket Lengkap itu akan
+      // menghapus hak semua fitur, jadi kapasitas absensi Paket Lengkap tetap 10 perangkat.
+      if (productType === "absensi") {
+        return NextResponse.json(
+          { error: "Kapasitas absensi Paket Lengkap tetap 10 perangkat. Absensi GPS tersedia sebagai add-on terpisah." },
+          { status: 400 },
+        );
+      }
     }
 
     const checkoutValidation = validateLinkquCheckoutInput({

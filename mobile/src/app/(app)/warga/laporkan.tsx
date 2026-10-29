@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, Text, View } from 'react-native';
 
-import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
+import { Button, ErrorBanner, Field, ResultState, Screen } from '@/components/ui';
 import { ApiError, post } from '@/lib/api';
 import { useInvalidateSocial } from '@/lib/queries';
-import { colors } from '@/theme';
+import { colors, spacing } from '@/theme';
 
 const REASONS: [string, string, string][] = [
   ['hoaks', 'Kabar bohong (hoaks)', 'Informasi yang tidak benar atau menyesatkan.'],
@@ -40,25 +41,34 @@ export default function Laporkan() {
 
   if (done) {
     return (
-      <Screen footer={<Button label="Selesai" onPress={() => router.back()} />}>
-        <Title>Terima kasih</Title>
-        <Body>Laporan Anda diterima. Perangkat desa akan meninjau konten ini. Jika banyak warga melaporkan, konten disembunyikan sementara.</Body>
+      <Screen background={colors.canvas} footer={<Button label="Selesai" onPress={() => router.back()} />}>
+        <ResultState title="Terima kasih">
+          <Text style={{ fontSize: 17, lineHeight: 25, color: colors.text, textAlign: 'center' }}>Laporan Anda diterima. Perangkat desa akan meninjau konten ini. Jika banyak warga melaporkan, konten disembunyikan sementara.</Text>
+        </ResultState>
       </Screen>
     );
   }
 
   return (
-    <Screen footer={<Button label="Kirim laporan" disabled={!reason} loading={busy} onPress={send} />}>
-      <Title>Kenapa dilaporkan?</Title>
+    <Screen background={colors.canvas} footer={<Button label="Kirim laporan" icon="flag-outline" disabled={!reason} loading={busy} onPress={send} />}>
+      <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: spacing.md }} accessibilityRole="header">Kenapa dilaporkan?</Text>
       <ErrorBanner message={error} />
-      {REASONS.map(([k, label, hint]) => (
-        <Pressable key={k} onPress={() => setReason(k)} accessibilityRole="radio" accessibilityState={{ selected: reason === k }}
-          style={{ minHeight: 64, borderRadius: 14, borderWidth: 2, borderColor: reason === k ? colors.primary : colors.border, backgroundColor: reason === k ? '#E3F3EA' : colors.bg, padding: 12, marginBottom: 10, justifyContent: 'center' }}>
-          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>{label}</Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted }}>{hint}</Text>
-        </Pressable>
-      ))}
-      <Field label="Keterangan tambahan (boleh dikosongkan)" value={note} onChangeText={setNote} multiline maxLength={300} />
+      <View style={{ gap: 10, marginBottom: spacing.md }} accessibilityRole="radiogroup">
+        {REASONS.map(([k, label, hint]) => {
+          const on = reason === k;
+          return (
+            <Pressable key={k} onPress={() => setReason(k)} accessibilityRole="radio" accessibilityState={{ selected: on }}
+              style={{ minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: 18, borderWidth: 2, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primarySoft : colors.bg, padding: spacing.md }}>
+              <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={26} color={on ? colors.primary : colors.textMuted} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>{label}</Text>
+                <Text style={{ fontSize: 14, lineHeight: 20, color: colors.textMuted }}>{hint}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Field label="Keterangan tambahan (boleh dikosongkan)" value={note} onChangeText={setNote} multiline maxLength={300} placeholder="Ceritakan singkat bila perlu" />
     </Screen>
   );
 }

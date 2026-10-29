@@ -1,3 +1,4 @@
+import { aiCreditPriceForCredits } from "@/lib/ai/credit-packages";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLinkquExpiredMinutesFromNow } from "@/lib/linkqu/datetime";
@@ -15,6 +16,7 @@ import {
   arsipStorageLimitForDesaTierGb,
 } from "@/lib/billing/catalog";
 import { isVillageSubscriptionReadable } from "@/lib/subscription";
+import { isLegacyTier, LENGKAP_TIER, lengkapLineItems, lengkapNextExpiry, parseRenewalMonths } from "@/lib/billing/lengkap";
 import { AI_ASSISTANT_NAME } from "@/lib/ai/persona";
 import { accrueSubscriptionCommissionInTx } from "@/lib/partner/commission";
 
@@ -96,6 +98,15 @@ function daysBetweenCeil(from: Date, to: Date): number {
 }
 
 /** Hitung item tagihan dari state desa — tanpa menulis ke DB. */
+/** True bila desa pernah membayar Paket Lengkap (biaya awal atau perpanjangan). */
+export async function hasPurchasedLengkap(villageId: number): Promise<boolean> {
+  const paid = await prisma.billingInvoice.findFirst({
+    where: { villageId, productType: "desa_package", planCode: LENGKAP_TIER, status: "paid" },
+    select: { id: true },
+  });
+  return paid != null;
+}
+
 async function prepareCheckoutLineItems(
   input: BillingCheckoutInput,
 ): Promise<{ lineItems: CheckoutLineItem[]; amount: number }> {
@@ -125,6 +136,20 @@ async function prepareCheckoutLineItems(
       String(village.subscriptionStatus ?? "").toLowerCase() === "active" &&
       village.subscriptionExpiry &&
       village.subscriptionExpiry.getTime() > Date.now();
+
+    if (tier === LENGKAP_TIER) {
+      // Desa lama yang masih berlangganan paketnya tidak diam-diam dipindah (sisa masa berlaku akan hilang).
+      if (hasActive && isLegacyTier(village.subscriptionPlan)) {
+        throw new Error("Paket desa Anda saat ini masih berlaku. Perpanjang paket yang sedang berjalan atau hubungi admin Klandesa.");
+      }
+      // Pernah membayar Paket Lengkap (walau sudah habis) = perpanjangan, tanpa biaya awal lagi.
+      // Dasarnya invoice lunas, bukan plan/expiry: desa trial juga berpaket "lengkap" dan punya expiry.
+      const wasLengkap = await hasPurchasedLengkap(village.id);
+      const meta = input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata) ? (input.metadata as Record<string, unknown>) : null;
+      for (const li of lengkapLineItems({ isRenewal: wasLengkap, months: meta?.months })) lineItems.push(li);
+      const total = lineItems.reduce((sum, li) => sum + li.totalAmount, 0);
+      return { lineItems, amount: normalizeMoney(total) };
+    }
 
     const isRenewal =
       hasActive && String(village.subscriptionPlan ?? "").toLowerCase() === tier;
@@ -263,11 +288,12 @@ async function prepareCheckoutLineItems(
     }
   } else if (input.productType === "ai_credits") {
     const credits = Number(input.planCode);
-    if (!Number.isFinite(credits) || credits <= 0) {
-      throw new Error("Jumlah kredit tidak valid");
+    // Harga hanya dari paket resmi (lib/ai/credit-packages.ts), bukan dihitung dari jumlah kredit kiriman klien.
+    const packagePrice = aiCreditPriceForCredits(credits);
+    if (packagePrice == null) {
+      throw new Error("Paket kredit tidak valid");
     }
-    const amountPerCredit = 1000; // Rp 1.000 per kredit
-    const totalAmount = normalizeMoney(credits * amountPerCredit);
+    const totalAmount = normalizeMoney(packagePrice);
     lineItems.push({
       name: `Top Up Kredit AI (${credits} kredit)`,
       description: `Kredit untuk ${AI_ASSISTANT_NAME} — Asisten Desa`,
@@ -524,8 +550,26 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
 
     if (invoice.productType === "desa_package") {
       const tier = invoice.planCode as DesaPackageTier;
-      const expiry = new Date(now);
+      let expiry = new Date(now);
       expiry.setFullYear(expiry.getFullYear() + 1);
+
+      if (tier === LENGKAP_TIER) {
+        // Lama langganan dari baris tagihan (bukan dari klien saat ini); perpanjangan menyambung sisa masa berlaku.
+        const li = invoice.items.map((i) => i.metadata as { kind?: string; months?: number } | null).find((m) => m?.kind?.startsWith("lengkap_"));
+        const months = parseRenewalMonths(li?.months ?? 12);
+        const current = await tx.village.findUnique({ where: { id: invoice.villageId }, select: { subscriptionExpiry: true, subscriptionPlan: true } });
+        expiry = lengkapNextExpiry({
+          now, currentExpiry: current?.subscriptionExpiry ?? null, months,
+          isRenewal: li?.kind === "lengkap_renewal" && String(current?.subscriptionPlan ?? "").toLowerCase() === LENGKAP_TIER,
+        });
+      }
+
+      let storageLimit = arsipStorageLimitForDesaTierGb(tier);
+      if (tier === LENGKAP_TIER) {
+        // Perpanjangan tidak boleh menurunkan kuota yang sudah dibeli (add-on arsip) atau sudah dipakai.
+        const cur = await tx.village.findUnique({ where: { id: invoice.villageId }, select: { storageLimit: true } });
+        storageLimit = Math.max(storageLimit, cur?.storageLimit ?? 0);
+      }
 
       await tx.village.update({
         where: { id: invoice.villageId },
@@ -534,7 +578,7 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
           subscriptionStatus: "active",
           subscriptionDate: now,
           subscriptionExpiry: expiry,
-          storageLimit: arsipStorageLimitForDesaTierGb(tier),
+          storageLimit,
         },
       });
     }

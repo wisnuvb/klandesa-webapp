@@ -25,6 +25,7 @@ import { TypingChatMarkdown } from "@/components/ai/TypingChatMarkdown";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/components/ui/utils";
 import { AI_CREDITS_CONSUMPTION_ENABLED } from "@/lib/ai/credits";
+import { AI_CREDIT_PACKAGES } from "@/lib/ai/credit-packages";
 import {
   AI_MODEL_STORAGE_KEY,
   defaultAiModelId,
@@ -73,36 +74,7 @@ const MODES = [
   { id: "program_recommendation", label: "Rekomendasi Program" },
 ] as const;
 
-const CREDIT_PACKAGES = [
-  {
-    id: "pkg1",
-    credits: 250,
-    price: 50000,
-    label: "250 Kredit",
-    desc: "~250 pertanyaan",
-  },
-  {
-    id: "pkg2",
-    credits: 500,
-    price: 90000,
-    label: "500 Kredit",
-    desc: "~500 pertanyaan",
-  },
-  {
-    id: "pkg3",
-    credits: 1333,
-    price: 200000,
-    label: "1333 Kredit",
-    desc: "Paling populer",
-  },
-  {
-    id: "pkg4",
-    credits: 2500,
-    price: 350000,
-    label: "2500 Kredit",
-    desc: "Hemat 30%",
-  },
-] as const;
+const CREDIT_PACKAGES = AI_CREDIT_PACKAGES;
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);

@@ -35,6 +35,8 @@ export const NEW_ACCOUNT_POSTS_PER_DAY = 3;
 export const POSTS_PER_DAY = 10;
 export const COMMENTS_PER_HOUR = 30;
 export const FEED_PAGE_SIZE = 15;
+/// Jumlah suka yang memicu notifikasi ke penulis (hindari membanjiri notifikasi tiap suka).
+export const LIKE_MILESTONES = new Set([1, 5, 10, 25, 50, 100]);
 
 export function dailyPostLimit(accountCreatedAt: Date, now = new Date()): number {
   const ageDays = (now.getTime() - accountCreatedAt.getTime()) / 86_400_000;
@@ -78,19 +80,69 @@ export function parseYouTubeId(raw: unknown): string | null {
 
 const URL_RE = /\bhttps?:\/\/[^\s]+/gi;
 
-/** Pisahkan tautan YouTube pertama dari teks; teks yang tersisa tidak boleh memuat tautan lain. */
-export function splitYouTube(text: string): { text: string; youtubeId: string | null } {
-  let youtubeId: string | null = null;
+export type EmbedProvider = "youtube" | "tiktok" | "facebook" | "x";
+export type EmbedLink = { provider: EmbedProvider; /** URL kanonik (tanpa pelacak) */ url: string; /** ID video YouTube */ id?: string };
+
+const TIKTOK_HOSTS = new Set(["tiktok.com", "www.tiktok.com", "m.tiktok.com", "vm.tiktok.com", "vt.tiktok.com"]);
+// l.facebook.com / lm.facebook.com sengaja tidak termasuk: itu pengalih tautan keluar.
+const FACEBOOK_HOSTS = new Set(["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com", "fb.watch"]);
+const X_HOSTS = new Set(["x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"]);
+
+/**
+ * Tautan yang boleh disematkan di postingan: YouTube, TikTok, Facebook, atau X. Hostname harus persis ada di daftar
+ * (bukan sekadar mengandung nama), memakai https, tanpa kredensial/port. Mengembalikan URL kanonik tanpa parameter pelacak.
+ */
+export function parseEmbedLink(raw: unknown): EmbedLink | null {
+  if (typeof raw !== "string") return null;
+  const yt = parseYouTubeId(raw);
+  if (yt) return { provider: "youtube", url: youtubeWatchUrl(yt), id: yt };
+
+  let u: URL;
+  try {
+    u = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
+  const host = u.hostname.toLowerCase();
+  const path = u.pathname.replace(/\/+$/, "");
+
+  if (TIKTOK_HOSTS.has(host)) {
+    const short = host.startsWith("vm.") || host.startsWith("vt.");
+    const ok = short ? /^\/[\w-]{5,20}$/.test(path) : /^\/@[\w.]{1,40}\/(video|photo)\/\d{6,25}$/.test(path) || /^\/t\/[\w-]{5,20}$/.test(path);
+    return ok ? { provider: "tiktok", url: `https://${host}${path}` } : null;
+  }
+  if (FACEBOOK_HOSTS.has(host)) {
+    if (host === "fb.watch") return /^\/[\w-]{4,20}$/.test(path) ? { provider: "facebook", url: `https://fb.watch${path}` } : null;
+    if (path === "/watch") {
+      const v = u.searchParams.get("v");
+      return v && /^\d{5,25}$/.test(v) ? { provider: "facebook", url: `https://www.facebook.com/watch/?v=${v}` } : null;
+    }
+    const ok = /^\/(reel\/\d{5,25}|share\/[vrp]\/[\w-]{5,40}|[\w.-]{1,80}\/(videos|posts)\/[\w.-]{5,80})$/.test(path);
+    return ok ? { provider: "facebook", url: `https://www.facebook.com${path}` } : null;
+  }
+  if (X_HOSTS.has(host)) {
+    const m = /^\/(\w{1,15}|i)\/status\/(\d{5,25})$/.exec(path);
+    return m ? { provider: "x", url: `https://x.com/${m[1]}/status/${m[2]}` } : null;
+  }
+  return null;
+}
+
+/** Pisahkan tautan sematan pertama yang valid dari teks; teks yang tersisa tidak boleh memuat tautan lain. */
+export function splitEmbed(text: string): { text: string; link: EmbedLink | null } {
+  let link: EmbedLink | null = null;
   const stripped = text.replace(URL_RE, (m) => {
-    const id = parseYouTubeId(m.replace(/[),.;!?]+$/, ""));
-    if (id && !youtubeId) {
-      youtubeId = id;
+    const found = parseEmbedLink(m.replace(/[),.;!?]+$/, ""));
+    if (found && !link) {
+      link = found;
       return "";
     }
     return m;
   });
-  return { text: stripped.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(), youtubeId };
+  return { text: stripped.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(), link };
 }
+
+export const EMBED_LABEL: Record<EmbedProvider, string> = { youtube: "YouTube", tiktok: "TikTok", facebook: "Facebook", x: "X" };
 
 const TLD = "com|net|org|id|co|xyz|info|me|link|site|top|online|shop|store|biz|cc|ly|gl";
 const BARE_LINK_RE = new RegExp(`(https?:\\/\\/|www\\.|\\b(wa\\.me|t\\.me|bit\\.ly|tinyurl\\.com|s\\.id)\\b|\\b[a-z0-9-]{2,}\\.(${TLD})(\\/|\\b))`, "i");
@@ -134,9 +186,9 @@ export function extractHashtags(text: string, max = 5): string[] {
 export type ContentCheck = { ok: true } | { ok: false; message: string };
 
 export function checkPostContent(text: string, opts: { hasMedia: boolean; hasVideo: boolean; customBanned?: string[] }): ContentCheck {
-  if (!text && !opts.hasMedia && !opts.hasVideo) return { ok: false, message: "Tulis sesuatu, tambah foto, atau tempel tautan YouTube." };
+  if (!text && !opts.hasMedia && !opts.hasVideo) return { ok: false, message: "Tulis sesuatu, tambah foto, atau tempel tautan video." };
   if (text.length > MAX_POST_CHARS) return { ok: false, message: `Maksimal ${MAX_POST_CHARS} huruf.` };
-  if (containsDisallowedLink(text)) return { ok: false, message: "Tautan selain YouTube tidak diizinkan di Warga." };
+  if (containsDisallowedLink(text)) return { ok: false, message: "Hanya satu tautan YouTube, TikTok, Facebook, atau X yang diizinkan di Warga." };
   const banned = findBannedWord(text, opts.customBanned);
   if (banned) return { ok: false, message: "Postingan memuat kata/topik yang dilarang di komunitas desa. Periksa aturan komunitas." };
   return { ok: true };

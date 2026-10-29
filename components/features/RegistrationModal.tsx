@@ -145,7 +145,7 @@ export function RegistrationModal({
           return;
         }
 
-        toast.success("Selamat datang! Trial Profesional 14 hari aktif.");
+        toast.success("Selamat datang! Trial Paket Lengkap 14 hari aktif.");
         onClose();
 
         const currentHost = window.location.host;
@@ -409,7 +409,7 @@ export function RegistrationModal({
                     Lengkapi informasi administrasi desa Anda
                   </p>
                   <p className="inline-flex items-center gap-2 text-xs font-medium text-[#0f766e] bg-teal-50 border border-teal-100 rounded-full px-3 py-1">
-                    Gratis 14 hari · Paket Profesional · Tanpa Perlu Bayar
+                    Gratis 14 hari · Semua fitur · Tanpa Perlu Bayar
                     Sebelumnya
                   </p>
                 </div>

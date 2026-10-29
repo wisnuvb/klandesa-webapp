@@ -229,10 +229,10 @@ export function Footer() {
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Email</p>
                   <a
-                    href="mailto:info@klandesa.com"
+                    href="mailto:wisnuvb@gmail.com"
                     className="text-gray-300 hover:text-white transition-colors"
                   >
-                    info@klandesa.com
+                    wisnuvb@gmail.com
                   </a>
                 </div>
               </li>

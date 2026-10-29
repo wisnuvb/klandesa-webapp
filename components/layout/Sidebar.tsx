@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Home,
@@ -440,6 +441,12 @@ export function Sidebar({
             transition={{ duration: 0.2 }}
             className="p-4 border-t border-sidebar-border"
           >
+            <Link
+              href="/bantuan"
+              className="mb-2 block rounded-md px-2 py-1.5 text-center text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              Bantuan
+            </Link>
             <div className="text-xs text-muted-foreground text-center">
               © {new Date().getFullYear()} Klandesa
             </div>

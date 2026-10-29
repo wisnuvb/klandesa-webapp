@@ -1,10 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { Text } from 'react-native';
 
-import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
+import { StepTitle } from '@/components/cards';
+import { Button, ErrorBanner, Field, Screen, StepProgress } from '@/components/ui';
 import { ApiError, post, type Tokens } from '@/lib/api';
 import { dateInputToIso, digitsOnly, formatCodeInput, formatDateInput } from '@/lib/form';
 import { useSession, type Profile } from '@/state/session';
+import { colors } from '@/theme';
 
 type Errors = Partial<Record<'code' | 'nik' | 'birth' | 'mother' | 'username' | 'password', string>>;
 
@@ -65,23 +68,24 @@ export default function RegisterForm() {
   }
 
   return (
-    <Screen footer={<Button label="Daftar" onPress={submit} loading={busy} />}>
-      <Title>{byCode ? 'Masukkan kode' : 'Data diri Anda'}</Title>
-      <Body muted>Desa {p.name}. Data hanya dicocokkan dengan data desa Anda.</Body>
+    <Screen background={colors.canvas} footer={<Button label="Daftar" icon="person-add-outline" onPress={submit} loading={busy} />}>
+      <StepProgress pos={3} total={3} />
+      <Text style={{ fontSize: 15, lineHeight: 22, color: colors.textMuted }}>Desa {p.name}. Data hanya dicocokkan dengan data desa Anda.</Text>
+      <StepTitle n={1}>{byCode ? 'Masukkan kode' : 'Data diri Anda'}</StepTitle>
       <ErrorBanner message={banner} />
       {byCode ? (
-        <Field label="Kode dari desa" value={code} onChangeText={(t) => setCode(formatCodeInput(t))} autoCapitalize="characters" placeholder="XXXX-XXXX" error={errors.code} />
+        <Field label="Kode dari desa" icon="key-outline" value={code} onChangeText={(t) => setCode(formatCodeInput(t))} autoCapitalize="characters" placeholder="XXXX-XXXX" error={errors.code} />
       ) : null}
-      <Field label="NIK (16 angka)" value={nik} onChangeText={(t) => setNik(digitsOnly(t, 16))} keyboardType="number-pad" maxLength={16} error={errors.nik} />
+      <Field label="NIK (16 angka)" icon="card-outline" placeholder="16 angka sesuai KTP" value={nik} onChangeText={(t) => setNik(digitsOnly(t, 16))} keyboardType="number-pad" maxLength={16} error={errors.nik} />
       {!byCode ? (
         <>
-          <Field label="Tanggal lahir" value={birth} onChangeText={(t) => setBirth(formatDateInput(t))} keyboardType="number-pad" placeholder="HH/BB/TTTT" hint="Contoh: 28/02/1990" error={errors.birth} />
-          <Field label="Nama ibu kandung" value={mother} onChangeText={setMother} autoCapitalize="words" error={errors.mother} />
+          <Field label="Tanggal lahir" icon="calendar-outline" value={birth} onChangeText={(t) => setBirth(formatDateInput(t))} keyboardType="number-pad" placeholder="HH/BB/TTTT" hint="Contoh: 28/02/1990" error={errors.birth} />
+          <Field label="Nama ibu kandung" icon="person-outline" placeholder="Sesuai Kartu Keluarga" value={mother} onChangeText={setMother} autoCapitalize="words" error={errors.mother} />
         </>
       ) : null}
-      <Title>Buat akun</Title>
-      <Field label="Username" value={username} onChangeText={setUsername} autoComplete="username-new" hint="Dipakai untuk masuk. Contoh: siti.aminah" error={errors.username} />
-      <Field label="Password" value={password} onChangeText={setPassword} secret autoComplete="password-new" hint="Minimal 8 karakter. Jangan pakai NIK atau tanggal lahir." error={errors.password} />
+      <StepTitle n={2}>Buat akun</StepTitle>
+      <Field label="Username" icon="at-outline" placeholder="contoh: siti.aminah" value={username} onChangeText={setUsername} autoComplete="username-new" hint="Dipakai untuk masuk. Contoh: siti.aminah" error={errors.username} />
+      <Field label="Password" icon="lock-closed-outline" placeholder="Minimal 8 karakter" value={password} onChangeText={setPassword} secret autoComplete="password-new" hint="Minimal 8 karakter. Jangan pakai NIK atau tanggal lahir." error={errors.password} />
     </Screen>
   );
 }

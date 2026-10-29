@@ -176,11 +176,23 @@ export function buildSystemPrompt(mode: VillageAssistantMode, ctx: VillageAssist
   return base.join("\n");
 }
 
-export async function deductAiCredit(userId: number, amount = 1): Promise<number> {
-  const updated = await prisma.user.update({
-    where: { id: userId },
+/**
+ * Pesan kredit secara atomik sebelum memanggil AI: hanya berhasil bila saldo cukup, sehingga permintaan
+ * paralel tidak bisa memakai kredit yang sama. Kembalikan dengan refundAiCredit bila panggilan gagal.
+ */
+export async function reserveAiCredit(userId: number, amount = 1): Promise<boolean> {
+  const res = await prisma.user.updateMany({
+    where: { id: userId, aiCredits: { gte: amount } },
     data: { aiCredits: { decrement: amount } },
-    select: { aiCredits: true },
   });
-  return Math.max(0, updated.aiCredits);
+  return res.count === 1;
+}
+
+export async function refundAiCredit(userId: number, amount = 1): Promise<void> {
+  await prisma.user.update({ where: { id: userId }, data: { aiCredits: { increment: amount } } });
+}
+
+export async function getAiCreditBalance(userId: number): Promise<number> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { aiCredits: true } });
+  return Math.max(0, u?.aiCredits ?? 0);
 }

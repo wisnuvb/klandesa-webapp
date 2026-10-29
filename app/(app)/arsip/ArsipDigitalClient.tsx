@@ -1,5 +1,6 @@
 "use client";
 
+import { isLengkapPlan } from "@/lib/billing/lengkap";
 import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { useSession } from "next-auth/react";
@@ -541,6 +542,7 @@ export function ArsipDigitalClient(props: Props) {
         <UpgradeModal
           open={showUpgradeModal}
           currentPlan={currentPlan}
+          includedStarter={isLengkapPlan(villageStorage.subscriptionPlan)}
           onClose={() => setShowUpgradeModal(false)}
           onUpgradePlan={handleUpgradePlan}
         />

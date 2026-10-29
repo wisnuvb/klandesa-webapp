@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { createCheckout } from "@/lib/billing/service";
+import { findAiCreditPackageById } from "@/lib/ai/credit-packages";
 import type { BillingPaymentMethod } from "@/lib/billing/service";
 
 export async function POST(req: NextRequest) {
@@ -15,15 +16,7 @@ export async function POST(req: NextRequest) {
     const pkgId = String(body.packageId ?? "");
     const paymentMethodRaw = String(body.paymentMethod ?? "").toLowerCase();
 
-    // Map credits from package id
-    const CREDIT_PACKAGES: Record<string, { credits: number; price: number }> = {
-      pkg1: { credits: 250, price: 50000 },
-      pkg2: { credits: 500, price: 90000 },
-      pkg3: { credits: 1333, price: 200000 },
-      pkg4: { credits: 2500, price: 350000 },
-    };
-
-    const pkg = CREDIT_PACKAGES[pkgId];
+    const pkg = findAiCreditPackageById(pkgId);
     if (!pkg) {
       return NextResponse.json({ error: "Paket kredit tidak valid" }, { status: 400 });
     }

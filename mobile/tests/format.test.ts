@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dialNumber, formatDateId, formatRupiahShort, greetingId, timeAgoId } from '../src/lib/format.ts';
+import { dialNumber, formatDateId, formatRupiahFull, formatRupiahShort, greetingId, parseRupiahInput, periodLabelId, shiftPeriod, timeAgoId } from '../src/lib/format.ts';
 
 describe('format tanggal & waktu', () => {
   it('tanggal Indonesia', () => {
@@ -39,5 +39,26 @@ describe('format rupiah & telepon', () => {
     assert.equal(dialNumber('+62 812-3456'), '+628123456');
     assert.equal(dialNumber('12'), null);
     assert.equal(dialNumber(null), null);
+  });
+});
+
+describe('format iuran', () => {
+  it('rupiah penuh dengan titik ribuan', () => {
+    assert.equal(formatRupiahFull(25000), 'Rp25.000');
+    assert.equal(formatRupiahFull(1234567), 'Rp1.234.567');
+    assert.equal(formatRupiahFull(0), 'Rp0');
+    assert.equal(formatRupiahFull(-5), 'Rp0');
+  });
+  it('label dan geser periode', () => {
+    assert.equal(periodLabelId('2026-10'), 'Oktober 2026');
+    assert.equal(periodLabelId('rusak'), 'rusak');
+    assert.equal(shiftPeriod('2026-01', -1), '2025-12');
+    assert.equal(shiftPeriod('2026-11', 2), '2027-01');
+  });
+  it('ketikan nominal', () => {
+    assert.equal(parseRupiahInput('Rp 25.000'), 25000);
+    assert.equal(parseRupiahInput(''), null);
+    assert.equal(parseRupiahInput('abc'), null);
+    assert.equal(parseRupiahInput('12345678901'), null);
   });
 });

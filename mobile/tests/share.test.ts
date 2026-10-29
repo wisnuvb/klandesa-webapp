@@ -18,3 +18,12 @@ describe('teks bagikan kabar', () => {
     assert.ok(!empty.includes('\n\n\n'));
   });
 });
+
+describe('teks bagikan rapor', () => {
+  it('memuat nama desa dan tautan publik dengan kode yang di-encode', async () => {
+    const { buildScorecardShare } = await import('../src/lib/share.ts');
+    const t = buildScorecardShare('Karanganyar', 'KRG 01');
+    assert.ok(t.includes('Desa Karanganyar'));
+    assert.ok(t.endsWith('/rapor-desa/KRG%2001'));
+  });
+});

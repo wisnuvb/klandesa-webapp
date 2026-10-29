@@ -1,8 +1,10 @@
 import type { DesaPackageTier } from "@/lib/billing/catalog";
 import { BILLING_CATALOG } from "@/lib/billing/catalog";
+import { LENGKAP_INCLUDED_MODULE_IDS, isLengkapPlan } from "@/lib/billing/lengkap";
 import { getModuleById, VILLAGE_MODULE_REGISTRY, type ModuleDefinition } from "./registry";
 
-export type PackageTier = DesaPackageTier;
+/** Tingkat syarat modul (starter/profesional/enterprise). Paket Lengkap bukan tingkat modul: ia berperingkat seperti starter (lihat lengkap.ts). */
+export type PackageTier = Exclude<DesaPackageTier, "lengkap">;
 
 const TIER_RANK: Record<PackageTier, number> = {
   starter: 1,
@@ -108,13 +110,16 @@ export function tierMeetsMinimum(
   return rank >= TIER_RANK[required];
 }
 
-/** Tier efektif saat trial = profesional. */
+/**
+ * Tier efektif. Trial desa paket lama = profesional. Trial Paket Lengkap tidak dinaikkan:
+ * desa mencoba persis apa yang akan dibeli (semua fitur dibuka lewat LENGKAP_INCLUDED_MODULE_IDS).
+ */
 export function effectivePackageTier(
   subscriptionPlan: string | null | undefined,
   subscriptionStatus: string | null | undefined,
 ): PackageTier {
   const status = String(subscriptionStatus ?? "").toLowerCase();
-  if (status === "trial") return "profesional";
+  if (status === "trial" && !isLengkapPlan(subscriptionPlan)) return "profesional";
   const plan = String(subscriptionPlan ?? "starter").toLowerCase() as PackageTier;
   if (plan === "profesional" || plan === "enterprise") return plan;
   return "starter";
@@ -206,7 +211,10 @@ export function resolveModuleAccess(
     opts.subscriptionPlan,
     opts.subscriptionStatus,
   );
-  const inPackage = tierMeetsMinimum(effectiveTier, ent.minPackageTier);
+  // Paket Lengkap berperingkat seperti Starter, tetapi membuka penuh semua modul fitur (daftar di lengkap.ts).
+  const lengkapIncludes =
+    isLengkapPlan(opts.subscriptionPlan) && LENGKAP_INCLUDED_MODULE_IDS.has(moduleId);
+  const inPackage = tierMeetsMinimum(effectiveTier, ent.minPackageTier) || lengkapIncludes;
 
   const addonCode = ent.addonProductCode;
   const now = Date.now();
@@ -236,13 +244,15 @@ export function resolveModuleAccess(
     opts.subscriptionReadable &&
     Boolean(entitled) &&
     !hasAddon &&
+    !lengkapIncludes &&
     effectiveTier === "starter";
 
   return {
     entitled: Boolean(entitled),
     source: inPackage ? "package" : hasAddon || websiteEntitled ? "addon" : null,
     minPackageTier: ent.minPackageTier,
-    addonMonthlyFee: getModuleAddonMonthlyFee(addonCode),
+    // Modul yang sudah termasuk di Paket Lengkap tidak ditawarkan sebagai add-on.
+    addonMonthlyFee: lengkapIncludes ? null : getModuleAddonMonthlyFee(addonCode),
     locked: opts.subscriptionReadable && !entitled,
     hasResourceLimit,
     addonExpiry: activeAddon ? activeAddon.expiryDate.toISOString() : null,

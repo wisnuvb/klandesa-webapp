@@ -131,11 +131,12 @@ export async function POST(req: NextRequest) {
           address,
           phone: nomorTelepon || null,
           email: emailDesa,
-          subscriptionPlan: "profesional",
+          // Trial = Paket Lengkap (yang dijual), bukan tier lebih tinggi.
+          subscriptionPlan: "lengkap",
           subscriptionStatus: "trial",
           subscriptionDate: trialStart,
           subscriptionExpiry: trialExpiry,
-          storageLimit: arsipStorageLimitForDesaTierGb("profesional"),
+          storageLimit: arsipStorageLimitForDesaTierGb("lengkap"),
         },
         select: { id: true, code: true, name: true },
       });

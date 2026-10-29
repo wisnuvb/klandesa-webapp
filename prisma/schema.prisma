@@ -2744,6 +2744,112 @@ model VillageRoleAssignment {
   @@map("village_role_assignments")
 }
 
+// ─── Iuran & Kas RT (versi A: pencatatan; Klandesa tidak memegang dana). Lihat docs/IURAN_DESIGN.md ───
+
+/// Jadwal iuran/retribusi. scope "rt" = dikelola Ketua RT (rt/rw terisi); scope "desa" = dikelola perangkat desa.
+model FeeSchedule {
+  id          Int      @id @default(autoincrement())
+  villageId   Int
+  scope       String   @db.VarChar(10)
+  rt          String?  @db.VarChar(10)
+  rw          String?  @db.VarChar(10)
+  name        String   @db.VarChar(80)
+  /// iuran_rt | keamanan | kebersihan | sosial | pbb | retribusi | lainnya
+  category    String   @db.VarChar(20)
+  /// Rupiah per KK per periode
+  amount      Int
+  /// monthly | once
+  recurrence  String   @db.VarChar(10)
+  /// YYYY-MM
+  startPeriod String   @db.VarChar(7)
+  endPeriod   String?  @db.VarChar(7)
+  dueDay      Int      @default(10)
+  /// Cara membayar (rekening/QRIS milik RT atau desa), teks bebas
+  payInfo     String?  @db.VarChar(500)
+  payQrUrl    String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdByType String @db.VarChar(10)
+  createdById   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, scope, rt, rw, isActive])
+  @@map("fee_schedules")
+}
+
+/// Tagihan per KK per periode (dibuat otomatis dari jadwal; unik per jadwal+KK+periode).
+model FeeCharge {
+  id            Int       @id @default(autoincrement())
+  villageId     Int
+  scheduleId    Int
+  kk            String    @db.VarChar(16)
+  headResidentId Int?
+  headName      String    @db.VarChar(255)
+  /// YYYY-MM
+  period        String    @db.VarChar(7)
+  amount        Int
+  waivedAt      DateTime? @db.DateTime(3)
+  waivedReason  String?   @db.VarChar(300)
+  lastRemindedAt DateTime? @db.DateTime(3)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([scheduleId, kk, period])
+  @@index([villageId, period])
+  @@index([villageId, kk])
+  @@map("fee_charges")
+}
+
+/// Pembayaran atas tagihan. Dari warga ("Saya sudah bayar") berstatus pending sampai dikonfirmasi; dari petugas langsung confirmed.
+model FeePayment {
+  id          Int       @id @default(autoincrement())
+  villageId   Int
+  chargeId    Int
+  amount      Int
+  /// cash | transfer | qris
+  method      String    @db.VarChar(10)
+  proofUrl    String?   @db.Text
+  note        String?   @db.VarChar(300)
+  /// pending | confirmed | rejected
+  status      String    @db.VarChar(10)
+  /// warga | officer
+  source      String    @db.VarChar(10)
+  paidAt      DateTime  @db.DateTime(3)
+  recordedByType String @db.VarChar(10)
+  recordedById   Int
+  decidedAt   DateTime? @db.DateTime(3)
+  decisionNote String?  @db.VarChar(300)
+  createdAt   DateTime  @default(now())
+
+  @@index([chargeId, status])
+  @@index([villageId, status, createdAt])
+  @@map("fee_payments")
+}
+
+/// Pemasukan/pengeluaran kas di luar iuran (iuran yang sudah dikonfirmasi dihitung otomatis dari fee_payments).
+model CashEntry {
+  id          Int       @id @default(autoincrement())
+  villageId   Int
+  scope       String    @db.VarChar(10)
+  rt          String?   @db.VarChar(10)
+  rw          String?   @db.VarChar(10)
+  /// in | out
+  type        String    @db.VarChar(3)
+  amount      Int
+  category    String    @db.VarChar(30)
+  description String    @db.VarChar(200)
+  entryDate   DateTime  @db.Date
+  receiptUrl  String?   @db.Text
+  recordedByType String @db.VarChar(10)
+  recordedById   Int
+  voidedAt    DateTime? @db.DateTime(3)
+  voidReason  String?   @db.VarChar(200)
+  createdAt   DateTime  @default(now())
+
+  @@index([villageId, scope, rt, rw, entryDate])
+  @@map("cash_entries")
+}
+
 /// Pengajuan koreksi data warga dari app (warga tidak mengedit data induk langsung). Lihat lib/mobile/data-change-logic.ts.
 model DataChangeRequest {
   id                    Int       @id @default(autoincrement())
@@ -2793,6 +2899,11 @@ model SocialPost {
   youtubeId    String? @db.VarChar(16)
   youtubeTitle String? @db.VarChar(200)
 
+  /// Tautan sematan (tanpa unggah video): youtube | tiktok | facebook | x. Baris lama hanya punya youtubeId.
+  linkProvider String? @db.VarChar(10)
+  linkUrl      String? @db.VarChar(500)
+  linkTitle    String? @db.VarChar(200)
+
   /// PUBLISHED | PENDING (menunggu moderator) | HIDDEN (disembunyikan, menunggu keputusan) | REMOVED
   status       String  @default("PUBLISHED") @db.VarChar(12)
   moderationNote String? @db.VarChar(300)
@@ -2840,8 +2951,11 @@ model SocialComment {
   /// PUBLISHED | HIDDEN | REMOVED
   status       String @default("PUBLISHED") @db.VarChar(12)
   reportsCount Int    @default(0)
+  likesCount   Int    @default(0)
 
   createdAt DateTime @default(now())
+
+  likes SocialCommentLike[]
 
   @@index([postId, status, createdAt])
   @@index([authorType, authorId])
@@ -2858,6 +2972,18 @@ model SocialLike {
 
   @@unique([postId, accountType, accountId])
   @@map("social_likes")
+}
+
+model SocialCommentLike {
+  id          BigInt        @id @default(autoincrement())
+  commentId   BigInt
+  comment     SocialComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  accountType String        @db.VarChar(10)
+  accountId   Int
+  createdAt   DateTime      @default(now())
+
+  @@unique([commentId, accountType, accountId])
+  @@map("social_comment_likes")
 }
 
 model SocialBookmark {

@@ -1,4 +1,5 @@
 import type { DesaPackageTier } from "@/lib/billing/catalog";
+import { isLengkapPlan } from "@/lib/billing/lengkap";
 
 export type ResourceLimitResponse = {
   error: "RESOURCE_LIMIT_REACHED";
@@ -35,6 +36,8 @@ function isUnlimited(
   minUnlimitedTier: DesaPackageTier,
 ): boolean {
   if (hasAddon) return true;
+  // Paket Lengkap: semua fitur terbuka penuh (keputusan 2026-10-29), tanpa batas pemakaian.
+  if (isLengkapPlan(tier)) return true;
   // During trial, treat as profesional
   const resolvedTier =
     String(status ?? "").toLowerCase() === "trial"

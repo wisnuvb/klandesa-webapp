@@ -37,12 +37,14 @@ import {
 interface UpgradeModalProps {
   open: boolean;
   currentPlan: StoragePlan;
+  /** Paket Lengkap: kuota dasar 5 GB sudah termasuk, jadi tidak ditampilkan sebagai paket berbayar. */
+  includedStarter?: boolean;
   onClose: () => void;
   onUpgradePlan: (planId: StoragePlan) => void;
 }
 
 export function UpgradeModal(props: UpgradeModalProps) {
-  const { open, currentPlan, onClose, onUpgradePlan } = props;
+  const { open, currentPlan, includedStarter, onClose, onUpgradePlan } = props;
   if (!open) return null;
 
   return (
@@ -136,11 +138,13 @@ export function UpgradeModal(props: UpgradeModalProps) {
                       <span className="text-3xl font-bold text-gray-900">
                         {plan.price === 0 ? (
                           "BASIC"
+                        ) : includedStarter && plan.id === "STARTER" ? (
+                          "Termasuk"
                         ) : (
                           <>Rp {plan.price.toLocaleString("id-ID")}</>
                         )}
                       </span>
-                      {plan.price > 0 && (
+                      {plan.price > 0 && !(includedStarter && plan.id === "STARTER") && (
                         <span className="text-sm text-gray-500">/bulan</span>
                       )}
                     </div>
@@ -194,20 +198,16 @@ export function UpgradeModal(props: UpgradeModalProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
               {[
                 {
-                  title: "Pembayaran Bulanan",
-                  desc: "Biaya langganan ditagih setiap bulan secara otomatis",
+                  title: "Kapasitas Langsung Bertambah",
+                  desc: "Kuota penyimpanan bertambah segera setelah pembayaran dikonfirmasi",
                 },
                 {
-                  title: "Upgrade Kapan Saja",
-                  desc: "Anda dapat upgrade paket kapan saja tanpa kehilangan data",
+                  title: "File Tetap Aman",
+                  desc: "Menambah kapasitas tidak menghapus atau memindahkan file yang sudah ada",
                 },
                 {
-                  title: "Tidak Ada Biaya Tersembunyi",
+                  title: "Harga Transparan",
                   desc: "Harga yang ditampilkan sudah final, tanpa biaya tambahan",
-                },
-                {
-                  title: "Data Aman & Terenkripsi",
-                  desc: "File Anda disimpan dengan enkripsi standar enterprise",
                 },
               ].map((it) => (
                 <div key={it.title} className="flex gap-3">

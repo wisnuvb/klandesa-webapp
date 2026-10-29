@@ -117,6 +117,33 @@ export function ShortcutTile({ icon, label, onPress }: { icon: keyof typeof Ioni
   );
 }
 
+/** Daftar menu dalam satu kartu: ikon bulat, judul, keterangan singkat, dan panah. Baris dipisah garis tipis. */
+export function MenuGroup({ items }: { items: { icon: keyof typeof Ionicons.glyphMap; title: string; caption?: string; trailing?: string; danger?: boolean; external?: boolean; onPress: () => void }[] }) {
+  return (
+    <View style={d.group}>
+      {items.map((it, i) => (
+        <Pressable
+          key={it.title}
+          accessibilityRole="button"
+          accessibilityLabel={it.caption ? `${it.title}. ${it.caption}` : it.title}
+          onPress={it.onPress}
+          style={({ pressed }) => [d.groupRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.surface }, pressed && { backgroundColor: colors.surface }]}
+        >
+          <View style={[d.rowIcon, it.danger && { backgroundColor: '#FDECEA' }]}>
+            <Ionicons name={it.icon} size={22} color={it.danger ? colors.danger : colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[d.rowTitle, it.danger && { color: colors.danger }]}>{it.title}</Text>
+            {it.caption ? <Text style={d.groupCaption}>{it.caption}</Text> : null}
+          </View>
+          {it.trailing ? <Text style={d.rowTrailing}>{it.trailing}</Text> : null}
+          <Ionicons name={it.external ? 'open-outline' : 'chevron-forward'} size={20} color={colors.textMuted} />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 /** Judul seksi dalam huruf biasa (bukan kapital kecil) supaya mudah dibaca. */
 export function SectionHeader({ children }: { children: string }) {
   return <Text style={d.sectionHeader} accessibilityRole="header">{children}</Text>;
@@ -136,11 +163,133 @@ export function EmptyState({ icon, title, hint, children }: { icon: keyof typeof
   );
 }
 
-/** Lencana kecil berwarna (mis. PENTING, kategori). */
-export function Chip({ label, tone = 'muted' }: { label: string; tone?: 'gold' | 'muted' }) {
+const STAGE_LOOK: Record<Stage, { bg: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  sent: { bg: colors.goldSoft, icon: 'time' },
+  approved: { bg: colors.primarySoft, icon: 'checkmark-circle' },
+  ready: { bg: colors.primarySoft, icon: 'document-text' },
+  done: { bg: colors.primarySoft, icon: 'checkmark-done-circle' },
+  working: { bg: '#E8F0FB', icon: 'construct' },
+  rejected: { bg: '#FDECEA', icon: 'close-circle' },
+};
+
+/** Panel status besar: ikon, judul berwarna, dan "langkah berikutnya" dalam kalimat biasa. */
+export function StatusHero({ stage, title, next, note }: { stage: Stage; title: string; next: string; note?: string | null }) {
+  const look = STAGE_LOOK[stage];
   return (
-    <View style={[d.chip, tone === 'gold' ? { backgroundColor: colors.goldSoft } : { backgroundColor: colors.surface }]}>
-      <Text style={[d.chipText, { color: tone === 'gold' ? colors.goldText : colors.textMuted }]}>{label}</Text>
+    <View style={[d.statusHero, { backgroundColor: look.bg }]} accessible accessibilityLabel={`Status: ${title}. ${next}`}>
+      <Ionicons name={look.icon} size={36} color={STAGE_COLOR[stage]} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: STAGE_COLOR[stage] }}>{title}</Text>
+        <Text style={{ fontSize: 16, lineHeight: 23, color: colors.text, marginTop: 4 }}>{next}</Text>
+        {note ? <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>{note}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+/** Linimasa vertikal bergaris: lingkaran bercentang untuk langkah selesai, cincin emas untuk yang berjalan. */
+export function Timeline({ steps }: { steps: { key: string; label: string; state: Step['state']; at?: string | null }[] }) {
+  const word = { done: 'selesai', current: 'sedang berjalan', todo: 'belum', failed: 'perlu perbaikan' } as const;
+  return (
+    <View>
+      {steps.map((st, i) => {
+        const last = i === steps.length - 1;
+        const done = st.state === 'done';
+        return (
+          <View key={st.key} style={{ flexDirection: 'row', gap: spacing.md }} accessible accessibilityLabel={`${st.label}: ${word[st.state]}${st.at ? `, ${st.at}` : ''}`}>
+            <View style={{ alignItems: 'center', width: 28 }}>
+              <View
+                style={[
+                  d.tlDot,
+                  done && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  st.state === 'current' && { backgroundColor: '#F5D9A8', borderColor: '#B26A00' },
+                  st.state === 'failed' && { backgroundColor: colors.danger, borderColor: colors.danger },
+                ]}
+              >
+                {done ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
+                {st.state === 'failed' ? <Ionicons name="close" size={16} color="#fff" /> : null}
+                {st.state === 'current' ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#B26A00' }} /> : null}
+              </View>
+              {!last ? <View style={{ flex: 1, width: 3, marginVertical: 2, borderRadius: 2, backgroundColor: done ? colors.primary : colors.border }} /> : null}
+            </View>
+            <View style={{ flex: 1, paddingBottom: last ? 0 : spacing.md, minHeight: last ? undefined : 44, justifyContent: 'flex-start' }}>
+              <Text style={{ fontSize: 17, fontWeight: st.state === 'current' ? '800' : '600', color: st.state === 'todo' ? colors.textMuted : colors.text, paddingTop: 2 }}>{st.label}</Text>
+              {st.at ? <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 1 }}>{st.at}</Text> : null}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const TONES = {
+  muted: { bg: colors.surface, fg: colors.textMuted },
+  gold: { bg: colors.goldSoft, fg: colors.goldText },
+  green: { bg: colors.primarySoft, fg: colors.primary },
+  red: { bg: '#FDECEA', fg: colors.danger },
+} as const;
+export type Tone = keyof typeof TONES;
+
+/** Lencana kecil berwarna (mis. PENTING, kategori, status). Arti status juga tertulis, tidak hanya warna. */
+export function Chip({ label, tone = 'muted', icon }: { label: string; tone?: Tone; icon?: keyof typeof Ionicons.glyphMap }) {
+  const t = TONES[tone];
+  return (
+    <View style={[d.chip, { backgroundColor: t.bg }]}>
+      {icon ? <Ionicons name={icon} size={13} color={t.fg} /> : null}
+      <Text style={[d.chipText, { color: t.fg }]}>{label}</Text>
+    </View>
+  );
+}
+
+/** Kotak catatan berikon: `info` (emas) untuk penjelasan, `ok` (hijau) untuk hasil baik, `warn` (merah muda) untuk peringatan. */
+export function InfoBox({ tone = 'info', icon, children }: { tone?: 'info' | 'ok' | 'warn'; icon?: keyof typeof Ionicons.glyphMap; children: React.ReactNode }) {
+  const c = tone === 'ok' ? { bg: colors.primarySoft, fg: colors.primary, ic: 'checkmark-circle' as const }
+    : tone === 'warn' ? { bg: '#FDECEA', fg: colors.danger, ic: 'warning-outline' as const }
+    : { bg: colors.goldSoft, fg: colors.goldText, ic: 'information-circle-outline' as const };
+  return (
+    <View style={[d.infoBox, { backgroundColor: c.bg }]}>
+      <Ionicons name={icon ?? c.ic} size={22} color={c.fg} />
+      <Text style={[d.infoText, { color: c.fg }]}>{children}</Text>
+    </View>
+  );
+}
+
+/** Avatar bulat berisi inisial nama (atau foto bila ada). */
+export function Avatar({ name, size = 48, tone = 'soft' }: { name: string; size?: number; tone?: 'soft' | 'deep' }) {
+  const text = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
+  const deep = tone === 'deep';
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: deep ? colors.primaryDeep : colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: size * 0.36, fontWeight: '800', color: deep ? '#fff' : colors.primary }}>{text}</Text>
+    </View>
+  );
+}
+
+/** Pilihan berbentuk pil untuk memilih satu dari beberapa (radio). Terpilih: hijau penuh, dengan centang. */
+export function ChoiceChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+      style={({ pressed }) => [d.choice, selected ? { backgroundColor: colors.primary, borderColor: colors.primary } : { backgroundColor: colors.bg, borderColor: colors.border }, pressed && { opacity: 0.85 }]}
+    >
+      {selected ? <Ionicons name="checkmark" size={18} color="#fff" /> : null}
+      <Text style={{ fontSize: 16, fontWeight: '700', color: selected ? '#fff' : colors.text }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Judul langkah bernomor untuk formulir satu halaman ("1  Data siapa?"). */
+export function StepTitle({ n, children }: { n: number; children: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg, marginBottom: spacing.sm }}>
+      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primaryDeep, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>{n}</Text>
+      </View>
+      <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }} accessibilityRole="header">{children}</Text>
     </View>
   );
 }
@@ -159,6 +308,11 @@ export function Empty({ title, hint }: { title: string; hint?: string }) {
 }
 
 const d = StyleSheet.create({
+  statusHero: { flexDirection: 'row', gap: spacing.md, borderRadius: 20, padding: spacing.md, alignItems: 'flex-start' },
+  tlDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2.5, borderColor: colors.border, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  group: { backgroundColor: colors.bg, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', ...shadow.card },
+  groupRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  groupCaption: { fontSize: 14, lineHeight: 19, color: colors.textMuted, marginTop: 1 },
   service: { flex: 1, minHeight: 152, borderRadius: 22, padding: spacing.md, justifyContent: 'space-between', ...shadow.card },
   serviceIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   serviceLabel: { fontSize: 19, fontWeight: '800' },
@@ -171,7 +325,10 @@ const d = StyleSheet.create({
   emptyIcon: { width: 56, height: 56, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.text, textAlign: 'center' },
   emptyHint: { fontSize: 15, lineHeight: 21, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
-  chip: { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  chip: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  infoBox: { flexDirection: 'row', gap: spacing.sm, borderRadius: 16, padding: spacing.md, alignItems: 'flex-start' },
+  infoText: { flex: 1, fontSize: 15, lineHeight: 21 },
+  choice: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1.5 },
   chipText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
   row: { minHeight: TOUCH_MIN, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: 14 },
   rowIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },

@@ -5,13 +5,13 @@ import { deviceFromRequest } from "./citizen-register";
 import { lockoutMs } from "./citizen";
 import { createMobileSession } from "./sessions";
 
-// Hash bcrypt valid sungguhan agar waktu respons username tak dikenal ≈ username dikenal (anti-enumerasi).
+// Hash bcrypt valid sungguhan agar waktu respons akun tak dikenal ≈ username dikenal (anti-enumerasi).
 let dummyHash: Promise<string> | null = null;
 export const getDummyHash = () => (dummyHash ??= hashPassword("klandesa-dummy-password"));
 
-// Satu pesan untuk semua kegagalan (username tak dikenal, password salah, akun terkunci) agar penyerang
+// Satu pesan untuk semua kegagalan (akun tak dikenal, password salah, akun terkunci) agar penyerang
 // tidak bisa membedakan akun yang ada. Petunjuk pemulihan tetap diberikan kepada warga.
-const BAD_CREDS = "Username atau password salah. Jika berulang kali salah, akun dikunci sementara. Minta kode reset ke kantor desa bila perlu.";
+const BAD_CREDS = "Email atau password salah. Jika berulang kali salah, akun dikunci sementara. Minta kode reset ke kantor desa bila perlu.";
 
 export async function loginCitizen(req: Request, username: string, password: string) {
   const account = await prisma.citizenAccount.findUnique({

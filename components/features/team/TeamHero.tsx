@@ -24,15 +24,14 @@ export function TeamHero() {
       <div className="relative z-10 text-center max-w-3xl mx-auto">
         <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-6 border border-white/30">
           <Users className="w-4 h-4 text-[#fbbf24]" />
-          <span className="text-white text-sm">Tim pendiri</span>
+          <span className="text-white text-sm">Founder</span>
         </div>
 
         <h1 className="text-4xl md:text-5xl text-white mb-4 font-semibold tracking-tight">
-          Orang-orang di balik Klandesa
+          Orang di balik Klandesa
         </h1>
         <p className="text-white/90 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-          Kami menyatukan keahlian teknologi, strategi komunikasi, dan
-          pengembangan produk digital untuk membantu desa bertransformasi dengan
+          Kami membangun teknologi yang membantu desa bertransformasi dengan
           layanan yang andal, mudah diadopsi, dan berpihak pada warga.
         </p>
       </div>

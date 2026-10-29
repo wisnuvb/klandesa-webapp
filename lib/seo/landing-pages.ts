@@ -108,14 +108,15 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   harga: {
     pathname: "/harga",
-    title: "Harga Klandesa — Paket konsultatif & pemetaan modul",
+    title: "Harga Klandesa — Paket Lengkap Rp3,5 juta, tahun ke-2 Rp100 ribu/bulan",
     description:
-      "Starter, Profesional, dan Enterprise dijelaskan sebagai kemampuan modul (tanpa angka publik). Bandingkan matriks, lalu jadwalkan konsultasi untuk kuota wilayah.",
+      "Satu Paket Lengkap untuk desa: Rp3.500.000 di awal (sudah termasuk tahun pertama), lalu Rp100.000 per bulan mulai tahun ke-2. Semua fitur terbuka, trial gratis 14 hari.",
     keywords: [
-      "paket aplikasi desa",
-      "harga konsultatif klandesa",
-      "tier SDGs desa",
-      "enterprise digital desa",
+      "harga aplikasi desa",
+      "harga klandesa",
+      "paket lengkap klandesa",
+      "aplikasi desa murah",
+      "sistem informasi desa",
     ],
     robots: "index, follow",
   },
@@ -201,7 +202,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
     pathname: "/tim",
     title: "Tim Klandesa — Founder & Orang di Balik Platform Desa Digital",
     description:
-      "Kenali Wisnu Saputro, Boediman EP., dan Krina Wibisana — tim pendiri yang membangun Klandesa untuk digitalisasi layanan desa di Indonesia.",
+      "Kenali Wisnu Saputro, founder Klandesa yang membangun platform digitalisasi layanan desa di Indonesia.",
     keywords: [
       "tim klandesa",
       "founder klandesa",

@@ -1,6 +1,7 @@
 import { QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, post } from './api';
+import type { EmbedProvider } from './embed';
 
 export const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
@@ -36,7 +37,7 @@ export type ReportInput = {
   location?: { lat: number; lng: number }; locationNote?: string;
 };
 
-export const useHome = () => useQuery({ queryKey: ['home'], queryFn: () => api<Home>('/home') });
+export const useHome = () => useQuery({ queryKey: ['home'], queryFn: () => api<Home>('/home'), refetchInterval: 60_000 });
 export const useServices = () => useQuery({ queryKey: ['mail-services'], queryFn: () => api<{ items: Service[] }>('/mail/services'), staleTime: 5 * 60_000 });
 export const useRequests = () => useQuery({ queryKey: ['mail-requests'], queryFn: () => api<{ items: RequestRow[] }>('/mail/requests') });
 export const useRequest = (id: number) => useQuery({ queryKey: ['mail-request', id], queryFn: () => api<RequestDetail>(`/mail/requests/${id}`), enabled: Number.isInteger(id) });
@@ -165,17 +166,17 @@ export const useResidentDetail = (id: number) => useQuery({ queryKey: ['resident
 // ── Warga (sosial desa) ─────────────────────────────────────────────────────
 
 export type SocialConfig = {
-  mode: 'post' | 'pre'; termsAccepted: boolean; muted: boolean; mutedUntil: string | null; me: { name: string; rt: string | null };
+  mode: 'post' | 'pre'; termsAccepted: boolean; muted: boolean; mutedUntil: string | null; me: { type: 'citizen' | 'staff'; name: string; rt: string | null };
   rules: string[]; limits: { postChars: number; commentChars: number; photos: number };
   categories: string[]; reportReasons: string[];
 };
 export type SocialPost = {
   id: number; author: { type: string; id: number; name: string; rt: string | null; mine: boolean }; content: string; category: string;
-  photos: string[]; youtube: { id: string; title: string | null; thumb: string; url: string } | null;
+  photos: string[]; link: { provider: EmbedProvider; url: string; title: string | null; thumb: string | null } | null;
   likes: number; comments: number; liked: boolean; saved: boolean; mine: boolean; canEdit: boolean; pending: boolean; createdAt: string; editedAt: string | null;
 };
 export type FeedPage = { items: SocialPost[]; official: { id: number; title: string; excerpt: string; category: string; publishedAt: string }[]; nextCursor: string | null };
-export type SocialComment = { id: number; author: { type: string; id: number; name: string; mine: boolean }; content: string; createdAt: string };
+export type SocialComment = { id: number; author: { type: string; id: number; name: string; mine: boolean }; content: string; likes: number; liked: boolean; createdAt: string };
 export type FeedFilter = 'all' | 'rt' | 'kegiatan' | 'usaha' | 'foto' | 'saved';
 
 export const useSocialConfig = () => useQuery({ queryKey: ['social-config'], queryFn: () => api<SocialConfig>('/social/config'), retry: false, staleTime: 60_000 });
@@ -194,6 +195,17 @@ export const useSocialPost = (id: number) => useQuery({ queryKey: ['social-post'
 export const useSocialComments = (id: number) => useQuery({ queryKey: ['social-comments', id], queryFn: () => api<{ items: SocialComment[] }>(`/social/posts/${id}/comments`), enabled: Number.isInteger(id) });
 export const useBlocks = () => useQuery({ queryKey: ['social-blocks'], queryFn: () => api<{ items: { accountType: string; accountId: number; name: string }[] }>('/social/blocks') });
 
+export type AuthorPage = { author: { type: string; id: number; name: string | null; rt: string | null; mine: boolean; postsCount: number }; items: SocialPost[]; nextCursor: string | null };
+export function useAuthorPosts(type: string, id: number, enabled = true) {
+  return useInfiniteQuery({
+    enabled: enabled && Number.isInteger(id),
+    queryKey: ['author-posts', type, id],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => api<AuthorPage>(`/social/authors/${type === 'staff' ? 'staff' : 'citizen'}/${id}${pageParam ? `?cursor=${pageParam}` : ''}`),
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
 export function useInvalidateSocial() {
   const qc = useQueryClient();
   return () => { void qc.invalidateQueries({ queryKey: ['social-feed'] }); void qc.invalidateQueries({ queryKey: ['social-post'] }); void qc.invalidateQueries({ queryKey: ['social-comments'] }); };
@@ -202,7 +214,7 @@ export function useInvalidateSocial() {
 // Moderasi (perangkat desa)
 export type ModItem = {
   kind: 'post' | 'comment'; id: number; status: string; author: string; authorId: number; authorRt: string | null; category: string; content: string;
-  photos: string[]; youtubeThumb: string | null; reports: number; reasons: string[]; createdAt: string; postId?: number;
+  photos: string[]; youtubeThumb: string | null; link: { provider: string; url: string } | null; reports: number; reasons: string[]; createdAt: string; postId?: number;
 };
 export const useModQueue = () => useQuery({ queryKey: ['mod-queue'], queryFn: () => api<{ mode: string; pending: ModItem[]; flagged: ModItem[] }>('/staff/social/queue') });
 export const useSocialSettings = () => useQuery({ queryKey: ['mod-settings'], queryFn: () => api<{ mode: 'off' | 'post' | 'pre'; bannedWords: string[] }>('/staff/social/settings') });
@@ -231,7 +243,7 @@ export const useBudgetSummary = (year?: number) =>
   useQuery({ queryKey: ['budget-summary', year ?? 'latest'], queryFn: () => api<BudgetSummaryResponse>(`/village/budget-summary${year ? `?year=${year}` : ''}`), staleTime: 10 * 60_000 });
 export const useBenefits = () => useQuery({ queryKey: ['benefits-mine'], queryFn: () => api<BenefitsMine>('/benefits/mine'), staleTime: 5 * 60_000 });
 
-export type VillageInfoSettings = { budgetPublic: boolean; emergencyContacts: { label: string; phone: string }[]; serviceHours: string | null; rtApproval: boolean };
+export type VillageInfoSettings = { budgetPublic: boolean; scorecardPublic: boolean; emergencyContacts: { label: string; phone: string }[]; serviceHours: string | null; rtApproval: boolean };
 export const useVillageInfoSettings = () => useQuery({ queryKey: ['village-info-settings'], queryFn: () => api<VillageInfoSettings>('/staff/village-info') });
 
 export type DataChangeRow = {
@@ -274,3 +286,64 @@ export const useRtResidents = (q: string) => useQuery({ queryKey: ['rt-residents
 
 export type RtAssignment = { id: number; residentId: number; name: string; nikMasked: string | null; rt: string | null; rw: string | null; hasAccount: boolean };
 export const useRtAssignments = () => useQuery({ queryKey: ['rt-assignments'], queryFn: () => api<{ items: RtAssignment[] }>('/staff/rt-assignments') });
+
+
+export type Trend = 'better' | 'worse' | 'same' | 'unknown';
+export type Accountability = {
+  mail: { total: number; viaApp: number; viaAppPercent: number | null; processed: number; medianHours: number | null; withinSlaPercent: number | null; pending: number; oldestPendingHours: number | null };
+  reports: { total: number; eligible: number; respondedInTime: number; respondedInTimePercent: number | null; done: number; resolvedYes: number; resolvedNo: number; resolvedPercent: number | null };
+  activation: { residents: number; accounts: number; percent: number | null };
+};
+export type AccountabilityResponse = {
+  windowDays: number; current: Accountability; previous: Accountability;
+  trends: { mailMedianHours: Trend; mailWithinSla: Trend; reportsInTime: Trend; reportsResolved: Trend };
+};
+export const useAccountability = () => useQuery({ queryKey: ['accountability'], queryFn: () => api<AccountabilityResponse>('/staff/accountability'), staleTime: 5 * 60_000 });
+
+// ── Iuran & kas ─────────────────────────────────────────────────────────────
+export type FeeScope = 'rt' | 'desa';
+export type FeeStatus = 'paid' | 'partial' | 'claimed' | 'waived' | 'overdue' | 'unpaid';
+export type MyCharge = {
+  id: number; scheduleName: string; categoryLabel: string; scope: string; period: string; amount: number; confirmed: number; pending: number;
+  outstanding: number; status: FeeStatus; statusLabel: string; dueDate: string; waivedReason: string | null; payInfo: string | null; payQrUrl: string | null;
+};
+export type MyFees = { items: MyCharge[]; outstanding: number; hint?: string };
+export type FeeSummary = {
+  period: string;
+  summary: { charges: number; billed: number; collected: number; outstanding: number; waived: number; paid: number; partial: number; claimed: number; overdue: number; unpaid: number; waivedCount: number; collectionPercent: number | null };
+  balance: { income: number; expense: number; balance: number };
+  pendingClaims: number;
+};
+export type OfficerCharge = {
+  id: number; scheduleId: number; scheduleName: string; headName: string; amount: number; confirmed: number; pending: number; outstanding: number;
+  status: FeeStatus; statusLabel: string; dueDate: string; waivedReason: string | null;
+};
+export type PendingClaim = { id: number; scheduleName: string; headName: string; period: string; chargeAmount: number; amount: number; method: string; proofUrl: string | null; note: string | null; createdAt: string };
+export type FeeScheduleRow = {
+  id: number; name: string; category: string; categoryLabel: string; amount: number; recurrence: 'monthly' | 'once'; startPeriod: string; endPeriod: string | null;
+  dueDay: number; payInfo: string | null; payQrUrl: string | null; isActive: boolean;
+};
+export type CashRow = { id: number; type: 'in' | 'out'; amount: number; category: string; description: string; entryDate: string; receiptUrl: string | null };
+export type RtKas = {
+  available: boolean; rt?: string; rw?: string | null; period?: string; collectionPercent?: number | null; billed?: number; collected?: number;
+  balance?: number; income?: number; expense?: number; expenses?: { id: number; amount: number; description: string; entryDate: string; hasReceipt: boolean }[];
+};
+
+export const useMyFees = () => useQuery({ queryKey: ['my-fees'], queryFn: () => api<MyFees>('/me/fees') });
+export const useRtKas = () => useQuery({ queryKey: ['rt-kas'], queryFn: () => api<RtKas>('/me/fees/kas'), staleTime: 60_000 });
+export function useClaimPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (b: { id: number; method: string; amount?: number; proofUrl?: string; note?: string }) => { const { id, ...rest } = b; return post<{ id: number }>(`/me/fees/${id}/claim`, rest); },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['my-fees'] }),
+  });
+}
+export const useFeeSummary = (scope: FeeScope, period: string) => useQuery({ queryKey: ['fee-summary', scope, period], queryFn: () => api<FeeSummary>(`/fees/summary?scope=${scope}&period=${period}`) });
+export const useFeeCharges = (scope: FeeScope, period: string) => useQuery({ queryKey: ['fee-charges', scope, period], queryFn: () => api<{ period: string; items: OfficerCharge[] }>(`/fees/charges?scope=${scope}&period=${period}`) });
+export const useFeeClaims = (scope: FeeScope) => useQuery({ queryKey: ['fee-claims', scope], queryFn: () => api<{ items: PendingClaim[] }>(`/fees/payments?scope=${scope}`) });
+export const useFeeSchedules = (scope: FeeScope) => useQuery({ queryKey: ['fee-schedules', scope], queryFn: () => api<{ items: FeeScheduleRow[] }>(`/fees/schedules?scope=${scope}`) });
+export const useCashBook = (scope: FeeScope) => useQuery({ queryKey: ['fee-cash', scope], queryFn: () => api<{ items: CashRow[] }>(`/fees/cash?scope=${scope}`) });
+export function useInvalidateFees() {
+  const qc = useQueryClient();
+  return () => Promise.all(['fee-summary', 'fee-charges', 'fee-claims', 'fee-schedules', 'fee-cash', 'my-fees'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
+}

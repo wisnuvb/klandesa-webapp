@@ -10,7 +10,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { s } = g;
   const id = (await params).id;
   if (!/^\d{1,18}$/.test(id)) return mobileError("INVALID_REQUEST", "Permintaan tidak valid.", 400);
-  const c = await prisma.socialComment.findFirst({ where: { id: BigInt(id), villageId: s.ctx.villageId, authorType: "citizen", authorId: s.account.id }, select: { id: true, postId: true, status: true } });
+  const c = await prisma.socialComment.findFirst({ where: { id: BigInt(id), villageId: s.ctx.villageId, authorType: s.me.type, authorId: s.account.id }, select: { id: true, postId: true, status: true } });
   if (!c) return mobileError("INVALID_REQUEST", "Komentar tidak ditemukan.", 404);
   await prisma.$transaction([
     prisma.socialComment.delete({ where: { id: c.id } }),

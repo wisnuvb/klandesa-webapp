@@ -7,6 +7,8 @@ export type EmergencyContact = { label: string; phone: string };
 export type VillageInfoSettings = {
   /** Desa harus menyalakan sendiri: default tidak menampilkan angka anggaran ke warga. */
   budgetPublic: boolean;
+  /** Rapor layanan desa boleh dibuka lewat halaman publik /rapor-desa/<kode>. Default mati (opt-in). */
+  scorecardPublic: boolean;
   emergencyContacts: EmergencyContact[];
   serviceHours: string | null;
 };
@@ -55,6 +57,7 @@ export function readVillageInfoSettings(settings: unknown): VillageInfoSettings 
   const info = asRecord(asRecord(asRecord(settings).mobile).info);
   return {
     budgetPublic: info.budgetPublic === true,
+    scorecardPublic: info.scorecardPublic === true,
     emergencyContacts: sanitizeEmergencyContacts(info.emergencyContacts),
     serviceHours: sanitizeServiceHours(info.serviceHours),
   };
@@ -63,12 +66,13 @@ export function readVillageInfoSettings(settings: unknown): VillageInfoSettings 
 /** Gabungkan perubahan ke settings tanpa menghapus kunci lain milik web atau modul mobile lain. */
 export function mergeVillageInfoSettings(
   settings: unknown,
-  patch: { budgetPublic?: boolean; emergencyContacts?: unknown; serviceHours?: unknown },
+  patch: { budgetPublic?: boolean; scorecardPublic?: boolean; emergencyContacts?: unknown; serviceHours?: unknown },
 ): Record<string, unknown> {
   const root = { ...asRecord(settings) };
   const mobile = { ...asRecord(root.mobile) };
   const info = { ...asRecord(mobile.info) };
   if (typeof patch.budgetPublic === "boolean") info.budgetPublic = patch.budgetPublic;
+  if (typeof patch.scorecardPublic === "boolean") info.scorecardPublic = patch.scorecardPublic;
   if (patch.emergencyContacts !== undefined) info.emergencyContacts = sanitizeEmergencyContacts(patch.emergencyContacts);
   if (patch.serviceHours !== undefined) info.serviceHours = sanitizeServiceHours(patch.serviceHours);
   mobile.info = info;

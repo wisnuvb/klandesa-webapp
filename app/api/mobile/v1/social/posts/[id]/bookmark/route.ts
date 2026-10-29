@@ -14,11 +14,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!post) return mobileError("INVALID_REQUEST", "Postingan tidak ditemukan.", 404);
   if (body.saved) {
     await prisma.socialBookmark.upsert({
-      where: { postId_accountType_accountId: { postId: post.id, accountType: "citizen", accountId: s.account.id } },
-      create: { postId: post.id, accountType: "citizen", accountId: s.account.id }, update: {},
+      where: { postId_accountType_accountId: { postId: post.id, accountType: s.me.type, accountId: s.account.id } },
+      create: { postId: post.id, accountType: s.me.type, accountId: s.account.id }, update: {},
     });
   } else {
-    await prisma.socialBookmark.deleteMany({ where: { postId: post.id, accountType: "citizen", accountId: s.account.id } });
+    await prisma.socialBookmark.deleteMany({ where: { postId: post.id, accountType: s.me.type, accountId: s.account.id } });
   }
   return new NextResponse(null, { status: 204 });
 }

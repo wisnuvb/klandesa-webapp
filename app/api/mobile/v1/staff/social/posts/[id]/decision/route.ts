@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { mobileError } from "@/lib/mobile/context";
 import { audit, requireStaff } from "@/lib/mobile/staff";
 import { notifyAccount } from "@/lib/mobile/notify";
+import { asAccountType } from "@/lib/mobile/social";
 
 /** approve: PENDING→PUBLISHED · restore: HIDDEN→PUBLISHED (laporan dianggap tak berdasar) · remove: →REMOVED (laporan ditindak). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -33,9 +34,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await prisma.socialReport.updateMany({ where: { targetType: "post", targetId: post.id, status: "OPEN" }, data: { status: decision === "remove" ? "ACTIONED" : "DISMISSED" } });
 
   void audit(ctx, req, `social_${decision}`, "social_posts", id, { note: note || undefined });
-  if (post.authorType === "citizen") {
-    if (decision === "approve") void notifyAccount("citizen", post.authorId, ctx.villageId, { type: "system", title: "Postingan Anda sudah tampil", deepLink: `/warga/${id}` });
-    if (decision === "remove") void notifyAccount("citizen", post.authorId, ctx.villageId, { type: "system", title: "Postingan Anda dihapus perangkat desa", body: note });
-  }
+  const authorType = asAccountType(post.authorType);
+  if (decision === "approve") void notifyAccount(authorType, post.authorId, ctx.villageId, { type: "system", title: "Postingan Anda sudah tampil", deepLink: `/warga/${id}` });
+  if (decision === "remove") void notifyAccount(authorType, post.authorId, ctx.villageId, { type: "system", title: "Postingan Anda dihapus perangkat desa", body: note });
   return new NextResponse(null, { status: 204 });
 }

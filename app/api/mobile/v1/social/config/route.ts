@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const { s } = g;
   return NextResponse.json({
     mode: s.mode, termsAccepted: !!s.account.termsAt, muted: s.muted, mutedUntil: s.muted ? s.account.mutedUntil : null,
-    me: { name: s.account.name, rt: s.account.rt },
+    me: { type: s.me.type, name: s.account.name, rt: s.account.rt },
     rules: COMMUNITY_RULES,
     limits: { postChars: MAX_POST_CHARS, commentChars: MAX_COMMENT_CHARS, photos: MAX_POST_PHOTOS },
     categories: POST_CATEGORIES, reportReasons: REPORT_REASONS,

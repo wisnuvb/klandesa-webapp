@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/mobile/staff";
 import { excerpt } from "@/lib/mobile/mail-logic";
-import { youtubeThumb } from "@/lib/mobile/social-logic";
+import { youtubeThumb, youtubeWatchUrl } from "@/lib/mobile/social-logic";
 
 /** Antrean moderasi: postingan menunggu persetujuan (mode pra-moderasi), serta konten yang dilaporkan/disembunyikan. */
 export async function GET(req: NextRequest) {
@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
   const post = (p: (typeof pending)[number], reasonsMap?: Map<string, string[]>) => ({
     kind: "post" as const, id: Number(p.id), status: p.status, author: p.authorName, authorId: p.authorId, authorRt: p.authorRt, category: p.category,
     content: excerpt(p.content, 300), photos: p.media.map((m) => m.url), youtubeThumb: p.youtubeId ? youtubeThumb(p.youtubeId) : null,
+    link: p.linkProvider && p.linkUrl ? { provider: p.linkProvider, url: p.linkUrl } : p.youtubeId ? { provider: "youtube", url: youtubeWatchUrl(p.youtubeId) } : null,
     reports: p.reportsCount, reasons: reasonsMap?.get(String(p.id)) ?? [], createdAt: p.createdAt,
   });
   const settings = (mode?.settings ?? {}) as { mobile?: { social?: { mode?: string } } };
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
       ...flaggedPosts.map((p) => post(p, pr)),
       ...flaggedComments.map((c) => ({
         kind: "comment" as const, id: Number(c.id), status: c.status, author: c.authorName, authorId: c.authorId, authorRt: null, category: "komentar",
-        content: excerpt(c.content, 300), photos: [] as string[], youtubeThumb: null, reports: c.reportsCount, reasons: cr.get(String(c.id)) ?? [], createdAt: c.createdAt, postId: Number(c.postId),
+        content: excerpt(c.content, 300), photos: [] as string[], youtubeThumb: null, link: null, reports: c.reportsCount, reasons: cr.get(String(c.id)) ?? [], createdAt: c.createdAt, postId: Number(c.postId),
       })),
     ],
   });

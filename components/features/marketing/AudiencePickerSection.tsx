@@ -21,7 +21,7 @@ export function AudiencePickerSection() {
       href: "/mitra-klandesa",
       icon: Handshake,
       title: "Program Mitra",
-      desc: "Bantu desa go digital dengan paket Starter hingga Enterprise yang jelas.",
+      desc: "Bantu desa go digital dengan satu Paket Lengkap yang harganya jelas.",
     },
   ];
 

@@ -109,12 +109,35 @@ Semua datanya sudah ada di backend; pekerjaannya DTO + layar.
 4. **Loop retensi:** notifikasi bermakna (maks 3/hari kecuali darurat), digest, tindak lanjut pengaduan.
 **Gate:** ada minimal 3 angka akuntabilitas yang bisa dipresentasikan ke kabupaten dari data nyata desa pilot.
 
+**Status Fase D (2026-10-24):**
+- [x] Logika rapor (`lib/mobile/accountability-logic.ts`, 11 tes): median waktu surat, % surat selesai ≤ 48 jam, % pengaduan ditanggapi ≤ 72 jam (yang baru masuk belum dihitung terlambat), % "sudah beres" menurut pelapor, aktivasi warga, % surat lewat aplikasi. Angka disembunyikan (null) bila sampel kurang (surat ≥ 5, pengaduan ≥ 5, jawaban pelapor ≥ 3) agar tidak menyesatkan.
+- [x] Kades (mobile): `GET /staff/accountability` + layar `staff/rapor` (90 hari vs 90 hari sebelumnya, tren membaik/menurun).
+- [x] Kabupaten/kecamatan (web): `GET /api/regional/accountability` + halaman `/wilayah/akuntabilitas` (ringkasan tertimbang, tabel per desa, urut, catatan "belum cukup data").
+- [x] Rapor publik opt-in: halaman `/rapor-desa/<kode>` (mati secara bawaan; toggle di Pengaturan Info Desa; tanpa data pribadi; satu pesan gagal untuk semua kondisi) + tombol bagikan di layar Rapor.
+- [x] SOP moderasi Warga + aturan komunitas: `docs/WARGA_MODERATION_SOP.md` (perlu ditinjau konsultan hukum).
+- [ ] Metrik DAU/MAU tab Warga: belum ada pelacakan (hanya `lastLoginAt`). Perlu keputusan: pelacakan ringan `lastSeenAt` di akun.
+- [ ] Pengujian dengan data nyata: logika dites dengan data sintetis; belum dijalankan terhadap data Karanganyar. Wilayah sangat besar: loader membatasi 30.000 baris per tabel (ditandai `truncated`); perlu pra-agregasi bila kabupaten besar.
+- [ ] Loop retensi (batas push per hari, digest): belum.
+
 ### Fase E — Monetisasi di luar paket dasar (setelah B–C stabil)
 - **Iuran/retribusi/PBB/kas RT** lewat infra LinkQu yang ada; take-rate dihitung supaya menutup biaya gateway (verifikasi biaya aktual dengan LinkQu).
 - **Cek integrasi Siskeudes/BPKP di sisi web.** Pesaing (DesaDigi, IDESA) menonjolkannya; bila belum ada, evaluasi apakah perlu atau cukup impor/ekspor.
 - Add-on modul tetap bertingkat di katalog (BUMDes, PKK, keuangan, SDGs, GIS, integrasi).
 - **Lisensi kabupaten:** paket multi-desa dengan dashboard regional; harga per desa lebih rendah, kontrak lebih besar.
 
+
+**Status Fase E (2026-10-24):**
+- [x] **Paket Lengkap di sistem billing** (keputusan harga): tier `lengkap` di `lib/billing/catalog.ts`; logika murni di `lib/billing/lengkap.ts` (21 tes). Pembelian pertama Rp3.500.000 (sudah termasuk 12 bulan); perpanjangan Rp100.000/bulan (pilihan 1/3/6/12 bulan, divalidasi server; sisa masa berlaku tidak hangus). Halaman Tagihan: desa baru/trial/habis hanya melihat Paket Lengkap; desa lama yang masih berbayar hanya melihat paketnya sendiri (tidak berubah). Desa lama yang masih aktif tidak bisa membeli Paket Lengkap diam-diam (ditolak dengan pesan jelas agar sisa masa berlaku tidak hilang).
+- [x] **Hak akses Paket Lengkap:** berperingkat seperti Starter (modul add-on tetap terbatas), ditambah Kegiatan RT/RW. Kuota arsip 5 GB, riwayat absensi seperti Starter.
+- [x] **Sinkronisasi dashboard dengan halaman /harga (2026-10-29):** trial kini berpaket `lengkap` (bukan `profesional`); deteksi pembelian pertama vs perpanjangan memakai invoice lunas (`hasPurchasedLengkap`), bukan plan/expiry. Migrasi `20261029140000_trial_villages_to_lengkap` memindahkan desa trial/grace ke `lengkap` (belum dijalankan). Add-on modul diblokir untuk Paket Lengkap (termasuk `website`, karena Website Desa dibeli per template di menu Website); tier absensi diblokir untuk Paket Lengkap karena callback-nya menimpa `subscriptionPlan`. Batas absensi Paket Lengkap tetap 10 perangkat/30 hari (keputusan pemilik) dan dicantumkan di halaman harga. Kredit AI: pemotongan aktif, 1 kredit/pertanyaan, paket di `lib/ai/credit-packages.ts` (Rp15rb/300 kredit sampai Rp300rb/10.000 kredit), 1.000 kredit gratis per pengguna. Halaman `/bantuan` ditambahkan.
+- [ ] **Add-on arsip tidak punya masa berlaku:** callback hanya mengisi `storageLimit` saat dibayar dan tidak pernah menurunkannya, padahal harga ditampilkan "/bulan". Perlu keputusan: berlangganan bulanan dengan masa berlaku (butuh skema + cron) atau sekali bayar.
+- [ ] **Belum diuji dengan database dan LinkQu sungguhan:** alur callback pembayaran (menetapkan masa berlaku) hanya dites lewat fungsi murni. Uji di staging dengan invoice sandbox sebelum dipakai.
+- [ ] **Paket Profesional/Enterprise** tetap ada di kode untuk desa lama; tidak dijual ke desa baru. Penghapusan total ditunda sampai tidak ada desa aktif di paket itu.
+- [x] **Iuran & Kas RT (versi A, 2026-10-29):** dipilih pencatatan tanpa Klandesa memegang dana; bendahara = Ketua RT. Dibangun: jadwal, tagihan per KK otomatis, lapor bayar + bukti foto, konfirmasi/catat/cicil/bebaskan, buku kas, rekap, CSV, transparansi kas untuk warga, pengingat, cakupan RT dan desa (retribusi/PBB sebagai pencatatan). Detail di `docs/IURAN_DESIGN.md` §7. **Belum diuji dengan database dan perangkat; migrasi `20261029100000` dan job harian `/api/cron/fees` (butuh `CRON_SECRET` dan penjadwal) perlu disiapkan di staging.**
+- [ ] **Lisensi kabupaten:** analisis harga dan kontrak di `docs/LISENSI_KABUPATEN.md` (rekomendasi: pilot gratis → kemitraan non-finansial → lisensi lanjutan). Menunggu keputusan dan kontak.
+- [ ] **Siskeudes:** yang ada hanya ekspor CSV APBDes (add-on Sinkronisasi Data). Belum sinkronisasi dua arah; perlu keputusan apakah ekspor CSV cukup untuk pilot.
+- [ ] **Lisensi kabupaten:** belum ada model harga/paket; dashboard akuntabilitas (Fase D) sudah siap didemokan. Perlu keputusan harga per desa dan bentuk kontrak.
+- [ ] **Temuan terpisah:** modul `keuangan` di registry tidak punya `billingAddon`, sehingga `resolveModuleAccess` tidak mengenali add-on Keuangan yang aktif (API pembatasan memakai peta lain). Kemungkinan bug lama; perlu diperiksa sebelum Keuangan dijual sebagai add-on.
 ---
 
 ## 4. Growth dan onboarding (inilah yang membuat harga murah menguntungkan)
@@ -250,7 +273,9 @@ Modul **dipisah sebagai add-on berbayar** bila nilainya besar untuk sebagian des
 | Dashboard kabupaten (regional) | **Lisensi kabupaten** | Dijual per kabupaten, bukan per desa |
 
 ### 10.3 Harga add-on (usulan awal, belum final)
-Pertahankan angka katalog (Rp49–249rb/bulan) untuk saat ini. Pertimbangan:
+**Keputusan terbaru 2026-10-29 (menggantikan tabel §10.2 dan harga di bawah untuk Paket Lengkap):** semua modul fitur dibuka penuh di Paket Lengkap (Keuangan, BUMDes, PKK, SDGs+RPJMDes, Lingkungan, Pertanian, Kegiatan RT/RW, Peta, Sinkronisasi Data), tanpa batas pemakaian. Add-on hanya untuk hal yang berbiaya dan terukur: penyimpanan arsip di atas 5 GB, kredit AI, dan GPS absensi. Website Desa tetap terpisah. Konsekuensi: pendapatan add-on modul dari desa baru hilang; harga add-on modul di bawah hanya berlaku untuk desa paket lama. Daftar di `lib/billing/lengkap.ts`.
+
+Catatan sebelumnya: add-on modul sempat diturunkan agar terasa murah (Keuangan 49rb, BUMDes 49rb, PKK 29rb, SDGs+RPJMDes 79rb, Lingkungan 29rb, Pertanian 29rb, Peta 99rb, Sinkronisasi Data 149rb per bulan; semula Rp79–249rb). Angka di `lib/billing/catalog.ts`. Pertimbangan awal (sebelum diturunkan):
 - Satu desa membayar paket Rp100rb/bulan; add-on Rp99rb membuat tagihan ±2×. Tawarkan **diskon tahunan** (bayar 10 bulan = setahun) untuk menekan churn.
 - **Bundel "Keuangan + Laporan" atau "BUMDes + Pembayaran"** lebih mudah dijual daripada add-on satuan.
 - Jangan menaikkan harga sebelum ada data bahwa desa memakai modulnya.

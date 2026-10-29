@@ -1,9 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { Body, Button, ErrorBanner, Field, Hero, Screen, Title } from '@/components/ui';
+import { Text } from 'react-native';
+
+import { StepTitle } from '@/components/cards';
+import { Button, ErrorBanner, Field, Hero, ResultState, Screen } from '@/components/ui';
 import { ApiError, post } from '@/lib/api';
 import { dateInputToIso, digitsOnly, formatCodeInput, formatDateInput } from '@/lib/form';
+import { colors } from '@/theme';
 
 export default function ForgotPassword() {
   const [mode, setMode] = useState<'code' | 'identity'>('code');
@@ -39,29 +43,31 @@ export default function ForgotPassword() {
 
   if (done) {
     return (
-      <Screen footer={<Button label="Masuk" onPress={() => router.replace('/login')} />}>
-        <Title>Password diperbarui</Title>
-        <Body>Silakan masuk dengan password baru Anda. Semua perangkat lama otomatis keluar.</Body>
+      <Screen background={colors.canvas} footer={<Button label="Masuk" icon="log-in-outline" onPress={() => router.replace('/login')} />}>
+        <ResultState title="Password diperbarui">
+          <Text style={{ fontSize: 17, lineHeight: 25, color: colors.text, textAlign: 'center' }}>Silakan masuk dengan password baru Anda. Semua perangkat lama otomatis keluar.</Text>
+        </ResultState>
       </Screen>
     );
   }
 
   return (
-    <Screen footer={<Button label="Simpan password baru" onPress={submit} loading={busy} />}>
+    <Screen background={colors.canvas} footer={<Button label="Simpan password baru" icon="checkmark" onPress={submit} loading={busy} />}>
       <Hero icon="key-outline" title="Atur ulang password" subtitle={mode === 'code' ? 'Minta kode reset ke kantor desa atau ketua RT, lalu isi di sini.' : 'Isi data diri Anda seperti saat mendaftar.'} />
       <ErrorBanner message={error} />
-      <Field label="NIK (16 angka)" value={nik} onChangeText={(t) => setNik(digitsOnly(t, 16))} keyboardType="number-pad" maxLength={16} />
+      <StepTitle n={1}>Data Anda</StepTitle>
+      <Field label="NIK (16 angka)" icon="card-outline" placeholder="16 angka sesuai KTP" value={nik} onChangeText={(t) => setNik(digitsOnly(t, 16))} keyboardType="number-pad" maxLength={16} />
       {mode === 'code' ? (
-        <Field label="Kode reset" value={code} onChangeText={(t) => setCode(formatCodeInput(t))} autoCapitalize="characters" placeholder="XXXX-XXXX" />
+        <Field label="Kode reset" icon="key-outline" value={code} onChangeText={(t) => setCode(formatCodeInput(t))} autoCapitalize="characters" placeholder="XXXX-XXXX" />
       ) : (
         <>
-          <Field label="ID desa" value={villageId} onChangeText={(t) => setVillageId(digitsOnly(t, 9))} keyboardType="number-pad" hint="Tanyakan ke kantor desa bila tidak tahu." />
-          <Field label="Tanggal lahir" value={birth} onChangeText={(t) => setBirth(formatDateInput(t))} keyboardType="number-pad" placeholder="HH/BB/TTTT" />
-          <Field label="Nama ibu kandung" value={mother} onChangeText={setMother} autoCapitalize="words" />
+          <Field label="ID desa" icon="home-outline" placeholder="Angka dari kantor desa" value={villageId} onChangeText={(t) => setVillageId(digitsOnly(t, 9))} keyboardType="number-pad" hint="Tanyakan ke kantor desa bila tidak tahu." />
+          <Field label="Tanggal lahir" icon="calendar-outline" value={birth} onChangeText={(t) => setBirth(formatDateInput(t))} keyboardType="number-pad" placeholder="HH/BB/TTTT" />
+          <Field label="Nama ibu kandung" icon="person-outline" placeholder="Sesuai Kartu Keluarga" value={mother} onChangeText={setMother} autoCapitalize="words" />
         </>
       )}
-      <Title>Password baru</Title>
-      <Field label="Password baru" value={pw} onChangeText={setPw} secret autoComplete="password-new" hint="Minimal 8 karakter." />
+      <StepTitle n={2}>Password baru</StepTitle>
+      <Field label="Password baru" icon="lock-closed-outline" placeholder="Minimal 8 karakter" value={pw} onChangeText={setPw} secret autoComplete="password-new" hint="Minimal 8 karakter." />
       <Button
         label={mode === 'code' ? 'Tidak punya kode? Pakai data diri' : 'Punya kode reset? Pakai kode'}
         variant="link"

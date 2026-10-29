@@ -60,7 +60,7 @@ export function TrialBanner({
               <Sparkles className="h-4 w-4 shrink-0" />
             )}
             <span>
-              Trial Profesional — <strong>{days} hari</strong> tersisa
+              Trial Paket Lengkap — <strong>{days} hari</strong> tersisa
               {!writable ? " (baca saja)" : ""}
             </span>
           </div>

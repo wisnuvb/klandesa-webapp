@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { forwardRef, useEffect, useState, type ComponentRef, type ReactNode } from 'react';
+import { createContext, forwardRef, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View,
-  type TextInputProps, type ViewStyle,
+  type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 
@@ -13,8 +13,14 @@ import { colors, spacing, TOUCH_MIN } from '@/theme';
 /** Untuk layar tanpa header sama sekali: ikut menghitung inset atas (status bar). */
 export const ALL_EDGES: readonly Edge[] = ['top', 'right', 'bottom', 'left'];
 
+/**
+ * Diberi `true` oleh layout tab. Tab bar sudah menanggung inset bawah (bar gestur/navigasi) sendiri,
+ * jadi `Screen` di dalamnya tidak boleh menghitungnya lagi: kalau dihitung, konten berhenti beberapa dp di atas tab bar.
+ */
+export const InTabsContext = createContext(false);
+
 /** True selama keyboard tampil; dipakai agar inset bawah (bar navigasi) tidak dihitung dua kali saat mengetik. */
-function useKeyboardVisible() {
+export function useKeyboardVisible() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setVisible(true));
@@ -40,8 +46,9 @@ export function Screen({
 }) {
   const keyboard = useKeyboardVisible();
   // Inset atas ditangani header (TopBand/StackHeader), bukan Screen. Layar tanpa header harus memberi edges yang memuat 'top'.
+  const inTabs = useContext(InTabsContext);
   const base: readonly Edge[] = edges ?? ['right', 'bottom', 'left'];
-  const active = keyboard ? base.filter((e) => e !== 'bottom') : base;
+  const active = keyboard || inTabs ? base.filter((e) => e !== 'bottom') : base;
   const body = (
     <SafeAreaView style={[s.screen, { backgroundColor: background }]} edges={active}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
@@ -89,57 +96,75 @@ export function TopBand({ children }: { children: ReactNode }) {
  */
 export function StackHeader({ title, onBack }: { title?: string; onBack?: () => void }) {
   return (
-    <TopBand>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48 }}>
+    <DeepBand>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44 }}>
         {onBack ? (
-          <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Kembali" hitSlop={8}
-            style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="chevron-back" size={26} color={colors.text} />
+          <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Kembali" hitSlop={6}
+            style={{ width: 40, height: 40, borderRadius: 20, marginLeft: -spacing.xs, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </Pressable>
         ) : null}
-        <Text style={{ flex: 1, fontSize: 20, fontWeight: '800', color: colors.text }} accessibilityRole="header" numberOfLines={1}>{title}</Text>
+        <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: '#fff' }} accessibilityRole="header" numberOfLines={1}>{title}</Text>
       </View>
-    </TopBand>
+    </DeepBand>
   );
 }
 
-/** Pita judul tab biasa (Layanan, Absensi, dst.) dengan gaya yang sama seperti beranda. */
-export function PageBand({ title }: { title: string }) {
+/** Pita judul tab (Layanan, Absensi, dst.): satu baris ramping, judul di kiri dan aksi opsional di kanan. */
+export function PageBand({ title, right }: { title: string; right?: ReactNode }) {
   return (
-    <TopBand>
-      <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }} accessibilityRole="header">{title}</Text>
-    </TopBand>
+    <DeepBand>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 }}>
+        <Text style={{ flex: 1, fontSize: 22, fontWeight: '800', letterSpacing: -0.2, color: '#fff' }} accessibilityRole="header" numberOfLines={1}>{title}</Text>
+        {right}
+      </View>
+    </DeepBand>
   );
 }
 
-/** Pita beranda: hijau tua dengan aksen emas. Nama desa, sapaan, dan tombol notifikasi berlencana. */
-export function HomeBand({ eyebrow, greeting, unread, onBell }: { eyebrow?: string; greeting: string; unread: number; onBell: () => void }) {
+/** Pita hijau tua rata dan ramping. Status bar putih hanya selama layar ini tampil; layar lain tetap gelap. */
+function DeepBand({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
   return (
-    <View style={{ backgroundColor: colors.primaryDeep, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' }}>
-      {/* Status bar putih hanya selama tab ini tampil; tab lain tetap gelap. */}
+    <View style={{ backgroundColor: colors.primaryDeep }}>
       {focused ? <StatusBar style="light" /> : null}
-      <View style={{ position: 'absolute', top: -60, right: -40, width: 180, height: 180, borderRadius: 90, borderWidth: 1, borderColor: 'rgba(235,210,142,0.28)' }} />
-      <View style={{ position: 'absolute', top: -20, right: 20, width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.05)' }} />
-      <View style={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.lg, paddingLeft: insets.left + spacing.lg, paddingRight: insets.right + spacing.lg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
-          <View style={{ flex: 1 }}>
-            {eyebrow ? <Text style={{ fontSize: 14, fontWeight: '700', letterSpacing: 0.3, color: colors.goldLight }} numberOfLines={1}>{eyebrow}</Text> : null}
-            <Text style={{ fontSize: 25, fontWeight: '800', color: '#fff', marginTop: 2 }} accessibilityRole="header" numberOfLines={1}>{greeting}</Text>
-          </View>
-          <Pressable onPress={onBell} accessibilityRole="button" accessibilityLabel={`Notifikasi, ${unread} belum dibaca`} hitSlop={8}
-            style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="notifications-outline" size={25} color="#fff" />
-            {unread > 0 ? (
-              <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.gold, borderWidth: 2, borderColor: colors.primaryDeep, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-                <Text style={{ color: colors.primaryDeep, fontSize: 12, fontWeight: '800' }}>{unread > 9 ? '9+' : unread}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </View>
+      <View style={{ paddingTop: insets.top + spacing.sm, paddingBottom: spacing.sm + spacing.xs, paddingLeft: insets.left + spacing.md, paddingRight: insets.right + spacing.md }}>
+        {children}
       </View>
     </View>
+  );
+}
+
+/** Tombol bulat tembus pandang di pita hijau (cari, lonceng, dst.). Area sentuh 48 dp walau tampilannya 40 dp. */
+export function BandButton({ icon, label, onPress, children }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; children?: ReactNode }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={4}
+      style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+      <Ionicons name={icon} size={22} color="#fff" />
+      {children}
+    </Pressable>
+  );
+}
+
+/** Pita beranda: nama desa, sapaan, dan tombol notifikasi berlencana. */
+export function HomeBand({ eyebrow, greeting, unread, onBell }: { eyebrow?: string; greeting: string; unread: number; onBell: () => void }) {
+  return (
+    <DeepBand>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, minHeight: 44 }}>
+        <View style={{ flex: 1 }}>
+          {eyebrow ? <Text style={{ fontSize: 13, fontWeight: '600', letterSpacing: 0.2, color: colors.goldLight }} numberOfLines={1}>{eyebrow}</Text> : null}
+          <Text style={{ fontSize: 20, fontWeight: '800', letterSpacing: -0.2, color: '#fff' }} accessibilityRole="header" numberOfLines={1}>{greeting}</Text>
+        </View>
+        <BandButton icon="notifications-outline" label={`Notifikasi, ${unread} belum dibaca`} onPress={onBell}>
+          {unread > 0 ? (
+            <View style={{ position: 'absolute', top: -3, right: -3, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.gold, borderWidth: 2, borderColor: colors.primaryDeep, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
+              <Text style={{ color: colors.primaryDeep, fontSize: 11, fontWeight: '800' }}>{unread > 9 ? '9+' : unread}</Text>
+            </View>
+          ) : null}
+        </BandButton>
+      </View>
+    </DeepBand>
   );
 }
 
@@ -152,6 +177,34 @@ export function Hero({ icon = 'home', title, subtitle }: { icon?: keyof typeof I
       </View>
       <Text style={s.heroTitle} accessibilityRole="header">{title}</Text>
       {subtitle ? <Text style={s.heroSub}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
+/** Penunjuk langkah formulir bertahap: teks "Langkah X dari Y" dan batang kemajuan. */
+export function StepProgress({ pos, total }: { pos: number; total: number }) {
+  return (
+    <View style={{ marginBottom: spacing.md }} accessible accessibilityLabel={`Langkah ${pos} dari ${total}`}>
+      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary, marginBottom: 6 }}>Langkah {pos} dari {total}</Text>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {Array.from({ length: total }, (_, i) => (
+          <View key={i} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: i < pos ? colors.primary : colors.border }} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Layar hasil yang menenangkan: lingkaran centang, judul, dan penjelasan. `tone="saved"` untuk kiriman yang menunggu sinyal. */
+export function ResultState({ title, children, tone = 'sent', icon }: { title: string; children: ReactNode; tone?: 'sent' | 'saved'; icon?: keyof typeof Ionicons.glyphMap }) {
+  const saved = tone === 'saved';
+  return (
+    <View style={{ alignItems: 'center', paddingTop: spacing.xl }}>
+      <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: saved ? colors.goldSoft : colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md }}>
+        <Ionicons name={icon ?? (saved ? 'cloud-upload' : 'checkmark-circle')} size={52} color={saved ? colors.goldText : colors.primary} />
+      </View>
+      <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: spacing.sm }} accessibilityRole="header">{title}</Text>
+      {children}
     </View>
   );
 }
@@ -201,7 +254,7 @@ export function Button({ label, onPress, variant = 'primary', icon, loading, dis
 
 type FieldProps = TextInputProps & { label: string; error?: string | null; hint?: string; secret?: boolean; icon?: keyof typeof Ionicons.glyphMap };
 
-export const Field = forwardRef<ComponentRef<typeof TextInput>, FieldProps>(function Field({ label, error, hint, secret, icon, onFocus, onBlur, ...rest }, ref) {
+export const Field = forwardRef<TextInputInstance, FieldProps>(function Field({ label, error, hint, secret, icon, onFocus, onBlur, ...rest }, ref) {
   const [hidden, setHidden] = useState(!!secret);
   const [focused, setFocused] = useState(false);
   return (

@@ -47,3 +47,31 @@ export function dialNumber(raw: string | null | undefined): string | null {
   if (digits.length < 3 || digits.length > 16) return null;
   return `${t.startsWith('+') ? '+' : ''}${digits}`;
 }
+
+/** "Rp25.000" (titik ribuan, tanpa Intl agar sama di semua HP). */
+export function formatRupiahFull(amount: number): string {
+  const n = Math.max(0, Math.round(Number.isFinite(amount) ? amount : 0));
+  return `Rp${n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+}
+
+/** "2026-10" → "Oktober 2026"; masukan rusak dikembalikan apa adanya. */
+export function periodLabelId(period: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(period);
+  if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) return period;
+  return `${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+}
+
+/** Geser periode YYYY-MM sebanyak n bulan. */
+export function shiftPeriod(period: string, n: number): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(period);
+  if (!m) return period;
+  const idx = Number(m[1]) * 12 + Number(m[2]) - 1 + n;
+  return `${Math.floor(idx / 12)}-${String((idx % 12) + 1).padStart(2, '0')}`;
+}
+
+/** Ambil angka dari ketikan ("25.000", "Rp 25000") → bilangan bulat, atau null bila kosong. */
+export function parseRupiahInput(text: string): number | null {
+  const digits = text.replace(/\D/g, '');
+  if (!digits || digits.length > 10) return null;
+  return Number(digits);
+}

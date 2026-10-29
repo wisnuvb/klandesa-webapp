@@ -34,6 +34,8 @@ export type BillingStatusResponse = {
     expiringSoon?: boolean;
     plan: string | null;
     status: string | null;
+    /** Pernah ada invoice Paket Lengkap yang lunas (trial berpaket "lengkap" bukan pembelian). */
+    hasPurchasedLengkap?: boolean;
     startDate: string | null;
     expiry: string | null;
   };

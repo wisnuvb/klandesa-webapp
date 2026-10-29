@@ -15,10 +15,10 @@ export async function GET(req: NextRequest) {
   const cursor = parseCursor(sp.get("cursor"));
   const q = (sp.get("q") ?? "").trim().replace(/[%_\\]/g, "").slice(0, 60);
 
-  const blocked = await blockedPairs("citizen", s.account.id);
+  const blocked = await blockedPairs(s.me.type, s.account.id);
   const and: Prisma.SocialPostWhereInput[] = [
     { villageId: s.ctx.villageId },
-    { OR: [{ status: "PUBLISHED" }, { status: "PENDING", authorType: "citizen", authorId: s.account.id }] },
+    { OR: [{ status: "PUBLISHED" }, { status: "PENDING", authorType: s.me.type, authorId: s.account.id }] },
   ];
   if (blocked.length) and.push({ NOT: { OR: blocked.map((b) => ({ authorType: b.authorType, authorId: b.authorId })) } });
   if (cursor) and.push({ id: { lt: cursor } });
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   else if (filter === "kegiatan" || filter === "usaha") and.push({ category: filter });
   else if (filter === "foto") and.push({ media: { some: {} } });
   else if (filter === "saved") {
-    const saved = await prisma.socialBookmark.findMany({ where: { accountType: "citizen", accountId: s.account.id }, select: { postId: true }, orderBy: { createdAt: "desc" }, take: 200 });
+    const saved = await prisma.socialBookmark.findMany({ where: { accountType: s.me.type, accountId: s.account.id }, select: { postId: true }, orderBy: { createdAt: "desc" }, take: 200 });
     and.push({ id: { in: saved.map((b) => b.postId) } });
   }
   if (q) and.push({ content: { contains: q } });
@@ -39,11 +39,11 @@ export async function GET(req: NextRequest) {
   const ids = page.map((p) => p.id);
   const [likes, saves] = ids.length
     ? await Promise.all([
-        prisma.socialLike.findMany({ where: { postId: { in: ids }, accountType: "citizen", accountId: s.account.id }, select: { postId: true } }),
-        prisma.socialBookmark.findMany({ where: { postId: { in: ids }, accountType: "citizen", accountId: s.account.id }, select: { postId: true } }),
+        prisma.socialLike.findMany({ where: { postId: { in: ids }, accountType: s.me.type, accountId: s.account.id }, select: { postId: true } }),
+        prisma.socialBookmark.findMany({ where: { postId: { in: ids }, accountType: s.me.type, accountId: s.account.id }, select: { postId: true } }),
       ])
     : [[], []];
-  const viewer = { id: s.account.id, liked: new Set(likes.map((l) => l.postId)), saved: new Set(saves.map((b) => b.postId)) };
+  const viewer = { type: s.me.type, id: s.account.id, liked: new Set(likes.map((l) => l.postId)), saved: new Set(saves.map((b) => b.postId)) };
 
   // Halaman pertama tanpa filter: kabar resmi desa yang disematkan di atas feed.
   const official = !cursor && filter === "all" && !q

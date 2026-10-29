@@ -116,7 +116,7 @@ export function ContactModal({ onClose }: ContactModalProps) {
     {
       icon: Mail,
       title: "Email",
-      info: "info@klandesa.com",
+      info: "wisnuvb@gmail.com",
       description: "Respon dalam 24 jam",
     },
     {

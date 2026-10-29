@@ -1,9 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Card } from '@/components/cards';
-import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
+import { Body, Button, ErrorBanner, Field, ResultState, Screen, StepProgress, Title } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { registerPush } from '@/lib/push';
 import { addToOutbox } from '@/lib/outbox';
@@ -64,9 +65,10 @@ export default function NewMail() {
   if (step === 'done' && queued) {
     return (
       <Screen footer={<Button label="Kembali ke beranda" onPress={() => router.replace('/')} />}>
-        <Title>Surat tersimpan</Title>
-        <Body>Sinyal sedang tidak ada. Permohonan {p.name} aman di HP dan akan dikirim otomatis saat sinyal kembali.</Body>
-        <Body muted>Buka aplikasi sesekali agar pengirimannya jalan.</Body>
+        <ResultState title="Surat tersimpan" tone="saved">
+          <Body>Sinyal sedang tidak ada. Permohonan {p.name} aman di HP dan akan dikirim otomatis saat sinyal kembali.</Body>
+          <Body muted>Buka aplikasi sesekali agar pengirimannya jalan.</Body>
+        </ResultState>
       </Screen>
     );
   }
@@ -74,9 +76,10 @@ export default function NewMail() {
   if (step === 'done' && createdId) {
     return (
       <Screen footer={<Button label="Lihat status surat" onPress={() => router.replace(`/surat/${createdId}`)} />}>
-        <Title>Terkirim ke desa ✓</Title>
-        <Body>{p.name} untuk {target?.name ?? 'Anda'} sudah dikirim. Perangkat desa akan memeriksanya.</Body>
-        <Body muted>Anda akan diberi tahu lewat notifikasi saat ada perkembangan. Tidak perlu datang ke kantor desa dulu.</Body>
+        <ResultState title="Terkirim ke desa">
+          <Body>{p.name} untuk {target?.name ?? 'Anda'} sudah dikirim. Perangkat desa akan memeriksanya.</Body>
+          <Body muted>Anda akan diberi tahu lewat notifikasi saat ada perkembangan. Tidak perlu datang ke kantor desa dulu.</Body>
+        </ResultState>
       </Screen>
     );
   }
@@ -89,7 +92,7 @@ export default function NewMail() {
         : <Button label="Kirim ke Desa" loading={create.isPending} onPress={send} />
       }
     >
-      <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 4 }}>Langkah {pos} dari {total}</Text>
+      <StepProgress pos={pos} total={total} />
       <Title>{p.name}</Title>
       <ErrorBanner message={error} />
 
@@ -101,7 +104,7 @@ export default function NewMail() {
             return (
               <Card key={m.id} onPress={() => setForId(m.id)} label={`${m.name}${m.id === selfId ? ' (saya)' : ''}`}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <Text style={{ fontSize: 22 }}>{active ? '◉' : '○'}</Text>
+                  <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={26} color={active ? colors.primary : colors.textMuted} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>{m.name}{m.id === selfId ? ' (saya)' : ''}</Text>
                     <Text style={{ fontSize: 14, color: colors.textMuted }}>{m.relation}</Text>
@@ -122,7 +125,7 @@ export default function NewMail() {
                 key={q}
                 accessibilityRole="button"
                 onPress={() => setPurpose(q === 'Lainnya' ? '' : q)}
-                style={{ minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1.5, borderColor: purpose === q ? colors.primary : colors.border, backgroundColor: purpose === q ? '#E3F3EA' : colors.bg, justifyContent: 'center' }}
+                style={{ minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1.5, borderColor: purpose === q ? colors.primary : colors.border, backgroundColor: purpose === q ? colors.primarySoft : colors.bg, justifyContent: 'center' }}
               >
                 <Text style={{ fontSize: 16, color: colors.text }}>{q}</Text>
               </Pressable>

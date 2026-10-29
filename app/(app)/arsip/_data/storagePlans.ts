@@ -33,7 +33,7 @@ export const STORAGE_PLANS: PlanDetail[] = [
     color: "text-blue-600",
     bgColor: "bg-blue-100",
     borderColor: "border-blue-300",
-    features: ["5 GB Storage", "Upload file unlimited", "File sharing", "Support prioritas"],
+    features: ["5 GB ruang penyimpanan arsip digital", "Kapasitas bertambah setelah pembayaran"],
   },
   {
     id: "PROFESSIONAL",
@@ -46,7 +46,7 @@ export const STORAGE_PLANS: PlanDetail[] = [
     color: "text-teal-600",
     bgColor: "bg-teal-100",
     borderColor: "border-teal-300",
-    features: ["20 GB Storage", "Semua fitur Starter", "Versioning file", "Backup otomatis"],
+    features: ["20 GB ruang penyimpanan arsip digital", "Kapasitas bertambah setelah pembayaran"],
     popular: true,
   },
   {
@@ -60,7 +60,7 @@ export const STORAGE_PLANS: PlanDetail[] = [
     color: "text-purple-600",
     bgColor: "bg-purple-100",
     borderColor: "border-purple-300",
-    features: ["50 GB Storage", "Semua fitur Professional", "Multi-user access", "Audit log"],
+    features: ["50 GB ruang penyimpanan arsip digital", "Kapasitas bertambah setelah pembayaran"],
   },
   {
     id: "ENTERPRISE",
@@ -73,7 +73,7 @@ export const STORAGE_PLANS: PlanDetail[] = [
     color: "text-orange-600",
     bgColor: "bg-orange-100",
     borderColor: "border-orange-300",
-    features: ["100 GB Storage", "Semua fitur Business", "API access", "Dedicated support"],
+    features: ["100 GB ruang penyimpanan arsip digital", "Kapasitas bertambah setelah pembayaran"],
   },
   {
     id: "PROMAX",
@@ -86,7 +86,7 @@ export const STORAGE_PLANS: PlanDetail[] = [
     color: "text-pink-600",
     bgColor: "bg-pink-100",
     borderColor: "border-pink-300",
-    features: ["250 GB Storage", "Semua fitur Enterprise", "Custom branding", "99.9% uptime SLA"],
+    features: ["250 GB ruang penyimpanan arsip digital", "Kapasitas bertambah setelah pembayaran"],
   },
 ];
 

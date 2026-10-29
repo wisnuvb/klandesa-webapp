@@ -14,7 +14,7 @@ export default function AuthLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ title: 'Masuk' }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="lupa-password" options={{ title: 'Lupa password' }} />
       <Stack.Screen name="daftar/index" options={{ title: 'Pilih desa' }} />
       <Stack.Screen name="daftar/metode" options={{ title: 'Daftar' }} />

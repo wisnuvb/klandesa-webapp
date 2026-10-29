@@ -10,7 +10,7 @@ export type BillingProductType =
 /** Satu-satunya planCode untuk checkout add-on GPS di LinkQu / invoice. */
 export const ABSENSI_GPS_ADDON_PLAN_CODE = "default" as const;
 
-export type DesaPackageTier = "starter" | "profesional" | "enterprise";
+export type DesaPackageTier = "starter" | "profesional" | "enterprise" | "lengkap";
 
 export type AddonTier =
   | "basic"
@@ -32,6 +32,13 @@ export function formatIdr(amount: number): string {
 export const BILLING_CATALOG = {
   desa_package: {
     tiers: {
+      // Paket Lengkap (2026-10-24): satu-satunya paket untuk desa baru. Rincian logika di lib/billing/lengkap.ts.
+      lengkap: {
+        name: "Paket Lengkap",
+        setupFee: 3_500_000, // sudah termasuk 12 bulan pertama
+        annualFee: 1_200_000, // = 12 × monthlyFee (perpanjangan)
+        monthlyFee: 100_000, // mulai bulan ke-13
+      },
       starter: {
         name: "Starter",
         setupFee: 10_000_000,
@@ -49,7 +56,7 @@ export const BILLING_CATALOG = {
       },
     } satisfies Record<
       DesaPackageTier,
-      { name: string; setupFee: number | null; annualFee: number }
+      { name: string; setupFee: number | null; annualFee: number; monthlyFee?: number }
     >,
   },
   absensi: {
@@ -85,15 +92,17 @@ export const BILLING_CATALOG = {
     enabled: false,
   },
   module_addon: {
-    bumdes: { name: "BUMDes", monthlyFee: 99_000 },
-    pkk: { name: "PKK & Posyandu", monthlyFee: 79_000 },
-    sdgs: { name: "SDGs + RPJMDes", monthlyFee: 149_000 },
-    keuangan: { name: "Keuangan Desa", monthlyFee: 99_000 },
-    lingkungan: { name: "Lingkungan Hidup", monthlyFee: 79_000 },
-    pertanian: { name: "Pertanian", monthlyFee: 79_000 },
+    // Hanya untuk desa paket lama (starter/profesional): desa Paket Lengkap mendapat semua modul ini tanpa add-on
+    // (lib/billing/lengkap.ts, checkout menolaknya). Harga diturunkan 2026-10-29.
+    bumdes: { name: "BUMDes", monthlyFee: 49_000 },
+    pkk: { name: "PKK & Posyandu", monthlyFee: 29_000 },
+    sdgs: { name: "SDGs + RPJMDes", monthlyFee: 79_000 },
+    keuangan: { name: "Keuangan Desa", monthlyFee: 49_000 },
+    lingkungan: { name: "Lingkungan Hidup", monthlyFee: 29_000 },
+    pertanian: { name: "Pertanian", monthlyFee: 29_000 },
     partisipasi_rtrw: { name: "Kegiatan RT/RW", monthlyFee: 49_000 },
-    gis: { name: "Peta Infrastruktur", monthlyFee: 199_000 },
-    integrations: { name: "Sinkronisasi Data", monthlyFee: 249_000 },
+    gis: { name: "Peta Infrastruktur", monthlyFee: 99_000 },
+    integrations: { name: "Sinkronisasi Data", monthlyFee: 149_000 },
     website: { name: "Website Desa", monthlyFee: 149_000 },
   },
 } as const;
@@ -105,7 +114,7 @@ export const BILLING_CATALOG = {
 export type MappedDesaAddonTier = "starter" | "professional" | "enterprise";
 
 export function mapDesaTierToAddonTier(tier: DesaPackageTier): MappedDesaAddonTier {
-  if (tier === "starter") return "starter";
+  if (tier === "starter" || tier === "lengkap") return "starter";
   if (tier === "profesional") return "professional";
   return "enterprise";
 }
@@ -113,9 +122,28 @@ export function mapDesaTierToAddonTier(tier: DesaPackageTier): MappedDesaAddonTi
 /** Summary of desa package charge (same logic as card on billing page). */
 export function getDesaPackageCharge(
   tier: DesaPackageTier,
-  opts: { subscriptionPaid: boolean; currentPlan: string | null },
+  opts: {
+    subscriptionPaid: boolean;
+    currentPlan: string | null;
+    months?: number;
+    /** Dari server: pernah ada invoice Paket Lengkap yang lunas. Trial berpaket "lengkap" BUKAN pembelian. */
+    hasPurchasedLengkap?: boolean;
+  },
 ) {
   const tierInfo = BILLING_CATALOG.desa_package.tiers[tier];
+  if (tier === "lengkap") {
+    // Pernah membayar Paket Lengkap (walau habis) = perpanjangan Rp100rb/bulan; selain itu biaya awal Rp3,5 jt (termasuk 12 bulan).
+    const wasLengkap =
+      opts.hasPurchasedLengkap ?? opts.currentPlan?.toLowerCase() === "lengkap";
+    const months = [1, 3, 6, 12].includes(Number(opts.months)) ? Number(opts.months) : 12;
+    return {
+      tierInfo,
+      isCurrentPlan: opts.subscriptionPaid && wasLengkap,
+      isUpgrade: false,
+      needsSetupFee: !wasLengkap,
+      totalAmount: wasLengkap ? BILLING_CATALOG.desa_package.tiers.lengkap.monthlyFee * months : BILLING_CATALOG.desa_package.tiers.lengkap.setupFee,
+    };
+  }
   const isCurrentPlan =
     opts.subscriptionPaid &&
     opts.currentPlan?.toLowerCase() === tier.toLowerCase();

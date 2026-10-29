@@ -6,21 +6,22 @@ import { checkMobileRateLimit, checkRateLimitDb, limiterKey } from "@/lib/mobile
 import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/mobile/report-logic";
 import { buildSpacesPublicUrl, getSpacesClient, getSpacesConfig } from "@/lib/spaces";
 
-/** Presigned PUT untuk foto laporan warga (jpeg/png/webp, maks 2,5 MB). Foto sudah dikompres di HP. */
+/** Presigned PUT untuk foto laporan warga dan postingan Warga (jpeg/png/webp, maks 2,5 MB). Foto sudah dikompres di HP. Perangkat desa hanya boleh untuk postingan Warga dan bukti iuran/kas. */
 export async function POST(req: NextRequest) {
-  const loaded = await requireMobileContext(req, { allow: ["citizen"] });
+  const loaded = await requireMobileContext(req, { allow: ["citizen", "staff"] });
   if (!loaded.ok) return loaded.response;
   const { ctx } = loaded;
 
-  const rl = checkMobileRateLimit(`presign:${ctx.accountId}`, { max: 30, windowMs: 10 * 60_000 });
+  const rl = checkMobileRateLimit(`presign:${ctx.accountType}:${ctx.accountId}`, { max: 30, windowMs: 10 * 60_000 });
   if (!rl.ok) return mobileError("RATE_LIMITED", "Terlalu banyak unggahan. Coba lagi sebentar.", 429, { retryAfterSec: rl.retryAfterSec });
 
   // Kuota harian bersama lintas worker: cegah akun dipakai menghabiskan penyimpanan (maks 40 foto/hari ≈ 100 MB).
-  const daily = await checkRateLimitDb(limiterKey("presign-day", ctx.accountId), { max: 40, windowMs: 24 * 3600_000 });
+  const daily = await checkRateLimitDb(limiterKey("presign-day", ctx.accountType, ctx.accountId), { max: 40, windowMs: 24 * 3600_000 });
   if (!daily.ok) return mobileError("RATE_LIMITED", "Batas unggah foto hari ini tercapai. Coba lagi besok.", 429, { retryAfterSec: daily.retryAfterSec });
 
   const body = (await req.json().catch(() => null)) as { contentType?: unknown; fileSize?: unknown; kind?: unknown } | null;
-  const folder = body?.kind === "social" ? "mobile-social" : "mobile-reports";
+  if (ctx.accountType === "staff" && body?.kind !== "social" && body?.kind !== "fee") return mobileError("FORBIDDEN", "Anda tidak punya akses ke fitur ini.", 403);
+  const folder = body?.kind === "social" ? "mobile-social" : body?.kind === "fee" ? "mobile-fees" : "mobile-reports";
   const contentType = typeof body?.contentType === "string" ? body.contentType : "";
   const size = Number(body?.fileSize);
   const ext = PHOTO_TYPES[contentType];

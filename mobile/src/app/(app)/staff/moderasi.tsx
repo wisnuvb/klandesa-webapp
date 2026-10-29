@@ -1,11 +1,12 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Card, Empty, SectionTitle } from '@/components/cards';
+import { Card, Chip, Empty, SectionTitle } from '@/components/cards';
 import { Button, ErrorBanner, Field, Screen } from '@/components/ui';
 import { ApiError, post } from '@/lib/api';
+import { EMBED, type EmbedProvider } from '@/lib/embed';
 import { timeAgoId } from '@/lib/format';
 import { useModQueue, type ModItem } from '@/lib/queries';
 import { colors, spacing } from '@/theme';
@@ -44,6 +45,13 @@ function Item({ it, onDone }: { it: ModItem; onDone: () => void }) {
         </View>
       ) : null}
       {it.youtubeThumb ? <Image source={{ uri: it.youtubeThumb }} style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 8, marginTop: 8 }} contentFit="cover" /> : null}
+      {it.link ? (
+        <Pressable onPress={() => void Linking.openURL(it.link!.url)} accessibilityRole="link" accessibilityLabel={`Buka tautan ${EMBED[it.link.provider as EmbedProvider]?.label ?? ''} untuk diperiksa`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, minHeight: 44 }}>
+          <Chip label={EMBED[it.link.provider as EmbedProvider]?.label ?? it.link.provider} icon={EMBED[it.link.provider as EmbedProvider]?.icon} />
+          <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: colors.primary }}>Buka tautan untuk diperiksa</Text>
+        </Pressable>
+      ) : null}
       {it.reports > 0 ? <Text style={{ fontSize: 14, fontWeight: '700', color: colors.danger, marginTop: 8 }}>{it.reports} laporan: {[...new Set(it.reasons)].map((r) => REASON[r] ?? r).join(', ')}</Text> : null}
       <ErrorBanner message={error} />
 

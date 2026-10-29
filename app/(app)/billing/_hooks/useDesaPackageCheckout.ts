@@ -32,6 +32,7 @@ export function useDesaPackageCheckout(params: {
   const [checkoutTier, setCheckoutTier] = useState<DesaPackageTier | null>(
     null,
   );
+  const [checkoutMonths, setCheckoutMonths] = useState<number | undefined>(undefined);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("bank");
   const [vaBanks, setVaBanks] = useState<VaBank[]>([]);
   const [banksLoading, setBanksLoading] = useState(false);
@@ -84,14 +85,17 @@ export function useDesaPackageCheckout(params: {
     return getDesaPackageCharge(checkoutTier, {
       subscriptionPaid: data.subscription.paid ?? false,
       currentPlan: data.subscription.plan,
+      hasPurchasedLengkap: data.subscription.hasPurchasedLengkap,
+      months: checkoutMonths,
     });
-  }, [checkoutTier, data]);
+  }, [checkoutTier, checkoutMonths, data]);
 
   const resumePendingInvoice = useCallback((inv: BillingStatusInvoice) => {
     const maybeTier = String(inv.planCode ?? "").toLowerCase();
     const tier =
       maybeTier === "starter" ||
       maybeTier === "profesional" ||
+      maybeTier === "lengkap" ||
       maybeTier === "enterprise"
         ? (maybeTier as DesaPackageTier)
         : null;
@@ -124,13 +128,14 @@ export function useDesaPackageCheckout(params: {
   }, []);
 
   const openCheckout = useCallback(
-    (tier: DesaPackageTier) => {
+    (tier: DesaPackageTier, months?: number) => {
       if (pendingDesaInvoice) {
         resumePendingInvoice(pendingDesaInvoice);
         return;
       }
 
       setCheckoutTier(tier);
+      setCheckoutMonths(months);
       setCheckoutStep("bank");
       setSelectedBankCode("");
       setCheckoutError(null);
@@ -156,6 +161,7 @@ export function useDesaPackageCheckout(params: {
             planCode: tier,
             paymentMethod: "va",
             bankCode,
+            ...(tier === "lengkap" && checkoutMonths ? { metadata: { months: checkoutMonths } } : {}),
           }),
         });
 
@@ -187,7 +193,7 @@ export function useDesaPackageCheckout(params: {
         setCheckoutLoading(false);
       }
     },
-    [reloadBilling],
+    [reloadBilling, checkoutMonths],
   );
 
   const onConfirmBank = useCallback(async () => {

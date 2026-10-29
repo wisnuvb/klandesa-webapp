@@ -52,7 +52,7 @@ function mapVillagePlanToTier(plan: string | null | undefined): SubscriptionTier
   const value = (plan ?? "").toLowerCase();
   if (value === "enterprise") return "TIER_31_50";
   if (value === "profesional" || value === "professional") return "TIER_11_20";
-  if (value === "starter") return "TIER_6_10";
+  if (value === "starter" || value === "lengkap") return "TIER_6_10";
   return "FREE";
 }
 

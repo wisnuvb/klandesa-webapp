@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, Switch, Text, View } from 'react-native';
 
 import { Card } from '@/components/cards';
-import { Body, Button, ErrorBanner, Field, Screen, Title } from '@/components/ui';
+import { Body, Button, ErrorBanner, Field, ResultState, Screen, StepProgress, Title } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { addToOutbox } from '@/lib/outbox';
 import { useCreateReport } from '@/lib/queries';
@@ -120,9 +120,10 @@ export default function NewReport() {
   if (step === 'done' && queued) {
     return (
       <Screen footer={<Button label="Kembali ke beranda" onPress={() => router.replace('/')} />}>
-        <Title>Laporan tersimpan</Title>
-        <Body>Sinyal sedang tidak ada. Laporan Anda aman di HP dan akan dikirim otomatis saat sinyal kembali.</Body>
-        <Body muted>Buka aplikasi sesekali agar pengirimannya jalan.</Body>
+        <ResultState title="Laporan tersimpan" tone="saved">
+          <Body>Sinyal sedang tidak ada. Laporan Anda aman di HP dan akan dikirim otomatis saat sinyal kembali.</Body>
+          <Body muted>Buka aplikasi sesekali agar pengirimannya jalan.</Body>
+        </ResultState>
       </Screen>
     );
   }
@@ -130,9 +131,10 @@ export default function NewReport() {
   if (step === 'done' && doneId) {
     return (
       <Screen footer={<Button label="Lihat status laporan" onPress={() => router.replace(`/lapor/${doneId}`)} />}>
-        <Title>Laporan terkirim ✓</Title>
-        <Body>Terima kasih sudah melapor. Perangkat desa akan memeriksa laporan Anda.</Body>
-        <Body muted>Anda akan diberi tahu lewat notifikasi saat ada tanggapan.</Body>
+        <ResultState title="Laporan terkirim">
+          <Body>Terima kasih sudah melapor. Perangkat desa akan memeriksa laporan Anda.</Body>
+          <Body muted>Anda akan diberi tahu lewat notifikasi saat ada tanggapan.</Body>
+        </ResultState>
       </Screen>
     );
   }
@@ -148,7 +150,7 @@ export default function NewReport() {
           : <Button label={step === 'photo' && photos.length === 0 ? 'Lewati, tanpa foto' : 'Lanjut'} disabled={!canNext[step]} onPress={next} />
       }
     >
-      <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 4 }}>Langkah {idx + 1} dari {ORDER.length}</Text>
+      <StepProgress pos={idx + 1} total={ORDER.length} />
       <ErrorBanner message={error} />
 
       {step === 'photo' ? (
@@ -195,7 +197,7 @@ export default function NewReport() {
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
                   onPress={() => setCategory(c.key)}
-                  style={{ width: '47%', minHeight: 72, borderRadius: 14, borderWidth: 2, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? '#E3F3EA' : colors.bg, alignItems: 'center', justifyContent: 'center', padding: 8 }}
+                  style={{ width: '47%', minHeight: 72, borderRadius: 14, borderWidth: 2, borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primarySoft : colors.bg, alignItems: 'center', justifyContent: 'center', padding: 8 }}
                 >
                   <Ionicons name={c.icon} size={26} color={on ? colors.primary : colors.text} />
                   <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 4, textAlign: 'center' }}>{c.label}</Text>

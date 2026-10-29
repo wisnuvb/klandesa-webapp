@@ -39,7 +39,8 @@ describe("kontak darurat", () => {
 
 describe("pengaturan Info Desa", () => {
   it("default: anggaran tidak publik, tanpa kontak", () => {
-    assert.deepEqual(readVillageInfoSettings(null), { budgetPublic: false, emergencyContacts: [], serviceHours: null });
+    assert.deepEqual(readVillageInfoSettings(null), { budgetPublic: false, scorecardPublic: false, emergencyContacts: [], serviceHours: null });
+    assert.equal(readVillageInfoSettings({ mobile: { info: { scorecardPublic: true } } }).scorecardPublic, true);
     assert.equal(readVillageInfoSettings({ mobile: { info: { budgetPublic: "true" } } }).budgetPublic, false);
     assert.equal(readVillageInfoSettings({ mobile: { info: { budgetPublic: true } } }).budgetPublic, true);
   });

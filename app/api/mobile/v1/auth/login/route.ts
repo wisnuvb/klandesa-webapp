@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const identifier = String(body?.identifier ?? body?.email ?? "").trim().toLowerCase();
   const password = typeof body?.password === "string" ? body.password : "";
   if (!identifier || !password || password.length > 200 || identifier.length > 255) {
-    return mobileError("INVALID_REQUEST", "Username dan password harus diisi.", 400);
+    return mobileError("INVALID_REQUEST", "Email dan password harus diisi.", 400);
   }
   // Batas per (IP + identitas): berlaku sama untuk identitas yang ada maupun tidak, jadi tidak membocorkan keberadaan akun.
   const perId = await checkRateLimitDb(limiterKey("login-id", ip, identifier), { max: 8, windowMs: 15 * 60_000 });

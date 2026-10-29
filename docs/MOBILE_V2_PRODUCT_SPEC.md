@@ -298,7 +298,7 @@ Satu app, **peran menentukan tampilan**. Warga yang juga RT / perangkat melihat 
 | Posting foto (carousel) + caption | **Ya** — 1–4 foto + teks (maks ±1.000 karakter) | Inti permintaan |
 | Posting teks saja | **Ya** (latar warna opsional, gaya status) | Tidak semua warga punya foto |
 | Video unggah | **Tidak** (biaya storage/bandwidth/moderasi) | Sesuai permintaan |
-| Video dari YouTube | **Ya** — tempel tautan → kartu pratinjau (thumbnail, judul); diputar di dalam app lewat pemutar YouTube resmi/di aplikasi YouTube | Murah, hemat kuota (thumbnail dulu) |
+| Video dari platform lain | **Ya** — tempel satu tautan YouTube, TikTok, Facebook, atau X → kartu pratinjau (YouTube: thumbnail + judul; lainnya: ubin berlogo + judul bila tersedia); diputar di aplikasi aslinya (`Linking`), bukan di dalam app | Murah, tanpa WebView; konten di balik tautan dimoderasi platform asalnya, bukan desa |
 | Like | **Ya** (♥, hitungan) | Umpan balik ringan |
 | Komentar | **Ya** — datar (1 tingkat), balas dengan @nama; maks 500 karakter | Thread bersarang membingungkan |
 | Follow akun | **Tidak** — semua warga desa otomatis satu "lingkaran" | Di desa semua saling kenal; follow = beban |
@@ -345,7 +345,7 @@ Satu app, **peran menentukan tampilan**. Warga yang juga RT / perangkat melihat 
 - Usia: pembuatan akun mengikuti data `Resident` (anak di bawah umur tidak punya akun sendiri; mereka dikelola lewat KK). Perlu **dicek ke konsultan hukum** soal regulasi perlindungan data & anak di platform digital terbaru sebelum rilis.
 
 **Lapisan moderasi:**
-1. *Otomatis (murah):* filter kata terlarang (daftar yang bisa diatur admin), tolak tautan selain YouTube, batas laju, deteksi duplikat; opsional nanti: klasifikasi gambar NSFW via layanan murah (dievaluasi biaya).
+1. *Otomatis (murah):* filter kata terlarang (daftar yang bisa diatur admin), tolak tautan selain YouTube/TikTok/Facebook/X (hostname harus persis, maksimal satu tautan per postingan), batas laju, deteksi duplikat; opsional nanti: klasifikasi gambar NSFW via layanan murah (dievaluasi biaya).
 2. *Komunitas:* ≥3 laporan unik → konten disembunyikan sementara menunggu admin.
 3. *Admin desa (web):* antrean moderasi (pra/pasca), sematkan, hapus, bisukan/blokir warga, lihat riwayat laporan. Pengaturan per desa: **mati / pasca-moderasi / pra-moderasi**, tentukan siapa saja moderator (Sekdes, staf, ketua RT untuk RT-nya).
 4. *Platform (Klandesa):* log audit, takedown atas permintaan hukum, template aturan komunitas & SOP moderasi untuk desa.
@@ -355,7 +355,7 @@ Satu app, **peran menentukan tampilan**. Warga yang juga RT / perangkat melihat 
 ### 14.5 Teknis (ringkas; detail masuk `MOBILE_V2_PLAN.md`)
 - Model baru (aditif): `SocialPost`, `SocialPostMedia`, `SocialComment`, `SocialLike`, `SocialBookmark`, `SocialReport`, `SocialBlock`, `SocialModerationAction`, `VillageSocialSettings`. `ForumThread/ForumReply` yang ada **tidak dipakai ulang** (dibuat oleh `User` staf, teks saja, tanpa media/moderasi warga).
 - Gambar: kompres di klien (maks sisi panjang 1080px, WebP/JPEG ~70%, target ≤300 KB), unggah langsung ke S3 lewat presign (sudah ada polanya), thumbnail 480px dibuat server; CDN/cache + `expo-image` untuk cache disk. Estimasi: 100 foto/hari/desa × 300 KB ≈ 30 MB/hari ≈ 11 GB/tahun/desa → perlu kuota penyimpanan per desa & kebijakan retensi (mis. foto >2 tahun diarsipkan).
-- YouTube: validasi URL (`youtube.com`/`youtu.be`), ambil metadata lewat oEmbed di server, simpan `videoId` + judul + thumbnail; pemutaran lewat pemutar IFrame resmi (kepatuhan ToS YouTube) atau buka aplikasi YouTube. Tidak mengunduh/menyimpan video.
+- Tautan sematan: validasi URL per penyedia (`parseEmbedLink` di `lib/mobile/social-logic.ts`; hostname harus persis di daftar, https, tanpa kredensial/port, parameter pelacak dibuang). Judul diambil best-effort lewat oEmbed ke host tetap (YouTube, TikTok, X; Facebook tanpa oEmbed publik sehingga tanpa judul). Disimpan `linkProvider` + `linkUrl` + `linkTitle` (YouTube juga mengisi kolom lama `youtubeId`). Thumbnail hanya untuk YouTube (diturunkan dari ID); thumbnail TikTok kedaluwarsa sehingga tidak disimpan. Pemutaran: buka aplikasi/peramban penyedia. Tidak mengunduh/menyimpan video.
 - Feed: paginasi kursor, cache SQLite untuk 20 postingan terakhir, optimistic like/komentar, antrean offline untuk posting.
 - Biaya mengikuti paket: add-on `warga_sosial` di `lib/modules/entitlements.ts`.
 - Pengukuran: DAU/MAU tab Warga, % warga yang pernah posting (target 10–15%), rasio laporan/postingan (<2%), waktu median penyelesaian laporan moderasi (<24 jam), % desa yang mengaktifkan.

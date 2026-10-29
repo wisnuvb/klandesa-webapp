@@ -124,7 +124,7 @@ export default function OnboardingPage() {
       <div>
         <h1 className="text-2xl font-bold">Selamat datang di Klandesa</h1>
         <p className="text-muted-foreground mt-1">
-          Trial Profesional 14 hari aktif. Lengkapi langkah berikut untuk memulai
+          Trial Paket Lengkap 14 hari aktif, semua fitur terbuka. Lengkapi langkah berikut untuk memulai
           operasional desa.
         </p>
       </div>

@@ -8,7 +8,7 @@ import {
 } from "@/lib/subscription";
 
 const PHASE_LABELS: Record<string, string> = {
-  trial: "Trial Profesional",
+  trial: "Trial Paket Lengkap",
   grace: "Grace (Baca Saja)",
   active: "Aktif",
   inactive: "Tidak Aktif",

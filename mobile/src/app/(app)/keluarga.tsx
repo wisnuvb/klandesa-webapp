@@ -1,13 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
-import { Card, Empty } from '@/components/cards';
+import { Avatar, Chip, EmptyState, InfoBox } from '@/components/cards';
 import { ContactVillageButton } from '@/components/contact';
-import { Body, Button, ErrorBanner, Screen } from '@/components/ui';
+import { ErrorBanner, Screen } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { formatDateId } from '@/lib/format';
 import { useFamily } from '@/lib/queries';
-import { colors, spacing } from '@/theme';
+import { colors, shadow, spacing } from '@/theme';
 
 function age(iso: string): number {
   const b = new Date(iso);
@@ -17,30 +18,73 @@ function age(iso: string): number {
   return Math.max(0, a);
 }
 
+/** Tombol aksi di kartu anggota. */
+function Action({ icon, label, primary, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; primary?: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [{ flex: 1, minHeight: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 8 }, primary ? { backgroundColor: colors.primary } : { backgroundColor: colors.primarySoft }, pressed && { opacity: 0.85 }]}
+    >
+      <Ionicons name={icon} size={18} color={primary ? '#fff' : colors.primary} />
+      <Text style={{ fontSize: 15, fontWeight: '700', color: primary ? '#fff' : colors.primary }} numberOfLines={1}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export default function Keluarga() {
   const q = useFamily();
+  const members = q.data?.members ?? [];
   return (
-    <Screen onRefresh={() => void q.refetch()} refreshing={q.isRefetching}>
-      <Body muted>Data keluarga Anda sesuai catatan desa. NIK disamarkan demi keamanan.</Body>
-      {q.isLoading ? <ActivityIndicator color={colors.primary} /> : null}
+    <Screen background={colors.canvas} onRefresh={() => void q.refetch()} refreshing={q.isRefetching}>
+      <InfoBox>Data keluarga Anda sesuai catatan desa. NIK disamarkan demi keamanan.</InfoBox>
+      {q.isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} /> : null}
       {q.isError ? <ErrorBanner message={q.error instanceof ApiError ? q.error.message : 'Gagal memuat data keluarga.'} /> : null}
-      {q.isSuccess && q.data.members.length === 0 ? <Empty title="Data keluarga belum tersedia" hint="Hubungi kantor desa untuk melengkapi data KK." /> : null}
-      {q.data?.members.map((m) => (
-        <Card key={m.id} label={`${m.name}, ${m.relation}`}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{m.name}{m.id === q.data.me ? ' (saya)' : ''}</Text>
-          <Text style={{ fontSize: 15, color: colors.textMuted }}>{m.relation} · {age(m.birthDate)} tahun</Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted }}>NIK {m.nikMasked} · lahir {formatDateId(m.birthDate)}</Text>
-          {m.canActFor ? (
-            <View style={{ marginTop: spacing.sm }}>
-              <Button label="Buat surat untuk ini" variant="secondary" onPress={() => router.push('/layanan')} />
-              <Button label="Koreksi data ini" variant="link" onPress={() => router.push({ pathname: '/koreksi', params: { residentId: String(m.id) } })} />
+      {q.isSuccess && members.length === 0 ? <View style={{ marginTop: spacing.md }}><EmptyState icon="people-outline" title="Data keluarga belum tersedia" hint="Hubungi kantor desa untuk melengkapi data KK." /></View> : null}
+
+      <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+        {members.map((m) => {
+          const mine = m.id === q.data?.me;
+          return (
+            <View key={m.id} accessible={false} style={{ backgroundColor: colors.bg, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: spacing.md, ...shadow.card }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }} accessible accessibilityLabel={`${m.name}, ${m.relation}, ${age(m.birthDate)} tahun${mine ? ', ini Anda' : ''}`}>
+                <Avatar name={m.name} size={56} tone={mine ? 'deep' : 'soft'} />
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{m.name}</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip label={m.relation} tone="green" />
+                    {mine ? <Chip label="Saya" tone="gold" /> : null}
+                    <Text style={{ fontSize: 14, color: colors.textMuted }}>{age(m.birthDate)} tahun</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={{ marginTop: spacing.md, gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="card-outline" size={18} color={colors.textMuted} />
+                  <Text style={{ fontSize: 15, color: colors.text }}>NIK {m.nikMasked}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
+                  <Text style={{ fontSize: 15, color: colors.text }}>Lahir {formatDateId(m.birthDate)}</Text>
+                </View>
+              </View>
+              {m.canActFor ? (
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                  <Action primary icon="document-text-outline" label="Buat surat" onPress={() => router.push('/layanan')} />
+                  <Action icon="create-outline" label="Koreksi data" onPress={() => router.push({ pathname: '/koreksi', params: { residentId: String(m.id) } })} />
+                </View>
+              ) : null}
             </View>
-          ) : null}
-        </Card>
-      ))}
-      <Body muted>Ada data yang salah? Ajukan koreksi, perangkat desa akan memeriksanya.</Body>
-      <Button label="Ajukan koreksi data" onPress={() => router.push('/koreksi')} />
-      <ContactVillageButton label="Hubungi Kantor Desa" />
+          );
+        })}
+      </View>
+
+      <View style={{ marginTop: spacing.lg, backgroundColor: colors.primarySoft, borderRadius: 20, padding: spacing.md, gap: spacing.sm }}>
+        <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>Ada data yang salah?</Text>
+        <Text style={{ fontSize: 15, lineHeight: 21, color: colors.textMuted }}>Ajukan koreksi, perangkat desa akan memeriksanya dulu sebelum data diubah.</Text>
+        <ContactVillageButton label="Hubungi Kantor Desa" />
+      </View>
     </Screen>
   );
 }

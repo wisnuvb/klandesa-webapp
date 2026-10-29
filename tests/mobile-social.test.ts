@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   canEditPost, checkCommentContent, checkPostContent, cleanText, containsDisallowedLink, dailyPostLimit, extractHashtags,
-  findBannedWord, initialPostStatus, parseCursor, parseYouTubeId, readCustomBannedWords, readSocialMode, splitYouTube,
+  findBannedWord, initialPostStatus, parseCursor, parseEmbedLink, parseYouTubeId, readCustomBannedWords, readSocialMode, splitEmbed,
 } from "../lib/mobile/social-logic.ts";
 
 describe("YouTube", () => {
@@ -20,11 +20,43 @@ describe("YouTube", () => {
     assert.equal(parseYouTubeId("javascript:alert(1)"), null);
     assert.equal(parseYouTubeId(null), null);
   });
-  it("memisahkan tautan YouTube dari teks", () => {
-    const r = splitYouTube("Lihat kegiatan kemarin https://youtu.be/dQw4w9WgXcQ mantap");
-    assert.equal(r.youtubeId, "dQw4w9WgXcQ");
+  it("memisahkan tautan sematan dari teks", () => {
+    const r = splitEmbed("Lihat kegiatan kemarin https://youtu.be/dQw4w9WgXcQ mantap");
+    assert.equal(r.link?.provider, "youtube");
+    assert.equal(r.link?.id, "dQw4w9WgXcQ");
     assert.equal(r.text, "Lihat kegiatan kemarin  mantap");
-    assert.equal(splitYouTube("tanpa tautan").youtubeId, null);
+    assert.equal(splitEmbed("tanpa tautan").link, null);
+  });
+});
+
+describe("tautan sematan multi-platform", () => {
+  it("mengenali TikTok, Facebook, dan X serta membuang pelacak", () => {
+    assert.deepEqual(parseEmbedLink("https://www.tiktok.com/@desa.klandesa/video/7301234567890123456?is_from_webapp=1&sender_device=pc"),
+      { provider: "tiktok", url: "https://www.tiktok.com/@desa.klandesa/video/7301234567890123456" });
+    assert.equal(parseEmbedLink("https://vt.tiktok.com/ZSabc123/")?.provider, "tiktok");
+    assert.equal(parseEmbedLink("https://www.facebook.com/watch/?v=123456789012&mibextid=xx")?.url, "https://www.facebook.com/watch/?v=123456789012");
+    assert.equal(parseEmbedLink("https://m.facebook.com/reel/1234567890123")?.url, "https://www.facebook.com/reel/1234567890123");
+    assert.equal(parseEmbedLink("https://www.facebook.com/share/v/AbCdEf12345/")?.provider, "facebook");
+    assert.equal(parseEmbedLink("https://fb.watch/abcd1234/")?.url, "https://fb.watch/abcd1234");
+    assert.equal(parseEmbedLink("https://twitter.com/jokowi/status/1700000000000000000?s=20")?.url, "https://x.com/jokowi/status/1700000000000000000");
+    assert.equal(parseEmbedLink("https://x.com/i/status/1700000000000000000")?.provider, "x");
+    assert.equal(parseEmbedLink("https://www.youtube.com/watch?v=dQw4w9WgXcQ")?.provider, "youtube");
+  });
+  it("menolak host tiruan, protokol tidak aman, dan halaman yang bukan postingan", () => {
+    for (const u of [
+      "https://tiktok.com.evil.com/@a/video/7301234567890123456", "https://x.com.evil.com/a/status/1700000000000000000",
+      "https://evilfacebook.com/reel/1234567890123", "http://www.tiktok.com/@a/video/7301234567890123456",
+      "https://user:pw@x.com/a/status/1700000000000000000", "https://x.com:8443/a/status/1700000000000000000",
+      "https://l.facebook.com/l.php?u=https%3A%2F%2Fevil.com", "https://www.facebook.com/", "https://www.facebook.com/watch/?v=abc",
+      "https://x.com/jokowi", "https://www.tiktok.com/@desa", "https://vm.tiktok.com/", "javascript:alert(1)", "bukan url",
+    ]) assert.equal(parseEmbedLink(u), null, u);
+    assert.equal(parseEmbedLink(null), null);
+  });
+  it("hanya tautan pertama yang disematkan; tautan kedua tetap ditolak sebagai tautan terlarang", () => {
+    const r = splitEmbed("Seru! https://www.tiktok.com/@a/video/7301234567890123456 dan https://x.com/a/status/1700000000000000000");
+    assert.equal(r.link?.provider, "tiktok");
+    assert.equal(containsDisallowedLink(r.text), true);
+    assert.equal(checkPostContent(r.text, { hasMedia: false, hasVideo: true }).ok, false);
   });
 });
 

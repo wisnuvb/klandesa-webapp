@@ -11,7 +11,9 @@ import {
 import {
   buildSystemPrompt,
   buildVillageAssistantContext,
-  deductAiCredit,
+  getAiCreditBalance,
+  refundAiCredit,
+  reserveAiCredit,
   type VillageAssistantMode,
 } from "@/lib/ai/village-assistant";
 import {
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
       const credit = await checkAiCredit({ userId: String(userId) });
       if (!credit.hasCredit) {
         return NextResponse.json(
-          { error: "Kredit AI habis. Hubungi admin untuk top-up." },
+          { error: "Kredit AI habis. Isi ulang lewat tombol Top Up di halaman Asisten Desa AI." },
           { status: 402 },
         );
       }
@@ -145,33 +147,49 @@ export async function POST(req: NextRequest) {
       ],
     };
 
-    const url = `${config.baseUrl}/chat/completions`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: getAiHeaders(config),
-      body: JSON.stringify(payload),
-    });
+    // Kredit dipesan atomik sebelum memanggil AI; dikembalikan bila panggilan gagal atau jawaban kosong.
+    const chargeCredit = !isPlatform && AI_CREDITS_CONSUMPTION_ENABLED;
+    if (chargeCredit && !(await reserveAiCredit(userId, 1))) {
+      return NextResponse.json(
+        { error: "Kredit AI habis. Isi ulang lewat tombol Top Up di halaman Asisten Desa AI." },
+        { status: 402 },
+      );
+    }
 
-    const data = (await res.json().catch(() => null)) as {
+    let res: Response;
+    let data: {
       choices?: Array<{ message?: { content?: string } }>;
       error?: { message?: string };
     } | null;
+    try {
+      const url = `${config.baseUrl}/chat/completions`;
+      res = await fetch(url, {
+        method: "POST",
+        headers: getAiHeaders(config),
+        body: JSON.stringify(payload),
+      });
+      data = (await res.json().catch(() => null)) as typeof data;
+    } catch (e) {
+      if (chargeCredit) await refundAiCredit(userId, 1).catch(() => undefined);
+      throw e;
+    }
 
     if (!res.ok) {
+      if (chargeCredit) await refundAiCredit(userId, 1).catch(() => undefined);
       const errMsg = data?.error?.message || "Gagal memanggil AI";
       return NextResponse.json({ error: errMsg }, { status: 502 });
     }
 
     const reply = data?.choices?.[0]?.message?.content?.trim() || "";
+    if (!reply) {
+      if (chargeCredit) await refundAiCredit(userId, 1).catch(() => undefined);
+      return NextResponse.json({ error: "AI tidak memberikan jawaban. Kredit Anda tidak dipotong, silakan coba lagi." }, { status: 502 });
+    }
     await appendMessage(threadId, "assistant", reply);
 
     let remaining: number | null = null;
     if (!isPlatform && userId) {
-      if (AI_CREDITS_CONSUMPTION_ENABLED) {
-        remaining = await deductAiCredit(userId, 1);
-      } else {
-        remaining = await ensureDefaultAiCredits(userId);
-      }
+      remaining = chargeCredit ? await getAiCreditBalance(userId) : await ensureDefaultAiCredits(userId);
     }
 
     return NextResponse.json({
