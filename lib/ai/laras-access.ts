@@ -4,6 +4,9 @@ const LARAS_FAB_HIDDEN_PREFIXES = [
   "/asisten-ai",
   "/onboarding",
   "/auth",
+  // Halaman kerja layar penuh dengan tombol aksi di bawah (simpan/terbitkan); FAB menutupinya di HP.
+  "/layanan-surat/buat",
+  "/layanan-surat/editor",
 ] as const;
 
 export function shouldShowLarasFab(pathname: string | null | undefined): boolean {

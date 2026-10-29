@@ -83,8 +83,8 @@ const pageConfig = {
     subtitle: "Konfigurasi kiosk layanan mandiri untuk warga",
   },
   "layanan-surat": {
-    title: "Template Surat",
-    subtitle: "Buat dan kelola template surat desa",
+    title: "Surat Desa",
+    subtitle: "Buat surat, lihat riwayat, dan kelola jenis surat desa",
   },
   keuangan: {
     title: "Keuangan Desa",
@@ -275,6 +275,12 @@ function resolvePageMeta(pageId: string): { title: string; subtitle: string } {
   return pageConfig.dashboard;
 }
 
+/** Halaman anak yang judulnya berbeda dari menu induknya (sorotan menu tetap mengikuti induk). */
+const SUBPAGE_META: Array<{ prefix: string; title: string; subtitle: string }> = [
+  { prefix: "/layanan-surat/buat", title: "Buat Surat", subtitle: "Isi data, lihat hasilnya di kertas, lalu terbitkan" },
+  { prefix: "/layanan-surat/editor", title: "Editor Jenis Surat", subtitle: "Ubah isi dan tampilan surat langsung di kertas" },
+];
+
 function derivePageKey(pathname: string): string {
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0) return "dashboard";
@@ -371,8 +377,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname, router, session, sessionStatus]);
 
   const { title, subtitle } = useMemo(
-    () => resolvePageMeta(activePage),
-    [activePage],
+    () =>
+      SUBPAGE_META.find((m) => pathname === m.prefix || pathname.startsWith(`${m.prefix}/`)) ??
+      resolvePageMeta(activePage),
+    [activePage, pathname],
   );
 
   const handlePageChange = (page: string) => {

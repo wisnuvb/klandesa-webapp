@@ -102,4 +102,6 @@ export interface LetterHistory {
   templateData?: TemplateData;
   /** 2 = surat dokumen v2 (detail diambil dari /api/letters/[id]). */
   schema_version?: 1 | 2;
+  /** Surat format lama yang jenis suratnya sudah berganti ke dokumen v2: pratinjau tidak tersedia. */
+  legacy_unavailable?: boolean;
 }

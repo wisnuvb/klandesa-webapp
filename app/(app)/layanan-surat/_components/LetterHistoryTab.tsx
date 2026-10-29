@@ -78,6 +78,29 @@ function statusMeta(status: LetterHistory["status"]) {
   }
 }
 
+/** Surat dari format lama yang jenis suratnya sudah diganti: tampilkan isian yang tersimpan saja. */
+function LegacyLetterNotice({ letter }: { letter: LetterHistory }) {
+  const entries = Object.entries(letter.form_data || {}).filter(([, v]) => typeof v === "string" && v.trim() !== "");
+  return (
+    <div className="space-y-4 font-sans text-sm">
+      <div role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-950">
+        <p className="font-medium">Surat ini dibuat dengan format lama; pratinjau tidak tersedia.</p>
+        <p>Jenis suratnya sudah diperbarui ke tampilan baru. Isian yang pernah diisi tetap tersimpan dan ditampilkan di bawah. Untuk surat serupa, gunakan “Buat surat sejenis”.</p>
+      </div>
+      {entries.length > 0 && (
+        <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[minmax(10rem,14rem)_1fr]">
+          {entries.map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt className="text-muted-foreground">{k.replace(/_/g, " ").toLowerCase()}</dt>
+              <dd className="break-words">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 export function LetterHistoryTab({
   history,
   templates,
@@ -100,13 +123,13 @@ export function LetterHistoryTab({
 
   /** Surat v2: hanya draf yang bisa diubah (di halaman komposer); "buat dari surat ini" membuka jenis suratnya. */
   const canEdit = (l: LetterHistory) =>
-    Boolean(onEditLetter) && (l.schema_version !== 2 || l.status === "draft");
+    Boolean(onEditLetter) && !l.legacy_unavailable && (l.schema_version !== 2 || l.status === "draft");
   const editLetter = (l: LetterHistory) => {
     if (l.schema_version === 2) router.push(`/layanan-surat/buat?surat=${l.id}`);
     else onEditLetter?.(l);
   };
   const duplicateLetter = (l: LetterHistory) => {
-    if (l.schema_version === 2) router.push(`/layanan-surat/buat?templateId=${l.template_id}`);
+    if (l.schema_version === 2 || l.legacy_unavailable) router.push(`/layanan-surat/buat?templateId=${l.template_id}`);
     else onDuplicateLetter(l.template_id, l.form_data, templates);
   };
 
@@ -308,14 +331,15 @@ export function LetterHistoryTab({
                         className="gap-2 shrink-0"
                         onClick={() => editLetter(letter)}
                         title="Edit surat"
+                        aria-label="Edit surat"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={() => duplicateLetter(letter)} title="Buat surat sejenis">
+                    <Button variant="outline" size="sm" onClick={() => duplicateLetter(letter)} title="Buat surat sejenis" aria-label="Buat surat sejenis">
                       <Copy className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handlePreviewLetter(letter)}>
+                    <Button variant="outline" size="sm" onClick={() => handlePreviewLetter(letter)} title="Buka untuk unduh PDF" aria-label="Buka untuk unduh PDF">
                       <Download className="h-4 w-4" />
                     </Button>
                   </div>
@@ -368,12 +392,12 @@ export function LetterHistoryTab({
                       <TableCell className="text-sm">{letter.created_by}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handlePreviewLetter(letter)}><Eye className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" title="Preview" aria-label="Preview surat" onClick={() => handlePreviewLetter(letter)}><Eye className="h-4 w-4" /></Button>
                           {canEdit(letter) && (
-                            <Button variant="ghost" size="sm" title="Edit" onClick={() => editLetter(letter)}><Pencil className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="sm" title="Edit" aria-label="Edit surat" onClick={() => editLetter(letter)}><Pencil className="h-4 w-4" /></Button>
                           )}
-                          <Button variant="ghost" size="sm" title="Buat surat sejenis" onClick={() => duplicateLetter(letter)}><Copy className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handlePreviewLetter(letter)}><Download className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" title="Buat surat sejenis" aria-label="Buat surat sejenis" onClick={() => duplicateLetter(letter)}><Copy className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" title="Buka untuk unduh PDF" aria-label="Buka untuk unduh PDF" onClick={() => handlePreviewLetter(letter)}><Download className="h-4 w-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -402,7 +426,9 @@ export function LetterHistoryTab({
               ref={historyLetterPreviewRef}
               className="p-8 bg-white min-h-175 font-serif"
             >
-              {selectedLetter.templateData
+              {selectedLetter.legacy_unavailable
+                ? <LegacyLetterNotice letter={selectedLetter} />
+                : selectedLetter.templateData
                 ? renderHistoryLetterContent(selectedLetter, desaSettings)
                 : (
                   <div
@@ -420,7 +446,7 @@ export function LetterHistoryTab({
           )}
 
           <div className="flex gap-2 pt-4 border-t">
-            <Button className="flex-1 gap-2 bg-primary" onClick={() =>
+            <Button className="flex-1 gap-2 bg-primary" disabled={selectedLetter?.legacy_unavailable} onClick={() =>
               downloadPreviewAsPdf(
                 historyLetterPreviewRef,
                 `Surat_${selectedLetter?.letter_number || "History"}`,
@@ -429,7 +455,7 @@ export function LetterHistoryTab({
               <Download className="h-4 w-4" />
               Download PDF
             </Button>
-            <Button variant="outline" className="flex-1 gap-2" onClick={() =>
+            <Button variant="outline" className="flex-1 gap-2" disabled={selectedLetter?.legacy_unavailable} onClick={() =>
               printPreview(
                 historyLetterPreviewRef,
                 `Cetak Surat - ${selectedLetter?.template_name || ""}`,

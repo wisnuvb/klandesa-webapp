@@ -201,11 +201,17 @@ export const clampZoom = (z: number): number =>
  * Skala tampilan: kertas diperkecil agar muat lebar kontainer (tidak pernah diperbesar otomatis),
  * lalu dikalikan zoom pilihan operator. Hasil minimal 0,2 supaya tidak menghilang.
  */
-export function paperScale(containerWidthPx: number, paperWidthPx: number, zoom = 1, gutterPx = 32): number {
+export function paperScale(containerWidthPx: number, paperWidthPx: number, zoom = 1, gutterPx = 32, minFit = 0): number {
   if (!(containerWidthPx > 0) || !(paperWidthPx > 0)) return 1;
   const fit = Math.min(1, Math.max(0, containerWidthPx - gutterPx) / paperWidthPx);
-  return Math.max(0.2, Math.round(fit * clampZoom(zoom) * 1000) / 1000);
+  return Math.max(0.2, Math.round(Math.max(fit, Math.min(1, minFit)) * clampZoom(zoom) * 1000) / 1000);
 }
+
+/** Lebar kanvas sempit (HP): kertas tidak diperkecil di bawah skala ini agar teks tetap terbaca; selebihnya digulir di dalam kanvas. */
+export const NARROW_CANVAS_PX = 640;
+export const NARROW_MIN_FIT = 0.6;
+export const minFitFor = (containerWidthPx: number): number =>
+  containerWidthPx > 0 && containerWidthPx <= NARROW_CANVAS_PX ? NARROW_MIN_FIT : 0;
 
 // ------------------------------------------------------------------ preset
 

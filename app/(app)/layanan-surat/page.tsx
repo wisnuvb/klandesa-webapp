@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { usePersistedTab } from "@/hooks/usePersistedTab";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -41,6 +41,7 @@ import { CreateLetterDialog } from "./_components/CreateLetterDialog";
 import { TemplatePreviewDialog } from "./_components/TemplatePreviewDialog";
 import { LetterHistoryTab } from "./_components/LetterHistoryTab";
 import { V2TemplatePreviewDialog } from "./_components/V2Views";
+import { TemplatePicker } from "./buat/_components/TemplatePicker";
 import { NewTemplateDialog } from "./editor/_components/NewTemplateDialog";
 import {
   parseSignerRoleFromForm,
@@ -48,9 +49,10 @@ import {
 } from "./_utils/signerPreset";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
-const LAYANAN_SURAT_PAGE_TABS = ["templates", "history"] as const;
+const LAYANAN_SURAT_PAGE_TABS = ["buat", "riwayat", "template"] as const;
+type PageTab = (typeof LAYANAN_SURAT_PAGE_TABS)[number];
 
-export function LayananSurat() {
+function LayananSuratContent() {
   const router = useRouter();
   const { appAlert, appConfirm } = useAppDialogs();
   const { templates, history, isLoading, refetch } = useLayananSuratData();
@@ -86,10 +88,18 @@ export function LayananSurat() {
   } = useLetterExport();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [pageTab, setPageTab] = usePersistedTab(
-    "layanan-surat",
-    "templates",
-    LAYANAN_SURAT_PAGE_TABS,
+  // Tab disimpan di URL (?tab=riwayat|template) agar bisa dibagikan dan tombol Kembali berfungsi.
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const pageTab: PageTab = (LAYANAN_SURAT_PAGE_TABS as readonly string[]).includes(tabParam ?? "")
+    ? (tabParam as PageTab)
+    : "buat";
+  const setPageTab = useCallback(
+    (next: string) => {
+      if (!(LAYANAN_SURAT_PAGE_TABS as readonly string[]).includes(next)) return;
+      router.replace(next === "buat" ? "/layanan-surat" : `/layanan-surat?tab=${next}`, { scroll: false });
+    },
+    [router],
   );
   const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateBody | null>(
@@ -477,18 +487,26 @@ export function LayananSurat() {
       </div>
 
       <Tabs value={pageTab} onValueChange={setPageTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="templates" className="gap-2">
-            <FileEdit className="h-4 w-4" />
-            Template Surat
+        <TabsList className="grid w-full max-w-xl grid-cols-3">
+          <TabsTrigger value="buat" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Buat Surat
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
+          <TabsTrigger value="riwayat" className="gap-2">
             <Clock className="h-4 w-4" />
-            Riwayat Surat
+            Riwayat
+          </TabsTrigger>
+          <TabsTrigger value="template" className="gap-2">
+            <FileEdit className="h-4 w-4" />
+            Kelola Template
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="templates" className="space-y-6 mt-6">
+        <TabsContent value="buat" className="mt-6">
+          <TemplatePicker embedded />
+        </TabsContent>
+
+        <TabsContent value="template" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-6">
@@ -592,7 +610,7 @@ export function LayananSurat() {
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="mt-6">
+        <TabsContent value="riwayat" className="mt-6">
           <LetterHistoryTab
             history={history}
             templates={templates}
@@ -602,7 +620,7 @@ export function LayananSurat() {
             onEditLetter={(letter) => handleEditLetter(letter, templates)}
             onDuplicateLetter={(templateId, letterFormData, allTemplates) => {
               handleDuplicateLetter(templateId, letterFormData, allTemplates);
-              setPageTab("templates");
+              setPageTab("template");
             }}
           />
         </TabsContent>
@@ -749,6 +767,14 @@ export function LayananSurat() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export function LayananSurat() {
+  return (
+    <Suspense fallback={<p role="status" className="p-10 text-center text-sm text-muted-foreground">Memuat…</p>}>
+      <LayananSuratContent />
+    </Suspense>
   );
 }
 

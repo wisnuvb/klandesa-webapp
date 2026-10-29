@@ -19,21 +19,25 @@ type RowProps = Omit<ContentProps, "selectedId"> & {
   dropEdge: DropEdge;
 };
 
-/** Tombol "+" di bawah bagian: muncul saat hover/fokus, dan selalu terlihat pada bagian terpilih. */
+/**
+ * Tombol "+" di margin kanan kertas, sejajar tepi bawah bagian: tidak menumpuk teks bagian.
+ * Tampilannya 32px; area kliknya 44px (pseudo-elemen) tanpa memperbesar tampilan.
+ */
 function AddAfter({ label, onPick, visible }: { label: string; onPick: Parameters<typeof InsertMenuButton>[0]["onPick"]; visible: boolean }) {
   const scale = useScale();
   return (
     <div
       className={[
-        "pointer-events-none absolute inset-x-0 -bottom-4 z-10 flex h-8 items-center justify-center transition-opacity motion-reduce:transition-none",
+        "pointer-events-none absolute bottom-0 left-full z-10 ml-1 transition-opacity motion-reduce:transition-none",
         visible ? "opacity-100" : "opacity-0 focus-within:opacity-100 group-focus-within/row:opacity-100 group-hover/row:opacity-100",
       ].join(" ")}
+      style={{ transform: `translateY(50%)${scale === 1 ? "" : ` scale(${1 / scale})`}`, transformOrigin: "left center" }}
     >
-      <div className="pointer-events-auto" style={{ transform: scale === 1 ? undefined : `scale(${1 / scale})` }}>
+      <div className="pointer-events-auto">
         <InsertMenuButton
           label={label}
           onPick={onPick}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-700 bg-white text-sky-800 shadow-sm hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+          className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-700 bg-white text-sky-800 shadow-sm after:absolute after:-inset-2 after:content-[''] hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
         >
           {null}
         </InsertMenuButton>
@@ -62,6 +66,7 @@ function areEqual(a: RowProps, b: RowProps): boolean {
 /** Satu bagian tingkat atas yang bisa diseret (pegangan) maupun dipindah lewat tombol/keyboard. */
 export const SortableBlock = memo(function SortableBlock(props: RowProps) {
   const { block, doc, rowSelected, dropEdge, ops, issues } = props;
+  const scale = useScale();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useSortable({
     id: block.id,
     transition: null,
@@ -83,19 +88,25 @@ export const SortableBlock = memo(function SortableBlock(props: RowProps) {
     }
   };
 
+  // Pegangan di margin kiri (di luar teks); tampilan 32px, area sentuh 44px lewat pseudo-elemen.
   const grip = rowSelected ? (
-    <button
-      type="button"
-      ref={setActivatorNodeRef}
-      {...attributes}
-      {...listeners}
-      tabIndex={0}
-      aria-label={`Pindahkan ${label}. Tekan spasi lalu panah atas atau bawah, atau pakai tombol Naik dan Turun.`}
-      title="Seret untuk memindahkan"
-      className="flex w-9 flex-none cursor-grab touch-none items-center justify-center bg-sky-800 hover:bg-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white active:cursor-grabbing"
+    <div
+      className="pointer-events-none absolute right-full top-0 z-20 mr-1"
+      style={{ transform: scale === 1 ? undefined : `scale(${1 / scale})`, transformOrigin: "top right" }}
     >
-      <GripVertical className="h-4 w-4" aria-hidden />
-    </button>
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        tabIndex={0}
+        aria-label={`Pindahkan ${label}. Tekan spasi lalu panah atas atau bawah, atau pakai tombol Naik dan Turun.`}
+        title="Seret untuk memindahkan"
+        className="pointer-events-auto relative flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md bg-sky-800 text-white shadow after:absolute after:-inset-1.5 after:content-[''] hover:bg-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 active:cursor-grabbing"
+      >
+        <GripVertical className="h-4 w-4" aria-hidden />
+      </button>
+    </div>
   ) : null;
 
   return (
@@ -133,7 +144,8 @@ export const SortableBlock = memo(function SortableBlock(props: RowProps) {
           className={`pointer-events-none absolute inset-x-0 z-20 h-1 rounded bg-sky-600 ${dropEdge === "before" ? "-top-2" : "-bottom-2"}`}
         />
       ) : null}
-      {rowSelected ? <BlockTab block={block} grip={grip} hint={!isTextEditable(block) && block.type !== "columns" && block.type !== "conditional"} /> : null}
+      {grip}
+      {rowSelected ? <BlockTab margin block={block} hint={!isTextEditable(block) && block.type !== "columns" && block.type !== "conditional"} /> : null}
       <BlockContent {...props} selectedId={props.selectedId} />
       {issue ? <IssueNote message={issue} /> : null}
       <AddAfter

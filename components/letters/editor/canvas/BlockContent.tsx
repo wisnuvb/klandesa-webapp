@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, type ReactNode } from "react";
+import { memo } from "react";
 import { AlertTriangle } from "lucide-react";
 import type { Editor } from "@tiptap/core";
 import { LetterBlockView } from "@/components/letters/LetterPaper";
@@ -55,15 +55,31 @@ export const PreviewBlock = memo(
     a.doc.groups === b.doc.groups,
 );
 
-/** Label kecil di atas bagian terpilih (dengan pegangan seret bila ada). Diberi skala balik agar tetap terbaca. */
-export function BlockTab({ block, grip, hint }: { block: Block; grip?: ReactNode; hint?: boolean }) {
+/**
+ * Label jenis bagian terpilih. Bagian tingkat atas: di margin kiri di bawah pegangan seret (tidak menutupi teks);
+ * anak di dalam kolom/bagian bersyarat: di atas bagian. Diberi skala balik agar tetap terbaca.
+ */
+export function BlockTab({ block, hint, margin }: { block: Block; hint?: boolean; margin?: boolean }) {
   const scale = useScale();
+  const inv = scale === 1 ? undefined : `scale(${1 / scale})`;
+  if (margin) {
+    return (
+      <div
+        className="pointer-events-none absolute right-full top-10 z-20 mr-1 flex max-w-[6rem] flex-col items-end gap-1 font-sans text-xs font-medium"
+        style={{ transform: inv, transformOrigin: "top right" }}
+      >
+        <span className="max-w-full truncate rounded bg-sky-700 px-2 py-1 text-white shadow" title={blockLabel(block)}>
+          {blockLabel(block)}
+        </span>
+        {hint ? <span className="rounded bg-sky-50 px-1.5 py-1 text-right font-normal text-sky-950 shadow ring-1 ring-sky-200">Atur di panel samping</span> : null}
+      </div>
+    );
+  }
   return (
     <div
-      className="pointer-events-auto absolute bottom-full left-0 z-20 mb-0.5 flex h-8 items-stretch overflow-hidden rounded-md bg-sky-700 font-sans text-xs font-medium text-white shadow"
-      style={{ transform: scale === 1 ? undefined : `scale(${1 / scale})`, transformOrigin: "bottom left" }}
+      className="pointer-events-none absolute bottom-full left-0 z-20 mb-0.5 flex h-8 items-stretch overflow-hidden rounded-md bg-sky-700 font-sans text-xs font-medium text-white shadow"
+      style={{ transform: inv, transformOrigin: "bottom left" }}
     >
-      {grip}
       <span className="flex items-center whitespace-nowrap px-2.5">
         {blockLabel(block)}
         {hint ? <span className="ml-1.5 font-normal opacity-90">· atur di panel samping</span> : null}

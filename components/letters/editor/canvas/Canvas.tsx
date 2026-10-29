@@ -37,6 +37,7 @@ import {
   pageGuides,
   paperPx,
   paperScale,
+  minFitFor,
 } from "./helpers";
 
 export type CanvasProps = {
@@ -79,7 +80,7 @@ export function Canvas({ editor, values, qrSrc, className }: CanvasProps) {
   const [paperH, setPaperH] = useState(0);
   const [zoom, setZoom] = useState(1);
   const px = paperPx(doc.page);
-  const scale = paperScale(containerW, px.width, zoom);
+  const scale = paperScale(containerW, px.width, zoom, 32, minFitFor(containerW));
   const scaleRef = useRef(scale);
   useEffect(() => {
     scaleRef.current = scale;

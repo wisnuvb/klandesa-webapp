@@ -36,7 +36,8 @@ const btn =
   "inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 aria-pressed:bg-accent aria-pressed:border-border";
 
 function Label({ children }: { children: ReactNode }) {
-  return <span className="hidden md:inline">{children}</span>;
+  // Label hanya tampil bila kanvas cukup lebar; selain itu aksi tetap punya aria-label dan tooltip.
+  return <span className="hidden @[1180px]:inline">{children}</span>;
 }
 
 /** Bilah alat tunggal di atas kanvas: format teks, sisipkan isian, dan aksi bagian terpilih. */
@@ -62,10 +63,11 @@ export function Toolbar(p: Props) {
   };
 
   return (
+    <div className="@container flex-none border-b bg-background">
     <div
       role="toolbar"
       aria-label="Alat penyunting surat"
-      className="flex flex-none flex-wrap items-center gap-1 border-b bg-background px-2 py-1.5"
+      className="flex h-14 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden px-2 [&>*]:flex-none"
     >
       <div role="group" aria-label="Format teks" className="flex items-center gap-0.5">
         <button type="button" className={btn} disabled={!ed} aria-pressed={ed?.isActive("bold") ?? false} aria-label="Tebal (Ctrl+B)" title="Tebal (Ctrl+B)" onMouseDown={keepSelection} onClick={() => fmt("bold")}>
@@ -93,7 +95,7 @@ export function Toolbar(p: Props) {
               onMouseDown={keepSelection}
             >
               <Variable className="h-4 w-4" aria-hidden />
-              <span>Sisipkan isian</span>
+              <span className="sr-only @[900px]:not-sr-only">Sisipkan isian</span>
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-80 p-0" onCloseAutoFocus={(e) => { e.preventDefault(); ed?.commands.focus(); }}>
@@ -114,10 +116,10 @@ export function Toolbar(p: Props) {
 
       <span className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
 
-      <div role="group" aria-label="Bagian terpilih" className="flex flex-wrap items-center gap-0.5">
+      <div role="group" aria-label="Bagian terpilih" className="flex items-center gap-0.5">
         {p.hasSelection ? (
           <>
-            <span className="mr-1 max-w-[12rem] truncate rounded bg-sky-100 px-2 py-1 text-xs font-medium text-sky-950" title={p.selectionLabel ?? undefined}>
+            <span className="mr-1 hidden max-w-[12rem] truncate rounded bg-sky-100 px-2 py-1 text-xs font-medium text-sky-950 @[900px]:inline-block" title={p.selectionLabel ?? undefined}>
               {p.selectionLabel}
             </span>
             <button type="button" className={btn} disabled={!p.canMoveUp} aria-label="Naikkan bagian" title="Naikkan bagian (Alt+↑)" onClick={p.onMoveUp}>
@@ -134,13 +136,13 @@ export function Toolbar(p: Props) {
             </button>
           </>
         ) : (
-          <span className="px-1 text-sm text-muted-foreground">Klik bagian surat untuk mengubahnya</span>
+          <span className="hidden px-1 text-sm text-muted-foreground @[900px]:inline">Klik bagian surat untuk mengubahnya</span>
         )}
       </div>
 
       <div className="ml-auto flex items-center gap-0.5">
         <InsertMenuButton label="Tambah bagian" onPick={p.onAddBlock} className={`${btn} border-border`}>
-          <span>Tambah bagian</span>
+          <span className="sr-only @[900px]:not-sr-only">Tambah bagian</span>
         </InsertMenuButton>
         <span className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
         <div role="group" aria-label="Perbesar atau perkecil kertas" className="flex items-center">
@@ -155,6 +157,7 @@ export function Toolbar(p: Props) {
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

@@ -315,6 +315,10 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
   const submit = useCallback(
     async (status: "draft" | "completed"): Promise<boolean> => {
       if (!state || !spec || !doc) return false;
+      if (loadingKeys.size > 0) {
+        setNotice("Data warga masih diambil. Tunggu sebentar lalu coba lagi.");
+        return false;
+      }
       setSubmitError("");
       setNotice("");
 
@@ -382,7 +386,7 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
         setBusy(null);
       }
     },
-    [state, spec, doc, numberingMode, appConfirm, letterId, templateId, suratParam, router],
+    [state, spec, doc, numberingMode, appConfirm, letterId, templateId, suratParam, router, loadingKeys],
   );
 
   const goBack = useCallback(async () => {

@@ -88,7 +88,8 @@ export function TemplateGrid({
               <div className="flex flex-col gap-2 pt-2 border-t">
                 {template.is_catalog ? (
                   onCustomizeCatalogTemplate ? (
-                    <div className="flex w-full gap-2">
+                    <>
+                      <div className="flex w-full gap-2">
                       <Button
                         size="sm"
                         className="min-w-0 flex-1 gap-2"
@@ -102,11 +103,12 @@ export function TemplateGrid({
                           variant="outline"
                           size="sm"
                           className="gap-1"
+                          aria-label={`Sesuaikan ${template.name}`}
                           title="Salin ke desa lalu ubah tampilannya"
                           onClick={() => onSesuaikanTemplate(template)}
                         >
                           <Edit className="h-4 w-4" />
-                          <span className="hidden sm:inline text-xs">Sesuaikan</span>
+                          <span className="text-xs">Sesuaikan</span>
                         </Button>
                       )}
                       {template.schema_version === 2 && (
@@ -120,7 +122,14 @@ export function TemplateGrid({
                           <Eye className="h-4 w-4" />
                         </Button>
                       )}
-                    </div>
+                      </div>
+                      {template.schema_version === 2 && (
+                        <p className="text-xs text-muted-foreground">
+                          <strong className="font-medium">Gunakan</strong>: langsung buat surat.{" "}
+                          <strong className="font-medium">Sesuaikan</strong>: salin ke desa, ubah tampilannya dulu.
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <Button
                       size="sm"

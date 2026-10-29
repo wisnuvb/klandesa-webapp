@@ -25,6 +25,7 @@ import {
   pageGuides,
   paperPx,
   paperScale,
+  minFitFor,
   refLabel,
   removeItem,
   resolveIcon,
@@ -133,6 +134,14 @@ describe("skala kertas", () => {
     assert.equal(paperScale(0, w), 1);
     assert.equal(paperScale(500, 0), 1);
     assert.ok(paperScale(100, w) >= 0.2);
+  });
+  it("di kanvas sempit (HP) kertas tidak lebih kecil dari 0,6 agar terbaca; kanvas lebar tidak terpengaruh", () => {
+    const w = paperPx({ size: "F4", orientation: "portrait" }).width;
+    assert.ok(paperScale(390, w) < 0.5, "tanpa minimum, HP jatuh ke ±0,44");
+    assert.equal(paperScale(390, w, 1, 32, minFitFor(390)), 0.6);
+    assert.equal(minFitFor(1030), 0);
+    assert.equal(minFitFor(0), 0);
+    assert.equal(paperScale(1030, w, 1, 32, minFitFor(1030)), paperScale(1030, w));
   });
   it("zoom mengalikan skala dan dibatasi", () => {
     const w = paperPx({ size: "A4", orientation: "portrait" }).width;

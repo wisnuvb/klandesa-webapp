@@ -159,7 +159,7 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
   },
   {
     id: "layanan-surat",
-    label: "Template Surat",
+    label: "Buat Surat",
     path: "/layanan-surat",
     permission: "mail",
     sdgGoals: [16],

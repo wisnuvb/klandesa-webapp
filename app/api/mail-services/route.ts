@@ -67,6 +67,9 @@ export async function GET(req: NextRequest) {
     const mappedRows = rows.map((row) => {
       const v2 = isV2(row.formData);
       const tpl = v2 ? undefined : byId.get(row.templateId);
+      // Surat berformat lama yang jenis suratnya kini dokumen v2 (katalog disinkronkan ulang): tidak bisa dirender ulang.
+      const legacyUnavailable =
+        !v2 && (tpl?.templateStructure as { schemaVersion?: unknown } | null | undefined)?.schemaVersion === 2;
       return {
         id: Number(row.id),
         letter_number: row.letterNumber,
@@ -82,8 +85,9 @@ export async function GET(req: NextRequest) {
         completed_at: row.completedAt ? row.completedAt.toISOString() : null,
         content_html: "",
         form_data: v2 ? {} : ((row.formData as Record<string, string>) || {}),
-        templateData: tpl?.templateStructure || undefined,
+        templateData: legacyUnavailable ? undefined : tpl?.templateStructure || undefined,
         schema_version: v2 ? 2 : 1,
+        legacy_unavailable: legacyUnavailable || undefined,
       };
     });
 

@@ -96,7 +96,7 @@ export function SidePanel({ editor, onReveal, className, open: openProp, onOpenC
         aria-controls={`${baseId}-panel`}
         onClick={() => setOpen(!open)}
         className={cn(
-          "fixed bottom-4 right-4 z-40 flex min-h-11 items-center gap-2 rounded-full border border-input bg-background px-4 text-sm font-medium shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden",
+          "fixed bottom-4 left-1/2 z-40 flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-input bg-background px-4 text-sm font-medium shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden",
           open && "hidden",
         )}
       >

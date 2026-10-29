@@ -116,7 +116,9 @@ Halaman `/layanan-surat/editor` (`?templateId=` ubah, `?start=` mulai baru dari 
 - [ ] Hapus builder lama (~7.100 baris) setelah editor teruji dan tidak ada template format lama yang tersisa.
 - [ ] Riwayat versi template.
 
-**Catatan UX dari uji peramban (belum diputuskan):** kertas turun ±48px saat bagian pertama dipilih (bilah alat jadi dua baris); tombol `+` menumpang di tepi bawah bagian pendek; pegangan seret 36×32 px (< target 44 px); bilah alat tiga baris & zoom awal ±40% di HP.
+**Catatan UX dari uji peramban — sudah diperbaiki (2026-10-29):** bilah alat satu baris tinggi tetap; `+` dan pegangan seret pindah ke margin (hit area ≥44 px); zoom HP minimum 0,6.
+
+**Struktur halaman (2026-10-29):** menu sidebar "Buat Surat" → `/layanan-surat` dengan tiga tab (URL `?tab=`): **Buat Surat** (pilih jenis surat, default), **Riwayat**, **Kelola Template** (kartu; Ubah/Sesuaikan/Template Baru/Hapus). `/layanan-surat/buat` tanpa parameter menampilkan pemilih jenis surat yang sama. Uji E2E Chromium (DB sementara, login distub di salinan): daftar → komposer layar terbagi → draf → terbit → riwayat → cetak, ahli waris/saksi/internal, Sesuaikan → editor → autosave → pakai, konflik, isolasi desa: semua lulus.
 
 **Batasan yang diketahui:** label baris memo/header tabel/tembusan hanya diubah di panel; tabel belum bisa tambah baris/kolom dari kertas; isian grup tidak bisa disisipkan sebagai chip; inspector `memo`, `signature`, `table` minimal; susunan tanda tangan "pemohon + saksi" hanya dari panel Sisipkan.
 

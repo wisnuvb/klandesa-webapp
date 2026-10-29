@@ -118,6 +118,8 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
 
   const a = c.actions;
   const busy = c.busy !== null;
+  // Data warga/isian otomatis yang masih diambil: simpan/terbit ditahan agar surat tidak tersimpan tanpa data itu.
+  const waitingData = c.loadingKeys.size > 0;
   const simpleFields = spec.fields;
 
   return (
@@ -233,12 +235,13 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
                 </p>
               ) : null}
               {c.notice ? <p role="status" className="text-sm text-muted-foreground">{c.notice}</p> : null}
+              {waitingData ? <p role="status" className="text-sm text-muted-foreground">Mengambil data warga… tombol simpan aktif setelah data terisi.</p> : null}
               <div className="flex flex-wrap gap-2">
-                <Button type="submit" disabled={busy} aria-busy={c.busy === "completed"} className="min-h-10 flex-1 gap-2 pointer-coarse:min-h-11">
+                <Button type="submit" disabled={busy || waitingData} aria-busy={c.busy === "completed"} className="min-h-10 flex-1 gap-2 pointer-coarse:min-h-11">
                   {c.busy === "completed" ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Printer className="h-4 w-4" aria-hidden="true" />}
                   {c.busy === "completed" ? "Menerbitkan…" : "Terbitkan & Cetak"}
                 </Button>
-                <Button type="button" variant="outline" disabled={busy} aria-busy={c.busy === "draft"} className="min-h-10 gap-2 pointer-coarse:min-h-11" onClick={() => void c.submit("draft")}>
+                <Button type="button" variant="outline" disabled={busy || waitingData} aria-busy={c.busy === "draft"} className="min-h-10 gap-2 pointer-coarse:min-h-11" onClick={() => void c.submit("draft")}>
                   {c.busy === "draft" ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
                   {c.busy === "draft" ? "Menyimpan…" : "Simpan draf"}
                 </Button>
