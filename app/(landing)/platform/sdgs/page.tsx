@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getLandingPageMetadata } from "@/lib/seo/landing-pages";
 import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
 import { AI_ASSISTANT_NAME } from "@/lib/ai/persona";
+import { AI_FREE_CREDITS } from "@/lib/ai/credit-packages";
 
 export const metadata: Metadata = getLandingPageMetadata("platformSdgs");
 
@@ -43,8 +44,13 @@ export default function PlatformSdgsPage() {
           </p>
           <p className="text-teal-900/80">
             Ini pendamping interpretasi untuk rapat perangkat desa, bukan
-            pengganti penilaian resmi SDGs Desa. Modul tersedia sebagai add-on
-            terpisah dengan kuota kredit per pengguna.{" "}
+            pengganti penilaian resmi SDGs Desa. Setiap pengguna mendapat{" "}
+            {AI_FREE_CREDITS.toLocaleString("id-ID")} kredit gratis (1 kredit untuk
+            1 pertanyaan); isi ulang kredit dibeli terpisah di{" "}
+            <Link href="/harga" className="text-[#0d9488] font-medium">
+              halaman harga
+            </Link>
+            .{" "}
             <Link href="/platform" className="text-[#0d9488] font-medium">
               Lihat di katalog fitur
             </Link>

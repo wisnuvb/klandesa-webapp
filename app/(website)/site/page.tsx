@@ -12,7 +12,8 @@ import { buildPageMetadata, type TenantSeoContext } from "@/lib/website-engine/s
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getTenant();
   if (!tenant?.template || !tenant?.subscription) {
-    return { title: "Website Desa" };
+    // Host tanpa tenant (mis. domain utama) menampilkan pesan "tidak ditemukan": jangan diindeks.
+    return { title: "Website Desa", robots: "noindex, nofollow" };
   }
   const ctx = await loadTenantPublicPageContext(tenant, "");
   if (!ctx) return { title: tenant.village.name };

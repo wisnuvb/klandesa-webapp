@@ -1,12 +1,22 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { listPublishedBlogPosts } from "@/lib/blog/public-posts";
+
+const getPosts = cache(() => listPublishedBlogPosts(50));
+
+/** Selama belum ada artikel terbit, halaman ini konten tipis: jangan diindeks (tetap boleh di-crawl). */
+export async function generateMetadata(): Promise<Metadata> {
+  const posts = await getPosts();
+  return posts.length === 0 ? { robots: "noindex, follow" } : {};
+}
 
 function formatDate(value: Date): string {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(value);
 }
 
 export default async function BlogIndexPage() {
-  const posts = await listPublishedBlogPosts(50);
+  const posts = await getPosts();
 
   return (
     <main className="min-h-screen bg-white">
