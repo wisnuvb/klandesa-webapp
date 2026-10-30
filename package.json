@@ -12,6 +12,7 @@
     "build:next": "bash scripts/build-next-prod.sh",
     "deploy:prod": "bash scripts/push-build.sh",
     "pm2:restart": "bash scripts/pm2-restart.sh",
+    "env:push:prod": "bash scripts/push-env.sh",
     "start": "node scripts/next-with-port.mjs start",
     "lint": "eslint",
     "db:push:prod": "bash scripts/db-push-prod.sh",
