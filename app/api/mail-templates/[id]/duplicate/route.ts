@@ -50,7 +50,26 @@ export async function POST(
         },
       });
       if (existingFork) {
-        return NextResponse.json(existingFork, { status: 200 });
+        const usable =
+          existingFork.isActive &&
+          (existingFork.templateStructure as { schemaVersion?: unknown } | null)?.schemaVersion === 2;
+        if (usable) return NextResponse.json(existingFork, { status: 200 });
+
+        // Salinan lama diarsipkan / berformat lama (v1). Kombinasi desa + kunci katalog harus unik,
+        // jadi baris itu dipakai ulang dengan isi v2 dari katalog.
+        const refreshed = await prisma.mailTemplate.update({
+          where: { id: existingFork.id },
+          data: {
+            name: source.name,
+            description: source.description,
+            category: source.category,
+            templateStructure:
+              source.templateStructure === null ? {} : (source.templateStructure as object),
+            contentTemplate: source.contentTemplate,
+            isActive: true,
+          },
+        });
+        return NextResponse.json(refreshed, { status: 200 });
       }
     }
 

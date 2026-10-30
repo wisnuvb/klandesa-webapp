@@ -1,6 +1,7 @@
 import type { WebsiteCustomization, WebsiteSiteSeo } from "@/lib/website-engine/types";
 import { parseCustomization } from "@/lib/website-engine/normalize";
 import { mergeLayoutLayers, mergeThemeLayers } from "@/lib/website-engine/theme";
+import { customizationToJsonObject } from "@/lib/website-engine/customization-json";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -76,19 +77,6 @@ export function parseEngineConfigPatchBody(body: unknown): {
   }
 
   return { ok: true, patch: out };
-}
-
-function customizationToJsonObject(c: WebsiteCustomization): Record<string, unknown> {
-  const o: Record<string, unknown> = {};
-  if (c.presetKey !== undefined) o.presetKey = c.presetKey;
-  if (c.overrides !== undefined) o.overrides = c.overrides;
-  if (c.theme !== undefined) o.theme = c.theme;
-  if (c.layout !== undefined) o.layout = c.layout;
-  if (c.siteSeo !== undefined) o.siteSeo = c.siteSeo;
-  if (c.faviconUrl !== undefined) o.faviconUrl = c.faviconUrl;
-  if (c.savedPresets !== undefined) o.savedPresets = c.savedPresets;
-  if (c.savedTemplates !== undefined) o.savedTemplates = c.savedTemplates;
-  return o;
 }
 
 function mergeSiteSeo(

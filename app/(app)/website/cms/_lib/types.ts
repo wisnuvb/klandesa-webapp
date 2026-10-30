@@ -32,6 +32,9 @@ export type EngineConfigResponse = {
   presets: Array<{ key: string; name: string }>;
   allowed_section_kinds: SectionKind[];
   section_schema?: SectionSchemaEntry[];
+  /** Ada perubahan yang belum diterbitkan */
+  has_draft?: boolean;
+  history?: Array<{ id: string; published_at: string }>;
 };
 
 /** Field yang masuk perbandingan dirty (harus sama struktur dengan load awal). */

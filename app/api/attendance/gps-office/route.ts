@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { isGpsAddonActive } from "@/lib/attendance/addons";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -31,6 +32,7 @@ export async function PATCH(req: NextRequest) {
         subscriptionStatus: true,
         subscriptionExpiry: true,
         absensiGpsAddonActive: true,
+        absensiGpsAddonExpiry: true,
       },
     });
 
@@ -40,7 +42,7 @@ export async function PATCH(req: NextRequest) {
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
-    if (!village.absensiGpsAddonActive) {
+    if (!isGpsAddonActive(village)) {
       return NextResponse.json(
         { error: "Aktifkan add-on GPS terlebih dahulu." },
         { status: 400 },

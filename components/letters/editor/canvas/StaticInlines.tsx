@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { Inline, LetterDocument } from "@/lib/letters/document/schema";
-import { CHIP_CLASS } from "./field-node";
+import { CHIP_CLASS } from "./chip-class";
 import { refLabel } from "./helpers";
 
 /** Teks bergaya dengan isian sebagai chip — tampilan "diam" dari kolom teks yang belum sedang diketik. */

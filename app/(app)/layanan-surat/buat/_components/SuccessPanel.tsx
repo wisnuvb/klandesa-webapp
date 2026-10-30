@@ -5,7 +5,7 @@ import { CheckCircle2, FileText, ListChecks, Plus, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { LetterPaper, letterPrintCss } from "@/components/letters/LetterPaper";
 import { ScaledPaper } from "./ScaledPaper";
-import { printInIframe } from "../_utils/dom";
+import { printPaperElement } from "@/components/letters/print-paper";
 import type { IssuedLetter } from "../_hooks/useLetterComposer";
 
 /** Cadangan bila iframe cetak tidak tersedia: sembunyikan semuanya kecuali kertas. */
@@ -32,7 +32,7 @@ export function SuccessPanel({
     setPrintHelp("");
     const el = printRef.current;
     if (!el) return;
-    const ok = await printInIframe(el, issued.document, `${templateName} ${hasNumber ? issued.letterNumber : ""}`.trim());
+    const ok = await printPaperElement(el, issued.document, `${templateName} ${hasNumber ? issued.letterNumber : ""}`.trim());
     if (ok) return;
     try {
       window.print();

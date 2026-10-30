@@ -44,25 +44,7 @@ export function isValidNik(nik: string): boolean {
   return /^[0-9]{16}$/.test(nik);
 }
 
-const NAME_NOISE = new Set(["alm", "almh", "almarhum", "almarhumah", "hj", "h", "dr", "drs", "dra", "ibu", "bu", "bpk", "bapak"]);
-
-export function normalizePersonName(raw: unknown): string {
-  const s = typeof raw === "string" ? raw : "";
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w && !NAME_NOISE.has(w))
-    .join(" ");
-}
-
-export function namesMatch(a: unknown, b: unknown): boolean {
-  const x = normalizePersonName(a);
-  const y = normalizePersonName(b);
-  return x.length >= 2 && x === y;
-}
+export { normalizePersonName, namesMatch } from "./person-name";
 
 export function parseYmd(raw: unknown): { y: number; m: number; d: number } | null {
   if (typeof raw !== "string") return null;

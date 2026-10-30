@@ -1,3 +1,11 @@
+import { cleanBlockVariant, clampSectionVariant, type BlockVariantAllowlist } from "@/lib/website-engine/block-variants";
+import {
+  faqItems,
+  featureItems,
+  galleryItems,
+  statItems,
+  testimonialItems,
+} from "@/lib/website-engine/section-items";
 import type {
   ResolvedEngineStructure,
   WebsiteCMSPage,
@@ -202,6 +210,7 @@ function cleanSectionRaw(raw: unknown): WebsiteSection | null {
         : undefined;
     return {
       kind: "features",
+      variant: cleanBlockVariant("features", raw.variant),
       title:
         typeof raw.title === "string"
           ? raw.title.trim().slice(0, 200)
@@ -211,36 +220,14 @@ function cleanSectionRaw(raw: unknown): WebsiteSection | null {
           ? raw.subtitle.trim().slice(0, 500)
           : undefined,
       columns,
-      item1_title:
-        typeof raw.item1_title === "string"
-          ? raw.item1_title.trim().slice(0, 120)
-          : undefined,
-      item1_body:
-        typeof raw.item1_body === "string"
-          ? raw.item1_body.trim().slice(0, 600)
-          : undefined,
-      item2_title:
-        typeof raw.item2_title === "string"
-          ? raw.item2_title.trim().slice(0, 120)
-          : undefined,
-      item2_body:
-        typeof raw.item2_body === "string"
-          ? raw.item2_body.trim().slice(0, 600)
-          : undefined,
-      item3_title:
-        typeof raw.item3_title === "string"
-          ? raw.item3_title.trim().slice(0, 120)
-          : undefined,
-      item3_body:
-        typeof raw.item3_body === "string"
-          ? raw.item3_body.trim().slice(0, 600)
-          : undefined,
+      items: featureItems(raw),
       ...(style ? { style } : {}),
     };
   }
   if (kind === "stats") {
     return {
       kind: "stats",
+      variant: cleanBlockVariant("stats", raw.variant),
       title:
         typeof raw.title === "string"
           ? raw.title.trim().slice(0, 200)
@@ -249,38 +236,14 @@ function cleanSectionRaw(raw: unknown): WebsiteSection | null {
         typeof raw.subtitle === "string"
           ? raw.subtitle.trim().slice(0, 500)
           : undefined,
-      stat1_label:
-        typeof raw.stat1_label === "string"
-          ? raw.stat1_label.trim().slice(0, 80)
-          : undefined,
-      stat1_value:
-        typeof raw.stat1_value === "string"
-          ? raw.stat1_value.trim().slice(0, 80)
-          : undefined,
-      stat2_label:
-        typeof raw.stat2_label === "string"
-          ? raw.stat2_label.trim().slice(0, 80)
-          : undefined,
-      stat2_value:
-        typeof raw.stat2_value === "string"
-          ? raw.stat2_value.trim().slice(0, 80)
-          : undefined,
-      stat3_label:
-        typeof raw.stat3_label === "string"
-          ? raw.stat3_label.trim().slice(0, 80)
-          : undefined,
-      stat3_value:
-        typeof raw.stat3_value === "string"
-          ? raw.stat3_value.trim().slice(0, 80)
-          : undefined,
+      items: statItems(raw),
       ...(style ? { style } : {}),
     };
   }
   if (kind === "gallery") {
-    const takeUrl = (v: unknown) =>
-      typeof v === "string" ? v.trim().slice(0, MAX_URL) : undefined;
     return {
       kind: "gallery",
+      variant: cleanBlockVariant("gallery", raw.variant),
       title:
         typeof raw.title === "string"
           ? raw.title.trim().slice(0, 200)
@@ -289,61 +252,31 @@ function cleanSectionRaw(raw: unknown): WebsiteSection | null {
         typeof raw.subtitle === "string"
           ? raw.subtitle.trim().slice(0, 500)
           : undefined,
-      image1_url: takeUrl(raw.image1_url),
-      image2_url: takeUrl(raw.image2_url),
-      image3_url: takeUrl(raw.image3_url),
-      image4_url: takeUrl(raw.image4_url),
-      image5_url: takeUrl(raw.image5_url),
-      image6_url: takeUrl(raw.image6_url),
+      items: galleryItems(raw),
       ...(style ? { style } : {}),
     };
   }
   if (kind === "faq") {
-    const takeQ = (v: unknown) =>
-      typeof v === "string" ? v.trim().slice(0, 200) : undefined;
-    const takeA = (v: unknown) =>
-      typeof v === "string" ? v.trim().slice(0, 1000) : undefined;
     return {
       kind: "faq",
+      variant: cleanBlockVariant("faq", raw.variant),
       title:
         typeof raw.title === "string"
           ? raw.title.trim().slice(0, 200)
           : undefined,
-      q1: takeQ(raw.q1),
-      a1: takeA(raw.a1),
-      q2: takeQ(raw.q2),
-      a2: takeA(raw.a2),
-      q3: takeQ(raw.q3),
-      a3: takeA(raw.a3),
-      q4: takeQ(raw.q4),
-      a4: takeA(raw.a4),
-      q5: takeQ(raw.q5),
-      a5: takeA(raw.a5),
+      items: faqItems(raw),
       ...(style ? { style } : {}),
     };
   }
   if (kind === "testimonials") {
-    const takeQuote = (v: unknown) =>
-      typeof v === "string" ? v.trim().slice(0, 800) : undefined;
-    const takeName = (v: unknown) =>
-      typeof v === "string" ? v.trim().slice(0, 80) : undefined;
-    const takeRole = (v: unknown) =>
-      typeof v === "string" ? v.trim().slice(0, 80) : undefined;
     return {
       kind: "testimonials",
+      variant: cleanBlockVariant("testimonials", raw.variant),
       title:
         typeof raw.title === "string"
           ? raw.title.trim().slice(0, 200)
           : undefined,
-      quote1: takeQuote(raw.quote1),
-      name1: takeName(raw.name1),
-      role1: takeRole(raw.role1),
-      quote2: takeQuote(raw.quote2),
-      name2: takeName(raw.name2),
-      role2: takeRole(raw.role2),
-      quote3: takeQuote(raw.quote3),
-      name3: takeName(raw.name3),
-      role3: takeRole(raw.role3),
+      items: testimonialItems(raw),
       ...(style ? { style } : {}),
     };
   }
@@ -458,7 +391,9 @@ function clampHeroVariant(
   s: WebsiteSection,
   templateKey: string,
 ): WebsiteSection {
-  if (s.kind !== "hero") return s;
+  if (s.kind !== "hero") {
+    return clampSectionVariant(s, getTemplatePack(templateKey).blockVariants);
+  }
   const pack = getTemplatePack(templateKey);
   const allowedHero = new Set(pack.heroVariants);
   let variant: "center" | "split" =
@@ -614,6 +549,21 @@ export function sanitizeV2StructureOverride(
     version: 2,
     nav,
     pages: ensureHomePage(pages, homeFallback),
+  };
+}
+
+/** Terapkan daftar izin varian ke semua section hasil sanitasi (dipakai setelah PATCH CMS). */
+export function clampStructureVariants<T extends { pages: WebsiteCMSPage[] }>(
+  structure: T,
+  allow: BlockVariantAllowlist | undefined,
+): T {
+  if (!allow) return structure;
+  return {
+    ...structure,
+    pages: structure.pages.map((p) => ({
+      ...p,
+      sections: p.sections.map((s) => clampSectionVariant(s, allow)),
+    })),
   };
 }
 

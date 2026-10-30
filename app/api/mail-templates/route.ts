@@ -17,10 +17,27 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
+    // Daftar ringan: tanpa dokumen (templateStructure) & contentTemplate, yang ±90% dari ukuran baris dan tidak
+    // dipakai UI daftar. Hanya dokumen v2 (format lama tidak lagi dipakai); dokumen lengkap lewat GET /api/mail-templates/[id].
     const templates = await prisma.mailTemplate.findMany({
       where: {
         ...villageTemplateScope(village.id),
         isActive: true,
+        templateStructure: { path: "$.schemaVersion", equals: 2 },
+      },
+      select: {
+        id: true,
+        villageId: true,
+        name: true,
+        description: true,
+        category: true,
+        isGlobal: true,
+        isActive: true,
+        catalogKey: true,
+        inheritsCatalogKey: true,
+        usageCount: true,
+        createdAt: true,
+        updatedAt: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -44,7 +61,7 @@ export async function GET(req: NextRequest) {
       return true;
     });
 
-    return NextResponse.json(filtered);
+    return NextResponse.json(filtered.map((t) => ({ ...t, schemaVersion: 2 })));
   } catch (err) {
     console.error("GET /api/mail-templates error:", err);
     return NextResponse.json(

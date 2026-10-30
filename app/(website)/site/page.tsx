@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getTenant } from "@/lib/tenant";
+import { trackPublicPageView } from "@/lib/website-engine/track";
 import { resolveEffectiveSiteSeo, resolveTenantFaviconUrl } from "@/lib/website-engine/normalize";
 import {
   loadTenantPublicPageContext,
@@ -53,10 +54,21 @@ export default async function TenantWebsiteHome() {
   if (!ctx) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <p>Website desa belum diaktifkan.</p>
+        <h1 className="text-2xl font-semibold mb-2">
+          {tenant.websiteExpired
+            ? "Website sedang tidak aktif"
+            : "Website desa belum diaktifkan"}
+        </h1>
+        <p>
+          {tenant.websiteExpired
+            ? `Masa aktif website ${tenant.village.name} telah berakhir. Silakan hubungi admin desa.`
+            : "Silakan kembali beberapa saat lagi."}
+        </p>
       </div>
     );
   }
+
+  await trackPublicPageView(tenant.village.id);
 
   const { page, announcements, templateKey } = ctx;
   return (

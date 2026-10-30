@@ -4,6 +4,7 @@ import { formatTimeAgo } from "@/lib/formatTimeAgo";
 import { syncAdminNotificationsForVillage } from "@/lib/notifications/syncAdminNotifications";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { NOTIFICATION_RETENTION, notificationCutoffs } from "@/lib/notifications/retention-policy";
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,9 +18,9 @@ export async function GET(req: NextRequest) {
     await syncAdminNotificationsForVillage(village.id);
 
     const rows = await prisma.adminNotification.findMany({
-      where: { villageId: village.id },
+      where: { villageId: village.id, createdAt: { gte: notificationCutoffs().visibleSince } },
       orderBy: { createdAt: "desc" },
-      take: 30,
+      take: NOTIFICATION_RETENTION.LIST_LIMIT,
       include: {
         reads: {
           where: { userId },

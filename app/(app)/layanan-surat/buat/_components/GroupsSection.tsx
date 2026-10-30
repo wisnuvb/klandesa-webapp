@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Plus, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ResidentOption } from "@/components/AutocompleteResidentInput";
@@ -18,24 +19,102 @@ type Actions = {
   clearRowResident: (gid: string, index: number) => void;
 };
 
+type GroupSpec = FormSpec["groups"][number];
+type Row = ComposerState["groups"][string][number];
+
+/** Satu baris daftar (mis. satu ahli waris): hanya dirender ulang bila barisnya sendiri berubah. */
+const GroupRow = memo(function GroupRow({
+  g,
+  row,
+  index: i,
+  canRemove,
+  loading,
+  actions,
+}: {
+  g: GroupSpec;
+  row: Row;
+  index: number;
+  canRemove: boolean;
+  loading: boolean;
+  actions: Actions;
+}) {
+  const { appConfirm } = useAppDialogs();
+  const filled = row.residentId != null || Object.values(row.values).some((v) => v.trim() !== "");
+  return (
+    <div role="group" aria-label={`${g.label} baris ${i + 1}`} className="space-y-3 rounded-md border bg-muted/30 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">{g.label} {i + 1}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="min-h-9 gap-1 pointer-coarse:min-h-11"
+          disabled={!canRemove}
+          aria-label={`Hapus ${g.label} baris ${i + 1}`}
+          title={canRemove ? undefined : `Minimal ${g.min} baris`}
+          onClick={async () => {
+            if (filled) {
+              const ok = await appConfirm({
+                title: "Hapus baris ini?",
+                description: `Isian pada ${g.label} baris ${i + 1} akan dihapus.`,
+                confirmLabel: "Hapus",
+                tone: "destructive",
+              });
+              if (!ok) return;
+            }
+            actions.removeRow(g.id, i);
+          }}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          Hapus
+        </Button>
+      </div>
+
+      {g.personRows ? (
+        <ResidentSearch
+          id={`group-${g.id}-${i}-cari`}
+          label="Cari warga (opsional)"
+          value={row.query}
+          help={loading ? "Mengambil data warga…" : "Memilih warga mengisi isian di bawah; bisa diperbaiki."}
+          onChange={(v) => actions.setRowQuery(g.id, i, v)}
+          onSelect={(r) => actions.selectRowResident(g.id, i, r)}
+          onClear={() => actions.clearRowResident(g.id, i)}
+        />
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {g.fields.map((f) => (
+          <div key={f.id} className={f.type === "longtext" ? "sm:col-span-2" : undefined}>
+            <CustomFieldInput
+              id={`group-${g.id}-${i}-${f.id}`}
+              field={f}
+              value={row.values[f.id] ?? ""}
+              onChange={(v) => actions.setRowValue(g.id, i, f.id, v)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
 export function GroupsSection({
   spec,
-  state,
+  groups,
   loadingKeys,
   actions,
 }: {
   spec: FormSpec;
-  state: ComposerState;
+  groups: ComposerState["groups"];
   loadingKeys: ReadonlySet<string>;
   actions: Actions;
 }) {
-  const { appConfirm } = useAppDialogs();
   if (spec.groups.length === 0) return null;
 
   return (
     <div className="space-y-4">
       {spec.groups.map((g) => {
-        const rows = state.groups[g.id] ?? [];
+        const rows = groups[g.id] ?? [];
         const canAdd = rows.length < g.max;
         const canRemove = rows.length > g.min;
         return (
@@ -48,65 +127,9 @@ export function GroupsSection({
               </span>
             </legend>
 
-            {rows.map((row, i) => {
-              const filled = row.residentId != null || Object.values(row.values).some((v) => v.trim() !== "");
-              return (
-                <div key={row.key} role="group" aria-label={`${g.label} baris ${i + 1}`} className="space-y-3 rounded-md border bg-muted/30 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">{g.label} {i + 1}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-9 gap-1 pointer-coarse:min-h-11"
-                      disabled={!canRemove}
-                      aria-label={`Hapus ${g.label} baris ${i + 1}`}
-                      title={canRemove ? undefined : `Minimal ${g.min} baris`}
-                      onClick={async () => {
-                        if (filled) {
-                          const ok = await appConfirm({
-                            title: "Hapus baris ini?",
-                            description: `Isian pada ${g.label} baris ${i + 1} akan dihapus.`,
-                            confirmLabel: "Hapus",
-                            tone: "destructive",
-                          });
-                          if (!ok) return;
-                        }
-                        actions.removeRow(g.id, i);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      Hapus
-                    </Button>
-                  </div>
-
-                  {g.personRows ? (
-                    <ResidentSearch
-                      id={`group-${g.id}-${i}-cari`}
-                      label="Cari warga (opsional)"
-                      value={row.query}
-                      help={loadingKeys.has(`group-${g.id}-${i}`) ? "Mengambil data warga…" : "Memilih warga mengisi isian di bawah; bisa diperbaiki."}
-                      onChange={(v) => actions.setRowQuery(g.id, i, v)}
-                      onSelect={(r) => actions.selectRowResident(g.id, i, r)}
-                      onClear={() => actions.clearRowResident(g.id, i)}
-                    />
-                  ) : null}
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {g.fields.map((f) => (
-                      <div key={f.id} className={f.type === "longtext" ? "sm:col-span-2" : undefined}>
-                        <CustomFieldInput
-                          id={`group-${g.id}-${i}-${f.id}`}
-                          field={f}
-                          value={row.values[f.id] ?? ""}
-                          onChange={(v) => actions.setRowValue(g.id, i, f.id, v)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+            {rows.map((row, i) => (
+              <GroupRow key={row.key} g={g} row={row} index={i} canRemove={canRemove} loading={loadingKeys.has(`group-${g.id}-${i}`)} actions={actions} />
+            ))}
 
             <Button
               type="button"

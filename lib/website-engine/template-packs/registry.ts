@@ -39,6 +39,12 @@ const PACKS_BY_KEY: Record<string, TemplatePack> = {
   }),
 };
 
+/** Semua `templateKey` yang sudah dipakai pack terdaftar; tidak boleh dipakai paket tema pihak ketiga. */
+export function listRegisteredPackKeys(): string[] {
+  // `default` adalah fallback dan tidak ada di PACKS_BY_KEY, tetapi tetap nama yang tidak boleh dipakai pihak lain.
+  return [...new Set([...Object.keys(PACKS_BY_KEY), defaultTemplatePack.id])];
+}
+
 /** Peta templateKey (dari `WebsiteTemplate.structure`) ke pack UI. */
 export function getTemplatePack(templateKey: string | undefined | null): TemplatePack {
   const k = String(templateKey || "").trim().toLowerCase();

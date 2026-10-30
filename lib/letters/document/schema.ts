@@ -6,7 +6,13 @@
  *
  * Fleksibilitas datang dari komposisi bagian (blok), bukan dari fitur khusus per jenis surat.
  */
-import { z } from "zod";
+// `import * as z` (bukan `{ z }`) agar bundler bisa membuang bagian zod yang tak terpakai: dengan `{ z }` seluruh
+// zod (±290 KB, termasuk 40+ bahasa) ikut ke klien. Tree-shaking juga membuang pemasangan bahasa bawaan,
+// sehingga semua pesan galat menjadi "Invalid input"; karena itu bahasa Inggris dipasang eksplisit di bawah.
+import * as z from "zod";
+import en from "zod/v4/locales/en.js";
+
+z.config(en());
 import { FORMAT_IDS } from "../format";
 import { FONT_IDS, PAPER_SIZE_IDS } from "../paper";
 import { NUMBER_PATTERN_MAX, DEFAULT_NUMBER_PATTERN } from "../numbering";
@@ -90,7 +96,13 @@ const SignatureSlot = z.object({
   showNip: z.boolean().default(false),
   stamp: z.boolean().default(false),
   materai: z.boolean().default(false),
+  /** Rata tulisan di dalam blok tanda tangan. */
   align: z.enum(["left", "center", "right"]).default("center"),
+  /**
+   * Letak blok tanda tangan di halaman (kiri/tengah/kanan). Kosong = perilaku bawaan lama:
+   * ikut `align` (tunggal "tengah" dianggap kanan); berdampingan = selebar kolom.
+   */
+  place: z.enum(["left", "center", "right"]).optional(),
   gapMm: z.number().min(10).max(60).default(25),
 });
 
@@ -175,8 +187,15 @@ const Signature = z.object({
   ...base,
   type: z.literal("signature"),
   layout: z.enum(["row", "stack"]).default("row"),
+  /**
+   * Sebaran beberapa penanda tangan berdampingan, mengikuti `justify-content` flex (tiap blok selebar isinya).
+   * Kosong / "fill" = kolom sama lebar (bawaan lama).
+   */
+  spread: z.enum(["fill", "start", "center", "end", "between", "around", "evenly"]).optional(),
   /** Teks lokasi & tanggal di atas tanda tangan, mis. "{desa.nama}, {surat.tanggal}" atau "Ditetapkan di …". */
   dateline: Inlines.optional(),
+  /** Rata baris tempat & tanggal di atas tanda tangan. Kosong = kanan (bawaan lama). */
+  datelineAlign: z.enum(["left", "center", "right"]).optional(),
   slots: z.array(SignatureSlot).min(1).max(LIMITS.signatureSlots),
 });
 const Divider = z.object({ ...base, type: z.literal("divider"), style: z.enum(["single", "double", "dashed"]).default("single") });

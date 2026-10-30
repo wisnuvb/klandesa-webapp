@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       );
     }
     return NextResponse.json(
-      { ok: true, invoiceStatus: result.invoiceStatus },
+      { response: "OK", ok: true, invoiceStatus: result.invoiceStatus },
       { status: 200 },
     );
   } catch (error) {

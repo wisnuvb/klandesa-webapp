@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatIdr } from "@/lib/billing/catalog";
@@ -13,8 +15,11 @@ export function InvoiceHistoryCard(props: InvoiceHistoryCardProps) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle>Riwayat Invoice</CardTitle>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/billing/riwayat">Lihat semua &amp; cara bayar</Link>
+        </Button>
       </CardHeader>
       <CardContent>
         {invoices?.length ? (

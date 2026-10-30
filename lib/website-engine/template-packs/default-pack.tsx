@@ -14,17 +14,28 @@ import {
   TestimonialsBlock,
   renderHeroFromSection,
 } from "@/lib/website-engine/section-primitives";
+import { SiteLogo } from "@/lib/website-engine/template-packs/site-logo";
+import {
+  faqItems,
+  featureItems,
+  galleryItems,
+  statItems,
+  testimonialItems,
+} from "@/lib/website-engine/section-items";
 import { TenantNavBar } from "@/lib/website-engine/template-packs/shell-nav";
 
 function DefaultShell(props: import("@/lib/website-engine/template-packs/types").TenantShellProps) {
-  const { children, villageName, hideSiteHeader, templateKey, navItems, currentPath } = props;
+  const { children, villageName, logoUrl, hideSiteHeader, templateKey, navItems, currentPath } = props;
   return (
     <div className={`site-root tp-${templateKey}`}>
       {hideSiteHeader ? null : (
         <header className="border-b [border-color:var(--site-border,#e5e7eb)]">
           <nav className="container mx-auto px-4 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-xl font-bold [color:var(--site-primary,#111827)]">
-              {villageName}
+            <div className="flex items-center gap-3">
+              <SiteLogo url={logoUrl} />
+              <div className="text-xl font-bold [color:var(--site-primary,#111827)]">
+                {villageName}
+              </div>
             </div>
             <TenantNavBar items={navItems} currentPath={currentPath} />
           </nav>
@@ -64,14 +75,14 @@ function renderDefaultSection(
   if (s.kind === "features") {
     return (
       <FeaturesBlock
+        variant={s.variant}
         title={s.title}
         subtitle={s.subtitle}
         columns={s.columns}
-        items={[
-          { title: s.item1_title ?? "Fitur 1", body: s.item1_body ?? "" },
-          { title: s.item2_title ?? "Fitur 2", body: s.item2_body ?? "" },
-          { title: s.item3_title ?? "Fitur 3", body: s.item3_body ?? "" },
-        ].filter((it) => it.title.trim() || it.body.trim())}
+        items={featureItems(s).map((it) => ({
+          title: it.title ?? "",
+          body: it.body ?? "",
+        }))}
         style={s.style}
       />
     );
@@ -79,13 +90,13 @@ function renderDefaultSection(
   if (s.kind === "stats") {
     return (
       <StatsBlock
+        variant={s.variant}
         title={s.title}
         subtitle={s.subtitle}
-        stats={[
-          { label: s.stat1_label ?? "Stat 1", value: s.stat1_value ?? "—" },
-          { label: s.stat2_label ?? "Stat 2", value: s.stat2_value ?? "—" },
-          { label: s.stat3_label ?? "Stat 3", value: s.stat3_value ?? "—" },
-        ]}
+        stats={statItems(s).map((it) => ({
+          label: it.label ?? "",
+          value: it.value || "—",
+        }))}
         style={s.style}
       />
     );
@@ -93,16 +104,10 @@ function renderDefaultSection(
   if (s.kind === "gallery") {
     return (
       <GalleryBlock
+        variant={s.variant}
         title={s.title}
         subtitle={s.subtitle}
-        imageUrls={[
-          s.image1_url ?? "",
-          s.image2_url ?? "",
-          s.image3_url ?? "",
-          s.image4_url ?? "",
-          s.image5_url ?? "",
-          s.image6_url ?? "",
-        ]}
+        images={galleryItems(s)}
         style={s.style}
       />
     );
@@ -110,14 +115,9 @@ function renderDefaultSection(
   if (s.kind === "faq") {
     return (
       <FaqBlock
+        variant={s.variant}
         title={s.title}
-        items={[
-          { q: s.q1 ?? "", a: s.a1 ?? "" },
-          { q: s.q2 ?? "", a: s.a2 ?? "" },
-          { q: s.q3 ?? "", a: s.a3 ?? "" },
-          { q: s.q4 ?? "", a: s.a4 ?? "" },
-          { q: s.q5 ?? "", a: s.a5 ?? "" },
-        ]}
+        items={faqItems(s).map((it) => ({ q: it.q ?? "", a: it.a ?? "" }))}
         style={s.style}
       />
     );
@@ -125,12 +125,13 @@ function renderDefaultSection(
   if (s.kind === "testimonials") {
     return (
       <TestimonialsBlock
+        variant={s.variant}
         title={s.title}
-        items={[
-          { quote: s.quote1 ?? "", name: s.name1 ?? "", role: s.role1 },
-          { quote: s.quote2 ?? "", name: s.name2 ?? "", role: s.role2 },
-          { quote: s.quote3 ?? "", name: s.name3 ?? "", role: s.role3 },
-        ]}
+        items={testimonialItems(s).map((it) => ({
+          quote: it.quote ?? "",
+          name: it.name ?? "",
+          role: it.role,
+        }))}
         style={s.style}
       />
     );

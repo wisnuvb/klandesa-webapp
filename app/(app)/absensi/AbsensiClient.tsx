@@ -1,38 +1,24 @@
 "use client";
 
 import { isLengkapPlan } from "@/lib/billing/lengkap";
-import { attendanceCapacityAdminMessage } from "@/lib/attendance/capacity";
-import { supportWhatsAppHref } from "@/lib/support";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Download, Filter, QrCode, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { AttendanceTable } from "./_components/AttendanceTable";
 import { AttendanceHistory } from "./_components/AttendanceHistory";
 import { StatsCards } from "./_components/StatsCards";
 import { PlanSidebar } from "./_components/PlanSidebar";
-import {
-  CheckoutModal,
-  GpsAddonModal,
-  UpgradeModal,
-  type AbsensiGpsCheckoutInvoice,
-} from "./_components/AbsensiModals";
+import { CapacityModal, GpsAddonModal } from "./_components/AbsensiModals";
+import { usePayment } from "@/components/billing/PaymentProvider";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
-import { ABSENSI_GPS_ADDON_PLAN_CODE } from "@/lib/billing/catalog";
-import { LINKQU_VA_CHANNELS } from "@/lib/payment/linkqu-channels";
-import { getRecommendedTierByTotalStaff, pricingTiers } from "./pricing";
-import type {
-  AttendanceStatus,
-  AttendanceTodayResponse,
-  PaymentMethod,
-  SubscriptionTier,
-} from "./types";
+import { ABSENSI_GPS_ADDON_PLAN_CODE, BILLING_CATALOG } from "@/lib/billing/catalog";
+import { SUBSCRIPTION_DURATIONS } from "@/lib/billing/duration";
+import { staffLimitForPlan } from "@/lib/attendance/capacity";
+import type { AttendanceStatus, AttendanceTodayResponse, CapacityOption } from "./types";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
 import Image from "next/image";
 
 const ABSENSI_TABS = ["today", "history", "qrcode"] as const;
-
-const defaultVaCode =
-  LINKQU_VA_CHANNELS.find((c) => c.enabled)?.linkquBankCode ?? "014";
 
 export default function AbsensiClient() {
   const { appAlert } = useAppDialogs();
@@ -51,17 +37,20 @@ export default function AbsensiClient() {
     isOverLimit: false,
     hiddenCount: 0,
   });
-  const [currentTier, setCurrentTier] = useState<SubscriptionTier>("FREE");
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
-  const [gpsAddon, setGpsAddon] = useState<AttendanceTodayResponse["gpsAddon"]>(
-    {
-      active: false,
-      officeLat: null,
-      officeLng: null,
-      radiusMeters: 100,
-      officeConfigured: false,
-    },
-  );
+  const [capacity, setCapacity] = useState<AttendanceTodayResponse["capacity"]>({
+    addon: null,
+    options: [],
+  });
+  const [gpsAddon, setGpsAddon] = useState<AttendanceTodayResponse["gpsAddon"]>({
+    active: false,
+    expiresAt: null,
+    monthlyFee: BILLING_CATALOG.absensi_gps_addon.monthlyFee,
+    officeLat: null,
+    officeLng: null,
+    radiusMeters: 100,
+    officeConfigured: false,
+  });
   const [canManageGpsOffice, setCanManageGpsOffice] = useState(false);
   const [officeLatInput, setOfficeLatInput] = useState("");
   const [officeLngInput, setOfficeLngInput] = useState("");
@@ -72,75 +61,55 @@ export default function AbsensiClient() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<AttendanceStatus | "ALL">(
-    "ALL",
-  );
+  const [filterStatus, setFilterStatus] = useState<AttendanceStatus | "ALL">("ALL");
 
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showCapacityModal, setShowCapacityModal] = useState(false);
   const [showGpsModal, setShowGpsModal] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(
-    null,
-  );
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-  const [checkoutKind, setCheckoutKind] = useState<"tier" | "gps_addon" | null>(
-    null,
-  );
-  const [selectedPaymentMethod, setSelectedPaymentMethod] =
-    useState<PaymentMethod>("QRIS");
-  const [vaBankLinkquCode, setVaBankLinkquCode] = useState(defaultVaCode);
-  const [gpsInvoice, setGpsInvoice] = useState<AbsensiGpsCheckoutInvoice | null>(
-    null,
-  );
-  const [gpsCheckoutError, setGpsCheckoutError] = useState<string | null>(null);
-  const [gpsCheckoutLoading, setGpsCheckoutLoading] = useState(false);
 
   const [qrImageDataUrl, setQrImageDataUrl] = useState<string | null>(null);
   const [qrScanUrl, setQrScanUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
 
+  const loadData = useCallback(async (opts?: { signal?: AbortSignal; silent?: boolean }) => {
+    try {
+      if (!opts?.silent) setLoading(true);
+      setLoadError(null);
+      const res = await fetch("/api/attendance/today", {
+        signal: opts?.signal,
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Gagal memuat data absensi");
+      }
+      const data = (await res.json()) as AttendanceTodayResponse;
+      setRows(data.rows);
+      setStats(data.stats);
+      setSubscriptionPlan(data.plan.subscriptionPlan);
+      setCapacity(data.capacity);
+      setGpsAddon(data.gpsAddon);
+      setCanManageGpsOffice(data.canManageGpsOffice);
+      if (data.gpsAddon.officeLat != null) setOfficeLatInput(String(data.gpsAddon.officeLat));
+      if (data.gpsAddon.officeLng != null) setOfficeLngInput(String(data.gpsAddon.officeLng));
+      setRadiusInput(String(data.gpsAddon.radiusMeters));
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setLoadError(e instanceof Error ? e.message : "Gagal memuat data absensi");
+    } finally {
+      if (!opts?.silent) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setLoadError(null);
-        const res = await fetch("/api/attendance/today", {
-          signal: controller.signal,
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          throw new Error(data?.error || "Gagal memuat data absensi");
-        }
-        const data = (await res.json()) as AttendanceTodayResponse;
-        setRows(data.rows);
-        setStats(data.stats);
-        setCurrentTier(data.plan.tier);
-        setSubscriptionPlan(data.plan.subscriptionPlan);
-        setGpsAddon(data.gpsAddon);
-        setCanManageGpsOffice(data.canManageGpsOffice);
-        if (data.gpsAddon.officeLat != null) {
-          setOfficeLatInput(String(data.gpsAddon.officeLat));
-        }
-        if (data.gpsAddon.officeLng != null) {
-          setOfficeLngInput(String(data.gpsAddon.officeLng));
-        }
-        setRadiusInput(String(data.gpsAddon.radiusMeters));
-      } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        setLoadError(
-          e instanceof Error ? e.message : "Gagal memuat data absensi",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-
+    void loadData({ signal: controller.signal });
     return () => controller.abort();
-  }, []);
+  }, [loadData]);
+
+  // Pembayaran lunas: muat ulang kapasitas/status GPS tanpa menampilkan layar memuat.
+  const { pay } = usePayment();
+  const reloadAfterPaid = useCallback(() => loadData({ silent: true }), [loadData]);
 
   const loadQrCode = async () => {
     try {
@@ -185,119 +154,53 @@ export default function AbsensiClient() {
     });
   }, [rows, searchQuery, filterStatus]);
 
-  const recommendedTier = useMemo(() => {
-    return getRecommendedTierByTotalStaff(stats.totalStaff);
-  }, [stats.totalStaff]);
+  const baseLimit = useMemo(() => staffLimitForPlan(subscriptionPlan), [subscriptionPlan]);
 
-  const handleSelectTier = (tier: (typeof pricingTiers)[number]) => {
-    setSelectedTier(tier.id);
-    setCheckoutKind("tier");
-    setGpsInvoice(null);
-    setGpsCheckoutError(null);
-    setShowUpgradeModal(false);
-    setShowCheckoutModal(true);
+  const recommendedOption = useMemo<CapacityOption | null>(() => {
+    if (stats.totalStaff <= stats.staffLimit) return null;
+    return (
+      capacity.options.find((o) => o.state === "available" && o.staffLimit >= stats.totalStaff) ?? null
+    );
+  }, [capacity.options, stats.totalStaff, stats.staffLimit]);
+
+  const capacityAddonInfo = useMemo(() => {
+    if (!capacity.addon) return null;
+    const opt = capacity.options.find((o) => o.code === capacity.addon!.code);
+    return opt
+      ? { name: opt.name, staffLimit: opt.staffLimit, expiresAt: capacity.addon.expiresAt }
+      : null;
+  }, [capacity]);
+
+  const planLabel = isLengkapPlan(subscriptionPlan)
+    ? "Paket Lengkap"
+    : subscriptionPlan
+      ? subscriptionPlan.charAt(0).toUpperCase() + subscriptionPlan.slice(1)
+      : "Basic";
+
+  const handleSelectCapacity = (o: CapacityOption) => {
+    setShowCapacityModal(false);
+    pay({
+      productType: "absensi",
+      planCode: o.code,
+      title: `Kapasitas Absensi ${o.staffLimit} Perangkat`,
+      amount: o.price,
+      durations: SUBSCRIPTION_DURATIONS,
+      successMessage: `Kapasitas ${o.staffLimit} perangkat sudah aktif.`,
+      onPaid: reloadAfterPaid,
+    });
   };
-
-  const handleGpsAddonOpen = () => setShowGpsModal(true);
 
   const handleGpsCheckout = () => {
     setShowGpsModal(false);
-    setCheckoutKind("gps_addon");
-    setSelectedTier(null);
-    setGpsInvoice(null);
-    setGpsCheckoutError(null);
-    setSelectedPaymentMethod("QRIS");
-    setVaBankLinkquCode(defaultVaCode);
-    setShowCheckoutModal(true);
-  };
-
-  const closeCheckoutModal = () => {
-    setShowCheckoutModal(false);
-    setGpsInvoice(null);
-    setGpsCheckoutError(null);
-    setCheckoutKind(null);
-    setGpsCheckoutLoading(false);
-  };
-
-  const handleTierDemoPayment = () => {
-    void appAlert({
-      title: "Demo pembayaran",
-      description: `Membuat pembayaran via ${selectedPaymentMethod}...\n\nIntegrasi LinkQu:\n- QRIS\n- Virtual Account\n- E-Wallet\n\nDemo: Pembayaran berhasil!`,
+    pay({
+      productType: "absensi_gps_addon",
+      planCode: ABSENSI_GPS_ADDON_PLAN_CODE,
+      title: BILLING_CATALOG.absensi_gps_addon.name,
+      amount: gpsAddon.monthlyFee,
+      durations: SUBSCRIPTION_DURATIONS,
+      successMessage: "Add-on GPS Radius sudah aktif.",
+      onPaid: reloadAfterPaid,
     });
-    closeCheckoutModal();
-    if (selectedTier) {
-      setCurrentTier(selectedTier);
-    }
-  };
-
-  const handleGpsBillingPay = async () => {
-    if (selectedPaymentMethod === "EWALLET") {
-      setGpsCheckoutError(
-        "Untuk add-on GPS gunakan QRIS atau Virtual Account di sini, atau halaman Tagihan.",
-      );
-      return;
-    }
-    setGpsCheckoutLoading(true);
-    setGpsCheckoutError(null);
-    try {
-      const paymentMethod =
-        selectedPaymentMethod === "QRIS"
-          ? "qris"
-          : selectedPaymentMethod === "VA"
-            ? "va"
-            : "ewallet";
-      const body: Record<string, unknown> = {
-        productType: "absensi_gps_addon",
-        planCode: ABSENSI_GPS_ADDON_PLAN_CODE,
-        paymentMethod,
-      };
-      if (paymentMethod === "va") {
-        body.bankCode = vaBankLinkquCode;
-      }
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(
-          (data && typeof data.error === "string" && data.error) ||
-            "Gagal membuat tagihan",
-        );
-      }
-      const inv = data?.invoice as AbsensiGpsCheckoutInvoice | undefined;
-      if (!inv?.id) {
-        throw new Error("Respons tagihan tidak valid");
-      }
-      setGpsInvoice({
-        id: inv.id,
-        invoiceNumber: inv.invoiceNumber,
-        amount: inv.amount,
-        paymentUrl: inv.paymentUrl ?? null,
-        qrContent: inv.qrContent ?? null,
-        qrImageUrl: inv.qrImageUrl ?? null,
-        vaNumber: inv.vaNumber ?? null,
-        bankCode: inv.bankCode ?? null,
-        expiresAt: inv.expiresAt ?? null,
-      });
-    } catch (e) {
-      setGpsCheckoutError(
-        e instanceof Error ? e.message : "Gagal membuat tagihan",
-      );
-    } finally {
-      setGpsCheckoutLoading(false);
-    }
-  };
-
-  const handleCheckoutPay = async () => {
-    if (checkoutKind === "tier") {
-      handleTierDemoPayment();
-      return;
-    }
-    if (checkoutKind === "gps_addon") {
-      await handleGpsBillingPay();
-    }
   };
 
   const saveGpsOffice = async () => {
@@ -342,14 +245,15 @@ export default function AbsensiClient() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <PlanSidebar
-          currentTier={currentTier}
-          isLengkap={isLengkapPlan(subscriptionPlan)}
+          planLabel={planLabel}
           stats={stats}
-          recommendedTier={recommendedTier}
-          onUpgradeClick={() => setShowUpgradeModal(true)}
+          capacityAddon={capacityAddonInfo}
+          recommended={recommendedOption}
+          onCapacityClick={() => setShowCapacityModal(true)}
           gpsAddonActive={gpsAddon.active}
+          gpsExpiresAt={gpsAddon.expiresAt}
           gpsOfficeConfigured={gpsAddon.officeConfigured}
-          onGpsAddonClick={handleGpsAddonOpen}
+          onGpsAddonClick={() => setShowGpsModal(true)}
         />
 
         <motion.div
@@ -502,27 +406,23 @@ export default function AbsensiClient() {
                       </div>
                     )}
                     {stats.isOverLimit && (
-                      <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                        {isLengkapPlan(subscriptionPlan) ? (
-                          <>
-                            {attendanceCapacityAdminMessage(stats.staffLimit, stats.hiddenCount)}{" "}
-                            <a
-                              href={supportWhatsAppHref("Halo, kami ingin menambah kapasitas absensi di Paket Lengkap.")}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-medium underline"
-                            >
-                              Hubungi Klandesa
-                            </a>
-                          </>
-                        ) : (
-                          <>
-                            Paket saat ini membatasi {stats.staffLimit} pegawai.
-                            {stats.hiddenCount > 0
-                              ? ` ${stats.hiddenCount} pegawai lainnya tidak ditampilkan.`
-                              : ""}
-                          </>
-                        )}
+                      <div
+                        role="status"
+                        className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                      >
+                        <span>
+                          Kapasitas absensi {stats.staffLimit} perangkat.
+                          {stats.hiddenCount > 0
+                            ? ` ${stats.hiddenCount} perangkat lainnya belum tercakup.`
+                            : ""}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowCapacityModal(true)}
+                          className="min-h-11 px-4 py-2 bg-amber-700 text-white font-medium rounded-lg hover:bg-amber-800 cursor-pointer shrink-0"
+                        >
+                          Tambah kapasitas
+                        </button>
                       </div>
                     )}
                     <AttendanceTable rows={filteredRows} />
@@ -607,35 +507,25 @@ export default function AbsensiClient() {
         </motion.div>
       </div>
 
-      <UpgradeModal
-        open={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        pricingTiers={pricingTiers}
-        currentTier={currentTier}
-        onSelectTier={handleSelectTier}
+      <CapacityModal
+        open={showCapacityModal}
+        onClose={() => setShowCapacityModal(false)}
+        options={capacity.options}
+        addonExpiresAt={capacity.addon?.expiresAt ?? null}
+        totalStaff={stats.totalStaff}
+        baseLimit={baseLimit}
+        onSelect={handleSelectCapacity}
       />
 
       <GpsAddonModal
         open={showGpsModal}
         onClose={() => setShowGpsModal(false)}
+        monthlyFee={gpsAddon.monthlyFee}
+        active={gpsAddon.active}
+        expiresAt={gpsAddon.expiresAt}
         onCheckout={handleGpsCheckout}
       />
 
-      <CheckoutModal
-        open={showCheckoutModal}
-        onClose={closeCheckoutModal}
-        checkoutKind={checkoutKind ?? "tier"}
-        selectedTier={selectedTier}
-        pricingTiers={pricingTiers}
-        selectedPaymentMethod={selectedPaymentMethod}
-        onChangePaymentMethod={setSelectedPaymentMethod}
-        vaBankLinkquCode={vaBankLinkquCode}
-        onChangeVaBankLinkquCode={setVaBankLinkquCode}
-        gpsInvoice={gpsInvoice}
-        gpsCheckoutError={gpsCheckoutError}
-        gpsCheckoutLoading={gpsCheckoutLoading}
-        onPay={handleCheckoutPay}
-      />
     </div>
   );
 }

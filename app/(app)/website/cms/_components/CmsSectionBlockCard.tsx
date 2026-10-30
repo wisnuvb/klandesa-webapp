@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, GripVertical, Trash2 } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
 import { Button } from "@/components/ui/button";
 import type { SectionCmsField } from "@/lib/website-engine/site-sections";
+import type { SectionListValue } from "@/lib/website-engine/section-items";
 import type { WebsiteSection } from "@/lib/website-engine/types";
 import { SectionFieldEditor } from "./SectionFieldEditor";
 
@@ -24,7 +25,7 @@ type Props = {
   onPatchField: (
     idx: number,
     fieldName: string,
-    value: string | number | boolean,
+    value: string | number | boolean | SectionListValue,
   ) => void;
 };
 

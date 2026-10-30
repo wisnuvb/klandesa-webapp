@@ -1,53 +1,24 @@
-import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  formatIdr,
   BILLING_CATALOG,
   type DesaPackageTier,
 } from "@/lib/billing/catalog";
 import { visibleDesaTiers } from "@/lib/billing/lengkap";
-import type { BillingStatusResponse, CheckoutInvoice } from "../_lib/types";
+import type { BillingStatusResponse } from "../_lib/types";
 import { TierCard } from "./TierCard";
-import { statusBadgeVariant } from "../_lib/statusBadgeVariant";
 
 type DesaPackagePurchaseCardProps = {
   data: BillingStatusResponse | null;
-  checkoutLoading: boolean;
-  checkoutError: string | null;
-  checkoutOpen: boolean;
-
-  activeInvoice: CheckoutInvoice | null;
   pendingInvoice: BillingStatusResponse["invoices"][number] | null;
   lastInvoice: BillingStatusResponse["invoices"][number] | null;
-  bankLabelForInvoice: string | null;
-  statusCheckLoading: boolean;
-
   openCheckout: (tier: DesaPackageTier, months?: number) => void;
   resumePendingInvoice: () => void;
-  copyText: (text: string) => Promise<void>;
-  refreshInvoiceStatus: (invoiceId: string) => Promise<void>;
 };
 
 export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
-  const {
-    data,
-    checkoutLoading,
-    checkoutError,
-    checkoutOpen,
-    activeInvoice,
-    pendingInvoice,
-    lastInvoice,
-    bankLabelForInvoice,
-    statusCheckLoading,
-    openCheckout,
-    resumePendingInvoice,
-    copyText,
-    refreshInvoiceStatus,
-  } = props;
-
-  const displayInvoice = activeInvoice ?? pendingInvoice;
+  const { data, pendingInvoice, lastInvoice, openCheckout, resumePendingInvoice } = props;
 
   return (
     <Card>
@@ -55,15 +26,20 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
         <CardTitle>Pembelian Paket Desa</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {pendingInvoice && !checkoutOpen && (
+        {pendingInvoice && (
           <div className="rounded-lg border bg-muted/20 p-4 space-y-2">
             <div className="text-sm font-medium">Invoice pending</div>
             <div className="text-sm text-muted-foreground">
               Selesaikan pembayaran invoice ini agar tidak terjadi tagihan ganda.
             </div>
-            <Button type="button" size="sm" onClick={resumePendingInvoice}>
-              Lanjutkan pembayaran
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" onClick={resumePendingInvoice}>
+                Lanjutkan pembayaran
+              </Button>
+              <Button asChild type="button" size="sm" variant="outline">
+                <Link href="/billing/riwayat">Riwayat pembayaran</Link>
+              </Button>
+            </div>
           </div>
         )}
 
@@ -84,88 +60,12 @@ export function DesaPackagePurchaseCard(props: DesaPackagePurchaseCardProps) {
               subscriptionPhase={data?.subscription.phase ?? data?.subscription.status}
               hasPurchasedLengkap={data?.subscription.hasPurchasedLengkap}
               onOpenCheckout={openCheckout}
-              checkoutLoading={checkoutLoading || Boolean(pendingInvoice)}
+              checkoutLoading={Boolean(pendingInvoice)}
             />
           ))}
         </div>
 
-        {checkoutError && !checkoutOpen && (
-          <div className="text-sm text-red-600">{checkoutError}</div>
-        )}
-
-        {displayInvoice && !checkoutOpen && (
-          <div className="rounded-lg border p-4 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="font-medium">{displayInvoice.invoiceNumber}</div>
-              <Badge variant={statusBadgeVariant(displayInvoice.status)}>
-                {displayInvoice.status}
-              </Badge>
-              <div className="text-sm text-muted-foreground">
-                Total: {formatIdr(displayInvoice.amount)}
-              </div>
-            </div>
-
-            {displayInvoice.paymentMethod === "va" && displayInvoice.vaNumber && (
-              <div className="text-sm space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-muted-foreground">
-                    Bank: {bankLabelForInvoice ?? displayInvoice.bankCode ?? "-"}
-                  </span>
-                  <span className="text-muted-foreground">VA:</span>
-                  <code className="rounded bg-muted px-2 py-0.5 font-mono">
-                    {displayInvoice.vaNumber}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    type="button"
-                    onClick={() => void copyText(displayInvoice.vaNumber!)}
-                  >
-                    Salin VA
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {displayInvoice.qrImageUrl && (
-              <div>
-                <Image
-                  src={displayInvoice.qrImageUrl}
-                  alt="QR pembayaran"
-                  className="h-56 w-56 rounded-md border object-contain bg-white"
-                  width={225}
-                  height={225}
-                />
-              </div>
-            )}
-            {!displayInvoice.qrImageUrl && displayInvoice.qrContent && (
-              <div className="text-sm break-all">{displayInvoice.qrContent}</div>
-            )}
-            {displayInvoice.paymentUrl && (
-              <div className="text-sm">
-                <a
-                  href={displayInvoice.paymentUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  Buka link pembayaran
-                </a>
-              </div>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={statusCheckLoading}
-              onClick={() => void refreshInvoiceStatus(displayInvoice.id)}
-            >
-              {statusCheckLoading ? "Memeriksa…" : "Cek status pembayaran"}
-            </Button>
-          </div>
-        )}
-
-        {lastInvoice && !displayInvoice && (
+        {lastInvoice && !pendingInvoice && (
           <div className="text-sm text-muted-foreground">
             Invoice terakhir: {lastInvoice.invoiceNumber} ({lastInvoice.status})
           </div>

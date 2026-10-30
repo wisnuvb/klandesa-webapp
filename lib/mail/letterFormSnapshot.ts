@@ -40,61 +40,70 @@ export function parseMailSettings(settings: unknown): VillageMailSettingsFields 
  * Snapshot field untuk form surat — disimpan di MailService.formData agar
  * nilai tetap sama di riwayat meskipun data desa/perangkat berubah.
  */
+/** Kolom desa yang dipakai snapshot. */
+type SnapshotVillage = Pick<Village, "settings" | "regency" | "district" | "name" | "address" | "postalCode">;
+
+const SNAPSHOT_VILLAGE_SELECT = {
+  settings: true,
+  regency: true,
+  district: true,
+  name: true,
+  address: true,
+  postalCode: true,
+} as const;
+
+/**
+ * @param knownVillage baris desa yang sudah dimiliki pemanggil (mis. `ctx.village` dari konteks API);
+ *   bila diberikan, desa tidak dibaca ulang. Tanpa itu, desa dibaca dengan `select` kolom yang perlu saja.
+ */
 export async function buildLetterFormSnapshot(
   villageId: number,
+  knownVillage?: SnapshotVillage | null,
 ): Promise<Record<string, string>> {
-  const village = await prisma.village.findUnique({ where: { id: villageId } });
+  const [village, positions] = await Promise.all([
+    knownVillage ?? prisma.village.findUnique({ where: { id: villageId }, select: SNAPSHOT_VILLAGE_SELECT }),
+    prisma.position.findMany({
+      where: { villageId, isActive: true },
+      orderBy: [{ level: "asc" }, { id: "asc" }],
+      select: { id: true, name: true },
+    }),
+  ]);
   if (!village) return {};
 
   const parsed = parseMailSettings(village.settings);
-
-  const positions = await prisma.position.findMany({
-    where: { villageId, isActive: true },
-    orderBy: [{ level: "asc" }, { id: "asc" }],
-  });
 
   const headPosition =
     positions.find((p) => /^kepala\s+desa$/i.test(p.name.trim())) ??
     positions.find((p) => /\bkepala\s+desa\b/i.test(p.name.trim())) ??
     positions[0];
+  const sekPosition = positions.find((p) => /sekretaris desa/i.test(p.name.trim()));
+
+  const activeOfficial = (positionId: number) =>
+    prisma.official
+      .findMany({
+        where: { villageId, positionId },
+        orderBy: { startDate: "desc" },
+        select: { name: true, status: true, certification: true },
+      })
+      .then((rows) => rows.find((o) => o.status.toLowerCase() === "active") ?? null);
+
+  // Dua pencarian pejabat saling bebas: jalankan bersamaan.
+  const [headOfficial, sek] = await Promise.all([
+    headPosition ? activeOfficial(headPosition.id) : Promise.resolve(null),
+    sekPosition && !parsed.sekretarisNama ? activeOfficial(sekPosition.id) : Promise.resolve(null),
+  ]);
 
   let kepalaNama = parsed.kepalaDesaNama;
   let kepalaNip = parsed.kepalaDesaNip;
-
-  if (headPosition) {
-    const headCandidates = await prisma.official.findMany({
-      where: {
-        villageId,
-        positionId: headPosition.id,
-      },
-      orderBy: { startDate: "desc" },
-    });
-    const headOfficial =
-      headCandidates.find((o) => o.status.toLowerCase() === "active") ?? null;
-    if (headOfficial) {
-      if (!kepalaNama) kepalaNama = headOfficial.name;
-      if (!kepalaNip && headOfficial.certification?.trim()) {
-        kepalaNip = headOfficial.certification.trim();
-      }
+  if (headOfficial) {
+    if (!kepalaNama) kepalaNama = headOfficial.name;
+    if (!kepalaNip && headOfficial.certification?.trim()) {
+      kepalaNip = headOfficial.certification.trim();
     }
   }
 
-  const sekPosition = positions.find((p) =>
-    /sekretaris desa/i.test(p.name.trim()),
-  );
   let sekretarisNama = parsed.sekretarisNama;
-  if (sekPosition && !sekretarisNama) {
-    const sekCandidates = await prisma.official.findMany({
-      where: {
-        villageId,
-        positionId: sekPosition.id,
-      },
-      orderBy: { startDate: "desc" },
-    });
-    const sek =
-      sekCandidates.find((o) => o.status.toLowerCase() === "active") ?? null;
-    if (sek) sekretarisNama = sek.name;
-  }
+  if (sek && !sekretarisNama) sekretarisNama = sek.name;
 
   const out: Record<string, string> = {
     KABUPATEN: village.regency,

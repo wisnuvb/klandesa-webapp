@@ -12,6 +12,7 @@ import { TrialBanner } from "@/components/app/TrialBanner";
 import { LarasFab } from "@/components/ai/LarasFab";
 import { shouldShowLarasFab } from "@/lib/ai/laras-access";
 import { isOnboardingFlowPath } from "@/lib/onboarding";
+import { PageHeaderProvider, usePageHeaderOverride, usePageScrollLocked } from "@/components/layout/PageHeaderContext";
 
 // Map route keys to page metadata — urutan mengikuti sidebar & alur operasional desa
 const pageConfig = {
@@ -245,6 +246,10 @@ const pageConfig = {
     title: "Kelola Blog",
     subtitle: "Buat dan publish artikel blog Klandesa",
   },
+  "admin/pembayaran": {
+    title: "Kanal Pembayaran",
+    subtitle: "Aktifkan atau matikan metode pembayaran LinkQu untuk semua desa",
+  },
 
   // --- Alias legacy (route tidak aktif di sidebar) ---
   layanan: {
@@ -277,6 +282,7 @@ function resolvePageMeta(pageId: string): { title: string; subtitle: string } {
 
 /** Halaman anak yang judulnya berbeda dari menu induknya (sorotan menu tetap mengikuti induk). */
 const SUBPAGE_META: Array<{ prefix: string; title: string; subtitle: string }> = [
+  { prefix: "/billing/riwayat", title: "Riwayat Pembayaran", subtitle: "Lihat kembali tagihan, nomor VA, dan status pembayaran" },
   { prefix: "/layanan-surat/buat", title: "Buat Surat", subtitle: "Isi data, lihat hasilnya di kertas, lalu terbitkan" },
   { prefix: "/layanan-surat/editor", title: "Editor Jenis Surat", subtitle: "Ubah isi dan tampilan surat langsung di kertas" },
 ];
@@ -296,7 +302,16 @@ function derivePageKey(pathname: string): string {
   return "dashboard";
 }
 
+/** Halaman boleh menggantikan judul header lewat `usePageHeader`, jadi penyedianya ada di luar badan shell. */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <PageHeaderProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </PageHeaderProvider>
+  );
+}
+
+function AppShellInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
@@ -317,14 +332,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setActivePage(derivePageKey(pathname));
   }, [pathname]);
 
+  // Primitif, bukan objek `session`: SessionProvider membuat objek baru tiap tab difokuskan ulang,
+  // yang dulu memicu fetch status tagihan dan render ulang seluruh shell setiap kali.
+  const userId = session?.user?.id;
+  const accountType = session?.user?.accountType;
+  const regional = session ? isRegionalAccount(session) : false;
+
   useEffect(() => {
-    if (sessionStatus !== "authenticated" || !session?.user?.id) return;
-    if (
-      isRegionalAccount(session) ||
-      session.user.accountType === "partner" ||
-      session.user.accountType === "platform"
-    )
-      return;
+    if (sessionStatus !== "authenticated" || !userId) return;
+    if (regional || accountType === "partner" || accountType === "platform") return;
 
     const current = pathname || "/";
     if (current.startsWith("/auth")) return;
@@ -346,14 +362,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         const sub = data?.subscription;
         if (!sub || typeof sub.active !== "boolean") return;
 
-        setBillingBanner({
+        const next = {
           phase: String(sub.phase ?? "inactive"),
           daysRemaining: sub.daysRemaining ?? null,
           writable: sub.writable !== false,
           active: sub.active,
           onboardingDone: Boolean(data?.village?.onboardingCompletedAt),
           expiringSoon: sub.expiringSoon === true,
-        });
+        };
+        // Isi sama = tidak ada render ulang.
+        setBillingBanner((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
 
         if (!sub.active && !current.startsWith("/billing")) {
           router.replace("/billing");
@@ -374,7 +392,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
 
     void check();
-  }, [pathname, router, session, sessionStatus]);
+  }, [pathname, router, sessionStatus, userId, accountType, regional]);
 
   const { title, subtitle } = useMemo(
     () =>
@@ -382,6 +400,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       resolvePageMeta(activePage),
     [activePage, pathname],
   );
+
+  const headerOverride = usePageHeaderOverride();
+  const scrollLocked = usePageScrollLocked();
 
   const handlePageChange = (page: string) => {
     setActivePage(page);
@@ -397,7 +418,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     shouldShowLarasFab(pathname);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    // overflow-clip (bukan hidden): kontainer hidden tetap bisa digulir lewat scrollIntoView/fokus sehingga sidebar & header ikut bergeser.
+    // relative: elemen absolute tanpa induk berposisi (sr-only, input tersembunyi Radix) memakai viewport sebagai acuan,
+    // lolos dari pemotongan, dan memperpanjang dokumen sehingga seluruh halaman bisa digulir.
+    <div className="relative flex h-screen bg-background overflow-clip">
       <Sidebar
         activePage={activePage}
         onPageChange={handlePageChange}
@@ -417,13 +441,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
         )}
         <Header
-          title={title}
-          subtitle={subtitle}
+          title={headerOverride?.title ?? title}
+          subtitle={headerOverride ? headerOverride.subtitle : subtitle}
+          back={headerOverride?.back}
           onMenuClick={() => setIsSidebarOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-6">{children}</div>
+        <main className={scrollLocked ? "min-h-0 flex-1 overflow-hidden" : "flex-1 overflow-y-auto"}>
+          <div className={scrollLocked ? "h-full p-6" : "p-6"}>{children}</div>
         </main>
       </div>
 

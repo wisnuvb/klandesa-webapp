@@ -7,6 +7,7 @@ import { LIMITS, type Block, type LetterDocument } from "@/lib/letters/document/
 import type { EditorApi } from "@/lib/letters/editor";
 import { PERSON_FIELDS, personFieldLabel } from "@/lib/letters/registry";
 import { Button } from "@/components/ui/button";
+import { signaturePlace } from "@/components/letters/LetterPaper";
 import * as H from "./helpers";
 import { CheckField, Disclosure, EmptyNote, FieldError, NumberField, RadioCards, SelectField, Section, TextField, hintClass, labelClass } from "./ui";
 
@@ -20,6 +21,20 @@ const ALIGN_OPTIONS = [
   { value: "justify" as const, label: "Rata kiri-kanan" },
 ];
 const ALIGN3_OPTIONS = ALIGN_OPTIONS.filter((o) => o.value !== "justify") as Array<{ value: "left" | "center" | "right"; label: string }>;
+const SPREAD_OPTIONS = [
+  { value: "fill" as const, label: "Kolom sama lebar" },
+  { value: "evenly" as const, label: "Sama rata (jarak sama)" },
+  { value: "around" as const, label: "Jarak di sekeliling" },
+  { value: "between" as const, label: "Rapat ke tepi kiri & kanan" },
+  { value: "start" as const, label: "Rapat kiri" },
+  { value: "center" as const, label: "Tengah" },
+  { value: "end" as const, label: "Rapat kanan" },
+];
+const ALIGN3_PLACE = [
+  { value: "left" as const, label: "Kiri" },
+  { value: "center" as const, label: "Tengah" },
+  { value: "right" as const, label: "Kanan" },
+];
 
 /** Pembuat fungsi ubah bagian bertipe tetap (jenis tidak pernah berganti). */
 function useUpdate<T extends Block["type"]>(editor: EditorApi, block: B<T>) {
@@ -341,6 +356,8 @@ export function SignatureInspector({ block, doc, editor }: InspectorProps<"signa
     [doc.people, doc.groups],
   );
   const [presetNote, setPresetNote] = useState<string | null>(null);
+  const sideBySide = block.layout === "row" && (block.slots.length > 1 || block.slots.some((x) => x.who.kind === "grup"));
+  const spread = block.spread ?? "fill";
   const applyPreset = (id: (typeof H.SIGNATURE_SLOT_PRESETS)[number]["id"]) => {
     const slots = H.slotsFromPreset(doc, id);
     if (!slots) return setPresetNote("Susunan ini membutuhkan orang atau daftar tambahan. Tambahkan lewat menu Tambah bagian.");
@@ -357,6 +374,24 @@ export function SignatureInspector({ block, doc, editor }: InspectorProps<"signa
         onChange={(layout) => up((b) => H.patchBlock(b, { layout }))}
         options={[{ value: "row", label: "Berdampingan" }, { value: "stack", label: "Bertumpuk" }]}
       />
+      {block.dateline?.length ? (
+        <SelectField
+          label="Rata tempat & tanggal"
+          hint="Baris di atas tanda tangan, mis. “Brambang, 29 Oktober 2026”."
+          value={block.datelineAlign ?? "right"}
+          options={ALIGN3_OPTIONS}
+          onChange={(v) => up((b) => H.patchBlock(b, { datelineAlign: v === "right" ? undefined : v }))}
+        />
+      ) : null}
+      {sideBySide && (
+        <SelectField
+          label="Sebaran penanda tangan"
+          hint="Cara membagi ruang di antara penanda tangan yang berdampingan."
+          value={spread}
+          options={SPREAD_OPTIONS}
+          onChange={(v) => up((b) => H.patchBlock(b, { spread: v === "fill" ? undefined : v }))}
+        />
+      )}
       <fieldset>
         <legend className={labelClass}>Ganti dengan susunan siap pakai</legend>
         <div className="grid gap-2">
@@ -373,6 +408,9 @@ export function SignatureInspector({ block, doc, editor }: InspectorProps<"signa
           <SlotEditor
             key={slot.id}
             slot={slot}
+            layout={block.layout}
+            sideBySide={sideBySide}
+            spreadActive={sideBySide && spread !== "fill"}
             index={i}
             count={block.slots.length}
             whoOptions={whoOptions}
@@ -392,9 +430,14 @@ export function SignatureInspector({ block, doc, editor }: InspectorProps<"signa
 type Slot = B<"signature">["slots"][number];
 
 function SlotEditor({
-  slot, index, count, whoOptions, onPatch, onMove, onRemove,
+  slot, layout, sideBySide, spreadActive, index, count, whoOptions, onPatch, onMove, onRemove,
 }: {
   slot: Slot;
+  layout: "row" | "stack";
+  /** Beberapa penanda tangan sejajar dalam satu baris: blok bisa selebar kolom. */
+  sideBySide: boolean;
+  /** "Sebaran penanda tangan" aktif: letak per blok tidak berlaku. */
+  spreadActive: boolean;
   index: number;
   count: number;
   whoOptions: Array<{ value: string; label: string }>;
@@ -441,7 +484,16 @@ function SlotEditor({
       <Disclosure>
         <CheckField label="Tampilkan nama" checked={slot.showName} onChange={(showName) => onPatch({ showName })} />
         <CheckField label="Tampilkan NIP" checked={slot.showNip} onChange={(showNip) => onPatch({ showNip })} />
-        <SelectField label="Posisi" value={slot.align} options={ALIGN3_OPTIONS} onChange={(align) => onPatch({ align })} />
+        {!spreadActive && (
+          <SelectField
+            label="Letak di halaman"
+            hint="Di sisi mana blok tanda tangan ditaruh."
+            value={signaturePlace(layout, sideBySide, slot)}
+            options={sideBySide ? [{ value: "fill" as const, label: "Selebar kolom" }, ...ALIGN3_PLACE] : ALIGN3_PLACE}
+            onChange={(v) => onPatch({ place: v === "fill" ? undefined : v })}
+          />
+        )}
+        <SelectField label="Rata tulisan" hint="Posisi jabatan dan nama di dalam blok." value={slot.align} options={ALIGN3_OPTIONS} onChange={(align) => onPatch({ align })} />
         <NumberField label="Ruang untuk tanda tangan" unit="mm" min={10} max={60} value={slot.gapMm} onCommit={(gapMm) => onPatch({ gapMm })} />
       </Disclosure>
       <Button type="button" variant="ghost" size="sm" className="min-h-11 text-destructive hover:text-destructive" disabled={count <= 1} onClick={onRemove}>

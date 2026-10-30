@@ -13,6 +13,27 @@ import type {
   LinkquCreatePaymentResponse,
 } from "@/lib/linkqu/types";
 import { verifyLinkquCallbackSignature } from "@/lib/linkqu";
+import { logger } from "@/lib/logger";
+import { isChannelInactiveResponse, markChannelHealthy, markChannelUnavailable } from "@/lib/payment/channel-health";
+import { getAdminDisabledChannels, recordChannelFailure } from "@/lib/payment/channel-settings";
+import { checkoutChannelCode, evaluateCheckoutChannel } from "@/lib/payment/linkqu-channels";
+import {
+  addMonths,
+  monthsFromInvoiceItems,
+  parseDurationMonths,
+  priceForMonths,
+  type SubscriptionMonths,
+} from "@/lib/billing/duration";
+import {
+  ATTENDANCE_CAPACITY_MODULE_CODE,
+  isCapacityAddonCode,
+  isGpsAddonActive,
+  nextCapacityExpiry,
+  nextGpsAddonExpiry,
+  validateCapacityPurchase,
+  capacityAddonStaffLimit,
+} from "@/lib/attendance/addons";
+import { getActiveCapacityAddon } from "@/lib/attendance/capacity-server";
 import { getLinkquClient, getLinkquConfig } from "@/lib/billing/linkqu";
 import {
   ABSENSI_GPS_ADDON_PLAN_CODE,
@@ -25,6 +46,13 @@ import { isVillageSubscriptionReadable } from "@/lib/subscription";
 import { isLegacyTier, LENGKAP_TIER, lengkapLineItems, lengkapNextExpiry, parseRenewalMonths } from "@/lib/billing/lengkap";
 import { AI_ASSISTANT_NAME } from "@/lib/ai/persona";
 import { accrueSubscriptionCommissionInTx } from "@/lib/partner/commission";
+import {
+  checkSubdomainAvailability,
+  registerPendingCustomDomainInTx,
+  registerPrimarySubdomainInTx,
+} from "@/lib/domain/service";
+import { validateHostnameFqdn } from "@/lib/domain/validators";
+import { isWebsiteSubscriptionLive, nextWebsiteExpiry } from "@/lib/website-engine/subscription-state";
 
 export type BillingPaymentMethod = "qris" | "va" | "ewallet";
 
@@ -41,6 +69,8 @@ export type BillingCheckoutInput = {
   bankCode?: string;
   retailCode?: "PAYDANA" | "PAYLINKAJA" | "PAYSHOPEEPAY";
   ewalletPhone?: string;
+  /** URL webhook absolut untuk tagihan ini, dibentuk dari host permintaan (`buildLinkquCallbackUrl`). */
+  callbackUrl: string;
   metadata?: Prisma.InputJsonValue;
 };
 
@@ -48,6 +78,14 @@ function buildInvoiceNumber(villageCode: string): string {
   const ts = Date.now();
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
   return `INV-${villageCode}-${ts}-${rand}`;
+}
+
+/** partner_reff LinkQu: digit saja (13 digit waktu + 6 digit acak) agar cocok dengan checkstatus dan rumus signature. */
+function buildPartnerReff(): string {
+  const rand = Math.floor(Math.random() * 1_000_000)
+    .toString()
+    .padStart(6, "0");
+  return `${Date.now()}${rand}`;
 }
 
 function normalizeMoney(amount: number): number {
@@ -89,6 +127,21 @@ function parseCallbackStatus(
   return "pending";
 }
 
+/** Lama langganan yang diminta klien (metadata.months); kosong = 1 bulan, nilai di luar pilihan ditolak. */
+function requestedMonths(metadata: BillingCheckoutInput["metadata"]): SubscriptionMonths {
+  const raw =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>).months
+      : undefined;
+  const months = parseDurationMonths(raw);
+  if (months == null) throw new Error("Durasi langganan tidak valid");
+  return months;
+}
+
+const monthsSuffix = (months: number) => (months > 1 ? ` — ${months} bulan` : "");
+const termText = (months: number, renewal: boolean) =>
+  `${renewal ? "Perpanjangan" : "Langganan"} ${months} bulan`;
+
 type CheckoutLineItem = {
   name: string;
   description?: string;
@@ -124,6 +177,7 @@ async function prepareCheckoutLineItems(
       subscriptionStatus: true,
       subscriptionExpiry: true,
       absensiGpsAddonActive: true,
+      absensiGpsAddonExpiry: true,
     },
   });
   if (!village) throw new Error("Village tidak ditemukan");
@@ -178,20 +232,35 @@ async function prepareCheckoutLineItems(
       metadata: { kind: "annual_fee", tier },
     });
   } else if (input.productType === "absensi") {
-    const tier = input.planCode;
-    const tierInfo = (
-      BILLING_CATALOG.absensi.tiers as Record<
-        string,
-        { name: string; monthlyFee: number }
-      >
-    )[tier];
-    if (!tierInfo) throw new Error("Paket absensi tidak valid");
+    // Add-on kapasitas absensi (langganan bulanan). Tidak mengubah paket desa; kapasitas efektif = terbesar
+    // antara paket dan add-on aktif (lib/attendance/addons.ts).
+    if (!isVillageSubscriptionReadable(village)) {
+      throw new Error("Langganan desa tidak aktif. Aktifkan paket desa di halaman Tagihan.");
+    }
+    const active = await getActiveCapacityAddon(village.id);
+    const purchase = validateCapacityPurchase({
+      plan: village.subscriptionPlan,
+      code: input.planCode,
+      active,
+    });
+    if (!purchase.ok) throw new Error(purchase.error);
+    const tierInfo = BILLING_CATALOG.absensi.tiers[purchase.code];
+    const staffLimit = capacityAddonStaffLimit(purchase.code);
+    const months = requestedMonths(input.metadata);
+    const total = priceForMonths(purchase.price, months);
     lineItems.push({
-      name: `Absensi Perangkat (${tierInfo.name})`,
+      name: `Kapasitas Absensi ${staffLimit} Perangkat (${tierInfo.name})${monthsSuffix(months)}`,
+      description: termText(months, purchase.isRenewal),
       quantity: 1,
-      unitAmount: tierInfo.monthlyFee,
-      totalAmount: tierInfo.monthlyFee,
-      metadata: { kind: "monthly_fee", tier },
+      unitAmount: total,
+      totalAmount: total,
+      metadata: {
+        kind: "absensi_capacity_monthly",
+        tier: purchase.code,
+        staffLimit,
+        listPrice: tierInfo.monthlyFee,
+        months,
+      },
     });
   } else if (input.productType === "absensi_gps_addon") {
     if (input.planCode !== ABSENSI_GPS_ADDON_PLAN_CODE) {
@@ -200,17 +269,21 @@ async function prepareCheckoutLineItems(
     if (!isVillageSubscriptionReadable(village)) {
       throw new Error("Langganan desa tidak aktif. Aktifkan paket desa di halaman Tagihan.");
     }
-    if (village.absensiGpsAddonActive) {
+    // Aktif tanpa batas waktu (desa lama / diaktifkan admin) tidak perlu dibayar; yang berbatas waktu boleh diperpanjang.
+    if (isGpsAddonActive(village) && village.absensiGpsAddonExpiry == null) {
       throw new Error("Add-on GPS sudah aktif untuk desa ini.");
     }
     const addon = BILLING_CATALOG.absensi_gps_addon;
+    const renewal = isGpsAddonActive(village);
+    const months = requestedMonths(input.metadata);
+    const total = priceForMonths(addon.monthlyFee, months);
     lineItems.push({
-      name: addon.name,
-      description: "Langganan bulanan",
+      name: `${addon.name}${monthsSuffix(months)}`,
+      description: termText(months, renewal),
       quantity: 1,
-      unitAmount: addon.monthlyFee,
-      totalAmount: addon.monthlyFee,
-      metadata: { kind: "absensi_gps_monthly", planCode: ABSENSI_GPS_ADDON_PLAN_CODE },
+      unitAmount: total,
+      totalAmount: total,
+      metadata: { kind: "absensi_gps_monthly", planCode: ABSENSI_GPS_ADDON_PLAN_CODE, months },
     });
   } else if (input.productType === "arsip") {
     const tier = input.planCode;
@@ -231,12 +304,14 @@ async function prepareCheckoutLineItems(
       active: isArsipAddonActive(activeArsip) ? activeArsip : null,
     });
     if (!purchase.ok) throw new Error(purchase.error);
+    const months = requestedMonths(input.metadata);
+    const total = priceForMonths(tierInfo.monthlyFee, months);
     lineItems.push({
-      name: `Arsip Digital ${tierInfo.storageGb} GB (langganan bulanan)`,
+      name: `Arsip Digital ${tierInfo.storageGb} GB (${months > 1 ? `${months} bulan` : "langganan bulanan"})`,
       quantity: 1,
-      unitAmount: tierInfo.monthlyFee,
-      totalAmount: tierInfo.monthlyFee,
-      metadata: { kind: "monthly_fee", tier, storageGb: tierInfo.storageGb },
+      unitAmount: total,
+      totalAmount: total,
+      metadata: { kind: "monthly_fee", tier, storageGb: tierInfo.storageGb, months },
     });
   } else if (input.productType === "website") {
     const templateId = Number(input.planCode);
@@ -257,14 +332,50 @@ async function prepareCheckoutLineItems(
     }
 
     const now = new Date();
-    const hasActiveSub =
-      Boolean(currentSub?.isActive) &&
-      Boolean(currentSub?.expiryDate) &&
-      currentSub!.expiryDate.getTime() > now.getTime();
+    const hasActiveSub = isWebsiteSubscriptionLive(currentSub, now);
+    const sameTemplate = currentSub?.templateId === templateId;
 
     const nextPrice = Number(nextTemplate.price);
 
-    if (!hasActiveSub) {
+    if (sameTemplate) {
+      // Perpanjangan template yang sama: harga penuh 1 tahun, masa aktif disambung, kustomisasi dipertahankan.
+      lineItems.push({
+        name: `Perpanjang Website Desa (${nextTemplate.name})`,
+        description: "Perpanjangan website desa 1 tahun",
+        quantity: 1,
+        unitAmount: nextPrice,
+        totalAmount: nextPrice,
+        metadata: {
+          kind: "website_renewal",
+          templateId,
+          mode: "renew",
+          currentExpiry: currentSub!.expiryDate.toISOString(),
+        },
+      });
+    } else if (!hasActiveSub) {
+      if (!currentSub) {
+        // Aktivasi pertama: alamat dipilih sekarang, jadi pastikan valid dan belum dipakai sebelum ditagih.
+        const meta = input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
+          ? (input.metadata as Record<string, unknown>)
+          : null;
+        const web = meta && typeof meta.website === "object" && meta.website
+          ? (meta.website as Record<string, unknown>)
+          : null;
+        const domainType = String(web?.domainType ?? "");
+        const domainValue = String(web?.domain ?? "").trim();
+        if (domainType === "subdomain") {
+          const chk = await checkSubdomainAvailability(domainValue, input.villageId);
+          if (!chk.ok) throw new Error(chk.error);
+        } else if (domainType === "custom") {
+          const v = validateHostnameFqdn(domainValue);
+          if (!v.ok) throw new Error(v.error);
+          const used = await prisma.websiteDomain.findUnique({
+            where: { hostname: v.value },
+            select: { villageId: true },
+          });
+          if (used && used.villageId !== input.villageId) throw new Error("Domain sudah dipakai desa lain");
+        }
+      }
       lineItems.push({
         name: `Website Desa (${nextTemplate.name})`,
         description: "Aktivasi website desa 1 tahun",
@@ -334,13 +445,15 @@ async function prepareCheckoutLineItems(
       >
     )[code];
     if (!tierInfo) throw new Error("Modul add-on tidak valid");
+    const months = requestedMonths(input.metadata);
+    const total = priceForMonths(tierInfo.monthlyFee, months);
     lineItems.push({
-      name: `Modul ${tierInfo.name}`,
-      description: "Langganan bulanan",
+      name: `Modul ${tierInfo.name}${monthsSuffix(months)}`,
+      description: termText(months, false),
       quantity: 1,
-      unitAmount: tierInfo.monthlyFee,
-      totalAmount: tierInfo.monthlyFee,
-      metadata: { kind: "module_addon_monthly", moduleCode: code },
+      unitAmount: total,
+      totalAmount: total,
+      metadata: { kind: "module_addon_monthly", moduleCode: code, months },
     });
   } else {
     throw new Error("Produk belum didukung");
@@ -351,8 +464,39 @@ async function prepareCheckoutLineItems(
   return { lineItems, amount };
 }
 
+/** JSON.stringify dengan urutan kunci stabil (MySQL JSON menyusun ulang kunci objek). */
+function stableJson(value: unknown): string {
+  if (value == null || typeof value !== "object") return JSON.stringify(value ?? null);
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  return `{${Object.keys(obj)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${stableJson(obj[k])}`)
+    .join(",")}}`;
+}
+
+/** Tagihan pending hanya dipakai ulang bila produk, paket, dan cara bayarnya persis sama. */
+function sameCheckoutIntent(
+  inv: {
+    planCode: string;
+    paymentMethod: string | null;
+    bankCode: string | null;
+    retailCode: string | null;
+    metadata: unknown;
+  },
+  input: BillingCheckoutInput,
+): boolean {
+  if (inv.planCode !== input.planCode) return false;
+  if (inv.paymentMethod !== input.paymentMethod) return false;
+  if (input.paymentMethod === "va" && inv.bankCode !== (input.bankCode ?? null)) return false;
+  if (input.paymentMethod === "ewallet" && inv.retailCode !== (input.retailCode ?? null)) return false;
+  return stableJson(inv.metadata) === stableJson(input.metadata);
+}
+
 export async function createCheckout(input: BillingCheckoutInput) {
-  const existingPending = await prisma.billingInvoice.findFirst({
+  if (!input.callbackUrl) throw new Error("callbackUrl wajib diisi");
+
+  const existingPending = await prisma.billingInvoice.findMany({
     where: {
       villageId: input.villageId,
       productType: input.productType,
@@ -362,17 +506,26 @@ export async function createCheckout(input: BillingCheckoutInput) {
     orderBy: { createdAt: "desc" },
     include: { items: true },
   });
-  if (existingPending) {
-    return { invoice: existingPending, reused: true as const };
+  const reusable = existingPending.find((inv) => sameCheckoutIntent(inv, input));
+  if (reusable) return { invoice: reusable, reused: true as const };
+  if (existingPending.length >= 5) {
+    throw new Error("Terlalu banyak tagihan yang belum dibayar. Selesaikan atau tunggu tagihan sebelumnya kedaluwarsa.");
   }
 
   const invoiceNumber = buildInvoiceNumber(input.villageCode);
-  const partnerReff = invoiceNumber;
+  const partnerReff = buildPartnerReff();
 
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
   const expiredStr = getLinkquExpiredMinutesFromNow(30);
 
   const { lineItems, amount } = await prepareCheckoutLineItems(input);
+
+  // Tolak kanal yang tidak tersedia (ditutup lewat env, baru saja ditolak LinkQu, atau di luar batas nominal)
+  // sebelum membuat tagihan, memakai nominal resmi hasil hitungan server.
+  const channel = evaluateCheckoutChannel(input, amount, await getAdminDisabledChannels());
+  if (!channel.available) {
+    throw new Error(`${channel.label} tidak bisa dipakai: ${channel.reason ?? "sedang tidak tersedia"}. Silakan pilih metode lain.`);
+  }
 
   const linkqu = getLinkquClient();
 
@@ -386,6 +539,7 @@ export async function createCheckout(input: BillingCheckoutInput) {
         customerEmail: input.customerEmail,
         customerPhone: input.customerPhone,
         expired: expiredStr,
+        callbackUrl: input.callbackUrl,
         remark: `${input.productType}:${input.planCode}`,
       });
     }
@@ -400,6 +554,7 @@ export async function createCheckout(input: BillingCheckoutInput) {
         customerEmail: input.customerEmail,
         customerPhone: input.customerPhone,
         expired: expiredStr,
+        callbackUrl: input.callbackUrl,
         bankCode: input.bankCode,
         remark: `${input.productType}:${input.planCode}`,
       });
@@ -417,6 +572,7 @@ export async function createCheckout(input: BillingCheckoutInput) {
         customerEmail: input.customerEmail,
         customerPhone: input.customerPhone,
         expired: expiredStr,
+        callbackUrl: input.callbackUrl,
         retailCode: input.retailCode,
         ewalletPhone: input.ewalletPhone,
         billTitle: `Klandesa - ${input.productType}`,
@@ -424,7 +580,26 @@ export async function createCheckout(input: BillingCheckoutInput) {
     }
 
     throw new Error("Metode pembayaran tidak valid");
-  })();
+  })().then(
+    (response) => {
+      const code = checkoutChannelCode(input);
+      if (code) markChannelHealthy(code);
+      return response;
+    },
+    (error: unknown) => {
+      // Penolakan yang menandakan KANAL tidak aktif: sembunyikan dari pilihan pengguna berikutnya untuk sementara.
+      const r = (error as { linkquResponse?: { response_code?: unknown; response_desc?: unknown } }).linkquResponse;
+      const code = checkoutChannelCode(input);
+      if (code && isChannelInactiveResponse(r)) {
+        markChannelUnavailable(code, "Sedang tidak tersedia, coba lagi nanti");
+        // Tampilkan di panel admin supaya tim tahu kanal mana yang ditolak LinkQu (tidak menunggu).
+        void recordChannelFailure(code, String(r?.response_desc ?? r?.response_code ?? "Ditolak LinkQu"));
+        logger.warn({ code, linkquResponse: r }, "[LinkQu] Kanal ditandai tidak tersedia sementara");
+        throw new Error(`${channel.label} sedang tidak tersedia. Silakan pilih metode lain.`);
+      }
+      throw error;
+    },
+  );
 
   const fields = resolvePaymentFields(linkquResponse);
 
@@ -468,6 +643,14 @@ export async function createCheckout(input: BillingCheckoutInput) {
   return { invoice: created, reused: false as const };
 }
 
+type InvoiceWithItems = Prisma.BillingInvoiceGetPayload<{ include: { items: true } }>;
+
+/** Callback jenis lain (mis. `settle` = pencairan dana ke merchant) hanya diakui, tidak mengubah tagihan. */
+function isPaymentCallbackType(type: unknown): boolean {
+  const t = String(type ?? "pay").trim().toLowerCase();
+  return t === "" || t === "pay";
+}
+
 export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
   const config = getLinkquConfig();
   const signatureValid = verifyLinkquCallbackSignature(
@@ -494,12 +677,11 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
   }
 
   const mapped = parseCallbackStatus(payload.status);
-  const paid = mapped === "paid";
 
   const amount = payload.amount == null ? null : Number(payload.amount);
   const invoiceAmount = Number(invoice.amount);
   const amountMatches =
-    amount == null || Math.round(amount) === Math.round(invoiceAmount);
+    amount != null && Number.isFinite(amount) && Math.round(amount) === Math.round(invoiceAmount);
 
   await prisma.billingPaymentEvent.create({
     data: {
@@ -518,9 +700,77 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
     return { ok: false, status: 400 as const, error: "Signature tidak valid" };
   }
 
+  if (!isPaymentCallbackType(payload.type)) {
+    return { ok: true, status: 200 as const, invoiceStatus: invoice.status };
+  }
+
   if (!amountMatches) {
     return { ok: false, status: 400 as const, error: "Amount tidak sesuai" };
   }
+
+  return applyInvoiceOutcome(invoice, mapped, {
+    rawStatus: payload.status ? String(payload.status) : null,
+    transactionId: payload.transaction_id ? String(payload.transaction_id) : null,
+    source: "callback",
+  });
+}
+
+/**
+ * Rekonsiliasi saat callback belum/tidak masuk (mis. dev lokal, atau webhook gagal): tanya status ke LinkQu
+ * lalu terapkan hasilnya lewat jalur yang sama dengan callback. Mengembalikan status invoice terbaru.
+ */
+export async function syncInvoiceWithLinkqu(invoiceId: bigint): Promise<string | null> {
+  const invoice = await prisma.billingInvoice.findUnique({
+    where: { id: invoiceId },
+    include: { items: true },
+  });
+  if (!invoice) return null;
+  if (invoice.status !== "pending") return invoice.status;
+
+  const status = await getLinkquClient().checkStatus(invoice.partnerReff);
+  const data = status?.data;
+  if (!data) return invoice.status;
+
+  const statusTrx = String(data.status_trx ?? "").trim().toLowerCase();
+  const statusPaid = String(data.status_paid ?? "").trim().toLowerCase();
+  const paid = statusTrx === "success" || statusPaid === "paid" || statusPaid === "settle";
+  if (!paid) return invoice.status;
+
+  const paidAmount = Number(String(data.amount ?? "").replace(/[^\d]/g, ""));
+  if (!Number.isFinite(paidAmount) || paidAmount !== Math.round(Number(invoice.amount))) {
+    logger.warn(
+      { invoiceId: String(invoice.id), paidAmount: data.amount, expected: Number(invoice.amount) },
+      "[LinkQu] Status sync: nominal tidak cocok",
+    );
+    return invoice.status;
+  }
+
+  await prisma.billingPaymentEvent.create({
+    data: {
+      invoiceId: invoice.id,
+      partnerReff: invoice.partnerReff,
+      transactionId: null,
+      status: statusTrx || statusPaid,
+      signatureValid: true,
+      payload: { source: "status_sync", ...status } as unknown as object,
+    },
+  });
+
+  const result = await applyInvoiceOutcome(invoice, "paid", {
+    rawStatus: statusTrx || statusPaid,
+    transactionId: null,
+    source: "status_sync",
+  });
+  return result.invoiceStatus;
+}
+
+async function applyInvoiceOutcome(
+  invoice: InvoiceWithItems,
+  mapped: "paid" | "expired" | "failed" | "pending",
+  src: { rawStatus: string | null; transactionId: string | null; source: "callback" | "status_sync" },
+) {
+  const paid = mapped === "paid";
+  const invoiceAmount = Number(invoice.amount);
 
   if (invoice.status === "paid") {
     return { ok: true, status: 200 as const, invoiceStatus: invoice.status };
@@ -535,23 +785,25 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
-    await tx.billingInvoice.update({
-      where: { id: invoice.id },
+    // Update bersyarat: callback ganda/bersamaan atau sinkron status yang berlomba hanya satu yang menang,
+    // sehingga masa berlaku dan komisi tidak bertambah dua kali.
+    const claimed = await tx.billingInvoice.updateMany({
+      where: { id: invoice.id, status: { not: "paid" } },
       data: {
         status: nextStatus,
         paidAt: paid ? now : null,
-        externalTransactionId: payload.transaction_id
-          ? String(payload.transaction_id)
-          : null,
+        ...(src.transactionId ? { externalTransactionId: src.transactionId } : {}),
         metadata: {
           ...(typeof invoice.metadata === "object" && invoice.metadata
             ? (invoice.metadata as object)
             : {}),
           lastCallbackAt: now.toISOString(),
-          lastCallbackStatus: payload.status ?? null,
+          lastCallbackStatus: src.rawStatus,
+          lastCallbackSource: src.source,
         },
       },
     });
+    if (claimed.count === 0) return;
 
     if (!paid) return;
 
@@ -615,7 +867,7 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
         select: { planCode: true, status: true, expiryDate: true, startDate: true },
       });
       const active = isArsipAddonActive(existing) ? existing : null;
-      const expiry = nextArsipExpiry({ now, active, tierCode: tier });
+      const expiry = nextArsipExpiry({ now, active, tierCode: tier, months: monthsFromInvoiceItems(invoice.items) });
       await tx.villageModuleSubscription.upsert({
         where: { villageId_moduleCode: { villageId: invoice.villageId, moduleCode: ARSIP_ADDON_MODULE_CODE } },
         create: { villageId: invoice.villageId, moduleCode: ARSIP_ADDON_MODULE_CODE, planCode: tier, status: "active", startDate: now, expiryDate: expiry },
@@ -629,28 +881,43 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
     }
 
     if (invoice.productType === "absensi") {
-      const tier = invoice.planCode;
-      const mappedTier = ((): string => {
-        if (tier === "starter") return "starter";
-        if (tier === "professional") return "profesional";
-        if (tier === "enterprise") return "enterprise";
-        return String(tier);
-      })();
-
-      await tx.village.update({
-        where: { id: invoice.villageId },
-        data: {
-          subscriptionPlan: mappedTier,
-          subscriptionStatus: "active",
-          subscriptionDate: now,
-        },
+      // Add-on kapasitas: tidak menyentuh paket desa. Satu baris per desa; perpanjangan tier sama menyambung masa berlaku.
+      const code = invoice.planCode;
+      const existing = await tx.villageModuleSubscription.findUnique({
+        where: { villageId_moduleCode: { villageId: invoice.villageId, moduleCode: ATTENDANCE_CAPACITY_MODULE_CODE } },
+        select: { planCode: true, status: true, expiryDate: true, startDate: true },
+      });
+      const stillActive =
+        existing != null && existing.status === "active" && existing.expiryDate.getTime() > now.getTime();
+      if (!isCapacityAddonCode(code)) throw new Error(`Kode kapasitas absensi tidak valid: ${code}`);
+      const active =
+        stillActive && isCapacityAddonCode(existing.planCode)
+          ? { code: existing.planCode, expiresAt: existing.expiryDate }
+          : null;
+      const expiry = nextCapacityExpiry({ now, active, code, months: monthsFromInvoiceItems(invoice.items) });
+      const sameTier = stillActive && existing.planCode === code;
+      await tx.villageModuleSubscription.upsert({
+        where: { villageId_moduleCode: { villageId: invoice.villageId, moduleCode: ATTENDANCE_CAPACITY_MODULE_CODE } },
+        create: { villageId: invoice.villageId, moduleCode: ATTENDANCE_CAPACITY_MODULE_CODE, planCode: code, status: "active", startDate: now, expiryDate: expiry },
+        update: { planCode: code, status: "active", startDate: sameTier ? existing.startDate : now, expiryDate: expiry },
       });
     }
 
     if (invoice.productType === "absensi_gps_addon") {
+      const current = await tx.village.findUnique({
+        where: { id: invoice.villageId },
+        select: { absensiGpsAddonActive: true, absensiGpsAddonExpiry: true },
+      });
+      // Flag aktif tanpa expiry (desa lama) tidak diberi batas baru oleh pembayaran ini.
+      const unlimited = current?.absensiGpsAddonActive === true && current.absensiGpsAddonExpiry == null;
       await tx.village.update({
         where: { id: invoice.villageId },
-        data: { absensiGpsAddonActive: true },
+        data: {
+          absensiGpsAddonActive: true,
+          ...(unlimited
+            ? {}
+            : { absensiGpsAddonExpiry: nextGpsAddonExpiry({ now, currentExpiry: current?.absensiGpsAddonExpiry, months: monthsFromInvoiceItems(invoice.items) }) }),
+        },
       });
     }
 
@@ -685,31 +952,37 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
       });
       if (!template?.isActive) return;
 
-      const expiry = new Date(now);
-      expiry.setFullYear(expiry.getFullYear() + 1);
+      const existingSub = await tx.websiteSubscription.findUnique({
+        where: { villageId: invoice.villageId },
+        select: { templateId: true, expiryDate: true },
+      });
+      const sameTemplate = existingSub?.templateId === templateId;
+      const expiry = nextWebsiteExpiry({
+        now,
+        currentExpiry: existingSub?.expiryDate ?? null,
+        sameTemplate,
+      });
 
-      const meta =
-        invoice.metadata && typeof invoice.metadata === "object"
-          ? (invoice.metadata as Record<string, unknown>)
-          : null;
-      const websiteMeta =
-        meta && typeof meta.website === "object" && meta.website
-          ? (meta.website as Record<string, unknown>)
-          : null;
+      // Alamat hanya didaftarkan pada aktivasi pertama; ganti template/perpanjangan tidak mengubah domain.
+      if (!existingSub) {
+        const meta =
+          invoice.metadata && typeof invoice.metadata === "object"
+            ? (invoice.metadata as Record<string, unknown>)
+            : null;
+        const websiteMeta =
+          meta && typeof meta.website === "object" && meta.website
+            ? (meta.website as Record<string, unknown>)
+            : null;
+        const domainType = String(websiteMeta?.domainType ?? "");
+        const domainValue = String(websiteMeta?.domain ?? "").trim();
 
-      const domainType = String(websiteMeta?.domainType ?? "");
-      const domainValue = String(websiteMeta?.domain ?? "").trim();
-
-      const isCustom = domainType === "custom" && domainValue.length > 0;
-      const isSubdomain = domainType === "subdomain" && domainValue.length > 0;
-
-      if (isSubdomain) {
-        await tx.village.update({
-          where: { id: invoice.villageId },
-          data: {
-            website: `${domainValue}.klandesa.id`,
-          },
-        });
+        if (domainType === "subdomain" && domainValue) {
+          const r = await registerPrimarySubdomainInTx(tx, { villageId: invoice.villageId, label: domainValue });
+          if (!r.ok) logger.warn({ invoiceId: String(invoice.id), error: r.error }, "website subdomain not registered");
+        } else if (domainType === "custom" && domainValue) {
+          const r = await registerPendingCustomDomainInTx(tx, { villageId: invoice.villageId, hostname: domainValue });
+          if (!r.ok) logger.warn({ invoiceId: String(invoice.id), error: r.error }, "website custom domain not registered");
+        }
       }
 
       await tx.websiteSubscription.upsert({
@@ -720,23 +993,30 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
           startDate: now,
           expiryDate: expiry,
           isActive: true,
-          customDomain: isCustom ? domainValue : null,
         },
         update: {
           templateId: templateId,
-          startDate: now,
+          startDate: sameTemplate ? undefined : now,
           expiryDate: expiry,
           isActive: true,
-          customDomain: isCustom ? domainValue : null,
-          customization: Prisma.DbNull,
+          // Perpanjangan mempertahankan hasil kerja CMS; hanya ganti template yang mengosongkan kustomisasi.
+          ...(sameTemplate ? {} : { customization: Prisma.DbNull }),
         },
       });
     }
 
     if (invoice.productType === "module_addon") {
       const moduleCode = invoice.planCode;
-      const expiry = new Date(now);
-      expiry.setMonth(expiry.getMonth() + 1);
+      // Perpanjangan menyambung dari masa berlaku yang masih berjalan (sisa waktu tidak hangus).
+      const existingModule = await tx.villageModuleSubscription.findUnique({
+        where: { villageId_moduleCode: { villageId: invoice.villageId, moduleCode } },
+        select: { status: true, expiryDate: true },
+      });
+      const stillActiveModule =
+        existingModule != null &&
+        existingModule.status === "active" &&
+        existingModule.expiryDate.getTime() > now.getTime();
+      const expiry = addMonths(stillActiveModule ? existingModule.expiryDate : now, monthsFromInvoiceItems(invoice.items));
 
       await tx.villageModuleSubscription.upsert({
         where: {

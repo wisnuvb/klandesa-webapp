@@ -9,7 +9,7 @@ import type { LetterContext } from "./input";
  * (lalu dibekukan di surat). Memakai ulang pembaca snapshot yang sudah ada.
  */
 export async function buildLetterContext(village: Village): Promise<LetterContext & { kodeDesa: string }> {
-  const snap = await buildLetterFormSnapshot(village.id);
+  const snap = await buildLetterFormSnapshot(village.id, village);
   const logo = village.logoUrl?.trim();
   return {
     kodeDesa: village.code,

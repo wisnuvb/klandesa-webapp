@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toUserFacingError } from "@/lib/billing/user-error";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import {
   createCheckout,
   type BillingPaymentMethod,
 } from "@/lib/billing/service";
 import type { BillingProductType } from "@/lib/billing/catalog";
+import { buildLinkquCallbackUrl } from "@/lib/linkqu/callback-url";
 import { LENGKAP_INCLUDED_ADDON_CODES, isLengkapPlan } from "@/lib/billing/lengkap";
 import {
   isAllowedLinkquVaBankCode,
+  normalizeIdPhone,
   resolveLinkquBankCode,
   validateLinkquCheckoutInput,
 } from "@/lib/payment/linkqu-channels";
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);
     if (!loaded.ok) return loaded.response;
-    const { village, session } = loaded.ctx;
+    const { village, session, userId } = loaded.ctx;
 
     const body = (await req.json().catch(() => null)) as {
       productType?: string;
@@ -142,6 +145,7 @@ export async function POST(req: NextRequest) {
       "arsip",
       "website",
       "module_addon",
+      "ai_credits",
     ];
     if (!allowedProducts.includes(productType as BillingProductType)) {
       return NextResponse.json(
@@ -163,21 +167,21 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      // Tier absensi menimpa subscriptionPlan desa saat dibayar (lihat callback). Untuk Paket Lengkap itu akan
-      // menghapus hak semua fitur, jadi kapasitas absensi Paket Lengkap tetap 10 perangkat.
-      if (productType === "absensi") {
-        return NextResponse.json(
-          { error: "Kapasitas absensi Paket Lengkap tetap 10 perangkat. Absensi GPS tersedia sebagai add-on terpisah." },
-          { status: 400 },
-        );
-      }
+    }
+
+    const ewalletPhone = normalizeIdPhone(body?.ewalletPhone) ?? undefined;
+    if (paymentMethod === "ewallet" && !ewalletPhone) {
+      return NextResponse.json(
+        { error: "Nomor HP e-wallet wajib diisi dengan format 08xxxxxxxxxx" },
+        { status: 400 },
+      );
     }
 
     const checkoutValidation = validateLinkquCheckoutInput({
       paymentMethod,
       bankCode,
       retailCode: body?.retailCode,
-      ewalletPhone: body?.ewalletPhone,
+      ewalletPhone,
     });
     if (!checkoutValidation.ok) {
       return NextResponse.json(
@@ -200,6 +204,12 @@ export async function POST(req: NextRequest) {
         ? body.retailCode
         : undefined;
 
+    // url_callback dinamis dari host permintaan (domain produksi, staging, atau tunnel dev), bukan dari env.
+    const callbackUrl = buildLinkquCallbackUrl(req.headers);
+    if (!callbackUrl) {
+      return NextResponse.json({ error: "Host permintaan tidak valid" }, { status: 400 });
+    }
+
     const customerName = session.user.name || village.name;
     const customerEmail =
       session.user.email || village.email || "billing@klandesa.id";
@@ -217,11 +227,15 @@ export async function POST(req: NextRequest) {
       paymentMethod,
       bankCode,
       retailCode,
-      ewalletPhone: body?.ewalletPhone,
+      ewalletPhone,
+      callbackUrl,
+      // Kredit AI masuk ke akun pembeli: userId selalu dari sesi, tidak pernah dari klien.
       metadata:
-        body?.metadata && typeof body.metadata === "object"
-          ? (body.metadata as object)
-          : undefined,
+        productType === "ai_credits"
+          ? { userId }
+          : body?.metadata && typeof body.metadata === "object"
+            ? (body.metadata as object)
+            : undefined,
     });
 
     return NextResponse.json({
@@ -251,8 +265,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Terjadi kesalahan server";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const friendly = toUserFacingError(error, "POST /api/billing/checkout");
+    return NextResponse.json({ error: friendly.message }, { status: friendly.status });
   }
 }

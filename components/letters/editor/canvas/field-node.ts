@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import { CHIP_CLASS } from "./chip-class";
 
-export const CHIP_CLASS =
-  "inline-block mx-px px-1.5 rounded border border-sky-400 bg-sky-100 text-sky-950 text-[0.9em] leading-[1.35] align-baseline cursor-pointer select-none whitespace-nowrap";
+export { CHIP_CLASS };
 
 export type FieldNodeOptions = {
   /** Label awam untuk ref; dipakai bila node belum punya `label` (mis. dari dokumen tersimpan). */

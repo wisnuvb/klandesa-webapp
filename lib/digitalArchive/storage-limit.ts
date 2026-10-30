@@ -3,6 +3,7 @@
  * Kuota = yang terbesar dari: nilai tersimpan di desa (default/penyesuaian admin), kuota dasar paket,
  * dan add-on arsip yang MASIH aktif (berlangganan bulanan, lihat ARSIP_ADDON_MODULE_CODE).
  */
+import { addMonths } from "@/lib/billing/duration";
 import {
   BILLING_CATALOG,
   arsipStorageLimitForDesaTierGb,
@@ -75,13 +76,10 @@ export function nextArsipExpiry(opts: {
   now: Date;
   active: { planCode: string | null; expiryDate: Date } | null;
   tierCode: string;
+  /** Lama langganan yang dibayar; default 1 bulan. */
+  months?: number;
 }): Date {
   const sameTierRenewal = opts.active != null && opts.active.planCode === opts.tierCode;
   const base = sameTierRenewal ? opts.active!.expiryDate : opts.now;
-  const out = new Date(base);
-  const day = out.getDate();
-  out.setDate(1);
-  out.setMonth(out.getMonth() + 1);
-  out.setDate(Math.min(day, new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate()));
-  return out;
+  return addMonths(base, opts.months ?? 1);
 }

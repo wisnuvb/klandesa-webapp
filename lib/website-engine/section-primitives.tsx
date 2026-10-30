@@ -1,10 +1,32 @@
 import Image from "next/image";
+
+/**
+ * `next/image` melempar error (halaman publik gagal render) untuk alamat yang bukan https absolut atau path
+ * relatif. Alamat gambar diisi manual oleh desa, jadi hanya bentuk yang aman yang dirender; sisanya dilewati.
+ */
+export function renderableImageUrl(raw: string | null | undefined): string | null {
+  const s = (raw ?? "").trim();
+  if (!s || s.length > 1000) return null;
+  if (s.startsWith("/") && !s.startsWith("//")) return s;
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" && u.hostname ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
 import clsx from "clsx";
 import { ExternalLink, Globe2 } from "lucide-react";
 import type React from "react";
 import { REGIONAL_NEWS_DISCLAIMER } from "@/lib/regional-news/config";
 import type { RegionalNewsItem } from "@/lib/regional-news/types";
+import { cleanBlockVariant } from "@/lib/website-engine/block-variants";
 import type {
+  FaqVariant,
+  FeaturesVariant,
+  GalleryVariant,
+  StatsVariant,
+  TestimonialsVariant,
   WebsiteSection,
   WebsiteSectionStyle,
 } from "@/lib/website-engine/types";
@@ -73,10 +95,10 @@ export function HeroCenterBlock(props: {
       )}
     >
       <div className="relative max-w-5xl mx-auto px-4">
-        {props.imageUrl?.trim() ? (
+        {renderableImageUrl(props.imageUrl) ? (
           <div className="absolute inset-0 -z-10 overflow-hidden rounded-3xl">
             <Image
-              src={props.imageUrl}
+              src={renderableImageUrl(props.imageUrl)!}
               alt=""
               fill
               sizes="(max-width: 768px) 100vw, 1024px"
@@ -120,10 +142,10 @@ export function HeroSplitBlock(props: {
             </p>
           ) : null}
         </div>
-        {props.imageUrl?.trim() ? (
+        {renderableImageUrl(props.imageUrl) ? (
           <div className="relative min-h-[220px] overflow-hidden rounded-2xl border [border-color:var(--site-border,#e5e7eb)]">
             <Image
-              src={props.imageUrl}
+              src={renderableImageUrl(props.imageUrl)!}
               alt=""
               fill
               sizes="(max-width: 768px) 100vw, 520px"
@@ -406,53 +428,97 @@ export function ContactBlock(props: {
   );
 }
 
+function BlockHeader(props: {
+  title?: string;
+  subtitle?: string;
+  style?: WebsiteSectionStyle;
+}) {
+  return (
+    <>
+      {props.title?.trim() ? (
+        <h2
+          className={clsx(
+            "text-2xl md:text-3xl font-semibold [color:var(--site-accent,#111827)]",
+            sectionAlignClass(props.style),
+          )}
+        >
+          {props.title}
+        </h2>
+      ) : null}
+      {props.subtitle?.trim() ? (
+        <p
+          className={clsx(
+            "mt-3 text-base [color:var(--site-muted-foreground,#4b5563)]",
+            sectionAlignClass(props.style),
+          )}
+        >
+          {props.subtitle}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export function FeaturesBlock(props: {
   title?: string;
   subtitle?: string;
   columns?: 2 | 3;
+  variant?: FeaturesVariant;
   items: Array<{ title: string; body: string }>;
   style?: WebsiteSectionStyle;
 }) {
+  const variant = cleanBlockVariant("features", props.variant) ?? "cards";
   const cols = props.columns === 2 ? "md:grid-cols-2" : "md:grid-cols-3";
   return (
     <SectionFrame style={props.style} className="px-4">
-      <div className="max-w-6xl mx-auto">
-        {props.title?.trim() ? (
-          <h2
-            className={clsx(
-              "text-2xl md:text-3xl font-semibold [color:var(--site-accent,#111827)]",
-              sectionAlignClass(props.style),
-            )}
-          >
-            {props.title}
-          </h2>
-        ) : null}
-        {props.subtitle?.trim() ? (
-          <p
-            className={clsx(
-              "mt-3 text-base [color:var(--site-muted-foreground,#4b5563)]",
-              sectionAlignClass(props.style),
-            )}
-          >
-            {props.subtitle}
-          </p>
-        ) : null}
-        <div className={clsx("mt-8 grid gap-4 sm:grid-cols-2", cols)}>
-          {props.items.map((it, i) => (
-            <div
-              key={i}
-              className="rounded-2xl border p-5 [border-color:var(--site-border,#e5e7eb)] [background:var(--site-surface,#ffffff)]"
-              style={{ borderRadius: "var(--site-radius-md, 1rem)" }}
-            >
-              <div className="font-semibold [color:var(--site-primary,#111827)]">
-                {it.title}
+      <div className="max-w-6xl mx-auto" data-variant={variant}>
+        <BlockHeader title={props.title} subtitle={props.subtitle} style={props.style} />
+        {variant === "list" ? (
+          <ol className="mt-8 grid max-w-3xl gap-5">
+            {props.items.map((it, i) => (
+              <li key={i} className="flex gap-4">
+                <span
+                  aria-hidden
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white [background:var(--site-primary,#0f766e)]"
+                >
+                  {i + 1}
+                </span>
+                <div>
+                  <div className="font-semibold [color:var(--site-primary,#111827)]">{it.title}</div>
+                  <div className="mt-1 text-sm [color:var(--site-muted-foreground,#4b5563)] whitespace-pre-wrap">
+                    {it.body}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : variant === "minimal" ? (
+          <div className={clsx("mt-8 grid gap-8 sm:grid-cols-2", cols)}>
+            {props.items.map((it, i) => (
+              <div key={i} className="border-t-2 pt-4 [border-color:var(--site-primary,#0f766e)]">
+                <div className="font-semibold [color:var(--site-primary,#111827)]">{it.title}</div>
+                <div className="mt-2 text-sm [color:var(--site-muted-foreground,#4b5563)] whitespace-pre-wrap">
+                  {it.body}
+                </div>
               </div>
-              <div className="mt-2 text-sm [color:var(--site-muted-foreground,#4b5563)] whitespace-pre-wrap">
-                {it.body}
+            ))}
+          </div>
+        ) : (
+          <div className={clsx("mt-8 grid gap-4 sm:grid-cols-2", cols)}>
+            {props.items.map((it, i) => (
+              <div
+                key={i}
+                className="rounded-2xl border p-5 [border-color:var(--site-border,#e5e7eb)] [background:var(--site-surface,#ffffff)]"
+                style={{ borderRadius: "var(--site-radius-md, 1rem)" }}
+              >
+                <div className="font-semibold [color:var(--site-primary,#111827)]">{it.title}</div>
+                <div className="mt-2 text-sm [color:var(--site-muted-foreground,#4b5563)] whitespace-pre-wrap">
+                  {it.body}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </SectionFrame>
   );
@@ -461,105 +527,120 @@ export function FeaturesBlock(props: {
 export function StatsBlock(props: {
   title?: string;
   subtitle?: string;
+  variant?: StatsVariant;
   stats: Array<{ label: string; value: string }>;
   style?: WebsiteSectionStyle;
 }) {
+  const variant = cleanBlockVariant("stats", props.variant) ?? "cards";
   return (
     <SectionFrame style={props.style} className="px-4">
-      <div className="max-w-6xl mx-auto">
-        {props.title?.trim() ? (
-          <h2
-            className={clsx(
-              "text-2xl md:text-3xl font-semibold [color:var(--site-accent,#111827)]",
-              sectionAlignClass(props.style),
-            )}
+      <div className="max-w-6xl mx-auto" data-variant={variant}>
+        <BlockHeader title={props.title} subtitle={props.subtitle} style={props.style} />
+        {variant === "band" ? (
+          <div
+            className="mt-8 grid gap-6 rounded-2xl p-8 text-center text-white sm:grid-cols-3 [background:var(--site-primary,#0f766e)]"
+            style={{ borderRadius: "var(--site-radius-md, 1rem)" }}
           >
-            {props.title}
-          </h2>
-        ) : null}
-        {props.subtitle?.trim() ? (
-          <p
-            className={clsx(
-              "mt-3 text-base [color:var(--site-muted-foreground,#4b5563)]",
-              sectionAlignClass(props.style),
-            )}
-          >
-            {props.subtitle}
-          </p>
-        ) : null}
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          {props.stats.map((s, i) => (
-            <div
-              key={i}
-              className="rounded-2xl border p-6 [border-color:var(--site-border,#e5e7eb)] [background:var(--site-surface,#ffffff)]"
-              style={{ borderRadius: "var(--site-radius-md, 1rem)" }}
-            >
-              <div className="text-3xl font-bold [color:var(--site-primary,#0f766e)]">
-                {s.value}
+            {props.stats.map((s, i) => (
+              <div key={i}>
+                <div className="text-4xl font-bold">{s.value}</div>
+                <div className="mt-2 text-sm text-white/90">{s.label}</div>
               </div>
-              <div className="mt-2 text-sm [color:var(--site-muted-foreground,#4b5563)]">
-                {s.label}
+            ))}
+          </div>
+        ) : variant === "inline" ? (
+          <div className="mt-8 grid sm:grid-cols-3">
+            {props.stats.map((s, i) => (
+              <div
+                key={i}
+                className="px-6 py-3 text-center sm:border-l sm:first:border-l-0 [border-color:var(--site-border,#e5e7eb)]"
+              >
+                <div className="text-4xl font-bold [color:var(--site-primary,#0f766e)]">{s.value}</div>
+                <div className="mt-2 text-sm [color:var(--site-muted-foreground,#4b5563)]">{s.label}</div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {props.stats.map((s, i) => (
+              <div
+                key={i}
+                className="rounded-2xl border p-6 [border-color:var(--site-border,#e5e7eb)] [background:var(--site-surface,#ffffff)]"
+                style={{ borderRadius: "var(--site-radius-md, 1rem)" }}
+              >
+                <div className="text-3xl font-bold [color:var(--site-primary,#0f766e)]">{s.value}</div>
+                <div className="mt-2 text-sm [color:var(--site-muted-foreground,#4b5563)]">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </SectionFrame>
+  );
+}
+
+function GalleryImage(props: { src: string; caption: string; sizes: string }) {
+  return (
+    <Image
+      src={props.src}
+      alt={props.caption}
+      fill
+      sizes={props.sizes}
+      className="object-cover"
+      loading="lazy"
+    />
   );
 }
 
 export function GalleryBlock(props: {
   title?: string;
   subtitle?: string;
-  imageUrls: string[];
+  variant?: GalleryVariant;
+  images: Array<{ url: string; caption?: string }>;
   style?: WebsiteSectionStyle;
 }) {
-  const urls = props.imageUrls.map((u) => u.trim()).filter(Boolean);
+  const variant = cleanBlockVariant("gallery", props.variant) ?? "grid";
+  const images = props.images
+    .map((im) => ({ url: renderableImageUrl(im.url), caption: im.caption?.trim() ?? "" }))
+    .filter((im): im is { url: string; caption: string } => im.url !== null);
+  const frame = "relative overflow-hidden rounded-2xl border [border-color:var(--site-border,#e5e7eb)]";
+  const radius = { borderRadius: "var(--site-radius-md, 1rem)" } as const;
   return (
     <SectionFrame style={props.style} className="px-4">
-      <div className="max-w-6xl mx-auto">
-        {props.title?.trim() ? (
-          <h2
-            className={clsx(
-              "text-2xl md:text-3xl font-semibold [color:var(--site-accent,#111827)]",
-              sectionAlignClass(props.style),
-            )}
+      <div className="max-w-6xl mx-auto" data-variant={variant}>
+        <BlockHeader title={props.title} subtitle={props.subtitle} style={props.style} />
+        {!images.length ? (
+          <div className="mt-8 text-sm italic [color:var(--site-muted-foreground,#6b7280)]">
+            Tambahkan foto dari panel admin.
+          </div>
+        ) : variant === "mosaic" ? (
+          <div className="mt-8 grid auto-rows-[140px] grid-cols-2 gap-3 md:auto-rows-[180px] md:grid-cols-4">
+            {images.map((im, i) => (
+              <div key={i} className={clsx(frame, i === 0 && "col-span-2 row-span-2")} style={radius}>
+                <GalleryImage src={im.url} caption={im.caption} sizes={i === 0 ? "(max-width: 768px) 100vw, 560px" : "(max-width: 768px) 50vw, 280px"} />
+              </div>
+            ))}
+          </div>
+        ) : variant === "strip" ? (
+          <div
+            role="region"
+            aria-label={props.title?.trim() || "Galeri foto"}
+            tabIndex={0}
+            className="mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
           >
-            {props.title}
-          </h2>
-        ) : null}
-        {props.subtitle?.trim() ? (
-          <p
-            className={clsx(
-              "mt-3 text-base [color:var(--site-muted-foreground,#4b5563)]",
-              sectionAlignClass(props.style),
-            )}
-          >
-            {props.subtitle}
-          </p>
-        ) : null}
-        {urls.length ? (
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {urls.map((src, i) => (
-              <div
-                key={i}
-                className="relative aspect-[4/3] overflow-hidden rounded-2xl border [border-color:var(--site-border,#e5e7eb)]"
-                style={{ borderRadius: "var(--site-radius-md, 1rem)" }}
-              >
-                <Image
-                  src={src}
-                  alt=""
-                  fill
-                  sizes="(max-width: 768px) 100vw, 400px"
-                  className="object-cover"
-                  loading="lazy"
-                />
+            {images.map((im, i) => (
+              <div key={i} className={clsx(frame, "aspect-[4/3] w-72 shrink-0 snap-start")} style={radius}>
+                <GalleryImage src={im.url} caption={im.caption} sizes="288px" />
               </div>
             ))}
           </div>
         ) : (
-          <div className="mt-6 text-sm italic [color:var(--site-muted-foreground,#6b7280)]">
-            Tambahkan gambar dari panel admin.
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {images.map((im, i) => (
+              <div key={i} className={clsx(frame, "aspect-[4/3]")} style={radius}>
+                <GalleryImage src={im.url} caption={im.caption} sizes="(max-width: 768px) 100vw, 400px" />
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -569,47 +650,49 @@ export function GalleryBlock(props: {
 
 export function FaqBlock(props: {
   title?: string;
+  variant?: FaqVariant;
   items: Array<{ q: string; a: string }>;
   style?: WebsiteSectionStyle;
 }) {
+  const variant = cleanBlockVariant("faq", props.variant) ?? "accordion";
   const items = props.items
     .map((it) => ({ q: it.q.trim(), a: it.a.trim() }))
     .filter((it) => it.q && it.a);
   return (
     <SectionFrame style={props.style} className="px-4">
-      <div className="max-w-4xl mx-auto">
-        {props.title?.trim() ? (
-          <h2
-            className={clsx(
-              "text-2xl md:text-3xl font-semibold [color:var(--site-accent,#111827)]",
-              sectionAlignClass(props.style),
-            )}
-          >
-            {props.title}
-          </h2>
-        ) : null}
-        <div className="mt-6 grid gap-3">
-          {items.length ? (
-            items.map((it, i) => (
+      <div className="max-w-4xl mx-auto" data-variant={variant}>
+        <BlockHeader title={props.title} style={props.style} />
+        {!items.length ? (
+          <div className="mt-6 text-sm italic [color:var(--site-muted-foreground,#6b7280)]">
+            Tambahkan pertanyaan & jawaban dari panel admin.
+          </div>
+        ) : variant === "open" ? (
+          <dl className="mt-6 grid gap-6">
+            {items.map((it, i) => (
+              <div key={i}>
+                <dt className="font-semibold [color:var(--site-primary,#111827)]">{it.q}</dt>
+                <dd className="mt-2 text-sm [color:var(--site-muted-foreground,#4b5563)] whitespace-pre-wrap">
+                  {it.a}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <div className="mt-6 grid gap-3">
+            {items.map((it, i) => (
               <details
                 key={i}
                 className="rounded-2xl border p-5 [border-color:var(--site-border,#e5e7eb)] [background:var(--site-surface,#ffffff)]"
                 style={{ borderRadius: "var(--site-radius-md, 1rem)" }}
               >
-                <summary className="cursor-pointer font-medium [color:var(--site-primary,#111827)]">
-                  {it.q}
-                </summary>
+                <summary className="cursor-pointer font-medium [color:var(--site-primary,#111827)]">{it.q}</summary>
                 <div className="mt-3 text-sm [color:var(--site-muted-foreground,#4b5563)] whitespace-pre-wrap">
                   {it.a}
                 </div>
               </details>
-            ))
-          ) : (
-            <div className="text-sm italic [color:var(--site-muted-foreground,#6b7280)]">
-              Tambahkan pertanyaan & jawaban dari panel admin.
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </SectionFrame>
   );
@@ -617,9 +700,11 @@ export function FaqBlock(props: {
 
 export function TestimonialsBlock(props: {
   title?: string;
+  variant?: TestimonialsVariant;
   items: Array<{ quote: string; name: string; role?: string }>;
   style?: WebsiteSectionStyle;
 }) {
+  const variant = cleanBlockVariant("testimonials", props.variant) ?? "cards";
   const items = props.items
     .map((it) => ({
       quote: it.quote.trim(),
@@ -629,44 +714,45 @@ export function TestimonialsBlock(props: {
     .filter((it) => it.quote && it.name);
   return (
     <SectionFrame style={props.style} className="px-4">
-      <div className="max-w-6xl mx-auto">
-        {props.title?.trim() ? (
-          <h2
-            className={clsx(
-              "text-2xl md:text-3xl font-semibold [color:var(--site-accent,#111827)]",
-              sectionAlignClass(props.style),
-            )}
-          >
-            {props.title}
-          </h2>
-        ) : null}
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {items.length ? (
-            items.map((it, i) => (
+      <div className="max-w-6xl mx-auto" data-variant={variant}>
+        <BlockHeader title={props.title} style={props.style} />
+        {!items.length ? (
+          <div className="mt-8 text-sm italic [color:var(--site-muted-foreground,#6b7280)]">
+            Tambahkan testimoni dari panel admin.
+          </div>
+        ) : variant === "featured" ? (
+          <div className="mx-auto mt-8 grid max-w-3xl gap-10">
+            {items.map((it, i) => (
+              <figure key={i} className="text-center">
+                <blockquote className="text-xl leading-relaxed whitespace-pre-wrap md:text-2xl [color:var(--site-accent,#111827)]">
+                  “{it.quote}”
+                </blockquote>
+                <figcaption className="mt-4">
+                  <div className="font-medium [color:var(--site-primary,#111827)]">{it.name}</div>
+                  {it.role ? (
+                    <div className="text-xs [color:var(--site-muted-foreground,#6b7280)]">{it.role}</div>
+                  ) : null}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {items.map((it, i) => (
               <div
                 key={i}
                 className="rounded-2xl border p-6 [border-color:var(--site-border,#e5e7eb)] [background:var(--site-surface,#ffffff)]"
                 style={{ borderRadius: "var(--site-radius-md, 1rem)" }}
               >
-                <div className="text-sm [color:var(--site-muted-foreground,#374151)] whitespace-pre-wrap">
-                  “{it.quote}”
-                </div>
-                <div className="mt-4 font-medium [color:var(--site-primary,#111827)]">
-                  {it.name}
-                </div>
+                <div className="text-sm [color:var(--site-muted-foreground,#374151)] whitespace-pre-wrap">“{it.quote}”</div>
+                <div className="mt-4 font-medium [color:var(--site-primary,#111827)]">{it.name}</div>
                 {it.role ? (
-                  <div className="text-xs [color:var(--site-muted-foreground,#6b7280)]">
-                    {it.role}
-                  </div>
+                  <div className="text-xs [color:var(--site-muted-foreground,#6b7280)]">{it.role}</div>
                 ) : null}
               </div>
-            ))
-          ) : (
-            <div className="text-sm italic [color:var(--site-muted-foreground,#6b7280)]">
-              Tambahkan testimoni dari panel admin.
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </SectionFrame>
   );

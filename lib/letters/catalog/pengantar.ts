@@ -1,6 +1,6 @@
 /** Katalog surat pengantar & pernyataan (kategori "Pengantar"). Berbentuk surat biasa dengan kepala Nomor/Lampiran/Perihal. */
 import {
-  KEPERLUAN, PEMOHON_IDENTITAS, PEMOHON_RINGKAS, br, f, field, kadesSignature,
+  KEPERLUAN, PEMOHON_IDENTITAS, PEMOHON_NARASI, PEMOHON_RINGKAS, br, datelineSurat, f, field, kadesSignature,
   judul, letter, memo, para, pemohonData, penutup, personData, t,
   type CatalogEntry,
 } from "./helpers";
@@ -213,6 +213,76 @@ export const PENGANTAR: CatalogEntry[] = [
         {
           id: "ttd", type: "signature",
           dateline: [f("desa.nama"), t(", "), f("surat.tanggal", "tanggal")],
+          slots: [
+            { id: "pemohon", who: { kind: "peran", role: "pemohon" }, caption: [t("Yang menyatakan,")], materai: true },
+            { id: "kades", who: { kind: "pejabat", official: "kades" }, caption: [t("Mengetahui,")], stamp: true },
+          ],
+        },
+      ],
+    }),
+  },
+  {
+    // Pemberi kuasa = pemohon; penerima kuasa orang kedua. Kuasa untuk perbuatan hukum tertentu (mis. tanah) umumnya perlu akta notaris.
+    catalogKey: "cat_prn_kuasa",
+    name: "Surat Kuasa (kerangka)",
+    description: "Kerangka kuasa warga kepada orang lain untuk urusan sederhana; urusan hukum tertentu perlu akta resmi.",
+    category: "Pengantar",
+    document: letter({
+      kind: "lainnya",
+      klasifikasi: "474",
+      people: [
+        { id: "pemohon", label: "Pemberi kuasa" },
+        { id: "penerima", label: "Penerima kuasa" },
+      ],
+      fields: [
+        field("isi_kuasa", "Kuasa untuk", "longtext", { placeholder: "mis. mengambil dokumen kependudukan di kantor kecamatan" }),
+        field("masa_berlaku", "Masa berlaku", "text", { required: false, placeholder: "mis. sampai urusan selesai" }),
+      ],
+      body: [
+        judul("SURAT KUASA"),
+        para("pembuka", t("Yang bertanda tangan di bawah ini:")),
+        pemohonData(PEMOHON_NARASI),
+        para("pemberi", t("Selanjutnya disebut pemberi kuasa. Dengan ini memberi kuasa kepada:")),
+        personData("penerima", PEMOHON_NARASI, "data_penerima"),
+        para("isi", t("Untuk: "), f("isian.isi_kuasa"), t(".")),
+        { id: "berlaku", type: "conditional", when: { ref: "isian.masa_berlaku", op: "filled" }, children: [
+          para("berlaku_kalimat", t("Masa berlaku kuasa ini: "), f("isian.masa_berlaku"), t(".")),
+        ] },
+        penutup("kuasa"),
+        {
+          id: "ttd", type: "signature",
+          dateline: datelineSurat,
+          slots: [
+            { id: "pemberi", who: { kind: "peran", role: "pemohon" }, caption: [t("Pemberi kuasa,")], materai: true },
+            { id: "penerima", who: { kind: "peran", role: "penerima" }, caption: [t("Penerima kuasa,")] },
+            { id: "kades", who: { kind: "pejabat", official: "kades" }, caption: [t("Mengetahui,")], stamp: true },
+          ],
+        },
+      ],
+    }),
+  },
+  {
+    catalogKey: "cat_prn_umum",
+    name: "Surat Pernyataan Umum (kerangka)",
+    description: "Kerangka pernyataan warga di atas materai; isi pernyataan diketik sendiri.",
+    category: "Pengantar",
+    document: letter({
+      kind: "lainnya",
+      klasifikasi: "474",
+      fields: [
+        field("isi_pernyataan", "Isi pernyataan", "longtext", { placeholder: "mis. tanah yang saya garap adalah milik sendiri dan tidak dalam sengketa" }),
+        KEPERLUAN,
+      ],
+      body: [
+        judul("SURAT PERNYATAAN"),
+        para("pembuka", t("Saya yang bertanda tangan di bawah ini:")),
+        pemohonData(PEMOHON_NARASI),
+        para("isi", t("Dengan ini menyatakan dengan sebenarnya bahwa: "), f("isian.isi_pernyataan"), t(".")),
+        para("keperluan_kalimat", t("Pernyataan ini saya buat untuk keperluan "), f("isian.keperluan"), t(". Apabila pernyataan ini tidak benar, saya bersedia mempertanggungjawabkannya secara hukum.")),
+        penutup("pernyataan"),
+        {
+          id: "ttd", type: "signature",
+          dateline: datelineSurat,
           slots: [
             { id: "pemohon", who: { kind: "peran", role: "pemohon" }, caption: [t("Yang menyatakan,")], materai: true },
             { id: "kades", who: { kind: "pejabat", official: "kades" }, caption: [t("Mengetahui,")], stamp: true },

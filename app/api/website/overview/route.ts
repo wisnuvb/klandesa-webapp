@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { isWebsiteSetupPending } from "@/lib/website-engine/customization-store";
+import { getPageViewStats } from "@/lib/website-engine/page-views";
+import { isWebsiteSubscriptionLive } from "@/lib/website-engine/subscription-state";
 
 type WebsiteTemplateDto = {
   id: number;
@@ -24,9 +27,6 @@ type ActiveWebsiteDto = {
   is_active: boolean;
   activated_at: string;
   expires_at: string;
-  total_visitors: number;
-  visitors_today: number;
-  visitors_month: number;
   total_posts: number;
   preview_image: string;
   subscription_status: "active" | "expiring_soon" | "expired";
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
 
     let activeWebsite: ActiveWebsiteDto | null = null;
     if (subscription?.template) {
-      const isActive = subscription.isActive && subscription.expiryDate.getTime() > Date.now();
+      const isActive = isWebsiteSubscriptionLive(subscription);
       const status = computeSubscriptionStatus(subscription.expiryDate);
       const domain =
         (village.website && village.website.trim().length > 0 ? village.website : null) ??
@@ -111,19 +111,20 @@ export async function GET(req: NextRequest) {
         is_active: isActive,
         activated_at: subscription.startDate.toISOString(),
         expires_at: subscription.expiryDate.toISOString(),
-        total_visitors: 0,
-        visitors_today: 0,
-        visitors_month: 0,
         total_posts: announcementCount,
         preview_image: subscription.template.previewImage,
         subscription_status: status,
       };
-
-      if (!isActive) activeWebsite = null;
     }
+
+    const stats = activeWebsite?.is_active ? await getPageViewStats(village.id) : null;
 
     return NextResponse.json({
       db: { ok: true },
+      stats,
+      setup_needed: Boolean(
+        activeWebsite?.is_active && isWebsiteSetupPending(subscription?.customization),
+      ),
       village: { id: village.id, code: village.code, name: village.name },
       templates: templateDtos,
       activeWebsite,

@@ -1,3 +1,4 @@
+import { applyPatchToDraft } from "@/lib/website-engine/customization-store";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
@@ -127,7 +128,8 @@ export async function POST(req: NextRequest) {
             { status: 404 },
           );
         }
-        const next = { ...current, presetKey: key };
+        // Diterapkan sebagai draf; situs publik berubah setelah diterbitkan.
+        const next = applyPatchToDraft(subscription.customization, { preset_key: key });
         const updated = await prisma.websiteSubscription.update({
           where: { id: subscription.id },
           data: { customization: next as never },
@@ -146,7 +148,7 @@ export async function POST(req: NextRequest) {
             { error: "Preset tidak ditemukan" },
             { status: 404 },
           );
-        const next = { ...current, overrides: p.overrides };
+        const next = applyPatchToDraft(subscription.customization, { overrides: p.overrides });
         const updated = await prisma.websiteSubscription.update({
           where: { id: subscription.id },
           data: { customization: next as never },

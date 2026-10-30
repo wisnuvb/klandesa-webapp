@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { notificationCutoffs } from "@/lib/notifications/retention-policy";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +17,11 @@ export async function POST(req: NextRequest) {
 
     if (body.all === true) {
       const notifs = await prisma.adminNotification.findMany({
-        where: { villageId: village.id },
+        where: {
+          villageId: village.id,
+          createdAt: { gte: notificationCutoffs().visibleSince },
+          reads: { none: { userId } },
+        },
         select: { id: true },
       });
 

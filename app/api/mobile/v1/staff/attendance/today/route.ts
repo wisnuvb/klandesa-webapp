@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireMobileContext } from "@/lib/mobile/context";
 import { STATUS_LABEL } from "@/lib/mobile/attendance-logic";
+import { isGpsAddonActive } from "@/lib/attendance/addons";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     prisma.user.findUnique({ where: { id: ctx.accountId }, select: { email: true } }),
     prisma.village.findUnique({
       where: { id: ctx.villageId },
-      select: { absensiGpsAddonActive: true, absensiOfficeLat: true, absensiOfficeLng: true, absensiCheckInRadiusMeters: true },
+      select: { absensiGpsAddonActive: true, absensiGpsAddonExpiry: true, absensiOfficeLat: true, absensiOfficeLng: true, absensiCheckInRadiusMeters: true },
     }),
     prisma.workShift.findFirst({ where: { villageId: ctx.villageId, isActive: true }, orderBy: { id: "asc" } }),
   ]);
@@ -47,8 +48,8 @@ export async function GET(req: NextRequest) {
     today: mine?.checkInAt ? { checkInAt: mine.checkInAt, status: mine.status, statusLabel: STATUS_LABEL[mine.status] ?? mine.status, method: mine.checkInMethod } : null,
     methods: {
       qr: true,
-      gps: !!village?.absensiGpsAddonActive && village.absensiOfficeLat != null && village.absensiOfficeLng != null,
-      gpsInactiveReason: !village?.absensiGpsAddonActive ? "Absensi GPS belum diaktifkan desa." : village.absensiOfficeLat == null ? "Lokasi kantor belum diatur admin." : null,
+      gps: !!village && isGpsAddonActive(village) && village.absensiOfficeLat != null && village.absensiOfficeLng != null,
+      gpsInactiveReason: !village || !isGpsAddonActive(village) ? "Absensi GPS belum diaktifkan desa." : village.absensiOfficeLat == null ? "Lokasi kantor belum diatur admin." : null,
       radiusMeters: village?.absensiCheckInRadiusMeters ?? null,
     },
     shift: shift ? { name: shift.name, start: shift.startTime, end: shift.endTime, tolerance: shift.lateToleranceMinutes } : null,

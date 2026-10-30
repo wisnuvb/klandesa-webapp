@@ -1,4 +1,5 @@
 import type { FC, ReactNode } from "react";
+import type { BlockVariantAllowlist } from "@/lib/website-engine/block-variants";
 import type { RegionalNewsItem } from "@/lib/regional-news/types";
 import type { WebsiteNavItem, WebsiteSection, WebsiteThemeTokens } from "@/lib/website-engine/types";
 
@@ -20,6 +21,8 @@ export type SectionRenderContext = {
 export type TenantShellProps = {
   children: ReactNode;
   villageName: string;
+  /** Logo desa (opsional); ditampilkan di samping nama desa pada header */
+  logoUrl?: string | null;
   hideSiteHeader: boolean;
   /** Untuk scope CSS `tp-{templateKey}` */
   templateKey: string;
@@ -35,6 +38,8 @@ export type TemplatePack = {
   defaultThemeTokens: WebsiteThemeTokens;
   /** Varian hero yang diizinkan untuk pack ini */
   heroVariants: readonly ("center" | "split")[];
+  /** Daftar izin varian per blok; kosong = semua varian standar diizinkan */
+  blockVariants?: BlockVariantAllowlist;
   Shell: FC<TenantShellProps>;
   renderSection: (ctx: SectionRenderContext) => ReactNode;
 };

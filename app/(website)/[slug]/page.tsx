@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getTenant } from "@/lib/tenant";
+import { trackPublicPageView } from "@/lib/website-engine/track";
 import { resolveEffectiveSiteSeo, resolveTenantFaviconUrl } from "@/lib/website-engine/normalize";
 import {
   loadTenantPublicPageContext,
@@ -52,6 +53,8 @@ export default async function TenantCmsPage(props: Props) {
 
   const ctx = await loadTenantPublicPageContext(tenant, slug);
   if (!ctx) notFound();
+
+  await trackPublicPageView(tenant.village.id);
 
   const { page, announcements, templateKey, regionalNews } = ctx;
 

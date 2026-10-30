@@ -651,7 +651,8 @@ function expandSlots(b: Extract<LeafBlock, { type: "signature" }>, ctx: Ctx): Si
   return out;
 }
 
-function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CSSProperties): ReactNode {
+/** `equalize`: penanda tangan berdampingan; blok diregangkan sehingga nama sejajar walau jabatan beda jumlah baris. */
+function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CSSProperties, equalize = false): ReactNode {
   const { slot, row, rowIndex } = it;
   const who = slot.who;
   const caption = plain(slot.caption, ctx).trim();
@@ -692,11 +693,11 @@ function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CS
     <div
       key={it.key}
       data-slot={slot.id}
-      style={{ width, textAlign: slot.align, ...margin }}
+      style={{ width, textAlign: slot.align, ...(equalize ? { display: "flex", flexDirection: "column" as const } : {}), ...margin }}
     >
       {head ? <div>{head}</div> : null}
       {second ? <div>{second}</div> : null}
-      <div style={{ position: "relative", height: gap }}>
+      <div style={equalize ? { position: "relative", minHeight: gap, flexGrow: 1 } : { position: "relative", height: gap }}>
         {slot.stamp ? (
           <div
             className="lp-deco"
@@ -722,28 +723,64 @@ function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CS
   );
 }
 
+/** Letak efektif blok tanda tangan; "fill" = selebar kolom (hanya susunan berdampingan). Dipakai juga oleh inspector. */
+export function signaturePlace(
+  layout: "row" | "stack",
+  multi: boolean,
+  slot: Pick<SigSlot, "align" | "place">,
+): "left" | "center" | "right" | "fill" {
+  if (slot.place) return slot.place;
+  if (layout === "stack") return slot.align;
+  if (multi) return "fill";
+  return slot.align === "center" ? "right" : slot.align;
+}
+
+/** Blok tanda tangan selebar isinya (liquid); batas ini hanya agar jabatan yang sangat panjang turun baris. */
+const SIG_MAX_WIDTH = "60%";
+
+const SPREAD = {
+  start: "flex-start",
+  center: "center",
+  end: "flex-end",
+  between: "space-between",
+  around: "space-around",
+  evenly: "space-evenly",
+} as const;
+
+const JUSTIFY = { left: "flex-start", center: "center", right: "flex-end" } as const;
+
 function renderSignature(b: Extract<LeafBlock, { type: "signature" }>, ctx: Ctx): ReactNode {
   const items = expandSlots(b, ctx);
   const single = items.length === 1;
-  const marginFor = (a: SigSlot["align"]): CSSProperties =>
+  const marginFor = (a: "left" | "center" | "right"): CSSProperties =>
     a === "right" ? { marginLeft: "auto" } : a === "left" ? { marginRight: "auto" } : { margin: "0 auto" };
+  const placeOf = (it: SigItem) => signaturePlace(b.layout, !single, it.slot);
+  const spread = b.spread && b.spread !== "fill" ? b.spread : null;
 
   return (
     <div key={b.id} className="lp-avoid-break" style={{ margin: "4mm 0" }}>
       {b.dateline?.length ? (
-        <div style={{ textAlign: b.layout === "row" && !single ? "right" : "right", margin: "0 0 1mm" }}>
+        <div style={{ textAlign: b.datelineAlign ?? "right", margin: "0 0 1mm" }}>
           {renderInlines(b.dateline, ctx, `${b.id}-dl`)}
         </div>
       ) : null}
       {b.layout === "stack" ? (
-        <div>{items.map((it) => renderSlot(it, ctx, "45%", { ...marginFor(it.slot.align), marginBottom: "4mm" }))}</div>
+        <div>{items.map((it) => renderSlot(it, ctx, "fit-content", { ...marginFor(placeOf(it) as "left" | "center" | "right"), maxWidth: SIG_MAX_WIDTH, marginBottom: "4mm" }))}</div>
       ) : (
-        <div style={{ display: single ? "block" : "flex", gap: "4mm", alignItems: "flex-start" }}>
-          {items.map((it) =>
-            single
-              ? renderSlot(it, ctx, "45%", marginFor(it.slot.align === "center" ? "right" : it.slot.align))
-              : renderSlot(it, ctx, undefined, { flex: "1 1 0", minWidth: 0 }),
-          )}
+        <div style={{ display: single ? "block" : "flex", gap: "4mm", alignItems: "flex-start", ...(spread ? { justifyContent: SPREAD[spread] } : {}) }}>
+          {items.map((it) => {
+            // Sebaran flex: tiap penanda tangan selebar isinya; `place` tidak berlaku (tidak ada kolom).
+            if (!single && spread) return renderSlot(it, ctx, "fit-content", { flex: "0 1 auto", minWidth: 0 }, true);
+            const place = placeOf(it);
+            if (single) return renderSlot(it, ctx, "fit-content", { ...marginFor(place as "left" | "center" | "right"), maxWidth: SIG_MAX_WIDTH });
+            if (place === "fill") return renderSlot(it, ctx, undefined, { flex: "1 1 0", minWidth: 0 }, true);
+            // Berdampingan dengan letak eksplisit: kolom tetap sama lebar, blok diletakkan di dalamnya.
+            return (
+              <div key={it.key} style={{ flex: "1 1 0", minWidth: 0, display: "flex", justifyContent: JUSTIFY[place] }}>
+                {renderSlot(it, ctx, "fit-content", { maxWidth: "100%" }, true)}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

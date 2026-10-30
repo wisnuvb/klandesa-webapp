@@ -14,7 +14,10 @@ import {
   validateSubdomainLabel,
 } from "@/lib/domain/validators";
 import { isAllowedMainHostname } from "@/lib/subdomain";
-import { createWebsiteDomainEvent } from "@/lib/domain/service";
+import {
+  createWebsiteDomainEvent,
+  websiteRootDomain,
+} from "@/lib/domain/service";
 
 type DomainDto = {
   id: number;
@@ -27,12 +30,6 @@ type DomainDto = {
   created_at: string;
   last_error?: string;
 };
-
-function websiteRootDomain(): string {
-  return (process.env.WEBSITE_ROOT_DOMAIN ?? "klandesa.id")
-    .trim()
-    .toLowerCase();
-}
 
 function requireVillageAdmin(session: unknown) {
   const role = (session as { user?: { role?: string } } | null)?.user?.role;

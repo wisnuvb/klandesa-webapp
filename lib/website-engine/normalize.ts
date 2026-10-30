@@ -12,6 +12,8 @@ import {
   normalizePresetStructurePatch,
   parseTemplateStructureManifest,
 } from "@/lib/website-engine/manifest";
+import { clampSectionVariant, mergeVariantAllowlists } from "@/lib/website-engine/block-variants";
+import { upgradeSectionItems } from "@/lib/website-engine/section-items";
 import { mergeThemeLayers, mergeLayoutLayers } from "@/lib/website-engine/theme";
 import { getTemplatePack } from "@/lib/website-engine/template-packs/registry";
 import { getAllowedSectionKinds } from "@/lib/website-engine/site-sections";
@@ -199,6 +201,28 @@ export function parseCustomization(input: unknown): WebsiteCustomization {
         })
         .filter((x): x is NonNullable<typeof x> => Boolean(x))
     : undefined;
+  const draft = isRecord(input.draft)
+    ? sanitizeCustomizationSnapshot(input.draft)
+    : undefined;
+  const history = Array.isArray(input.history)
+    ? (input.history as unknown[])
+        .filter(isRecord)
+        .map((h) => {
+          const id =
+            typeof h.id === "string"
+              ? h.id.trim().slice(0, MAX_SAVED_TEMPLATE_ID)
+              : "";
+          const publishedAt =
+            typeof h.publishedAt === "string" ? h.publishedAt : "";
+          if (!id || !publishedAt) return null;
+          return {
+            id,
+            publishedAt,
+            snapshot: sanitizeCustomizationSnapshot(h.snapshot),
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => Boolean(x))
+    : undefined;
   return {
     presetKey,
     overrides,
@@ -207,6 +231,8 @@ export function parseCustomization(input: unknown): WebsiteCustomization {
     siteSeo,
     savedPresets,
     savedTemplates,
+    ...(draft ? { draft } : {}),
+    ...(history ? { history } : {}),
     ...(faviconUrl ? { faviconUrl } : {}),
   };
 }
@@ -289,7 +315,19 @@ export function resolveEffectiveStructure(params: {
   if (isRecord(cz.overrides) && cz.overrides.version === 2) {
     resolved = mergeV2Overlay(resolved, cz.overrides, templateKey, allowedKinds);
   }
-  return resolved;
+  // Template DB v1 meneruskan section mentah; ubah semuanya ke bentuk `items` dan terapkan pembatas varian
+  // (pack + manifest template) di satu titik ini.
+  const variantAllow = mergeVariantAllowlists(
+    getTemplatePack(templateKey).blockVariants,
+    manifest.blockVariants,
+  );
+  return {
+    ...resolved,
+    pages: resolved.pages.map((p) => ({
+      ...p,
+      sections: p.sections.map((s) => clampSectionVariant(upgradeSectionItems(s), variantAllow)),
+    })),
+  };
 }
 
 /** Kompatibilitas: struktur v1 efektif untuk kode yang masih mengharapkan `pages.home`. */

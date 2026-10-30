@@ -132,11 +132,14 @@ export function getSubscriptionPhaseInfo(
   };
 }
 
-/** Lazy transition trial→grace→inactive in DB. */
-export async function resolveSubscriptionPhaseWithTransition(
+/**
+ * Lazy transition trial→grace→inactive in DB. `changed` = true hanya bila baris desa benar-benar
+ * ditulis; pemanggil yang sudah memegang baris desa cukup mengambil ulang saat `changed`.
+ */
+export async function applySubscriptionTransition(
   villageId: number,
   village: SubscriptionStatusSummary,
-): Promise<SubscriptionPhase> {
+): Promise<{ phase: SubscriptionPhase; changed: boolean }> {
   const now = new Date();
   const status = String(village.subscriptionStatus ?? "").toLowerCase();
   const expiry = village.subscriptionExpiry;
@@ -147,7 +150,7 @@ export async function resolveSubscriptionPhaseWithTransition(
       where: { id: villageId },
       data: { subscriptionStatus: "grace", subscriptionExpiry: graceExpiry },
     });
-    return "grace";
+    return { phase: "grace", changed: true };
   }
 
   if (status === "grace" && expiry && expiry.getTime() <= now.getTime()) {
@@ -155,7 +158,7 @@ export async function resolveSubscriptionPhaseWithTransition(
       where: { id: villageId },
       data: { subscriptionStatus: "inactive", subscriptionExpiry: null },
     });
-    return "inactive";
+    return { phase: "inactive", changed: true };
   }
 
   if (status === "active" && expiry && expiry.getTime() <= now.getTime()) {
@@ -163,16 +166,26 @@ export async function resolveSubscriptionPhaseWithTransition(
       where: { id: villageId },
       data: { subscriptionStatus: "inactive" },
     });
-    return "inactive";
+    return { phase: "inactive", changed: true };
   }
 
-  return resolveSubscriptionPhase(village);
+  return { phase: resolveSubscriptionPhase(village), changed: false };
+}
+
+/** Lazy transition trial→grace→inactive in DB. */
+export async function resolveSubscriptionPhaseWithTransition(
+  villageId: number,
+  village: SubscriptionStatusSummary,
+): Promise<SubscriptionPhase> {
+  return (await applySubscriptionTransition(villageId, village)).phase;
 }
 
 const SUBSCRIPTION_EXEMPT_PREFIXES = [
   "/api/billing",
   "/api/village/onboarding",
   "/api/auth",
+  // Tandai dibaca bukan perubahan data desa; tetap boleh saat trial/grace mode baca saja (rute memeriksa keterbacaan sendiri).
+  "/api/notifications/read",
 ];
 
 export function isSubscriptionExemptPath(pathname: string): boolean {

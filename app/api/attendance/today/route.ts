@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-import { mapVillagePlanToTier, staffLimitForTier } from "@/lib/attendance/capacity";
+import { staffLimitForTier } from "@/lib/attendance/capacity";
+import {
+  effectiveAttendanceTier,
+  isGpsAddonActive,
+  listCapacityOptions,
+} from "@/lib/attendance/addons";
+import { getActiveCapacityAddon } from "@/lib/attendance/capacity-server";
+import { BILLING_CATALOG } from "@/lib/billing/catalog";
 
 type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "LEAVE";
 type CheckInMethod = "QR" | "GPS";
@@ -53,7 +60,8 @@ export async function GET(req: NextRequest) {
       orderBy: [{ position: { level: "asc" } }, { name: "asc" }],
     });
 
-    const tier = mapVillagePlanToTier(village.subscriptionPlan);
+    const capacityAddon = await getActiveCapacityAddon(village.id);
+    const tier = effectiveAttendanceTier(village.subscriptionPlan, capacityAddon);
     const staffLimit = staffLimitForTier(tier);
     const totalStaff = activeOfficials.length;
     const isOverLimit = totalStaff > staffLimit;
@@ -123,8 +131,16 @@ export async function GET(req: NextRequest) {
         subscriptionPlan: village.subscriptionPlan,
         subscriptionStatus: village.subscriptionStatus,
       },
+      capacity: {
+        addon: capacityAddon
+          ? { code: capacityAddon.code, expiresAt: capacityAddon.expiresAt.toISOString() }
+          : null,
+        options: listCapacityOptions(village.subscriptionPlan, capacityAddon),
+      },
       gpsAddon: {
-        active: village.absensiGpsAddonActive,
+        active: isGpsAddonActive(village),
+        expiresAt: village.absensiGpsAddonExpiry?.toISOString() ?? null,
+        monthlyFee: BILLING_CATALOG.absensi_gps_addon.monthlyFee,
         officeLat: village.absensiOfficeLat ?? null,
         officeLng: village.absensiOfficeLng ?? null,
         radiusMeters: village.absensiCheckInRadiusMeters,

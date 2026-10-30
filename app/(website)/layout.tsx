@@ -99,6 +99,7 @@ export default async function TenantLayout({
       ) : null}
       <PackShell
         villageName={title}
+        logoUrl={tenant?.village?.logoUrl ?? null}
         hideSiteHeader={Boolean(layoutFlags.hideSiteHeader)}
         templateKey={templateKey}
         currentPath={currentPath}

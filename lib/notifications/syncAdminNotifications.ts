@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { NOTIFICATION_RETENTION, notificationCutoffs } from "./retention-policy";
 
 const TYPE_MAIL = "mail_request_pending";
 const TYPE_FINANCE = "finance_transaction";
@@ -15,9 +16,11 @@ export async function syncAdminNotificationsForVillage(villageId: number): Promi
 }
 
 async function syncMailRequests(villageId: number) {
+  // Hanya yang masih dalam jendela tampil dan sebanyak isi daftar lonceng; sisanya tetap ada di halaman permohonan.
   const pending = await prisma.mailRequest.findMany({
-    where: { villageId, status: "pending" },
+    where: { villageId, status: "pending", requestDate: { gte: notificationCutoffs().visibleSince } },
     orderBy: { requestDate: "desc" },
+    take: NOTIFICATION_RETENTION.LIST_LIMIT,
   });
 
   const validKeys = pending.map((r) => `mail-req-${r.id}`);

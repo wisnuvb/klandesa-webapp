@@ -1,5 +1,6 @@
 import { attendanceCapacityFullMessage } from "@/lib/attendance/capacity";
 import { isOfficialWithinAttendanceCapacity } from "@/lib/attendance/capacity-server";
+import { isGpsAddonActive } from "@/lib/attendance/addons";
 import { requireAuthSecret } from "@/lib/auth-secret";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { requireVillageApiContext } from "@/lib/api-village-context";
@@ -38,6 +39,7 @@ type VillageCheckIn = {
   subscriptionStatus: string;
   subscriptionExpiry: Date | null;
   absensiGpsAddonActive: boolean;
+  absensiGpsAddonExpiry: Date | null;
   absensiOfficeLat: number | null;
   absensiOfficeLng: number | null;
   absensiCheckInRadiusMeters: number;
@@ -173,6 +175,7 @@ export async function POST(req: NextRequest) {
           subscriptionStatus: true,
           subscriptionExpiry: true,
           absensiGpsAddonActive: true,
+          absensiGpsAddonExpiry: true,
           absensiOfficeLat: true,
           absensiOfficeLng: true,
           absensiCheckInRadiusMeters: true,
@@ -212,6 +215,7 @@ export async function POST(req: NextRequest) {
           subscriptionStatus: true,
           subscriptionExpiry: true,
           absensiGpsAddonActive: true,
+          absensiGpsAddonExpiry: true,
           absensiOfficeLat: true,
           absensiOfficeLng: true,
           absensiCheckInRadiusMeters: true,
@@ -223,7 +227,7 @@ export async function POST(req: NextRequest) {
       }
       village = v;
 
-      if (!village.absensiGpsAddonActive) {
+      if (!isGpsAddonActive(village)) {
         return NextResponse.json(
           {
             error: "Add-on GPS belum diaktifkan untuk desa ini.",

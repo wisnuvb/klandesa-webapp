@@ -16,6 +16,7 @@ import {
   Shield,
   X,
 } from "lucide-react";
+import { usePayment } from "@/components/billing/PaymentProvider";
 import { SearchBar } from "./components/SearchBar";
 import { TemplateCard } from "./components/TemplateCard";
 import { StatsCard } from "./components/StatsCard";
@@ -28,33 +29,12 @@ type WebsiteOverviewResponse = {
   templates: WebsiteTemplate[];
   activeWebsite: ActiveWebsite | null;
   db?: { ok: boolean };
-};
-
-type VaBank = { id: string; label: string; linkquBankCode: string };
-
-type CheckoutInvoice = {
-  id: string;
-  invoiceNumber: string;
-  productType: string;
-  planCode: string;
-  amount: number;
-  status: string;
-  expiresAt: string | null;
-  paymentMethod: string | null;
-  paymentUrl: string | null;
-  vaNumber: string | null;
-  bankCode: string | null;
-  createdAt: string;
-  items: Array<{
-    id: string;
-    name: string;
-    quantity: number;
-    unitAmount: number;
-    totalAmount: number;
-  }>;
+  setup_needed?: boolean;
+  stats?: { today: number; last30Days: number; total: number; since: string | null } | null;
 };
 
 export default function WebsitePage() {
+  const { pay } = usePayment();
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [village, setVillage] = useState<{
@@ -66,6 +46,9 @@ export default function WebsitePage() {
   const [activeWebsite, setActiveWebsite] = useState<ActiveWebsite | null>(
     null,
   );
+  const [setupNeeded, setSetupNeeded] = useState(false);
+  const [viewStats, setViewStats] =
+    useState<WebsiteOverviewResponse["stats"]>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -86,6 +69,8 @@ export default function WebsitePage() {
       setVillage(json.village ?? null);
       setTemplates(Array.isArray(json.templates) ? json.templates : []);
       setActiveWebsite(json.activeWebsite ?? null);
+      setViewStats(json.stats ?? null);
+      setSetupNeeded(Boolean(json.setup_needed));
     } catch (e) {
       setErrorMessage(e instanceof Error ? e.message : "Terjadi kesalahan");
     } finally {
@@ -123,10 +108,8 @@ export default function WebsitePage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutTemplate, setCheckoutTemplate] =
     useState<WebsiteTemplate | null>(null);
-  const [checkoutMode, setCheckoutMode] = useState<"new" | "change">("new");
-  const [checkoutStep, setCheckoutStep] = useState<
-    "domain" | "warning" | "bank" | "payment"
-  >("domain");
+  const [checkoutMode, setCheckoutMode] = useState<"new" | "change" | "renew">("new");
+  const [checkoutStep, setCheckoutStep] = useState<"domain" | "warning">("domain");
   const [domainType, setDomainType] = useState<"subdomain" | "custom">(
     "subdomain",
   );
@@ -134,47 +117,86 @@ export default function WebsitePage() {
   const [domainError, setDomainError] = useState<string | null>(null);
   const [warningAccepted, setWarningAccepted] = useState(false);
 
-  const [vaBanks, setVaBanks] = useState<VaBank[]>([]);
-  const [banksLoading, setBanksLoading] = useState(false);
-  const [selectedBankId, setSelectedBankId] = useState("");
-
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [activeInvoice, setActiveInvoice] = useState<CheckoutInvoice | null>(
-    null,
-  );
-  const [statusCheckLoading, setStatusCheckLoading] = useState(false);
+
+  const isLive = activeWebsite?.is_active === true;
+  const expiredWebsite =
+    activeWebsite && !activeWebsite.is_active ? activeWebsite : null;
+
+  const templateAction = (template: WebsiteTemplate) =>
+    activeWebsite?.template_id === template.id
+      ? "renew"
+      : activeWebsite
+        ? "change"
+        : "new";
+
+  /** Tutup langkah domain/peringatan lalu serahkan pembayaran ke dialog global (PaymentProvider). */
+  const startPayment = (template: WebsiteTemplate, mode: "new" | "change" | "renew") => {
+    const domain = domainValue.trim().toLowerCase();
+    const estimate =
+      mode === "change" && proration ? proration.payableEstimate : template.price;
+    closeCheckout();
+    pay({
+      productType: "website",
+      planCode: String(template.id),
+      title:
+        mode === "new"
+          ? `Aktivasi Website — ${template.name}`
+          : mode === "renew"
+            ? `Perpanjang Website — ${template.name}`
+            : `Ganti Template — ${template.name}`,
+      amount: estimate,
+      note:
+        mode === "new"
+          ? `Domain: ${domainType === "subdomain" ? `${domain}.klandesa.id` : domain}. Aktif 1 tahun.`
+          : mode === "renew"
+            ? "+1 tahun, disambung dari masa aktif saat ini."
+            : "Estimasi setelah kredit sisa masa aktif; tagihan final mengikuti invoice.",
+      metadata: {
+        website: {
+          mode,
+          domainType: mode === "new" ? domainType : undefined,
+          domain: mode === "new" ? domain : undefined,
+          currentTemplateId: activeWebsite?.template_id,
+          currentExpiry: activeWebsite?.expires_at,
+        },
+      },
+      successMessage: "Pembayaran diterima. Website Desa Anda sedang diperbarui.",
+      onPaid: reloadOverview,
+    });
+  };
 
   const openCheckout = (template: WebsiteTemplate) => {
-    const mode = activeWebsite ? "change" : "new";
+    const mode = templateAction(template);
     setCheckoutMode(mode);
     setCheckoutTemplate(template);
     setCheckoutError(null);
-    setActiveInvoice(null);
-    setSelectedBankId("");
     setDomainError(null);
     setWarningAccepted(false);
 
+    if (mode === "renew") {
+      // Perpanjangan tidak mengubah isi website, jadi tidak perlu domain/peringatan: langsung bayar.
+      setDomainValue("");
+      startPayment(template, mode);
+      return;
+    }
     if (mode === "new") {
       setCheckoutStep("domain");
       setDomainType("subdomain");
-      const fallback = village?.code ? village.code.toLowerCase() : "desa";
-      setDomainValue(fallback);
+      setDomainValue(village?.code ? village.code.toLowerCase() : "desa");
     } else {
       setCheckoutStep("warning");
       setDomainValue("");
     }
-
     setCheckoutOpen(true);
   };
 
   const closeCheckout = () => {
     setCheckoutOpen(false);
     setCheckoutTemplate(null);
-    setActiveInvoice(null);
     setCheckoutError(null);
     setCheckoutLoading(false);
-    setSelectedBankId("");
     setDomainError(null);
     setWarningAccepted(false);
   };
@@ -184,36 +206,9 @@ export default function WebsitePage() {
     openCheckout(template);
   };
 
-  useEffect(() => {
-    if (!checkoutOpen) return;
-    let cancelled = false;
-    (async () => {
-      setBanksLoading(true);
-      setCheckoutError(null);
-      try {
-        const res = await fetch("/api/billing/va-banks");
-        const j = (await res.json().catch(() => null)) as {
-          banks?: VaBank[];
-          error?: string;
-        } | null;
-        if (!res.ok) throw new Error(j?.error || "Gagal memuat daftar bank");
-        if (!cancelled) setVaBanks(j?.banks ?? []);
-      } catch (e) {
-        if (!cancelled)
-          setCheckoutError(
-            e instanceof Error ? e.message : "Gagal memuat bank",
-          );
-      } finally {
-        if (!cancelled) setBanksLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [checkoutOpen]);
-
   const proration = useMemo(() => {
-    if (!activeWebsite || !checkoutTemplate) return null;
+    if (!isLive || !activeWebsite || !checkoutTemplate) return null;
+    if (checkoutMode !== "change") return null;
     const currentTemplate =
       templates.find((t) => t.id === activeWebsite.template_id) ?? null;
     if (!currentTemplate) return null;
@@ -235,9 +230,9 @@ export default function WebsitePage() {
       credit,
       payableEstimate,
     };
-  }, [activeWebsite, checkoutTemplate, templates]);
+  }, [isLive, activeWebsite, checkoutTemplate, checkoutMode, templates]);
 
-  const validateDomain = () => {
+  const validateDomain = async () => {
     if (checkoutMode !== "new") return true;
     const v = domainValue.trim().toLowerCase();
     if (domainType === "subdomain") {
@@ -248,6 +243,26 @@ export default function WebsitePage() {
       if (v === "app") {
         setDomainError("Subdomain tidak valid");
         return false;
+      }
+      setCheckoutLoading(true);
+      try {
+        const res = await fetch(
+          `/api/website/domains/check?label=${encodeURIComponent(v)}`,
+          { cache: "no-store" },
+        );
+        const j = (await res.json().catch(() => null)) as {
+          available?: boolean;
+          error?: string;
+        } | null;
+        if (!res.ok || !j?.available) {
+          setDomainError(j?.error || "Alamat ini tidak bisa dipakai");
+          return false;
+        }
+      } catch {
+        setDomainError("Gagal mengecek alamat, coba lagi");
+        return false;
+      } finally {
+        setCheckoutLoading(false);
       }
       setDomainError(null);
       return true;
@@ -265,8 +280,8 @@ export default function WebsitePage() {
     if (!checkoutTemplate) return;
 
     if (checkoutStep === "domain") {
-      if (!validateDomain()) return;
-      setCheckoutStep("bank");
+      if (!(await validateDomain())) return;
+      startPayment(checkoutTemplate, checkoutMode);
       return;
     }
 
@@ -276,100 +291,7 @@ export default function WebsitePage() {
         return;
       }
       setCheckoutError(null);
-      setCheckoutStep("bank");
-      return;
-    }
-
-    if (checkoutStep === "bank") {
-      if (!selectedBankId) {
-        setCheckoutError("Pilih bank terlebih dahulu");
-        return;
-      }
-      setCheckoutLoading(true);
-      setCheckoutError(null);
-      try {
-        const metadata = {
-          website: {
-            mode: checkoutMode,
-            domainType: checkoutMode === "new" ? domainType : undefined,
-            domain:
-              checkoutMode === "new"
-                ? domainValue.trim().toLowerCase()
-                : undefined,
-            currentTemplateId: activeWebsite?.template_id,
-            currentExpiry: activeWebsite?.expires_at,
-          },
-        };
-
-        const res = await fetch("/api/billing/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productType: "website",
-            planCode: String(checkoutTemplate.id),
-            paymentMethod: "va",
-            bankChannelId: selectedBankId,
-            metadata,
-          }),
-        });
-
-        const j = (await res.json().catch(() => null)) as {
-          invoice?: CheckoutInvoice;
-          error?: string;
-        } | null;
-        if (!res.ok) throw new Error(j?.error || "Gagal membuat checkout");
-        if (!j?.invoice) throw new Error("Invoice tidak ditemukan");
-        setActiveInvoice(j.invoice);
-        setCheckoutStep("payment");
-      } catch (e) {
-        setCheckoutError(
-          e instanceof Error ? e.message : "Gagal membuat checkout",
-        );
-      } finally {
-        setCheckoutLoading(false);
-      }
-      return;
-    }
-  };
-
-  const copyText = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      textarea.style.position = "fixed";
-      textarea.style.left = "-999999px";
-      textarea.style.top = "-999999px";
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      document.execCommand("copy");
-      textarea.remove();
-    }
-  };
-
-  const refreshInvoiceStatus = async () => {
-    if (!activeInvoice) return;
-    setStatusCheckLoading(true);
-    setCheckoutError(null);
-    try {
-      const res = await fetch(`/api/billing/invoices/${activeInvoice.id}`);
-      const j = (await res.json().catch(() => null)) as {
-        invoice?: CheckoutInvoice;
-        error?: string;
-      } | null;
-      if (!res.ok) throw new Error(j?.error || "Gagal cek status invoice");
-      if (!j?.invoice) throw new Error("Invoice tidak ditemukan");
-      setActiveInvoice(j.invoice);
-      if (String(j.invoice.status).toLowerCase() === "paid") {
-        closeCheckout();
-        await reloadOverview();
-      }
-    } catch (e) {
-      setCheckoutError(e instanceof Error ? e.message : "Gagal cek status");
-    } finally {
-      setStatusCheckLoading(false);
+      startPayment(checkoutTemplate, checkoutMode);
     }
   };
 
@@ -407,8 +329,68 @@ export default function WebsitePage() {
         </div>
       ) : null}
 
-      {!loading && activeWebsite ? (
+      {!loading && expiredWebsite ? (
+        <div className="bg-linear-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="flex-1 space-y-3">
+              <div>
+                <h3 className="font-semibold text-red-900 mb-1">
+                  Masa aktif website sudah berakhir
+                </h3>
+                <p className="text-sm text-red-800">
+                  Website {expiredWebsite.template_name} berhenti tayang sejak{" "}
+                  {new Date(expiredWebsite.expires_at).toLocaleDateString(
+                    "id-ID",
+                    { day: "numeric", month: "long", year: "numeric" },
+                  )}
+                  . Perpanjang untuk menayangkannya kembali. Pengaturan tampilan
+                  dan isi website Anda tetap tersimpan.
+                </p>
+              </div>
+              {templates.some((t) => t.id === expiredWebsite.template_id) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = templates.find(
+                      (x) => x.id === expiredWebsite.template_id,
+                    );
+                    if (t) openCheckout(t);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+                >
+                  Perpanjang Sekarang
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {!loading && isLive && activeWebsite ? (
         <div className="space-y-6">
+          {setupNeeded ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-teal-50 p-5">
+              <div>
+                <div className="font-semibold text-teal-900">
+                  Siapkan tampilan website Anda
+                </div>
+                <p className="text-sm text-teal-800">
+                  Tiga langkah singkat: pilih warna, lengkapi sambutan, lalu
+                  terbitkan. Sebagian besar sudah kami isi dari data desa.
+                </p>
+              </div>
+              <Link
+                href="/website/setup"
+                className="inline-flex min-h-11 items-center rounded-xl bg-teal-600 px-5 font-medium text-white transition-colors hover:bg-teal-700"
+              >
+                Mulai penyiapan
+              </Link>
+            </div>
+          ) : null}
+
           <div className="bg-linear-to-br from-teal-600 to-teal-700 rounded-2xl p-8 text-white">
             <div className="flex items-center justify-between gap-6 flex-wrap">
               <div className="flex items-center gap-3">
@@ -447,28 +429,34 @@ export default function WebsitePage() {
 
           <WebsiteDomainsPanel villageCode={village?.code ?? ""} />
 
-          <div className="grid md:grid-cols-4 gap-6">
-            <StatsCard
-              title="Total Pengunjung"
-              value={activeWebsite.total_visitors.toLocaleString()}
-              icon="visitors"
-            />
-            <StatsCard
-              title="Pengunjung Hari Ini"
-              value={activeWebsite.visitors_today.toLocaleString()}
-              icon="views"
-            />
-            <StatsCard
-              title="Pengunjung Bulan Ini"
-              value={activeWebsite.visitors_month.toLocaleString()}
-              icon="engagement"
-            />
-            <StatsCard
-              title="Total Konten"
-              value={activeWebsite.total_posts}
-              icon="posts"
-            />
-          </div>
+          {viewStats ? (
+            <div className="space-y-2">
+              <div className="grid sm:grid-cols-3 gap-6">
+                <StatsCard
+                  title="Tayangan Hari Ini"
+                  value={viewStats.today.toLocaleString("id-ID")}
+                  icon="views"
+                />
+                <StatsCard
+                  title="Tayangan 30 Hari Terakhir"
+                  value={viewStats.last30Days.toLocaleString("id-ID")}
+                  icon="engagement"
+                />
+                <StatsCard
+                  title="Total Tayangan"
+                  value={viewStats.total.toLocaleString("id-ID")}
+                  icon="visitors"
+                />
+              </div>
+              <p className="text-xs text-gray-500">
+                Jumlah halaman yang dibuka pengunjung
+                {viewStats.since
+                  ? `, dihitung sejak ${new Date(viewStats.since).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`
+                  : ""}
+                . Kunjungan mesin pencari dan bot tidak dihitung.
+              </p>
+            </div>
+          ) : null}
 
           <div className="rounded-2xl border bg-white p-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -477,7 +465,10 @@ export default function WebsitePage() {
                   CMS Website
                 </div>
                 <div className="text-sm text-gray-600">
-                  Kelola konten & informasi yang tampil di website.
+                  Kelola konten & informasi yang tampil di website.{" "}
+                  {activeWebsite.total_posts > 0
+                    ? `${activeWebsite.total_posts} berita sudah dipublikasikan.`
+                    : null}
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -530,6 +521,13 @@ export default function WebsitePage() {
                 template={template}
                 onPreview={handlePreview}
                 onChoose={handleChooseTemplate}
+                actionLabel={
+                  templateAction(template) === "renew"
+                    ? "Perpanjang"
+                    : templateAction(template) === "change"
+                      ? "Ganti ke Template Ini"
+                      : undefined
+                }
               />
             ))}
           </div>
@@ -706,7 +704,9 @@ export default function WebsitePage() {
                 <div className="text-sm text-gray-600">
                   {checkoutMode === "new"
                     ? "Aktivasi Website"
-                    : "Ganti Template"}
+                    : checkoutMode === "renew"
+                      ? "Perpanjang Website"
+                      : "Ganti Template"}
                 </div>
                 <div className="text-lg font-bold text-gray-900">
                   {checkoutTemplate.name}
@@ -819,8 +819,10 @@ export default function WebsitePage() {
                       Peringatan
                     </div>
                     <div className="text-sm text-amber-800 mt-1">
-                      Sebagian data/konten yang ada pada template lama mungkin
-                      tidak muncul atau perlu penyesuaian pada template baru.
+                      Mengganti template akan mengembalikan tampilan dan susunan
+                      halaman website ke bawaan template baru. Pengaturan warna,
+                      font, dan isi blok yang sudah Anda ubah di CMS tidak ikut
+                      terbawa. Berita yang sudah dipublikasikan tidak terhapus.
                     </div>
                   </div>
 
@@ -879,153 +881,24 @@ export default function WebsitePage() {
                 </div>
               ) : null}
 
-              {checkoutStep === "bank" ? (
-                <div className="space-y-4">
-                  <div className="font-semibold text-gray-900">
-                    Pilih Bank (Virtual Account)
-                  </div>
-                  {banksLoading ? (
-                    <div className="text-sm text-gray-600">
-                      Memuat daftar bank...
-                    </div>
-                  ) : (
-                    <select
-                      value={selectedBankId}
-                      onChange={(e) => setSelectedBankId(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                    >
-                      <option value="">Pilih bank</option>
-                      {vaBanks.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <div className="rounded-xl border border-gray-200 p-4">
-                    <div className="text-sm text-gray-600">Ringkasan</div>
-                    <div className="text-sm text-gray-900 mt-1">
-                      Template:{" "}
-                      <span className="font-semibold">
-                        {checkoutTemplate.name}
-                      </span>
-                    </div>
-                    {checkoutMode === "new" ? (
-                      <div className="text-sm text-gray-900">
-                        Domain:{" "}
-                        <span className="font-semibold">
-                          {domainType === "subdomain"
-                            ? `${domainValue.trim().toLowerCase()}.klandesa.id`
-                            : domainValue.trim().toLowerCase()}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-
-              {checkoutStep === "payment" && activeInvoice ? (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-gray-200 p-4 space-y-2">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                      <div>
-                        <div className="text-sm text-gray-600">Invoice</div>
-                        <div className="font-semibold text-gray-900">
-                          {activeInvoice.invoiceNumber}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm text-gray-600">Total</div>
-                        <div className="font-bold text-teal-700">
-                          {formatCurrency(activeInvoice.amount)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-3 pt-2">
-                      <div className="rounded-lg border border-gray-200 p-3">
-                        <div className="text-sm text-gray-600">Bank</div>
-                        <div className="text-sm font-semibold text-gray-900">
-                          {activeInvoice.bankCode ?? "-"}
-                        </div>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 p-3">
-                        <div className="text-sm text-gray-600">VA Number</div>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm font-semibold text-gray-900 break-all">
-                            {activeInvoice.vaNumber ?? "-"}
-                          </div>
-                          {activeInvoice.vaNumber ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                copyText(activeInvoice.vaNumber || "")
-                              }
-                              className="shrink-0 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium"
-                            >
-                              Salin
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-
-                    {activeInvoice.paymentUrl ? (
-                      <a
-                        href={activeInvoice.paymentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors font-medium mt-3"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        Buka Halaman Pembayaran
-                      </a>
-                    ) : null}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                      type="button"
-                      onClick={refreshInvoiceStatus}
-                      disabled={statusCheckLoading}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors font-medium"
-                    >
-                      {statusCheckLoading
-                        ? "Mengecek..."
-                        : "Cek Status Pembayaran"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={closeCheckout}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors font-medium"
-                    >
-                      Tutup
-                    </button>
-                  </div>
-                </div>
-              ) : null}
             </div>
 
             <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
-              {checkoutStep !== "payment" ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={closeCheckout}
-                    className="px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors font-medium"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="button"
-                    onClick={proceedCheckout}
-                    disabled={checkoutLoading}
-                    className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors font-medium"
-                  >
-                    {checkoutLoading ? "Memproses..." : "Lanjut"}
-                  </button>
-                </>
-              ) : null}
+              <button
+                type="button"
+                onClick={closeCheckout}
+                className="px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors font-medium"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={proceedCheckout}
+                disabled={checkoutLoading}
+                className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors font-medium"
+              >
+                {checkoutLoading ? "Memproses..." : "Lanjut ke pembayaran"}
+              </button>
             </div>
           </div>
         </div>

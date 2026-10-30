@@ -13,7 +13,7 @@ export type FieldIn = NonNullable<LetterDocumentInput["fields"]>[number];
 export type GroupIn = NonNullable<LetterDocumentInput["groups"]>[number];
 export type PersonRoleIn = NonNullable<LetterDocumentInput["people"]>[number];
 
-export type CatalogCategory = "Keterangan" | "Pengantar" | "Kependudukan";
+export type CatalogCategory = "Keterangan" | "Pengantar" | "Kependudukan" | "Administrasi Desa";
 
 export type CatalogEntry = {
   catalogKey: string;
@@ -104,11 +104,17 @@ export const personData = (
 export const pemohonData = (fields: PersonFieldKey[] = PEMOHON_NARASI, id = "data_pemohon"): LeafIn =>
   personData("pemohon", fields, id);
 
-type Penutup = "keterangan" | "pengantar" | "pernyataan";
+type Penutup = "keterangan" | "pengantar" | "pernyataan" | "kuasa" | "undangan" | "edaran" | "tugas" | "berita_acara" | "dinas";
 const PENUTUP: Record<Penutup, string> = {
   keterangan: "Demikian surat keterangan ini dibuat dengan sebenarnya untuk dipergunakan sebagaimana mestinya.",
   pengantar: "Demikian surat pengantar ini dibuat untuk dipergunakan sebagaimana mestinya.",
   pernyataan: "Demikian pernyataan ini dibuat dengan sebenarnya tanpa paksaan dari pihak mana pun.",
+  kuasa: "Demikian surat kuasa ini dibuat dengan sebenarnya untuk dipergunakan sebagaimana mestinya.",
+  undangan: "Demikian undangan ini kami sampaikan. Atas kehadiran dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.",
+  edaran: "Demikian surat edaran ini disampaikan untuk diketahui dan dilaksanakan sebagaimana mestinya.",
+  tugas: "Demikian surat tugas ini dibuat untuk dilaksanakan dengan penuh tanggung jawab.",
+  berita_acara: "Demikian berita acara ini dibuat dengan sebenarnya untuk dipergunakan sebagaimana mestinya.",
+  dinas: "Demikian disampaikan. Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.",
 };
 export const penutup = (jenis: Penutup = "keterangan", id = "penutup"): LeafIn => para(id, t(PENUTUP[jenis]));
 
@@ -131,18 +137,30 @@ export const saksiKadesSignature = (id = "ttd"): BlockIn => ({
   ],
 });
 
-/** Kepala surat biasa (pengantar): Nomor/Lampiran/Perihal, tanggal, dan alamat tujuan. */
-export const memo = (perihal: string, tujuan: Inline[], id = "kepala"): BlockIn => ({
+/**
+ * Kepala surat biasa: Nomor/Lampiran/Perihal, tanggal, dan alamat tujuan.
+ * `sisipan` menambah baris (mis. "Dari") dan `diTempat: false` menghapus baris "di tempat".
+ */
+export const memo = (
+  perihal: string | Inline[],
+  tujuan: Inline[],
+  id = "kepala",
+  opts: { sisipan?: Array<{ label: string; value: Inline[] }>; diTempat?: boolean } = {},
+): BlockIn => ({
   id,
   type: "memo",
   rows: [
     { label: "Nomor", value: [f("surat.nomor")] },
+    ...(opts.sisipan ?? []),
     { label: "Lampiran", value: [t("-")] },
-    { label: "Perihal", value: [t(perihal)] },
+    { label: "Perihal", value: typeof perihal === "string" ? [t(perihal)] : perihal },
   ],
   dateline: datelineSurat,
-  addressee: [t("Yth. "), ...tujuan, br, t("di tempat")],
+  addressee: [t("Yth. "), ...tujuan, ...(opts.diTempat === false ? [] : [br, t("di tempat")])],
 });
+
+/** Paragraf rata kiri satu baris per `br` (mis. "Hari, tanggal : …"), untuk rincian acara. */
+export const rincian = (id: string, ...content: Inline[]): LeafIn => ({ id, type: "paragraph", align: "left", content });
 
 // ----------------------------------------------------------------- dokumen
 
@@ -177,3 +195,29 @@ export function letter(o: {
     body: o.body,
   };
 }
+
+/** Surat dinas internal desa (tanpa pemohon): undangan, tugas, edaran, keputusan, berita acara, dst. */
+export function internalLetter(o: {
+  kind: NonNullable<LetterDocumentInput["kind"]>;
+  klasifikasi?: string;
+  letterhead?: NonNullable<LetterDocumentInput["letterhead"]>;
+  numbering?: NonNullable<LetterDocumentInput["numbering"]>;
+  fields?: FieldIn[];
+  groups?: GroupIn[];
+  body: BlockIn[];
+}): LetterDocumentInput {
+  return {
+    schemaVersion: 2,
+    kind: o.kind,
+    audience: "internal",
+    letterhead: o.letterhead ?? "desa",
+    numbering: o.numbering ?? numbering(o.klasifikasi ?? KLASIFIKASI_UMUM),
+    people: [],
+    fields: o.fields ?? [],
+    groups: o.groups ?? [],
+    body: o.body,
+  };
+}
+
+/** Kode klasifikasi umum surat dinas; desa menyesuaikannya dengan klasifikasi arsip setempat. */
+export const KLASIFIKASI_UMUM = "000";

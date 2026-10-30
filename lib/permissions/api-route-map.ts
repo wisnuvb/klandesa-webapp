@@ -37,6 +37,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/kiosk/devices", resource: "mail" },
   { prefix: "/api/statistics", resource: "statistics" },
   { prefix: "/api/dashboard/stats", resource: "statistics" },
+  { prefix: "/api/dashboard/idm", resource: "statistics" },
   { prefix: "/api/activities/recent", resource: "statistics" },
   { prefix: "/api/announcements", resource: "announcements" },
   { prefix: "/api/forum-threads", resource: "forum" },
@@ -60,6 +61,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/lingkungan", resource: "lingkungan" },
   { prefix: "/api/ai/village-assistant", resource: "ai_assistant" },
   { prefix: "/api/ai/threads", resource: "ai_assistant" },
+  // Menandai notifikasi dibaca hanya mengubah status baca milik sendiri, bukan data desa: cukup izin baca.
+  { prefix: "/api/notifications/read", resource: "statistics", suffixActions: { "": "read" } },
   { prefix: "/api/notifications", resource: "statistics" },
   { prefix: "/api/ai/credit", resource: "settings" },
 ];

@@ -140,3 +140,34 @@ app/api/{modul}/
 ```
 
 Daftar modul & status: [`lib/modules/registry.ts`](../lib/modules/registry.ts).
+
+## Pembayaran (LinkQu)
+
+Semua pembayaran memakai satu komponen global: `components/billing/` (`PaymentProvider` dipasang di `app/(app)/AppLayoutClient.tsx`).
+Dari halaman mana pun:
+
+```tsx
+const { pay } = usePayment();
+pay({
+  productType: "absensi",          // BillingProductType
+  planCode: "professional",
+  title: "Kapasitas Absensi 20 Perangkat",
+  amount: 50_000,                  // hanya tampilan; nominal resmi dihitung server
+  onPaid: reload,                  // dipanggil sekali saat lunas
+});
+```
+
+- Ubah tampilan / metode bayar / polling: edit `PaymentDialog.tsx` dan `usePaymentFlow.ts` saja.
+- Batasi metode per produk lewat `methods: ["va"]`; lanjutkan tagihan lama lewat `resumeInvoiceId`.
+- Jangan memanggil `/api/billing/checkout` langsung dari halaman (dijaga `tests/payment-single-entry.test.ts`).
+- Harga dan aturan produk ada di server (`lib/billing/service.ts`, `lib/billing/catalog.ts`), bukan di UI.
+
+### Ketersediaan metode bayar
+
+Dialog hanya mengaktifkan metode/kanal yang sedang tersedia (`GET /api/billing/payment-options?amount=`), dinilai di
+`lib/payment/linkqu-channels.ts` dari: (1) status yang diatur admin di **Admin > Kanal Pembayaran** (tabel
+`payment_channel_settings`, `lib/payment/channel-settings.ts`, cache 15 detik, fail-open), (2) `LINKQU_DISABLED_CHANNELS` di env
+(kunci dari server), (3) kanal yang baru ditolak LinkQu (`lib/payment/channel-health.ts`, otomatis ~10 menit), (4) batas nominal per
+jenis (QRIS Rp1 rb–20 jt, e-wallet Rp15 rb–2,5 jt, VA Rp10 rb–2 M). Server memeriksa ulang saat checkout.
+Tombol "Uji semua kanal" di panel admin (atau `scripts/linkqu-probe-channels.ts`) mengetahui kanal yang diterima akun LinkQu;
+kanal yang ditolak otomatis dinonaktifkan.

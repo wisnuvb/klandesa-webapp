@@ -219,6 +219,98 @@ describe("renderer: perilaku blok", () => {
     }
   });
 
+  it("letak blok tanda tangan terpisah dari rata tulisan; tanpa `place` perilaku lama tetap", () => {
+    const base = clone(FIXTURES.keteranganDomisili) as any;
+    const sig = base.body.find((b: any) => b.type === "signature");
+    const blockStyle = (place?: string, align?: string) => {
+      sig.slots[0].align = align ?? "center";
+      if (place) sig.slots[0].place = place;
+      else delete sig.slots[0].place;
+      const doc = docOf(base);
+      const out = html(doc, sampleLetterValues(doc));
+      return out.match(/<div data-slot="kades" style="([^"]*)"/)?.[1] ?? "";
+    };
+    // lama: tunggal + tengah => blok di kanan, tulisan di tengah
+    assert.match(blockStyle(undefined, "center"), /text-align:center/);
+    assert.match(blockStyle(undefined, "center"), /margin-left:auto/);
+    // lama: tunggal + kiri => blok di kiri
+    assert.match(blockStyle(undefined, "left"), /margin-right:auto/);
+    // baru: blok di kiri, tulisan di tengah
+    const kiriTengah = blockStyle("left", "center");
+    assert.match(kiriTengah, /margin-right:auto/);
+    assert.match(kiriTengah, /text-align:center/);
+    // blok mengikuti isi (bukan lebar tetap 45%)
+    assert.match(kiriTengah, /width:fit-content/);
+    assert.doesNotMatch(kiriTengah, /width:45%/);
+    // baru: blok di tengah halaman, tulisan rata kanan
+    const tengahKanan = blockStyle("center", "right");
+    assert.match(tengahKanan, /margin:0 auto/);
+    assert.match(tengahKanan, /text-align:right/);
+  });
+
+  it("berdampingan: tanpa `place` selebar kolom; dengan `place` blok diletakkan di dalam kolom", () => {
+    const base = clone(FIXTURES.ahliWaris) as any;
+    const sig = base.body.find((b: any) => b.type === "signature");
+    const doc0 = docOf(base);
+    const legacy = html(doc0, sampleLetterValues(doc0));
+    assert.ok(!legacy.includes("fit-content"));
+    sig.slots[0].place = "right";
+    const doc1 = docOf(base);
+    const placed = html(doc1, sampleLetterValues(doc1));
+    assert.ok(placed.includes("width:fit-content"));
+    assert.ok(placed.includes("justify-content:flex-end"));
+  });
+
+  it("sebaran flex untuk beberapa penanda tangan: blok selebar isi + justify-content", () => {
+    const base = clone(FIXTURES.ahliWaris) as any;
+    const sig = base.body.find((b: any) => b.type === "signature");
+    assert.ok(sig.slots.length > 1);
+    const cases: Array<[string, string]> = [["evenly", "space-evenly"], ["between", "space-between"], ["around", "space-around"], ["start", "flex-start"], ["center", "center"], ["end", "flex-end"]];
+    for (const [spread, css] of cases) {
+      sig.spread = spread;
+      const doc = docOf(base);
+      const out = html(doc, sampleLetterValues(doc));
+      assert.ok(out.includes(`justify-content:${css}`), spread);
+      assert.ok(out.includes("width:fit-content"), spread);
+    }
+    sig.spread = "fill";
+    const doc = docOf(base);
+    const out = html(doc, sampleLetterValues(doc));
+    assert.ok(!out.includes("justify-content:"));
+    assert.ok(!out.includes("fit-content"));
+  });
+
+  it("penanda tangan berdampingan diregangkan agar nama sejajar; tunggal & bertumpuk tidak", () => {
+    const base = clone(FIXTURES.ahliWaris) as any;
+    const sig = base.body.find((b: any) => b.type === "signature");
+    assert.ok(sig.slots.length > 1);
+    sig.layout = "row";
+    const d1 = docOf(base);
+    const row = html(d1, sampleLetterValues(d1));
+    assert.ok(row.includes("flex-direction:column") && row.includes("flex-grow:1"));
+    sig.layout = "stack";
+    const d2 = docOf(base);
+    const stack = html(d2, sampleLetterValues(d2));
+    assert.ok(!stack.includes("flex-direction:column") && !stack.includes("flex-grow:1"));
+    const one = clone(FIXTURES.keteranganDomisili) as any;
+    const d3 = docOf(one);
+    assert.ok(!html(d3, sampleLetterValues(d3)).includes("flex-grow:1"));
+  });
+
+  it("rata baris tempat & tanggal di atas tanda tangan: kanan bawaan, bisa kiri/tengah", () => {
+    const base = clone(FIXTURES.keteranganDomisili) as any;
+    const sig = base.body.find((b: any) => b.type === "signature");
+    const dateAlign = () => {
+      const doc = docOf(base);
+      return html(doc, sampleLetterValues(doc)).match(/text-align:(\w+);margin:0 0 1mm/)?.[1];
+    };
+    assert.equal(dateAlign(), "right");
+    sig.datelineAlign = "left";
+    assert.equal(dateAlign(), "left");
+    sig.datelineAlign = "center";
+    assert.equal(dateAlign(), "center");
+  });
+
   it("stempel dan materai: kotak penanda di preview, transparan di print", () => {
     const doc = docOf(FIXTURES.jualBeliTanah);
     const v = sampleLetterValues(doc);

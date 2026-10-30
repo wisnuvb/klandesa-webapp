@@ -79,6 +79,7 @@ Sumber: Perbup Bangka 60/2020 (dibaca langsung) dan potongan Perbup/dokumen daer
 - [x] `lib/letters/document/{schema,validate,form-spec}.ts`: skema dokumen v2 (zod), validasi lintas-rujukan, form turun otomatis, "Cek surat".
 - [x] Fixture pola lapangan + tes.
 - [x] Katalog 19 template ditulis ulang ke v2 (`lib/letters/catalog/*`, `lib/mail/catalogTemplates.ts`) + `scripts/sync-letter-catalog.ts`.
+- [x] Katalog diperluas menjadi 37 template (2026-10-30) dalam 4 kategori: Keterangan 16, Pengantar 8, Kependudukan 5, **Administrasi Desa 8** (surat dinas internal tanpa pemohon: undangan, tugas, edaran, pemberitahuan, SK Kepala Desa, berita acara, daftar hadir, nota dinas; `lib/letters/catalog/administrasi.ts`). Daftar ini disusun dari pola surat desa yang lazim dan pola Perbup tata naskah yang sudah dibaca; **bukan daftar lengkap** dan formatnya berbeda per kabupaten, sehingga yang formatnya bervariasi diberi akhiran "(kerangka)". Kode klasifikasi arsip surat dinas diisi umum (`000`) dan dasar hukum SK Kepala Desa diisi operator; desa menyesuaikannya dengan aturan daerah. Setelah deploy jalankan `npx tsx scripts/sync-letter-catalog.ts` (kunci katalog lama tidak berubah).
 - [x] Penghitung nomor atomik (`mail_number_counters`, `lib/letters/server/numbering.ts`), diuji 25 transaksi serentak di MySQL.
 - [x] `applicantName`/`applicantNik` boleh kosong untuk surat internal (tanpa migrasi: kolom tetap NOT NULL, diisi `""`).
 - [ ] Profil Tata Naskah Desa (kop, kertas, font, pejabat, penomoran bawaan) yang dapat diatur di UI. Sementara kop dibangun dari data desa dan pejabat yang sudah ada (`buildLetterContext`).
@@ -100,25 +101,25 @@ Antarmuka:
 - [x] Komposer layar terbagi (lihat bagian status di bawah bila belum selesai).
 - [ ] Paginasi dan filter sisi server untuk riwayat.
 
-**Catatan:** builder lama masih dipakai hanya untuk mengubah template berformat lama; template v2 diubah lewat editor kanvas (Fase 3).
+**Catatan:** builder lama sudah dihapus (2026-10-30); semua jenis surat diubah lewat editor kanvas (Fase 3).
 
 ### Fase 3 — Kanvas template (terbangun; uji asap peramban lulus)
 
-Halaman `/layanan-surat/editor` (`?templateId=` ubah, `?start=` mulai baru dari kosong/contoh, `?forkFromId=` salin template katalog lalu ubah). Entry point: "Ubah" (template v2), "Template Baru" (dialog pilihan awal), "Sesuaikan" (katalog v2).
+Halaman `/layanan-surat/editor` (`?templateId=` ubah, `?start=` mulai baru dari kosong/contoh, `?forkFromId=` salin template katalog lalu ubah). Entry point: "Ubah" (template v2), "Jenis Surat Baru" (dialog pilihan awal), "Sesuaikan" (katalog v2).
 
 - [x] Inti editor murni dan teruji (`lib/letters/editor/*`): operasi blok (termasuk kolom/bersyarat), id, pemakaian peran/isian/daftar (hapus ditolak bila masih dipakai), 24 preset bagian, konversi inline↔Tiptap, riwayat undo/redo (batas 100, penggabungan ketikan), `useDocumentEditor`.
 - [x] Persistensi (`editor/_hooks/useTemplateDocument`): autosave 1,5 dtk, backoff, konflik via `expectedUpdatedAt`, peringatan tutup tab, mulai dari contoh/kosong.
 - [x] Kanvas edit-di-tempat (`components/letters/editor/canvas`): klik bagian → sunting di kertas, chip isian, `/` pemilih isian, `+` menu bagian, dnd-kit dengan alternatif tombol dan keyboard, hapus dengan "Urungkan", zoom kertas.
 - [x] Panel samping (`components/letters/editor/panels`): Bagian + inspector, Orang & isian, Halaman + penomoran, Cek surat.
-- [x] Tombol "Ubah" template v2 diaktifkan; "Template Baru" memakai editor baru.
+- [x] Tombol "Ubah" template v2 diaktifkan; "Jenis Surat Baru" memakai editor baru.
 - [x] Uji asap Chromium via harness (teks, chip, sisip, drag/keyboard, panel, layar 390px, alur simpan dengan API palsu). Jeda ketik dev-mode: median 13 ms (5 bagian) / 23 ms (45 bagian), P90 78 ms.
 - [ ] Uji pada halaman editor sungguhan (login, AppShell: posisi sticky/tinggi, simpan ke DB, RBAC/tenant).
-- [ ] Hapus builder lama (~7.100 baris) setelah editor teruji dan tidak ada template format lama yang tersisa.
+- [x] Builder lama dihapus (2026-10-30): `components/template-builder`, dialog/hook form lama, renderer lama (~9.900 baris). Daftar hanya menampilkan format v2; surat lama di Riwayat hanya menampilkan isian tersimpan. Backend `/api/mail-services` & `lib/mail/letterFormSnapshot` belum dibersihkan (dipakai mobile/pengaturan desa).
 - [ ] Riwayat versi template.
 
 **Catatan UX dari uji peramban — sudah diperbaiki (2026-10-29):** bilah alat satu baris tinggi tetap; `+` dan pegangan seret pindah ke margin (hit area ≥44 px); zoom HP minimum 0,6.
 
-**Struktur halaman (2026-10-29):** menu sidebar "Buat Surat" → `/layanan-surat` dengan tiga tab (URL `?tab=`): **Buat Surat** (pilih jenis surat, default), **Riwayat**, **Kelola Template** (kartu; Ubah/Sesuaikan/Template Baru/Hapus). `/layanan-surat/buat` tanpa parameter menampilkan pemilih jenis surat yang sama. Uji E2E Chromium (DB sementara, login distub di salinan): daftar → komposer layar terbagi → draf → terbit → riwayat → cetak, ahli waris/saksi/internal, Sesuaikan → editor → autosave → pakai, konflik, isolasi desa: semua lulus.
+**Struktur halaman (2026-10-29):** menu sidebar "Buat Surat" → `/layanan-surat` dengan tiga tab (URL `?tab=`): **Buat Surat** (pilih jenis surat, default), **Riwayat**, **Atur Jenis Surat** (dulu "Kelola Template"; kartu; Ubah/Sesuaikan/Jenis Surat Baru/Hapus). Tab terakhir dibuka diingat di localStorage (`layanan-surat:tab-terakhir`) dan dipulihkan bila URL tanpa `?tab=`. `/layanan-surat/buat` tanpa parameter menampilkan pemilih jenis surat yang sama. Uji E2E Chromium (DB sementara, login distub di salinan): daftar → komposer layar terbagi → draf → terbit → riwayat → cetak, ahli waris/saksi/internal, Sesuaikan → editor → autosave → pakai, konflik, isolasi desa: semua lulus.
 
 **Batasan yang diketahui:** label baris memo/header tabel/tembusan hanya diubah di panel; tabel belum bisa tambah baris/kolom dari kertas; isian grup tidak bisa disisipkan sebagai chip; inspector `memo`, `signature`, `table` minimal; susunan tanda tangan "pemohon + saksi" hanya dari panel Sisipkan.
 

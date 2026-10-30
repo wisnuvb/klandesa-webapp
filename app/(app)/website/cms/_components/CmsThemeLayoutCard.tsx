@@ -14,6 +14,7 @@ import {
   WEBSITE_GOOGLE_FONT_BODY_OPTIONS,
   WEBSITE_GOOGLE_FONT_HEADING_OPTIONS,
 } from "@/lib/website-engine/google-fonts";
+import { contrastRatio, hexToRgb } from "@/lib/website-engine/color";
 import { THEME_PALETTE_SWATCHES } from "../_lib/constants";
 import { colorPickerFallbackHex } from "../_lib/theme-utils";
 
@@ -111,6 +112,13 @@ export const CmsThemeLayoutCard = memo(function CmsThemeLayoutCard({
                 disabled={disabled}
               />
             </div>
+            {hexToRgb(themePrimary) && contrastRatio(themePrimary, "#ffffff") < 4.5 ? (
+              <p role="status" className="text-xs text-amber-700">
+                Warna ini terlalu terang untuk tulisan putih (kontras{" "}
+                {contrastRatio(themePrimary, "#ffffff").toFixed(1)}:1, minimal 4,5:1). Tombol dan pita angka bisa sulit
+                dibaca. Pilih warna yang lebih gelap.
+              </p>
+            ) : null}
           </div>
           <div className="grid gap-2">
             <div className="text-xs text-muted-foreground">Warna aksen</div>

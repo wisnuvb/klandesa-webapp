@@ -9,7 +9,6 @@ import { RESIDENT_SELECT, parseRef, residentToPerson, type ResidentLike } from "
 import { validateDocument } from "../lib/letters/document/validate.ts";
 import { deriveFormSpec, lintDocument } from "../lib/letters/document/form-spec.ts";
 import { validateTemplateInput } from "../lib/mail/template-guard.ts";
-import { replaceVariables } from "../utils/templateVariables.ts";
 import { FIXTURES, f, para, t } from "./letters-fixtures.ts";
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -70,13 +69,17 @@ describe("fillPlaceholders", () => {
   });
 });
 
-describe("replaceVariables (jalur lama) memakai pengisi satu lintasan", () => {
-  it("{{KEY}} tidak lagi menyisakan kurung, nilai tidak diproses ulang, alias lama tetap diperluas", () => {
-    const d = { NAMA: "Budi", KABUPATEN: "Pasuruan" };
-    assert.equal(replaceVariables("{NAMA} / {{NAMA}} / {{ NAMA }} / {TAK_ADA}", d), "Budi / Budi / Budi / {TAK_ADA}");
-    assert.equal(replaceVariables("{kabupaten}", d), "Pasuruan");
-    assert.equal(replaceVariables("{KEPALA_DESA_NIP}", d), "");
-    assert.equal(replaceVariables("{NAMA}", { NAMA: "{KABUPATEN}", KABUPATEN: "X" }), "{KABUPATEN}");
+describe("zod: pesan galat bawaan", () => {
+  it("schema.ts memasang bahasa en eksplisit (bundler yang tree-shake membuang pemasangan bawaan zod)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../lib/letters/document/schema.ts", import.meta.url), "utf8");
+    assert.match(src, /import \* as z from "zod"/);
+    assert.match(src, /z\.config\(en\(\)\)/);
+  });
+  it("galat bawaan tetap bermakna (bukan sekadar 'Invalid input')", () => {
+    const r = validateDocument({ schemaVersion: 2, kind: "keterangan", audience: "warga", body: "bukan larik" });
+    assert.equal(r.ok, false);
+    if (!r.ok) assert.ok(r.issues.some((i) => i.message !== "Invalid input"), JSON.stringify(r.issues.slice(0, 3)));
   });
 });
 

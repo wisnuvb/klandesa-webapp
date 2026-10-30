@@ -192,11 +192,11 @@ export function UpgradeModal(props: UpgradeModalProps) {
                     }`}
                   >
                     {canRenew
-                      ? "Perpanjang di Tagihan"
+                      ? "Perpanjang 1 bulan"
                       : isCurrentPlan
                         ? "Paket Aktif"
                         : canUpgrade
-                          ? "Berlangganan di Tagihan"
+                          ? "Berlangganan"
                           : "Tidak Dapat Downgrade"}
                   </button>
                 </motion.div>
@@ -211,8 +211,8 @@ export function UpgradeModal(props: UpgradeModalProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
               {[
                 {
-                  title: "Berlangganan Bulanan",
-                  desc: "Kapasitas tambahan berlaku 1 bulan sejak pembayaran. Setelah berakhir, file tetap aman; unggahan baru terblokir bila pemakaian melebihi kuota dasar",
+                  title: "Pilih Lama Langganan",
+                  desc: "Kapasitas tambahan berlaku 1, 3, 6, atau 12 bulan sejak pembayaran. Setelah berakhir, file tetap aman; unggahan baru terblokir bila pemakaian melebihi kuota dasar",
                 },
                 {
                   title: "File Tetap Aman",

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, Search, Menu } from "lucide-react";
+import { ArrowLeft, Bell, Search, Menu } from "lucide-react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -32,6 +32,8 @@ type NotificationRow = {
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  /** Tombol kembali di kiri judul (mis. halaman pembuatan surat). */
+  back?: { label: string; onClick: () => void };
   onMenuClick?: () => void;
 }
 
@@ -39,15 +41,19 @@ function isExternalHref(href: string) {
   return /^https?:\/\//i.test(href);
 }
 
-export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
+export function Header({ title, subtitle, back, onMenuClick }: HeaderProps) {
   const { user, isLoading, isAuthenticated } = useNextAuthSession();
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
 
+  // Primitif, bukan objek `user`: objek sesi baru dibuat tiap tab difokuskan ulang, dan itu dulu
+  // memicu fetch notifikasi serta kedipan lonceng setiap kali.
+  const accountType = (user as { accountType?: string } | null)?.accountType;
+
   const loadNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
-    const at = (user as { accountType?: string } | null)?.accountType;
+    const at = accountType;
     if (at && at !== "village") {
       setNotifications([]);
       setUnreadCount(0);
@@ -65,7 +71,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
     } finally {
       setNotifLoading(false);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, accountType]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -73,20 +79,27 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
     }
   }, [isAuthenticated, loadNotifications]);
 
+  const postRead = async (payload: { notificationId: number } | { all: true }) => {
+    const res = await fetch("/api/notifications/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+    return res.ok;
+  };
+
   const markNotificationRead = async (id: number) => {
+    // Optimistis; bila server menolak, muat ulang agar tampilan sama dengan data sebenarnya.
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    let ok = false;
     try {
-      await fetch("/api/notifications/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationId: id }),
-      });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
-      setUnreadCount((c) => Math.max(0, c - 1));
+      ok = await postRead({ notificationId: id });
     } catch {
-      /* ignore */
+      /* jaringan gagal: dianggap tidak berhasil */
     }
+    if (!ok) void loadNotifications();
   };
 
   const onNotificationActivate = (n: NotificationRow) => {
@@ -96,17 +109,15 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
   };
 
   const markAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    let ok = false;
     try {
-      await fetch("/api/notifications/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ all: true }),
-      });
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
+      ok = await postRead({ all: true });
     } catch {
-      /* ignore */
+      /* jaringan gagal: dianggap tidak berhasil */
     }
+    if (!ok) void loadNotifications();
   };
 
   const getDisplayName = () => {
@@ -118,7 +129,6 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
     return user?.role || "Administrator";
   };
 
-  const accountType = (user as { accountType?: string } | null)?.accountType;
   const showNotifications = isAuthenticated && (!accountType || accountType === "village");
   const showVillageSettings = !accountType || accountType === "village";
 
@@ -135,9 +145,22 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
             <Menu className="h-5 w-5" />
           </Button>
 
-          <div className="flex-1">
-            <div className="mb-2">
-              <h1 className="text-2xl text-foreground">{title}</h1>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {back && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="mb-2 shrink-0 pointer-coarse:size-11"
+                aria-label={back.label}
+                title={back.label}
+                onClick={back.onClick}
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            )}
+            <div className="mb-2 min-w-0">
+              <h1 className={cn("text-2xl text-foreground", back && "truncate")} title={back ? title : undefined}>{title}</h1>
               {subtitle && (
                 <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
               )}

@@ -1,6 +1,8 @@
 import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
+import { residentLeavesVillage } from "@/lib/mobile/citizen-status-logic";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 // GET /api/residents/[id] - Get single resident by ID
@@ -232,6 +234,11 @@ export async function PUT(
         desil: body.desil?.trim() || existing.desil,
       },
     });
+
+    // Warga kini meninggal/pindah → akun mobilenya harus ikut nonaktif.
+    if (residentLeavesVillage(updated) && !residentLeavesVillage(existing)) {
+      await suspendCitizenAccounts(session.user.villageId, [updated.id]);
+    }
 
     return NextResponse.json({
       success: true,
@@ -512,6 +519,10 @@ export async function PATCH(
             : existing.desil,
       },
     });
+
+    if (residentLeavesVillage(updated) && !residentLeavesVillage(existing)) {
+      await suspendCitizenAccounts(session.user.villageId, [updated.id]);
+    }
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {

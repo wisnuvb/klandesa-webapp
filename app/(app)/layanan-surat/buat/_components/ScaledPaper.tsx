@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { LetterDocument } from "@/lib/letters/document/schema";
 import { PAPER_SIZES } from "@/lib/letters/paper";
 
@@ -25,7 +25,8 @@ export function ScaledPaper({ doc, zoom, children }: { doc: LetterDocument; zoom
   const [innerH, setInnerH] = useState(0);
   const paperW = paperWidthPx(doc);
 
-  useEffect(() => {
+  // useLayoutEffect: ukuran dibaca sebelum cat pertama sehingga kertas tidak sempat tampil sebesar 100% lalu mengecil.
+  useLayoutEffect(() => {
     const h = host.current;
     const i = inner.current;
     if (!h || !i) return undefined;
@@ -44,7 +45,7 @@ export function ScaledPaper({ doc, zoom, children }: { doc: LetterDocument; zoom
   const scale = zoom === "fit" ? fit : 1;
 
   return (
-    <div ref={host} className="w-full overflow-x-auto">
+    <div ref={host} className="w-full overflow-x-auto" style={hostW > 0 ? undefined : { visibility: "hidden" }}>
       <div style={{ width: paperW * scale, height: innerH * scale, margin: "0 auto" }}>
         <div
           ref={inner}

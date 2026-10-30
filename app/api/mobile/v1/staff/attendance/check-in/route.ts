@@ -1,5 +1,6 @@
 import { attendanceCapacityFullMessage } from "@/lib/attendance/capacity";
 import { isOfficialWithinAttendanceCapacity } from "@/lib/attendance/capacity-server";
+import { isGpsAddonActive } from "@/lib/attendance/addons";
 import { NextRequest, NextResponse } from "next/server";
 import * as jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const village = await prisma.village.findUnique({
     where: { id: ctx.villageId },
-    select: { subscriptionPlan: true, absensiGpsAddonActive: true, absensiOfficeLat: true, absensiOfficeLng: true, absensiCheckInRadiusMeters: true },
+    select: { subscriptionPlan: true, absensiGpsAddonActive: true, absensiGpsAddonExpiry: true, absensiOfficeLat: true, absensiOfficeLng: true, absensiCheckInRadiusMeters: true },
   });
   if (!village) return mobileError("VILLAGE_INACTIVE", "Desa tidak ditemukan.", 404);
 
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     if (body?.mocked === true) {
       return mobileError("INVALID_REQUEST", "Lokasi palsu (mock location) terdeteksi. Matikan aplikasi lokasi palsu lalu coba lagi.", 400, { reason: "GPS_MOCKED" });
     }
-    if (!village.absensiGpsAddonActive) return mobileError("FORBIDDEN", "Absensi GPS belum diaktifkan untuk desa ini.", 403, { reason: "GPS_ADDON_INACTIVE" });
+    if (!isGpsAddonActive(village)) return mobileError("FORBIDDEN", "Absensi GPS belum diaktifkan untuk desa ini.", 403, { reason: "GPS_ADDON_INACTIVE" });
     if (village.absensiOfficeLat == null || village.absensiOfficeLng == null) {
       return mobileError("INVALID_REQUEST", "Lokasi kantor desa belum diatur. Minta admin mengisinya.", 400, { reason: "GPS_OFFICE_NOT_CONFIGURED" });
     }

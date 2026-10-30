@@ -1,5 +1,7 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { isWebsiteSubscriptionLive } from "@/lib/website-engine/subscription-state";
 
 export type TenantContext = {
   hostname: string;
@@ -41,6 +43,8 @@ export type TenantContext = {
     isActive: boolean;
     isFeatured: boolean;
   } | null;
+  /** true bila desa pernah berlangganan tetapi masa aktif website sudah habis */
+  websiteExpired?: boolean;
 };
 
 function villageCodeLookupVariants(subdomain: string): string[] {
@@ -48,7 +52,7 @@ function villageCodeLookupVariants(subdomain: string): string[] {
   return [...new Set([s, s.toLowerCase(), s.toUpperCase()])];
 }
 
-export async function getTenant(): Promise<TenantContext | null> {
+async function resolveTenant(): Promise<TenantContext | null> {
   const headersList = await headers();
   const subdomain =
     headersList.get("x-tenant-subdomain")?.trim().toLowerCase() || null;
@@ -262,3 +266,16 @@ export async function getTenant(): Promise<TenantContext | null> {
 
   return null;
 }
+
+/** Langganan kedaluwarsa diperlakukan seperti belum aktif agar seluruh rute publik berhenti menayangkan situs. */
+function gateExpiredWebsite(ctx: TenantContext): TenantContext {
+  if (!ctx.subscription) return ctx;
+  if (isWebsiteSubscriptionLive(ctx.subscription)) return ctx;
+  return { ...ctx, subscription: null, template: null, websiteExpired: true };
+}
+
+/** Dibungkus `cache` agar layout, metadata, dan halaman dalam satu request hanya memicu satu set query. */
+export const getTenant = cache(async (): Promise<TenantContext | null> => {
+  const ctx = await resolveTenant();
+  return ctx ? gateExpiredWebsite(ctx) : null;
+});

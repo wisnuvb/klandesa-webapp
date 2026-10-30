@@ -17,9 +17,21 @@ export type RenderLetterArgs = {
   qrSrc?: string;
 };
 
+let serverRenderer: Promise<typeof import("react-dom/server")> | null = null;
+function loadServerRenderer() {
+  serverRenderer ??= import("react-dom/server").catch((err) => {
+    serverRenderer = null; // gagal: coba lagi pada pemanggilan berikutnya
+    throw err;
+  });
+  return serverRenderer;
+}
+// Pemanasan saat modul dimuat: impor pertama memakan ≈33 ms, dan tanpa ini terjadi di dalam transaksi
+// penerbitan yang sedang memegang kunci penghitung nomor.
+if (typeof window === "undefined") loadServerRenderer().catch(() => {});
+
 /** Fragmen HTML: `<style>` cetak + kertas. Aman disimpan sebagai `contentHtml`. */
 export async function renderLetterHtml({ doc, values, qrSrc }: RenderLetterArgs): Promise<string> {
-  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { renderToStaticMarkup } = await loadServerRenderer();
   const paper = renderToStaticMarkup(<LetterPaper doc={doc} values={values} mode="print" qrSrc={qrSrc} />);
   return `<style>${letterPrintCss(doc)}</style>${paper}`;
 }

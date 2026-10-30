@@ -14,6 +14,7 @@ import {
   HeartHandshake,
   Share2,
   CircleDollarSign,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
@@ -125,6 +126,12 @@ const PLATFORM_SIDEBAR_MENU: MenuItem[] = [
     label: "Kelola Blog",
     icon: FileText,
     path: "/admin/blog",
+  },
+  {
+    id: "admin/pembayaran",
+    label: "Kanal Pembayaran",
+    icon: CreditCard,
+    path: "/admin/pembayaran",
   },
 ];
 

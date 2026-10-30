@@ -7,39 +7,15 @@ import {
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
 import { parseCustomization } from "@/lib/website-engine/normalize";
+import { customizationToJsonObject } from "@/lib/website-engine/customization-json";
+import {
+  editingSnapshot,
+  setDraftFromSnapshot,
+} from "@/lib/website-engine/customization-store";
 import type {
   WebsiteCustomization,
   WebsiteCustomizationSnapshot,
 } from "@/lib/website-engine/types";
-import { invalidateTenantPublicPageCache } from "@/lib/website-engine/site-renderer";
-
-function snapshotFromCustomization(
-  cz: WebsiteCustomization,
-): WebsiteCustomizationSnapshot {
-  return {
-    ...(cz.presetKey !== undefined ? { presetKey: cz.presetKey } : {}),
-    ...(cz.overrides !== undefined ? { overrides: cz.overrides } : {}),
-    ...(cz.theme !== undefined ? { theme: cz.theme } : {}),
-    ...(cz.layout !== undefined ? { layout: cz.layout } : {}),
-    ...(cz.siteSeo !== undefined ? { siteSeo: cz.siteSeo } : {}),
-    ...(cz.faviconUrl !== undefined ? { faviconUrl: cz.faviconUrl } : {}),
-  };
-}
-
-function customizationToJsonObject(
-  c: WebsiteCustomization,
-): Record<string, unknown> {
-  const o: Record<string, unknown> = {};
-  if (c.presetKey !== undefined) o.presetKey = c.presetKey;
-  if (c.overrides !== undefined) o.overrides = c.overrides;
-  if (c.theme !== undefined) o.theme = c.theme;
-  if (c.layout !== undefined) o.layout = c.layout;
-  if (c.siteSeo !== undefined) o.siteSeo = c.siteSeo;
-  if (c.faviconUrl !== undefined) o.faviconUrl = c.faviconUrl;
-  if (c.savedPresets !== undefined) o.savedPresets = c.savedPresets;
-  if (c.savedTemplates !== undefined) o.savedTemplates = c.savedTemplates;
-  return o;
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -115,7 +91,8 @@ export async function POST(req: NextRequest) {
       id: crypto.randomUUID(),
       name,
       ...(description ? { description } : {}),
-      snapshot: snapshotFromCustomization(parsed),
+      // Variasi yang disimpan = yang sedang diedit di CMS (draf bila ada).
+      snapshot: editingSnapshot(parsed),
       createdAt: now,
       updatedAt: now,
     } satisfies NonNullable<WebsiteCustomization["savedTemplates"]>[number];
@@ -126,23 +103,21 @@ export async function POST(req: NextRequest) {
       savedTemplates: nextTemplates,
     };
 
-    const appliedCustomization: WebsiteCustomization = apply
-      ? {
-          ...parsed,
-          ...entry.snapshot,
-          savedTemplates: nextTemplates,
-          savedPresets: parsed.savedPresets,
-        }
-      : nextCustomization;
+    // "Terapkan" masuk sebagai draf; situs publik berubah setelah desa menerbitkan.
+    const stored = apply
+      ? setDraftFromSnapshot(
+          customizationToJsonObject(nextCustomization),
+          entry.snapshot,
+        )
+      : customizationToJsonObject(nextCustomization);
 
     await prisma.websiteSubscription.update({
       where: { id: sub.id },
       data: {
-        customization: customizationToJsonObject(appliedCustomization) as never,
+        customization: stored as never,
       },
       select: { id: true },
     });
-    invalidateTenantPublicPageCache(village.id);
 
     return NextResponse.json({
       ok: true,
@@ -215,23 +190,21 @@ export async function PUT(req: NextRequest) {
       savedTemplates: nextTemplates,
     };
 
-    const appliedCustomization: WebsiteCustomization = apply
-      ? {
-          ...parsed,
-          ...(entry.snapshot as WebsiteCustomizationSnapshot),
-          savedTemplates: nextTemplates,
-          savedPresets: parsed.savedPresets,
-        }
-      : nextCustomization;
+    // "Terapkan" masuk sebagai draf; situs publik berubah setelah desa menerbitkan.
+    const stored = apply
+      ? setDraftFromSnapshot(
+          customizationToJsonObject(nextCustomization),
+          entry.snapshot,
+        )
+      : customizationToJsonObject(nextCustomization);
 
     await prisma.websiteSubscription.update({
       where: { id: sub.id },
       data: {
-        customization: customizationToJsonObject(appliedCustomization) as never,
+        customization: stored as never,
       },
       select: { id: true },
     });
-    invalidateTenantPublicPageCache(village.id);
 
     return NextResponse.json({
       ok: true,

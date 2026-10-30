@@ -8,8 +8,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea";
 import { ImageAssetModal } from "@/components/ImageAssetModal";
 import type { SectionCmsField } from "@/lib/website-engine/site-sections";
+import type { SectionListValue } from "@/lib/website-engine/section-items";
 import type { WebsiteSection } from "@/lib/website-engine/types";
 import { getSectionFieldValue } from "../_lib/save-helpers";
+import { ListFieldEditor } from "./ListFieldEditor";
+import { VariantPicker } from "./VariantPicker";
 
 type Props = {
   idx: number;
@@ -19,7 +22,7 @@ type Props = {
   onPatch: (
     idx: number,
     fieldName: string,
-    value: string | number | boolean,
+    value: string | number | boolean | SectionListValue,
   ) => void;
 };
 
@@ -51,6 +54,38 @@ export const SectionFieldEditor = memo(function SectionFieldEditor({
     onPatch(idx, field.name, next);
   };
 
+  if (field.type === "variant") {
+    return (
+      <VariantPicker
+        kind={section.kind}
+        label={field.label}
+        options={field.options}
+        value={typeof val === "string" ? val : undefined}
+        disabled={saving}
+        onChange={(v) => onPatch(idx, field.name, v)}
+      />
+    );
+  }
+  if (field.type === "list") {
+    const raw = (section as unknown as Record<string, unknown>)[field.name];
+    const value: SectionListValue = Array.isArray(raw)
+      ? raw
+          .filter((it): it is Record<string, unknown> => typeof it === "object" && it !== null)
+          .map((it) =>
+            Object.fromEntries(
+              field.fields.map((f) => [f.name, typeof it[f.name] === "string" ? (it[f.name] as string) : ""]),
+            ),
+          )
+      : [];
+    return (
+      <ListFieldEditor
+        field={field}
+        value={value}
+        saving={saving}
+        onChange={(next) => onPatch(idx, field.name, next)}
+      />
+    );
+  }
   if (field.type === "text") {
     return (
       <div className="grid gap-2">

@@ -7,7 +7,19 @@ export type SubscriptionTier =
   | "TIER_21_30"
   | "TIER_31_50"
   | "CUSTOM";
-export type PaymentMethod = "QRIS" | "VA" | "EWALLET";
+export type CapacityAddonCode = "starter" | "professional" | "business" | "enterprise";
+
+export interface CapacityOption {
+  code: CapacityAddonCode;
+  name: string;
+  staffLimit: number;
+  historyDays: number;
+  /** Harga per bulan (selisih dari kapasitas yang sudah termasuk paket desa). */
+  price: number;
+  listPrice: number;
+  state: "included" | "current" | "lower" | "available";
+  isRenewal: boolean;
+}
 
 export interface AttendanceRow {
   id: number;
@@ -43,8 +55,15 @@ export interface AttendanceTodayResponse {
     subscriptionPlan: string | null;
     subscriptionStatus: string | null;
   };
+  capacity: {
+    addon: { code: CapacityAddonCode; expiresAt: string } | null;
+    options: CapacityOption[];
+  };
   gpsAddon: {
     active: boolean;
+    /** null = aktif tanpa batas waktu. */
+    expiresAt: string | null;
+    monthlyFee: number;
     officeLat: number | null;
     officeLng: number | null;
     radiusMeters: number;

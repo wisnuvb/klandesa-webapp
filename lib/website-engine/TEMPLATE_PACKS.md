@@ -18,6 +18,69 @@ Konten situs publik (`WebsiteTemplate.structure` + kustomisasi desa) dipisahkan 
 - **Blok**: `rich_text`, `cta` di registry; tautan berita ke `/site/berita/:id`.
 - **Rate limit**: PATCH [`config/route.ts`](../../app/api/website/engine/config/route.ts) memakai [`engine-rate-limit.ts`](engine-rate-limit.ts).
 
+## Blok berdaftar (`items`)
+
+Blok `features`, `stats`, `gallery`, `faq`, dan `testimonials` menyimpan isinya sebagai array `items`
+(jumlah dibatasi `ITEM_LIMITS` di [`section-items.ts`](section-items.ts)), bukan slot tetap `item1_*`/`q1`/`image1_url`.
+
+- **Pack wajib membaca lewat helper** `featureItems`, `statItems`, `galleryItems`, `faqItems`, `testimonialItems`
+  dari `section-items.ts`; jangan mengakses `items` atau slot lama langsung. Helper sudah membersihkan dan memotong nilai.
+- **Kompatibilitas data lama:** slot tetap masih dibaca. `resolveEffectiveStructure` menaikkan semua blok ke bentuk
+  `items` di satu titik, dan data lama otomatis tersimpan dalam bentuk baru saat desa menyimpan dari CMS.
+  Tidak ada migrasi database.
+- **Jangan menampilkan placeholder untuk item kosong**; item yang kosong sudah dibuang oleh helper.
+- **Gambar:** render URL gambar lewat `renderableImageUrl` (hanya https absolut atau path relatif). `next/image`
+  melempar error untuk alamat lain dan akan menggagalkan seluruh halaman publik.
+- **Teks di dalam item** mendukung variabel `{{village.name}}` dsb. (diinterpolasi sebelum sampai ke pack).
+
+## Varian blok
+
+Lima blok berdaftar punya beberapa tata letak yang dipilih desa dari CMS (`variant`). Daftar resmi, label,
+dan sketsa pratinjau ada di satu tempat: [`block-variants.ts`](block-variants.ts).
+
+| Blok | Varian (yang pertama = bawaan) |
+|------|--------------------------------|
+| `features` | `cards`, `list`, `minimal` |
+| `stats` | `cards`, `band`, `inline` |
+| `gallery` | `grid`, `mosaic`, `strip` |
+| `faq` | `accordion`, `open` |
+| `testimonials` | `cards`, `featured` |
+
+- **Semua pack mendukung semua varian** karena markup-nya ada di `section-primitives.tsx`. Pack hanya perlu
+  meneruskan `variant={s.variant}` ke blok.
+- **Membatasi varian:** isi `blockVariants` pada pack, mis. `{ stats: ["cards", "inline"] }`. Varian di luar daftar
+  disaring dari pilihan CMS, dibuang saat disimpan, dan diabaikan saat render (juga untuk section template DB v1).
+- **Nilai asing selalu jatuh ke varian bawaan**; tidak pernah menjadi error.
+- **Hook gaya:** tiap blok membawa `data-variant="..."` pada elemen dalamnya. CSS scoped `tp-{templateKey}` boleh
+  menargetkannya, tetapi markup/class bawaan sebaiknya tidak dibongkar.
+- **Menambah varian baru** = tambah nilai di union `types.ts`, entri di `BLOCK_VARIANTS` (termasuk sketsa `wire`),
+  dan cabang di blok terkait. Tes di `tests/website-block-variants.test.tsx` otomatis memeriksa semua varian di semua pack.
+
+## Theme Pack Manifest v1 (paket tema tanpa kode)
+
+Jalur untuk developer luar: **JSON deklaratif, tanpa kode**. Paket memakai markup salah satu pack inti
+(`basePack`: `modern-village`, `classic-heritage`, atau `default`) dan mengatur token tema, varian blok yang
+diizinkan, susunan beranda, dan preset. Contoh lengkap yang selalu divalidasi tes:
+[`examples/desa-hijau.theme-pack.json`](examples/desa-hijau.theme-pack.json). Validator dan aturannya:
+[`theme-pack-manifest.ts`](theme-pack-manifest.ts).
+
+Aturan utama (semua kesalahan dilaporkan sekaligus, lengkap dengan `path`):
+
+- **Kunci asing ditolak** di setiap level; tidak ada CSS bebas, skrip, atau field tersembunyi.
+- **Warna hanya heksadesimal.** Font hanya dari daftar `google-fonts.ts`. Radius maksimal 3rem.
+- **Kontras dijaga:** `primary` terhadap putih (teks tombol) ≥ 4,5:1; `accent` dan `mutedForeground` terhadap `surface` ≥ 4,5:1.
+- **Blok** melewati sanitizer yang sama dengan CMS (mis. `button_href` berbahaya dinetralkan). Hanya blok bawaan, 1–30 per halaman.
+- **`blockVariants`** membatasi varian yang boleh dipilih desa. Bila varian bawaan sebuah blok tidak diizinkan,
+  blok jatuh ke varian pertama yang diizinkan.
+- **`key`** unik, tidak boleh sama dengan pack terdaftar (termasuk `default`). Satu kunci hanya untuk satu penulis;
+  versi baru harus lebih tinggi (`x.y.z`).
+- **Harga ditetapkan platform** saat persetujuan (`suggestedPriceIdr` hanya saran).
+
+Alur: `POST /api/admin/theme-packs` (validasi + simpan sebagai `submitted`) → tinjau lewat
+`GET /api/admin/theme-packs/:id` (membawa hasil validasi ulang) → `POST .../review` dengan `approve` / `reject` /
+`withdraw`. Persetujuan membuat atau memperbarui baris `WebsiteTemplate`, jadi checkout dan render tidak berubah.
+Menarik paket hanya menutup katalog; desa yang sudah memakainya tidak terganggu.
+
 ## Menambah pack baru
 
 1. Buat file komponen pack (mis. `template-packs/my-pack.tsx`) yang memenuhi `TemplatePack`.

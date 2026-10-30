@@ -1,43 +1,25 @@
 import type { TemplateBody } from "../types";
 
-/**
- * Satu bentuk mapping GET /api/mail-templates & respons duplicate/create.
- */
+/** Baris `/api/mail-templates` berformat dokumen v2? Daftar ringan membawa `schemaVersion`; baris penuh membawa dokumennya. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isV2Row(t: any): boolean {
+  return t?.schemaVersion === 2 || t?.templateStructure?.schemaVersion === 2;
+}
+
+/** Satu bentuk mapping GET /api/mail-templates untuk daftar "Atur Jenis Surat". */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapApiMailTemplateToBody(t: any): TemplateBody {
-  const ts = t.templateStructure || {};
-  const isV2 = ts.schemaVersion === 2;
-  const isGlobal = Boolean(t.isGlobal);
   const villageId = t.villageId ?? t.village_id;
-  const isCatalog = isGlobal && (villageId == null || villageId === undefined);
-
   return {
     id: t.id,
     name: t.name,
-    description: t.description,
+    description: t.description ?? "",
     category: t.category,
-    content_template: t.contentTemplate,
-    variables: ts.variables || [],
-    header: ts.header || ts.shared_header,
-    footer: ts.footer || ts.shared_footer,
-    shared_header: ts.shared_header,
-    shared_footer: ts.shared_footer,
-    blocks: ts.blocks || [],
-    pages: ts.pages || [],
-    is_multi_page: ts.is_multi_page || false,
-    letterNumber: ts.letterNumber,
-    show_header: ts.show_header,
-    show_footer: ts.show_footer,
-    show_header_default: ts.show_header_default,
-    show_footer_default: ts.show_footer_default,
-    variable_groups: ts.variable_groups,
     is_active: t.isActive,
     created_at: t.createdAt,
     usage_count: t.usageCount,
-    is_catalog: isCatalog,
+    is_catalog: Boolean(t.isGlobal) && villageId == null,
     catalog_key: t.catalogKey ?? null,
     inherits_catalog_key: t.inheritsCatalogKey ?? null,
-    schema_version: isV2 ? 2 : 1,
-    document: isV2 ? ts : undefined,
   };
 }

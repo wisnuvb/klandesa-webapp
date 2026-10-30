@@ -12,7 +12,6 @@ export interface LinkquConfig {
   username: string;
   pin: string;
   signatureKey: string;
-  callbackUrl: string;
 }
 
 export interface LinkquCreatePaymentParams {
@@ -23,6 +22,8 @@ export interface LinkquCreatePaymentParams {
   customerEmail: string;
   customerPhone: string;
   expired: string; // format: yyyyMMddHHmmss
+  /** URL webhook absolut untuk transaksi ini (lihat `buildLinkquCallbackUrl`). */
+  callbackUrl: string;
   remark?: string;
   billTitle?: string;
   /** Only for VA */
@@ -74,4 +75,18 @@ export interface LinkquCallbackPayload {
   type?: string;
   signature?: string;
   [key: string]: unknown;
+}
+
+/** Response GET /transaction/payment/checkstatus */
+export interface LinkquCheckStatusResponse {
+  rc?: string;
+  rd?: string;
+  data?: {
+    partner_reff?: string;
+    status_trx?: string;
+    status_desc?: string;
+    status_paid?: string;
+    amount?: number | string;
+    amountfee?: number | string;
+  };
 }

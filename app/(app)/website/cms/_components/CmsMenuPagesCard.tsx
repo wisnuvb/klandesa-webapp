@@ -1,5 +1,6 @@
 "use client";
 
+import type { SectionListValue } from "@/lib/website-engine/section-items";
 import { memo, useMemo } from "react";
 import { Plus, Save } from "lucide-react";
 import { DndProvider } from "react-dnd";
@@ -54,7 +55,7 @@ type Props = {
   onPatchSectionField: (
     idx: number,
     fieldName: string,
-    value: string | number | boolean,
+    value: string | number | boolean | SectionListValue,
   ) => void;
   onNewKindChange: (k: SectionKind) => void;
   onAddSection: (kind: SectionKind) => void;
@@ -101,8 +102,10 @@ export const CmsMenuPagesCard = memo(function CmsMenuPagesCard({
         <CardDescription>
           Alur: pilih halaman → isi identitas & SEO → susun menu → atur blok
           konten. Gunakan{" "}
-          <span className="font-medium text-foreground">Simpan perubahan</span>{" "}
-          agar data tersimpan di database (tetap persisten setelah reload).
+          <span className="font-medium text-foreground">Simpan draf</span>{" "}
+          agar perubahan tersimpan (tidak hilang saat halaman dimuat ulang),
+          lalu tekan <span className="font-medium text-foreground">Terbitkan</span>{" "}
+          di bagian atas agar tampil di website.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -239,7 +242,7 @@ export const CmsMenuPagesCard = memo(function CmsMenuPagesCard({
               }
             >
               <Save className="size-4" />
-              Simpan perubahan
+              Simpan draf
             </Button>
           </div>
         </div>

@@ -9,6 +9,18 @@ export type WebsiteSectionStyle = {
 
 type WithStyle<T> = T & { style?: WebsiteSectionStyle };
 
+export type FeaturesVariant = "cards" | "list" | "minimal";
+export type StatsVariant = "cards" | "band" | "inline";
+export type GalleryVariant = "grid" | "mosaic" | "strip";
+export type FaqVariant = "accordion" | "open";
+export type TestimonialsVariant = "cards" | "featured";
+
+export type FeatureItem = { title?: string; body?: string };
+export type StatItem = { label?: string; value?: string };
+export type GalleryItem = { url: string; caption?: string };
+export type FaqItem = { q?: string; a?: string };
+export type TestimonialItem = { quote?: string; name?: string; role?: string };
+
 export type WebsiteSection =
   | WithStyle<{
       kind: "hero";
@@ -20,6 +32,10 @@ export type WebsiteSection =
     }>
   | WithStyle<{
       kind: "features";
+      /** Tata letak blok; lihat block-variants.ts */
+      variant?: FeaturesVariant;
+      /** Daftar kartu; bentuk kanonik. Slot `item1..3_*` di bawah hanya dibaca untuk data lama. */
+      items?: FeatureItem[];
       title?: string;
       subtitle?: string;
       columns?: 2 | 3;
@@ -32,6 +48,8 @@ export type WebsiteSection =
     }>
   | WithStyle<{
       kind: "stats";
+      variant?: StatsVariant;
+      items?: StatItem[];
       title?: string;
       subtitle?: string;
       stat1_label?: string;
@@ -43,6 +61,8 @@ export type WebsiteSection =
     }>
   | WithStyle<{
       kind: "gallery";
+      variant?: GalleryVariant;
+      items?: GalleryItem[];
       title?: string;
       subtitle?: string;
       image1_url?: string;
@@ -54,6 +74,8 @@ export type WebsiteSection =
     }>
   | WithStyle<{
       kind: "faq";
+      variant?: FaqVariant;
+      items?: FaqItem[];
       title?: string;
       q1?: string;
       a1?: string;
@@ -68,6 +90,8 @@ export type WebsiteSection =
     }>
   | WithStyle<{
       kind: "testimonials";
+      variant?: TestimonialsVariant;
+      items?: TestimonialItem[];
       title?: string;
       quote1?: string;
       name1?: string;
@@ -203,7 +227,18 @@ export type WebsiteCustomizationSnapshot = {
   faviconUrl?: string;
 };
 
+export type WebsiteCustomizationHistoryEntry = {
+  id: string;
+  /** Saat versi ini digantikan oleh versi baru yang diterbitkan */
+  publishedAt: string;
+  snapshot: WebsiteCustomizationSnapshot;
+};
+
 export type WebsiteCustomization = {
+  /** Perubahan yang belum diterbitkan; situs publik hanya membaca field live di bawah */
+  draft?: WebsiteCustomizationSnapshot;
+  /** Versi live sebelumnya (terbaru di depan), dipakai untuk pemulihan */
+  history?: WebsiteCustomizationHistoryEntry[];
   presetKey?: string;
   overrides?: unknown;
   theme?: WebsiteThemeTokens;

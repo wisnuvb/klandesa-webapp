@@ -5,6 +5,7 @@
  */
 
 import {
+  type LinkquCheckStatusResponse,
   type LinkquConfig,
   type LinkquCreatePaymentParams,
   type LinkquCreatePaymentResponse,
@@ -19,6 +20,9 @@ import {
   SIGNATURE_PATH_EWALLET,
 } from "./signature";
 import { logger } from "@/lib/logger";
+
+const REQUEST_TIMEOUT_MS = 20_000;
+const CHECK_STATUS_PATH = "/linkqu-partner/transaction/payment/checkstatus";
 
 export class LinkquClient {
   private readonly config: LinkquConfig;
@@ -54,6 +58,7 @@ export class LinkquClient {
         "client-secret": this.config.clientSecret,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     const rawText = await res.text();
@@ -99,8 +104,13 @@ export class LinkquClient {
       throw err;
     }
 
-    // LinkQu returns 200 but transaction can be FAILED (e.g. 501 Signature Not Valid)
-    if (linkquStatus === "FAILED" || responseCode === "501") {
+    // LinkQu returns 200 but transaction can be FAILED (e.g. 501 Signature Not Valid).
+    // Sukses = response_code "00"; kode lain tidak boleh disimpan sebagai tagihan tanpa instruksi bayar.
+    if (
+      linkquStatus === "FAILED" ||
+      responseCode === "501" ||
+      (responseCode != null && responseCode !== "" && responseCode !== "00")
+    ) {
       const errMsg = responseDesc || `LinkQu transaction failed: ${responseCode}`;
       const err = new Error(errMsg) as Error & { linkquResponse?: object };
       err.linkquResponse = data as object;
@@ -146,7 +156,7 @@ export class LinkquClient {
       username: String(this.config.username),
       pin: String(this.config.pin),
       signature,
-      url_callback: String(this.config.callbackUrl),
+      url_callback: String(params.callbackUrl),
     };
 
     return this.request<LinkquCreatePaymentResponse>(LINKQU_PATH_QRIS, "POST", body);
@@ -189,7 +199,7 @@ export class LinkquClient {
       pin: String(this.config.pin),
       bank_code: String(params.bankCode),
       signature,
-      url_callback: String(this.config.callbackUrl),
+      url_callback: String(params.callbackUrl),
     };
     if (params.remark) body.remark = String(params.remark);
 
@@ -238,7 +248,7 @@ export class LinkquClient {
       pin: String(this.config.pin),
       retail_code: String(params.retailCode),
       signature,
-      url_callback: String(this.config.callbackUrl),
+      url_callback: String(params.callbackUrl),
     };
     if (params.billTitle) body.bill_title = String(params.billTitle);
 
@@ -247,5 +257,30 @@ export class LinkquClient {
       "POST",
       body
     );
+  }
+
+  /**
+   * Status transaksi (untuk rekonsiliasi saat callback belum masuk).
+   * Mengembalikan null bila transaksi belum ada / LinkQu error.
+   */
+  async checkStatus(partnerReff: string): Promise<LinkquCheckStatusResponse | null> {
+    if (!/^\d+$/.test(partnerReff)) return null;
+    const url = new URL(`${this.baseUrl}${CHECK_STATUS_PATH}`);
+    url.searchParams.set("username", this.config.username);
+    url.searchParams.set("partnerreff", partnerReff);
+
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        "client-id": this.config.clientId,
+        "client-secret": this.config.clientSecret,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    const data = (await res.json().catch(() => null)) as LinkquCheckStatusResponse | null;
+    if (!res.ok || !data || String(data.rc ?? "") !== "00") return null;
+    if (String(data.rd ?? "").toLowerCase().includes("tidak ditemukan")) return null;
+    return data;
   }
 }

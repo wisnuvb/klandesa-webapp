@@ -1,5 +1,6 @@
 "use client";
 
+import type { SectionListValue } from "@/lib/website-engine/section-items";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ResolvedEngineStructure,
@@ -18,7 +19,10 @@ import type { SectionSchemaEntry } from "./_lib/types";
 import { mapEngineConfigResponseToLoadResult } from "./_lib/config-mapper";
 import { serializeCmsWorkspaceState } from "./_lib/snapshot";
 import { buildV2Overrides } from "./_lib/save-helpers";
+import { toast } from "sonner";
 import { CmsPageHeader } from "./_components/CmsPageHeader";
+import { CmsAiAssistant } from "./_components/CmsAiAssistant";
+import { CmsPublishBar, type CmsHistoryItem } from "./_components/CmsPublishBar";
 import { CmsContentShortcutsCard } from "./_components/CmsContentShortcutsCard";
 import { CmsFaviconSection } from "./_components/CmsFaviconSection";
 import { CmsThemeLayoutCard } from "./_components/CmsThemeLayoutCard";
@@ -31,6 +35,8 @@ export default function WebsiteCmsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [history, setHistory] = useState<CmsHistoryItem[]>([]);
 
   const [templateName, setTemplateName] = useState<string>("-");
   const [templateKey, setTemplateKey] = useState<string>("");
@@ -64,6 +70,7 @@ export default function WebsiteCmsPage() {
     phone?: string | null;
     email?: string | null;
     website?: string | null;
+    logoUrl?: string | null;
   } | null>(null);
 
   const activePage = engine?.pages[pageIndex];
@@ -162,6 +169,8 @@ export default function WebsiteCmsPage() {
         throw new Error("Response CMS tidak valid");
       }
       applyLoadResult(mapEngineConfigResponseToLoadResult(json));
+      setHasDraft(Boolean(json.has_draft));
+      setHistory(Array.isArray(json.history) ? json.history : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Terjadi kesalahan");
     } finally {
@@ -189,6 +198,7 @@ export default function WebsiteCmsPage() {
           phone: typeof j?.phone === "string" ? j.phone : null,
           email: typeof j?.email === "string" ? j.email : null,
           website: typeof j?.website === "string" ? j.website : null,
+          logoUrl: typeof j?.logoUrl === "string" && j.logoUrl ? j.logoUrl : null,
         });
       })
       .catch(() => {});
@@ -223,12 +233,12 @@ export default function WebsiteCmsPage() {
     [load],
   );
 
-  const saveAll = useCallback(async () => {
-    if (!engine) return;
+  const saveAll = useCallback(async (): Promise<boolean> => {
+    if (!engine) return false;
     const slugErr = getWebsitePagesSlugConflictMessage(engine.pages);
     if (slugErr) {
       setError(slugErr);
-      return;
+      return false;
     }
     setSaving(true);
     setError(null);
@@ -264,8 +274,10 @@ export default function WebsiteCmsPage() {
       } | null;
       if (!res.ok) throw new Error(json?.error || "Gagal menyimpan");
       await load();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menyimpan");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -285,6 +297,68 @@ export default function WebsiteCmsPage() {
     faviconUrl,
     load,
   ]);
+
+  const publishDraft = useCallback(async () => {
+    // Simpan isian yang belum tersimpan lebih dulu agar yang diterbitkan sama dengan yang terlihat.
+    if (isDirty && !(await saveAll())) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/website/engine/publish", { method: "POST" });
+      const json = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!res.ok) throw new Error(json?.error || "Gagal menerbitkan");
+      toast.success("Perubahan sudah diterbitkan");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menerbitkan");
+    } finally {
+      setSaving(false);
+    }
+  }, [isDirty, saveAll, load]);
+
+  const discardDraft = useCallback(async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/website/engine/publish", { method: "DELETE" });
+      const json = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!res.ok) throw new Error(json?.error || "Gagal membuang draf");
+      toast.success("Draf dibuang");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal membuang draf");
+    } finally {
+      setSaving(false);
+    }
+  }, [load]);
+
+  const restoreVersion = useCallback(
+    async (id: string) => {
+      setSaving(true);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/website/engine/history/${encodeURIComponent(id)}`,
+          { method: "POST" },
+        );
+        const json = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        if (!res.ok) throw new Error(json?.error || "Gagal memulihkan versi");
+        toast.success("Versi dipulihkan sebagai draf. Tinjau lalu terbitkan.");
+        await load();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Gagal memulihkan versi");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [load],
+  );
 
   const resetStructure = useCallback(async () => {
     setSaving(true);
@@ -443,7 +517,7 @@ export default function WebsiteCmsPage() {
   );
 
   const patchSectionField = useCallback(
-    (idx: number, fieldName: string, value: string | number | boolean) => {
+    (idx: number, fieldName: string, value: string | number | boolean | SectionListValue) => {
       patchCurrentPage((p) => ({
         ...p,
         sections: p.sections.map((sec, i) => {
@@ -542,6 +616,31 @@ export default function WebsiteCmsPage() {
         capabilities={capabilities}
       />
 
+      <CmsPublishBar
+        hasDraft={hasDraft}
+        isDirty={isDirty}
+        busy={saving || loading}
+        history={history}
+        onPublish={publishDraft}
+        onDiscard={discardDraft}
+        onRestore={restoreVersion}
+      />
+
+      <CmsAiAssistant
+        templateKey={templateKey}
+        baseTheme={previewTheme}
+        hideSiteHeader={hideSiteHeader}
+        village={villageProfile}
+        blockedReason={
+          isDirty
+            ? "Simpan draf dulu agar AI bekerja dari versi terbaru Anda."
+            : saving || loading
+              ? "Mohon tunggu sebentar."
+              : null
+        }
+        onApplied={load}
+      />
+
       {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
@@ -620,7 +719,7 @@ export default function WebsiteCmsPage() {
         onPatchSectionField={patchSectionField}
         onNewKindChange={setNewKind}
         onAddSection={addSection}
-        onSaveAll={saveAll}
+        onSaveAll={() => void saveAll()}
       />
 
       <CmsTemplateLibraryCard

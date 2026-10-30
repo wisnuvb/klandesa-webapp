@@ -1,5 +1,22 @@
 import { prisma } from "@/lib/prisma";
-import { attendanceCapacityEnforced, staffLimitForPlan } from "./capacity";
+import { attendanceCapacityEnforced } from "./capacity";
+import {
+  ATTENDANCE_CAPACITY_MODULE_CODE,
+  effectiveStaffLimit,
+  isCapacityAddonCode,
+  type ActiveCapacityAddon,
+} from "./addons";
+
+/** Add-on kapasitas absensi yang masih aktif (status active dan belum lewat masa berlaku), atau null. */
+export async function getActiveCapacityAddon(villageId: number): Promise<ActiveCapacityAddon | null> {
+  const row = await prisma.villageModuleSubscription.findUnique({
+    where: { villageId_moduleCode: { villageId, moduleCode: ATTENDANCE_CAPACITY_MODULE_CODE } },
+    select: { planCode: true, status: true, expiryDate: true },
+  });
+  if (!row || row.status !== "active" || row.expiryDate.getTime() <= Date.now()) return null;
+  if (!isCapacityAddonCode(row.planCode)) return null;
+  return { code: row.planCode, expiresAt: row.expiryDate };
+}
 
 /**
  * Apakah perangkat boleh absen? Memakai urutan yang sama dengan tabel absensi web (jabatan lalu nama),
@@ -10,7 +27,8 @@ export async function isOfficialWithinAttendanceCapacity(opts: {
   officialId: number;
   subscriptionPlan: string | null | undefined;
 }): Promise<{ allowed: boolean; limit: number }> {
-  const limit = staffLimitForPlan(opts.subscriptionPlan);
+  const addon = await getActiveCapacityAddon(opts.villageId);
+  const limit = effectiveStaffLimit(opts.subscriptionPlan, addon);
   if (!attendanceCapacityEnforced(opts.subscriptionPlan)) return { allowed: true, limit };
 
   const inCapacity = await prisma.official.findMany({

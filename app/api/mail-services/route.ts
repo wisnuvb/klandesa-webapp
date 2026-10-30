@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import {
@@ -19,6 +20,23 @@ import {
   sanitizeFormData,
 } from "@/lib/mail/letter-input";
 
+const LIST_PAGE_SIZE = 20;
+const LIST_PAGE_SIZE_MAX = 100;
+/** Tanpa `page` (pemanggil lama): daftar datar dengan batas ini, seperti sebelumnya. */
+const LIST_UNPAGED_LIMIT = 500;
+const LIST_STATUSES = ["draft", "completed", "archived"] as const;
+
+function clampInt(raw: string | null, min: number, max: number, fallback: number): number {
+  const n = raw != null && /^\d{1,9}$/.test(raw) ? Number(raw) : NaN;
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+}
+
+/**
+ * Riwayat surat. Dengan `?page=` (mulai 1) hasilnya berpaginasi dan dapat disaring di server:
+ * `pageSize` (≤100), `q` (nomor/jenis/pemohon/NIK), `status`, `category`; bentuknya
+ * `{ items, total, page, pageSize, counts, categories }`. Tanpa `page`: larik datar (maks 500) seperti dulu.
+ * `formData` tidak ikut dibaca untuk surat v2 (dokumennya lewat GET /api/letters/[id]).
+ */
 export async function GET(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);
@@ -28,54 +46,82 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    // Daftar dibatasi agar muatan tidak tumbuh tanpa batas; filter/pencarian server menyusul.
-    const LIMIT = 500;
-    const rows = await prisma.mailService.findMany({
-      where: { villageId: village.id },
-      orderBy: { createdAt: "desc" },
-      take: LIMIT,
-      select: {
-        id: true,
-        letterNumber: true,
-        templateId: true,
-        templateName: true,
-        templateCategory: true,
-        applicantName: true,
-        applicantNik: true,
-        signerRole: true,
-        status: true,
-        createdAt: true,
-        completedAt: true,
-        formData: true,
-        createdUser: { select: { name: true } },
-      },
-    });
+    const sp = req.nextUrl.searchParams;
+    const paged = sp.has("page");
+    const page = clampInt(sp.get("page"), 1, 100000, 1);
+    const pageSize = clampInt(sp.get("pageSize"), 1, LIST_PAGE_SIZE_MAX, LIST_PAGE_SIZE);
+    const q = (sp.get("q") ?? "").trim().slice(0, 100);
+    const statusParam = sp.get("status");
+    const status = (LIST_STATUSES as readonly string[]).includes(statusParam ?? "") ? (statusParam as (typeof LIST_STATUSES)[number]) : undefined;
+    const category = (sp.get("category") ?? "").trim().slice(0, 100);
 
-    // Dokumen v2 diambil lewat GET /api/letters/[id] saat dibuka. Surat v2 diketahui dari bentuk formData; struktur template lama hanya dimuat untuk surat lama,
-    // satu kali per template (bukan satu salinan per surat).
-    const isV2 = (fd: unknown) =>
-      !!fd && typeof fd === "object" && (fd as { schemaVersion?: unknown }).schemaVersion === 2;
-    const legacyIds = [...new Set(rows.filter((r) => !isV2(r.formData)).map((r) => r.templateId))];
-    const structures = legacyIds.length
-      ? await prisma.mailTemplate.findMany({
-          where: { id: { in: legacyIds } },
-          select: { id: true, name: true, category: true, templateStructure: true },
+    const scope = { villageId: village.id };
+    const where: Prisma.MailServiceWhereInput = {
+      ...scope,
+      ...(status ? { status } : {}),
+      ...(category ? { templateCategory: category === "Lainnya" ? { in: ["Lainnya", ""] } : category } : {}),
+      ...(q
+        ? {
+            OR: [
+              { applicantName: { contains: q } },
+              { letterNumber: { contains: q } },
+              { templateName: { contains: q } },
+              { applicantNik: { contains: q } },
+            ],
+          }
+        : {}),
+    };
+
+    const [rows, total, statusGroups, categoryGroups] = await Promise.all([
+      prisma.mailService.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: paged ? (page - 1) * pageSize : undefined,
+        take: paged ? pageSize : LIST_UNPAGED_LIMIT,
+        select: {
+          id: true,
+          letterNumber: true,
+          templateId: true,
+          templateName: true,
+          templateCategory: true,
+          applicantName: true,
+          applicantNik: true,
+          signerRole: true,
+          status: true,
+          createdAt: true,
+          completedAt: true,
+          createdUser: { select: { name: true } },
+        },
+      }),
+      paged ? prisma.mailService.count({ where }) : Promise.resolve(0),
+      paged ? prisma.mailService.groupBy({ by: ["status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
+      paged ? prisma.mailService.groupBy({ by: ["templateCategory"], where: scope }) : Promise.resolve([]),
+    ]);
+
+    // Surat v2 ditandai `formData.schemaVersion = 2`. Ditentukan oleh DB (JSON path) agar formData surat v2
+    // yang besar tidak dibaca ke aplikasi; hanya surat format lama yang dibaca isiannya, untuk ditampilkan apa adanya.
+    const ids = rows.map((r) => r.id);
+    const v2Rows = ids.length
+      ? await prisma.mailService.findMany({
+          where: { id: { in: ids }, formData: { path: "$.schemaVersion", equals: 2 } },
+          select: { id: true },
         })
       : [];
-    const byId = new Map(structures.map((t) => [t.id, t]));
+    const v2Ids = new Set(v2Rows.map((r) => Number(r.id)));
+    const legacyIds = ids.filter((id) => !v2Ids.has(Number(id)));
+    const legacyForms = legacyIds.length
+      ? await prisma.mailService.findMany({ where: { id: { in: legacyIds } }, select: { id: true, formData: true } })
+      : [];
+    const formById = new Map(legacyForms.map((r) => [Number(r.id), (r.formData as Record<string, string>) || {}]));
 
-    const mappedRows = rows.map((row) => {
-      const v2 = isV2(row.formData);
-      const tpl = v2 ? undefined : byId.get(row.templateId);
-      // Surat berformat lama yang jenis suratnya kini dokumen v2 (katalog disinkronkan ulang): tidak bisa dirender ulang.
-      const legacyUnavailable =
-        !v2 && (tpl?.templateStructure as { schemaVersion?: unknown } | null | undefined)?.schemaVersion === 2;
+    const items = rows.map((row) => {
+      const v2 = v2Ids.has(Number(row.id));
       return {
         id: Number(row.id),
         letter_number: row.letterNumber,
         template_id: row.templateId,
-        template_name: row.templateName || tpl?.name || "Template Surat",
-        template_category: row.templateCategory || tpl?.category || "Lainnya",
+        template_name: row.templateName || "Template Surat",
+        template_category: row.templateCategory || "Lainnya",
         applicant_name: row.applicantName,
         applicant_nik: row.applicantNik,
         signer_role: row.signerRole || "kepala_desa",
@@ -84,14 +130,23 @@ export async function GET(req: NextRequest) {
         created_by: row.createdUser?.name || "Admin Desa",
         completed_at: row.completedAt ? row.completedAt.toISOString() : null,
         content_html: "",
-        form_data: v2 ? {} : ((row.formData as Record<string, string>) || {}),
-        templateData: legacyUnavailable ? undefined : tpl?.templateStructure || undefined,
+        form_data: v2 ? {} : (formById.get(Number(row.id)) ?? {}),
         schema_version: v2 ? 2 : 1,
-        legacy_unavailable: legacyUnavailable || undefined,
       };
     });
 
-    return NextResponse.json(mappedRows);
+    if (!paged) return NextResponse.json(items);
+
+    const countOf = (st: string) => statusGroups.find((g) => g.status === st)?._count._all ?? 0;
+    const categories = [...new Set(categoryGroups.map((g) => g.templateCategory || "Lainnya"))].sort((a, b) => a.localeCompare(b, "id"));
+    return NextResponse.json({
+      items,
+      total,
+      page,
+      pageSize,
+      counts: { all: statusGroups.reduce((n, g) => n + g._count._all, 0), completed: countOf("completed"), draft: countOf("draft") },
+      categories,
+    });
   } catch (err) {
     console.error("GET /api/mail-services error:", err);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, Pencil, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import type { LetterDocument } from "@/lib/letters/document/schema";
 import { validateDocument } from "@/lib/letters/document/validate";
 import { PAPER_SIZES } from "@/lib/letters/paper";
 import { sampleLetterValues, type LetterValues } from "@/lib/letters/values";
-import { printPaper } from "../_utils/printPaper";
+import { printPaperElement } from "@/components/letters/print-paper";
 
 /** Kertas dengan skala agar muat lebar kontainer (pratinjau), tetap tajam saat dicetak lewat iframe. */
 function ScaledPaper({
@@ -49,7 +49,7 @@ function ScaledPaper({
   return (
     <div ref={boxRef} className="w-full overflow-x-auto rounded-md bg-muted/40 p-2">
       {/* `zoom` ikut mengubah tinggi tata letak, tidak seperti transform: scale. */}
-      <div style={{ width: `${paperWidthMm}mm`, zoom: scale }}>
+      <div style={{ width: `${paperWidthMm}mm`, zoom: scale, margin: "0 auto" }}>
         <div ref={paperRef} id="letter-paper-view">
           <LetterPaper doc={doc} values={values} mode={mode} />
         </div>
@@ -93,7 +93,7 @@ export function V2LetterDialog({ letterId, open, onOpenChange }: { letterId: num
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+      <DialogContent className="max-h-[94vh] w-[96vw] max-w-[96vw] overflow-y-auto sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>{ready ? ready.templateName : "Surat"}</DialogTitle>
           <DialogDescription>
@@ -124,7 +124,7 @@ export function V2LetterDialog({ letterId, open, onOpenChange }: { letterId: num
             <div className="flex flex-wrap gap-2 border-t pt-4">
               <Button
                 className="min-h-11 gap-2"
-                onClick={() => setPrintError(!printPaper(paperRef.current, ready.document, ready.templateName))}
+                onClick={() => void printPaperElement(paperRef.current, ready.document, ready.templateName).then((ok) => setPrintError(!ok))}
               >
                 <Printer className="h-4 w-4" aria-hidden /> Cetak
               </Button>
@@ -144,29 +144,68 @@ export function V2LetterDialog({ letterId, open, onOpenChange }: { letterId: num
   );
 }
 
-/** Pratinjau jenis surat v2 dengan data contoh. */
+/**
+ * Pratinjau jenis surat v2 dengan data contoh. Dua cara memberi dokumen:
+ * - `document`: dokumen yang sudah dipegang pemanggil (editor, termasuk yang belum tersimpan);
+ * - hanya `id`: diambil dari server saat dibuka (daftar jenis surat sengaja tidak membawa dokumen).
+ */
 export function V2TemplatePreviewDialog({
   template,
   open,
   onOpenChange,
 }: {
-  template: { name: string; document: unknown } | null;
+  template: { id?: number; name: string; document?: unknown } | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
   const paperRef = useRef<HTMLDivElement>(null);
-  const validated = template ? validateDocument(template.document) : null;
-  const doc = validated?.ok ? validated.doc : null;
+  const [loaded, setLoaded] = useState<{ id: number; doc: LetterDocument | null } | null>(null);
+  const hasDocument = template?.document !== undefined;
+  const templateId = hasDocument ? null : (template?.id ?? null);
+
+  useEffect(() => {
+    if (!open || templateId == null) return;
+    let cancelled = false;
+    fetch(`/api/mail-templates/${templateId}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("gagal");
+        return (await res.json()) as { templateStructure?: unknown };
+      })
+      .then((row) => {
+        const v = validateDocument(row.templateStructure);
+        if (!cancelled) setLoaded({ id: templateId, doc: v.ok ? v.doc : null });
+      })
+      .catch(() => {
+        if (!cancelled) setLoaded({ id: templateId, doc: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, templateId]);
+
+  const fetched = loaded && loaded.id === templateId ? loaded : null;
+  const given = useMemo(() => {
+    if (!hasDocument) return null;
+    const v = validateDocument(template?.document);
+    return { doc: v.ok ? v.doc : null };
+  }, [hasDocument, template?.document]);
+  const current = given ?? fetched;
+  const doc = current?.doc ?? null;
+  const values = useMemo(() => (doc ? sampleLetterValues(doc) : null), [doc]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+      <DialogContent className="max-h-[94vh] w-[96vw] max-w-[96vw] overflow-y-auto sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>Pratinjau — {template?.name}</DialogTitle>
           <DialogDescription>Tampilan dengan data contoh. Data asli terisi saat surat dibuat.</DialogDescription>
         </DialogHeader>
-        {doc ? (
-          <ScaledPaper doc={doc} values={sampleLetterValues(doc)} mode="print" paperRef={paperRef} />
+        {!current ? (
+          <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground" role="status">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Memuat jenis surat…
+          </div>
+        ) : doc && values ? (
+          <ScaledPaper doc={doc} values={values} mode="print" paperRef={paperRef} />
         ) : (
           <p role="alert" className="py-6 text-sm text-destructive">Jenis surat ini belum bisa ditampilkan.</p>
         )}

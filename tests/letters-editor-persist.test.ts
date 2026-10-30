@@ -21,6 +21,7 @@ import {
 } from "../app/(app)/layanan-surat/editor/_utils/persist.ts";
 import { buildStarter, listBlankStarters, listStarters, parseStartId, START_KINDS } from "../app/(app)/layanan-surat/editor/_utils/starters.ts";
 import { validateDocument } from "../lib/letters/document/validate.ts";
+import { getCatalogV2 } from "../lib/letters/catalog/index.ts";
 
 const run = (events: PersistEvent[], from: PersistState = initialPersistState()) => events.reduce(persistReducer, from);
 const ready = (templateId: number | null = 5, updatedAt: string | null = "2026-10-29T10:00:00.000Z") =>
@@ -240,10 +241,10 @@ describe("starters", () => {
     assert.ok((await d("berita_acara")).groups.length > 0);
   });
 
-  it("contoh dari katalog: semua 19 valid, diberi nama '(salinan)'", async () => {
+  it("contoh dari katalog: semua valid, diberi nama '(salinan)'", async () => {
     const { examples, blank } = await listStarters();
     assert.equal(blank.length, 4);
-    assert.equal(examples.length, 19);
+    assert.equal(examples.length, getCatalogV2().length);
     for (const e of examples) {
       const s = await buildStarter(e.id);
       assert.ok(s, e.id);

@@ -269,7 +269,14 @@ export type LetterDetail = {
 };
 
 export async function getLetterDetail(village: Village, id: bigint): Promise<ServiceResult<LetterDetail>> {
-  const row = await prisma.mailService.findFirst({ where: { id, villageId: village.id } });
+  // Hanya kolom yang dipakai respons (contentHtml tidak dikirim, jadi tidak dibaca).
+  const row = await prisma.mailService.findFirst({
+    where: { id, villageId: village.id },
+    select: {
+      id: true, status: true, letterNumber: true, letterDate: true, templateId: true, templateName: true,
+      templateSnapshot: true, formData: true, createdAt: true, completedAt: true,
+    },
+  });
   if (!row) return fail(404, "Surat tidak ditemukan");
   if (row.templateSnapshot == null) return fail(422, "Surat berformat lama");
   const doc = documentFromStructure(row.templateSnapshot);

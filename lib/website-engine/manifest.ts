@@ -1,3 +1,4 @@
+import { parseBlockVariantAllowlist, type BlockVariantAllowlist } from "@/lib/website-engine/block-variants";
 import { mergeTemplateCapabilities } from "@/lib/website-engine/feature-capabilities";
 import type {
   TemplateLevelPreset,
@@ -79,6 +80,8 @@ export type WebsiteTemplateManifest = {
   themeDefaults: WebsiteThemeDefaults;
   layoutDefaults: WebsiteLayoutDefaults;
   templatePresets: TemplateLevelPreset[];
+  /** Pembatas varian blok dari penulis template; kosong = semua varian standar */
+  blockVariants?: BlockVariantAllowlist;
 };
 
 const EMPTY_MANIFEST: WebsiteTemplateManifest = {
@@ -118,6 +121,7 @@ export function parseTemplateStructureManifest(
     themeDefaults,
     layoutDefaults,
     templatePresets: parseTemplatePresets(raw.presets),
+    blockVariants: parseBlockVariantAllowlist(raw.blockVariants),
   };
 }
 

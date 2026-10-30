@@ -24,6 +24,7 @@ type VillageLite = {
   phone?: string | null;
   email?: string | null;
   website?: string | null;
+  logoUrl?: string | null;
 };
 
 type Props = {
@@ -135,6 +136,7 @@ export const CmsLivePreviewCard = memo(function CmsLivePreviewCard({
         >
           <PackShell
             villageName={village?.name ?? "Preview Desa"}
+            logoUrl={village?.logoUrl ?? null}
             hideSiteHeader={hideSiteHeader}
             templateKey={templateKey}
             currentPath="/site"

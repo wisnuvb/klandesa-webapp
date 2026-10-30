@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 /**
  * Generate HMAC-SHA256 signature untuk Linkqu API
@@ -119,10 +119,30 @@ export const LINKQU_PATH_QRIS = "/linkqu-partner/transaction/create/qris";
 export const LINKQU_PATH_EWALLET =
   "/linkqu-partner/transaction/create/paymentewallet";
 
+const NON_VA_CODES = new Set([
+  "QRIS",
+  "PAYDANA",
+  "PAYLINKAJA",
+  "PAYSHOPEE",
+  "PAYSHOPEEPAY",
+  "PAYGOPAY",
+  "PAYOVO",
+  "LINKAJA",
+  "CREDITCARD",
+]);
+
+function safeEqualHex(a: string, b: string): boolean {
+  const ba = Buffer.from(a.toLowerCase(), "utf8");
+  const bb = Buffer.from(b.trim().toLowerCase(), "utf8");
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
+
 /**
  * Verify callback signature from Linkqu
  * Formula by type: VA/Retail = partner_reff.amount.va_number.username
  *                  QRIS/E-Wallet = partner_reff.amount.username
+ * LinkQu menandatangani string mentah (korkal-fe), tetapi dokumentasi signature create membersihkan
+ * karakter non-alfanumerik; kedua bentuk diterima (keduanya butuh signature key rahasia).
  * @see docs/linkqu.json - Callback Transaction Received
  */
 export function verifyLinkquCallbackSignature(
@@ -136,32 +156,34 @@ export function verifyLinkquCallbackSignature(
   receivedSignature: string | undefined,
   signatureKey: string
 ): boolean {
-  if (!receivedSignature) return false;
+  if (!receivedSignature || !signatureKey) return false;
 
   const partnerReff = String(payload.partner_reff ?? "");
-  const amount = String(payload.amount ?? "");
   const username = String(payload.username ?? "");
-
   if (!partnerReff || !username) return false;
+
+  const rawAmount = String(payload.amount ?? "");
+  const amounts = new Set([rawAmount]);
+  if (rawAmount !== "" && Number.isFinite(Number(rawAmount))) {
+    amounts.add(String(Math.round(Number(rawAmount))));
+  }
 
   const vaCode = String(payload.va_code ?? "").toUpperCase();
   const vaNumber = String(payload.va_number ?? "");
+  const withoutVa = NON_VA_CODES.has(vaCode) || !vaNumber;
 
-  let signToString: string;
-  if (
-    (vaCode === "QRIS" || vaCode === "PAYDANA" || vaCode === "PAYLINKAJA" ||
-     vaCode === "PAYSHOPEE" || vaCode === "PAYSHOPEEPAY" || vaCode === "CREDITCARD") &&
-    !vaNumber
-  ) {
-    signToString = [partnerReff, amount, username].map(clean).join("");
-  } else {
-    signToString = [partnerReff, amount, vaNumber || amount, username]
-      .map(clean)
-      .join("");
+  const candidates = new Set<string>();
+  for (const amount of amounts) {
+    const parts = withoutVa
+      ? [partnerReff, amount, username]
+      : [partnerReff, amount, vaNumber, username];
+    candidates.add(parts.join(""));
+    candidates.add(parts.map(clean).join(""));
   }
 
-  const expected = createHmac("sha256", signatureKey)
-    .update(signToString)
-    .digest("hex");
-  return expected === receivedSignature;
+  for (const signToString of candidates) {
+    const expected = createHmac("sha256", signatureKey).update(signToString).digest("hex");
+    if (safeEqualHex(expected, receivedSignature)) return true;
+  }
+  return false;
 }

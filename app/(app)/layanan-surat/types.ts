@@ -1,15 +1,4 @@
-import type {
-  HeaderConfig,
-  FooterConfig,
-  ContentBlock,
-  TemplatePage,
-  LetterNumberConfig,
-  TemplateData,
-  VariableGroup,
-} from "@/components/template-builder/types";
-
-export type { TemplateData };
-
+/** Pengaturan desa untuk kop & penandatangan (snapshot dari Pengaturan Desa). */
 export interface DesaSettings {
   logo_url: string;
   kabupaten: string;
@@ -19,7 +8,7 @@ export interface DesaSettings {
   email_desa: string;
   kode_pos: string;
   kepala_desa_nama: string;
-  /** NIP kepala desa (ASN); dipakai variabel {KEPALA_DESA_NIP} */
+  /** NIP kepala desa (ASN) */
   kepala_desa_nip: string;
   kepala_desa_jabatan: string;
   sekretaris_nama: string;
@@ -28,59 +17,21 @@ export interface DesaSettings {
   camat_jabatan: string;
 }
 
-export interface TemplateHeader {
-  id: number;
-  name: string;
-  template: string;
-  fields: string[];
-}
-
-export interface TemplateFooter {
-  id: number;
-  name: string;
-  template: string;
-  signer_role: string;
-}
-
+/** Jenis surat (dokumen v2) untuk daftar "Atur Jenis Surat". */
 export interface TemplateBody {
   id: number;
   name: string;
   description: string;
   category: string;
-  content_template: string;
-  variables: string[];
-  header: HeaderConfig;
-  footer: FooterConfig;
-  /** Kop surat global untuk mode multi-halaman (builder) */
-  shared_header?: HeaderConfig;
-  /** Footer global untuk mode multi-halaman (builder) */
-  shared_footer?: FooterConfig;
-  blocks: ContentBlock[];
-  pages: TemplatePage[];
-  is_multi_page: boolean;
-  letterNumber?: LetterNumberConfig;
-  /** Master: tampilkan kop (single-page) */
-  show_header?: boolean;
-  show_footer?: boolean;
-  /** Default tampil header/footer untuk halaman baru (multi-page) */
-  show_header_default?: boolean;
-  show_footer_default?: boolean;
-  variable_groups?: VariableGroup[];
   is_active: boolean;
   created_at: string;
   usage_count: number;
-  /** Template katalog bawaan (read-only sampai disalin ke desa). */
+  /** Katalog bawaan (hanya-baca sampai disalin ke desa). */
   is_catalog: boolean;
-  /** Nilai untuk template katalog; null untuk template ad-hoc per-desa */
+  /** Kunci katalog; null untuk jenis surat buatan desa. */
   catalog_key: string | null;
-  /**
-   * Jika ada, template ini menggantikan entri katalog dengan `catalog_key` yang sama untuk desa ini.
-   */
+  /** Bila ada, jenis surat ini menggantikan entri katalog dengan `catalog_key` yang sama untuk desa ini. */
   inherits_catalog_key: string | null;
-  /** 2 = dokumen v2 (kanvas); 1/undefined = format lama (builder lama). */
-  schema_version?: 1 | 2;
-  /** Dokumen v2 mentah (hanya bila schema_version = 2). */
-  document?: unknown;
 }
 
 export interface LetterHistory {
@@ -98,10 +49,8 @@ export interface LetterHistory {
   completed_at: string | null;
   content_html: string;
   form_data: Record<string, string>;
-  /** Template dengan format blocks untuk rendering modern */
-  templateData?: TemplateData;
   /** 2 = surat dokumen v2 (detail diambil dari /api/letters/[id]). */
   schema_version?: 1 | 2;
-  /** Surat format lama yang jenis suratnya sudah berganti ke dokumen v2: pratinjau tidak tersedia. */
+  /** Surat format lama: pratinjau tidak tersedia, hanya isian tersimpan. */
   legacy_unavailable?: boolean;
 }

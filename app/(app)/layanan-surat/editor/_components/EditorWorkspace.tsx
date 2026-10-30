@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Eye, Redo2, Undo2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useDocumentEditor } from "@/lib/letters/editor";
 import type { LetterDocument } from "@/lib/letters/document/schema";
-import { sampleLetterValues } from "@/lib/letters/values";
 import { Canvas } from "@/components/letters/editor/canvas";
 import { SidePanel, checkSummary } from "@/components/letters/editor/panels";
 import { V2TemplatePreviewDialog } from "../../_components/V2Views";
@@ -23,7 +22,8 @@ export function EditorWorkspace({ tpl, initialDoc }: { tpl: UseTemplateDocument;
   const [leaving, setLeaving] = useState(false);
 
   const { onDocumentChange } = tpl;
-  const { doc, revision } = editor;
+  // Pengubah di `editor` stabil antar render (objek `editor` sendiri baru tiap render): jangan jadikan dependensi.
+  const { doc, revision, undo, redo, select } = editor;
   // Revisi 0 = dokumen awal, belum ada yang perlu disimpan.
   useEffect(() => {
     if (revision > 0) onDocumentChange(doc, revision);
@@ -36,22 +36,21 @@ export function EditorWorkspace({ tpl, initialDoc }: { tpl: UseTemplateDocument;
       const el = e.target as HTMLElement | null;
       if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
       const k = e.key.toLowerCase();
-      if (k === "z" && !e.shiftKey) { e.preventDefault(); editor.undo(); }
-      else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); editor.redo(); }
+      if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redo(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editor]);
+  }, [undo, redo]);
 
   const summary = checkSummary(editor);
-  const sampleValues = useMemo(() => sampleLetterValues(doc), [doc]);
 
   const reveal = useCallback((id: string) => {
-    editor.select(id);
+    select(id);
     requestAnimationFrame(() => {
       document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
     });
-  }, [editor]);
+  }, [select]);
 
   const onDone = async () => {
     setLeaveError(null);
@@ -105,7 +104,7 @@ export function EditorWorkspace({ tpl, initialDoc }: { tpl: UseTemplateDocument;
 
       <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start">
         <div className="h-[70dvh] min-h-96 min-w-0 flex-1 lg:h-[calc(100dvh-11rem)]">
-          <Canvas editor={editor} values={sampleValues} />
+          <Canvas editor={editor} />
         </div>
         <aside
           aria-label="Pengaturan surat"

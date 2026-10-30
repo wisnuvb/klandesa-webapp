@@ -1,4 +1,12 @@
 import type { WebsiteSection } from "@/lib/website-engine/types";
+import {
+  BLOCK_VARIANTS,
+  clampSectionVariant,
+  defaultBlockVariant,
+  mergeVariantAllowlists,
+  type BlockVariantAllowlist,
+} from "@/lib/website-engine/block-variants";
+import { ITEM_LIMITS } from "@/lib/website-engine/section-items";
 import { getTemplatePack } from "@/lib/website-engine/template-packs/registry";
 
 export type SectionKind = WebsiteSection["kind"];
@@ -9,6 +17,25 @@ export type SectionCmsField =
   | { name: string; label: string; type: "number"; min?: number; max?: number }
   | { name: string; label: string; type: "checkbox" }
   | { name: string; label: string; type: "image" }
+  | {
+      name: string;
+      label: string;
+      type: "variant";
+      options: Array<{ value: string; label: string }>;
+    }
+  | {
+      name: string;
+      label: string;
+      type: "list";
+      /** Nama satu item, mis. "kartu" -> "Tambah kartu" */
+      itemLabel: string;
+      max: number;
+      fields: Array<{
+        name: string;
+        label: string;
+        type: "text" | "textarea" | "image";
+      }>;
+    }
   | {
       name: string;
       label: string;
@@ -24,6 +51,17 @@ export type WebsiteSectionDefinition = {
   cmsFields: SectionCmsField[];
   createDefault: () => WebsiteSection;
 };
+
+function variantField(
+  kind: keyof typeof BLOCK_VARIANTS,
+): Extract<SectionCmsField, { type: "variant" }> {
+  return {
+    name: "variant",
+    label: "Tampilan",
+    type: "variant",
+    options: BLOCK_VARIANTS[kind].map((v) => ({ value: v.value, label: v.label })),
+  };
+}
 
 export const WEBSITE_SECTION_REGISTRY: Record<
   SectionKind,
@@ -60,6 +98,7 @@ export const WEBSITE_SECTION_REGISTRY: Record<
     label: "Fitur / Keunggulan",
     requiredCapabilities: ["section_features"],
     cmsFields: [
+      variantField("features"),
       { name: "title", label: "Judul blok", type: "text" },
       { name: "subtitle", label: "Subjudul", type: "text" },
       {
@@ -71,24 +110,29 @@ export const WEBSITE_SECTION_REGISTRY: Record<
           { value: "3", label: "3 kolom" },
         ],
       },
-      { name: "item1_title", label: "Item 1 - Judul", type: "text" },
-      { name: "item1_body", label: "Item 1 - Deskripsi", type: "textarea" },
-      { name: "item2_title", label: "Item 2 - Judul", type: "text" },
-      { name: "item2_body", label: "Item 2 - Deskripsi", type: "textarea" },
-      { name: "item3_title", label: "Item 3 - Judul", type: "text" },
-      { name: "item3_body", label: "Item 3 - Deskripsi", type: "textarea" },
+      {
+        name: "items",
+        label: "Kartu",
+        type: "list",
+        itemLabel: "kartu",
+        max: ITEM_LIMITS.features,
+        fields: [
+          { name: "title", label: "Judul", type: "text" },
+          { name: "body", label: "Deskripsi", type: "textarea" },
+        ],
+      },
     ],
     createDefault: () => ({
       kind: "features",
+      variant: defaultBlockVariant("features"),
       title: "Kenapa memilih desa kami",
       subtitle: "Ringkasan keunggulan utama yang bisa Anda tonjolkan.",
       columns: 3,
-      item1_title: "Pelayanan Cepat",
-      item1_body: "Proses administrasi lebih ringkas dengan alur yang jelas.",
-      item2_title: "Transparan",
-      item2_body: "Informasi desa dan kegiatan dipublikasikan secara rutin.",
-      item3_title: "Inklusif",
-      item3_body: "Layanan dan informasi mudah diakses untuk semua warga.",
+      items: [
+        { title: "Pelayanan Cepat", body: "Proses administrasi lebih ringkas dengan alur yang jelas." },
+        { title: "Transparan", body: "Informasi desa dan kegiatan dipublikasikan secara rutin." },
+        { title: "Inklusif", body: "Layanan dan informasi mudah diakses untuk semua warga." },
+      ],
     }),
   },
   stats: {
@@ -96,25 +140,31 @@ export const WEBSITE_SECTION_REGISTRY: Record<
     label: "Statistik Singkat",
     requiredCapabilities: ["section_stats"],
     cmsFields: [
+      variantField("stats"),
       { name: "title", label: "Judul blok", type: "text" },
       { name: "subtitle", label: "Subjudul", type: "text" },
-      { name: "stat1_label", label: "Stat 1 - Label", type: "text" },
-      { name: "stat1_value", label: "Stat 1 - Nilai", type: "text" },
-      { name: "stat2_label", label: "Stat 2 - Label", type: "text" },
-      { name: "stat2_value", label: "Stat 2 - Nilai", type: "text" },
-      { name: "stat3_label", label: "Stat 3 - Label", type: "text" },
-      { name: "stat3_value", label: "Stat 3 - Nilai", type: "text" },
+      {
+        name: "items",
+        label: "Angka",
+        type: "list",
+        itemLabel: "angka",
+        max: ITEM_LIMITS.stats,
+        fields: [
+          { name: "label", label: "Label", type: "text" },
+          { name: "value", label: "Nilai", type: "text" },
+        ],
+      },
     ],
     createDefault: () => ({
       kind: "stats",
+      variant: defaultBlockVariant("stats"),
       title: "Sekilas Desa",
       subtitle: "Angka ringkas untuk memperkuat kepercayaan pengunjung.",
-      stat1_label: "Penduduk",
-      stat1_value: "—",
-      stat2_label: "Dusun",
-      stat2_value: "—",
-      stat3_label: "RT/RW",
-      stat3_value: "—",
+      items: [
+        { label: "Penduduk", value: "—" },
+        { label: "Dusun", value: "—" },
+        { label: "RT/RW", value: "—" },
+      ],
     }),
   },
   gallery: {
@@ -122,25 +172,27 @@ export const WEBSITE_SECTION_REGISTRY: Record<
     label: "Galeri Foto",
     requiredCapabilities: ["section_gallery"],
     cmsFields: [
+      variantField("gallery"),
       { name: "title", label: "Judul blok", type: "text" },
       { name: "subtitle", label: "Subjudul", type: "text" },
-      { name: "image1_url", label: "Gambar 1", type: "image" },
-      { name: "image2_url", label: "Gambar 2", type: "image" },
-      { name: "image3_url", label: "Gambar 3", type: "image" },
-      { name: "image4_url", label: "Gambar 4", type: "image" },
-      { name: "image5_url", label: "Gambar 5", type: "image" },
-      { name: "image6_url", label: "Gambar 6", type: "image" },
+      {
+        name: "items",
+        label: "Foto",
+        type: "list",
+        itemLabel: "foto",
+        max: ITEM_LIMITS.gallery,
+        fields: [
+          { name: "url", label: "Gambar", type: "image" },
+          { name: "caption", label: "Keterangan foto (dibaca pembaca layar)", type: "text" },
+        ],
+      },
     ],
     createDefault: () => ({
       kind: "gallery",
+      variant: defaultBlockVariant("gallery"),
       title: "Galeri Desa",
       subtitle: "Dokumentasi kegiatan dan potensi desa.",
-      image1_url: "",
-      image2_url: "",
-      image3_url: "",
-      image4_url: "",
-      image5_url: "",
-      image6_url: "",
+      items: [],
     }),
   },
   faq: {
@@ -148,31 +200,28 @@ export const WEBSITE_SECTION_REGISTRY: Record<
     label: "FAQ",
     requiredCapabilities: ["section_faq"],
     cmsFields: [
+      variantField("faq"),
       { name: "title", label: "Judul blok", type: "text" },
-      { name: "q1", label: "Pertanyaan 1", type: "text" },
-      { name: "a1", label: "Jawaban 1", type: "textarea" },
-      { name: "q2", label: "Pertanyaan 2", type: "text" },
-      { name: "a2", label: "Jawaban 2", type: "textarea" },
-      { name: "q3", label: "Pertanyaan 3", type: "text" },
-      { name: "a3", label: "Jawaban 3", type: "textarea" },
-      { name: "q4", label: "Pertanyaan 4", type: "text" },
-      { name: "a4", label: "Jawaban 4", type: "textarea" },
-      { name: "q5", label: "Pertanyaan 5", type: "text" },
-      { name: "a5", label: "Jawaban 5", type: "textarea" },
+      {
+        name: "items",
+        label: "Pertanyaan",
+        type: "list",
+        itemLabel: "pertanyaan",
+        max: ITEM_LIMITS.faq,
+        fields: [
+          { name: "q", label: "Pertanyaan", type: "text" },
+          { name: "a", label: "Jawaban", type: "textarea" },
+        ],
+      },
     ],
     createDefault: () => ({
       kind: "faq",
+      variant: defaultBlockVariant("faq"),
       title: "Pertanyaan yang sering diajukan",
-      q1: "Bagaimana jam pelayanan kantor desa?",
-      a1: "Silakan sesuaikan jam pelayanan sesuai kebijakan desa.",
-      q2: "Bagaimana cara mengurus surat?",
-      a2: "Silakan sesuaikan langkah pengurusan surat pada bagian ini.",
-      q3: "",
-      a3: "",
-      q4: "",
-      a4: "",
-      q5: "",
-      a5: "",
+      items: [
+        { q: "Bagaimana jam pelayanan kantor desa?", a: "Silakan sesuaikan jam pelayanan sesuai kebijakan desa." },
+        { q: "Bagaimana cara mengurus surat?", a: "Silakan sesuaikan langkah pengurusan surat pada bagian ini." },
+      ],
     }),
   },
   testimonials: {
@@ -180,29 +229,26 @@ export const WEBSITE_SECTION_REGISTRY: Record<
     label: "Testimoni",
     requiredCapabilities: ["section_testimonials"],
     cmsFields: [
+      variantField("testimonials"),
       { name: "title", label: "Judul blok", type: "text" },
-      { name: "quote1", label: "Testimoni 1", type: "textarea" },
-      { name: "name1", label: "Nama 1", type: "text" },
-      { name: "role1", label: "Peran 1 (opsional)", type: "text" },
-      { name: "quote2", label: "Testimoni 2", type: "textarea" },
-      { name: "name2", label: "Nama 2", type: "text" },
-      { name: "role2", label: "Peran 2 (opsional)", type: "text" },
-      { name: "quote3", label: "Testimoni 3", type: "textarea" },
-      { name: "name3", label: "Nama 3", type: "text" },
-      { name: "role3", label: "Peran 3 (opsional)", type: "text" },
+      {
+        name: "items",
+        label: "Testimoni",
+        type: "list",
+        itemLabel: "testimoni",
+        max: ITEM_LIMITS.testimonials,
+        fields: [
+          { name: "quote", label: "Isi testimoni", type: "textarea" },
+          { name: "name", label: "Nama", type: "text" },
+          { name: "role", label: "Peran (opsional)", type: "text" },
+        ],
+      },
     ],
     createDefault: () => ({
       kind: "testimonials",
+      variant: defaultBlockVariant("testimonials"),
       title: "Apa kata warga",
-      quote1: "Pelayanan lebih rapi dan informatif.",
-      name1: "Warga",
-      role1: "",
-      quote2: "",
-      name2: "",
-      role2: "",
-      quote3: "",
-      name3: "",
-      role3: "",
+      items: [{ quote: "Pelayanan lebih rapi dan informatif.", name: "Warga" }],
     }),
   },
   spacer: {
@@ -313,11 +359,18 @@ export function getSectionDefinition(
 export function sectionSchemaForTemplate(
   templateKey: string,
   allowedKinds: SectionKind[],
+  /** Pembatas varian tambahan dari manifest template (digabung dengan milik pack) */
+  extraVariantAllow?: BlockVariantAllowlist,
 ) {
   const pack = getTemplatePack(templateKey);
   const allowedVariants = new Set(pack.heroVariants);
   return allowedKinds.map((kind) => {
     const def = WEBSITE_SECTION_REGISTRY[kind];
+    const blockAllow = (
+      mergeVariantAllowlists(pack.blockVariants, extraVariantAllow) as
+        | Record<string, readonly string[] | undefined>
+        | undefined
+    )?.[kind];
     const cmsFields =
       kind === "hero"
         ? def.cmsFields
@@ -338,7 +391,11 @@ export function sectionSchemaForTemplate(
               }
               return true;
             })
-        : def.cmsFields;
+        : def.cmsFields.map((f) =>
+            f.type === "variant" && blockAllow
+              ? { ...f, options: f.options.filter((o) => blockAllow.includes(o.value)) }
+              : f,
+          );
     return {
       kind: def.kind,
       label: def.label,
@@ -412,7 +469,19 @@ function interpolateSection(
     section as unknown as Record<string, unknown>,
   )) {
     if (typeof v === "string") out[k] = interpolateTemplateString(v, ctx);
-    else out[k] = v;
+    else if (k === "items" && Array.isArray(v)) {
+      // Teks di dalam daftar (kartu, FAQ, dll.) juga boleh memakai {{variabel}}.
+      out[k] = v.map((it) =>
+        it && typeof it === "object" && !Array.isArray(it)
+          ? Object.fromEntries(
+              Object.entries(it as Record<string, unknown>).map(([ik, iv]) => [
+                ik,
+                typeof iv === "string" ? interpolateTemplateString(iv, ctx) : iv,
+              ]),
+            )
+          : it,
+      );
+    } else out[k] = v;
   }
   return out as WebsiteSection;
 }
@@ -432,10 +501,14 @@ export function renderWebsiteSection(params: {
   newsDetailBasePath?: string;
 }) {
   const pack = getTemplatePack(params.templateKey);
-  const section = interpolateSection(params.section, {
-    village: params.village,
-    news: params.news,
-  });
+  // Section template DB (v1) tidak lewat sanitizer, jadi daftar izin varian pack ditegakkan juga saat render.
+  const section = clampSectionVariant(
+    interpolateSection(params.section, {
+      village: params.village,
+      news: params.news,
+    }),
+    pack.blockVariants,
+  );
   return pack.renderSection({
     section,
     village: params.village,

@@ -164,3 +164,19 @@ test("verifyLinkquCallbackSignature rejects missing signature", () => {
     false,
   );
 });
+
+test("verifyLinkquCallbackSignature menerima string mentah (partner_reff numerik, seperti korkal-fe)", () => {
+  const key = "raw-callback-key-sha256-yyyyyyyy";
+  const payload = {
+    partner_reff: "1761800000000123456",
+    amount: "50000",
+    username: "Merchant_User",
+    va_code: "QRIS",
+  };
+  const raw = `${payload.partner_reff}${payload.amount}${payload.username}`;
+  const sig = createHmac("sha256", key).update(raw).digest("hex");
+  assert.equal(verifyLinkquCallbackSignature(payload, sig, key), true);
+  assert.equal(verifyLinkquCallbackSignature(payload, sig.toUpperCase(), key), true);
+  assert.equal(verifyLinkquCallbackSignature({ ...payload, amount: "50001" }, sig, key), false);
+  assert.equal(verifyLinkquCallbackSignature(payload, sig, "wrong-key"), false);
+});

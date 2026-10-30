@@ -257,13 +257,13 @@ describe("render komponen (SSR smoke + aksesibilitas)", async () => {
     const { spec } = load("ahliWaris");
     const s = initialState(spec);
     const actions = { selectPerson: noop, clearPerson: noop, setPersonQuery: noop, setPersonManual: noop, setPersonValue: noop };
-    const out = html(React.createElement(PeopleSection, { spec, state: s, loadingKeys: new Set<string>(), actions }));
+    const out = html(React.createElement(PeopleSection, { spec, people: s.people, loadingKeys: new Set<string>(), actions }));
     assert.match(out, /for="person-pemohon-cari"/);
     assert.match(out, /Bukan warga desa — isi manual/);
     assert.ok(!/id="person-pemohon-nama"/.test(out));
 
     s.people.almarhum = { mode: "manual", query: "", db: {}, values: { nama: "Slamet" } };
-    const manual = html(React.createElement(PeopleSection, { spec, state: s, loadingKeys: new Set<string>(), actions }));
+    const manual = html(React.createElement(PeopleSection, { spec, people: s.people, loadingKeys: new Set<string>(), actions }));
     assert.match(manual, /id="person-almarhum-nama"/);
     assert.match(manual, /value="Slamet"/);
     assert.match(manual, /Isi data orang ini/);
@@ -273,17 +273,17 @@ describe("render komponen (SSR smoke + aksesibilitas)", async () => {
     const s = initialState(spec);
     s.people.pemohon = { mode: "resident", residentId: 1, query: "Budi", db: { nama: "Budi" }, values: { nama: "Budi", pekerjaan: "Petani" } };
     const actions = { selectPerson: noop, clearPerson: noop, setPersonQuery: noop, setPersonManual: noop, setPersonValue: noop };
-    const out = html(React.createElement(PeopleSection, { spec, state: s, loadingKeys: new Set<string>(), actions }));
+    const out = html(React.createElement(PeopleSection, { spec, people: s.people, loadingKeys: new Set<string>(), actions }));
     assert.match(out, /Terisi dari data warga, bisa diperbaiki/);
     assert.match(out, /id="person-pemohon-pekerjaan"/);
-    const loading = html(React.createElement(PeopleSection, { spec, state: s, loadingKeys: new Set(["person-pemohon"]), actions }));
+    const loading = html(React.createElement(PeopleSection, { spec, people: s.people, loadingKeys: new Set(["person-pemohon"]), actions }));
     assert.match(loading, /role="status"/);
   });
   it("GroupsSection: baris, tombol hapus berlabel, batas minimum/maksimum", () => {
     const { spec } = load("ahliWaris");
     const s = initialState(spec);
     const actions = { addRow: noop, removeRow: noop, setRowValue: noop, setRowQuery: noop, selectRowResident: noop, clearRowResident: noop };
-    const out = html(React.createElement(GroupsSection, { spec, state: s, loadingKeys: new Set<string>(), actions }));
+    const out = html(React.createElement(GroupsSection, { spec, groups: s.groups, loadingKeys: new Set<string>(), actions }));
     assert.match(out, /aria-label="Hapus Ahli waris baris 1"/);
     assert.match(out, /id="group-ahli_waris-0-nik"/);
     assert.match(out, /for="group-ahli_waris-0-cari"/);

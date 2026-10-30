@@ -35,8 +35,11 @@ export function CmsPageHeader({ templateName, templateKey, capabilities }: Props
           <Link href="/website">Kembali</Link>
         </Button>
         <Button asChild variant="outline">
+          <Link href="/website/setup">Penyiapan cepat</Link>
+        </Button>
+        <Button asChild variant="outline">
           <a href="/" target="_blank" rel="noreferrer">
-            Preview <ExternalLink className="size-4" />
+            Lihat website <ExternalLink className="size-4" />
           </a>
         </Button>
       </div>

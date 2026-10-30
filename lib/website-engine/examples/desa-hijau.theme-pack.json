@@ -1,0 +1,53 @@
+{
+  "manifestVersion": 1,
+  "key": "desa-hijau",
+  "name": "Desa Hijau",
+  "version": "1.0.0",
+  "description": "Tema hijau segar untuk desa pertanian dengan beranda berfokus pada berita dan angka desa.",
+  "category": "agriculture",
+  "author": { "name": "Studio Tani", "url": "https://studiotani.example.com" },
+  "basePack": "modern-village",
+  "theme": {
+    "primary": "#15803d",
+    "accent": "#14532d",
+    "surfaceMuted": "#f0fdf4",
+    "fontHeading": "\"Poppins\", ui-sans-serif, system-ui, sans-serif",
+    "radiusMd": "1.25rem"
+  },
+  "blockVariants": {
+    "stats": ["band", "inline"],
+    "gallery": ["grid", "mosaic"]
+  },
+  "pages": {
+    "home": {
+      "sections": [
+        { "kind": "hero", "title": "Selamat datang", "subtitle": "Portal resmi desa kami" },
+        {
+          "kind": "stats",
+          "variant": "band",
+          "items": [
+            { "label": "Penduduk", "value": "—" },
+            { "label": "Dusun", "value": "—" },
+            { "label": "Hektare Sawah", "value": "—" }
+          ]
+        },
+        { "kind": "news", "limit": 6, "title": "Kabar Desa" },
+        { "kind": "contact", "show_map": true }
+      ]
+    }
+  },
+  "presets": [
+    {
+      "key": "berita_dulu",
+      "name": "Berita dulu",
+      "sections": [{ "kind": "news", "limit": 10, "title": "Berita Terkini" }, { "kind": "contact" }]
+    }
+  ],
+  "features": ["Responsif", "Ringan", "Siap SEO"],
+  "previews": {
+    "image": "https://cdn.studiotani.example.com/desa-hijau/preview.jpg",
+    "thumbnail": "https://cdn.studiotani.example.com/desa-hijau/thumb.jpg",
+    "demoUrl": "https://demo.studiotani.example.com/desa-hijau"
+  },
+  "suggestedPriceIdr": 900000
+}

@@ -7,6 +7,7 @@ import { RegionalAppShell } from "@/components/layout/RegionalAppShell";
 import { CooperativeNavGate } from "@/components/layout/CooperativeNavGate";
 import { CooperativeNavProvider } from "@/components/providers/CooperativeNavProvider";
 import { AppDialogProvider } from "@/components/providers/AppDialogProvider";
+import { PaymentProvider } from "@/components/billing/PaymentProvider";
 import { isRegionalAccount } from "@/lib/regional-session";
 import { AppShell } from "./AppShell";
 
@@ -40,14 +41,16 @@ export function AppLayoutClient({
 
   return (
     <AppDialogProvider>
-      {isWilayah ? (
-        <RegionalAppShell>{children}</RegionalAppShell>
-      ) : (
-        <CooperativeNavProvider>
-          <CooperativeNavGate />
-          <AppShell>{children}</AppShell>
-        </CooperativeNavProvider>
-      )}
+      <PaymentProvider>
+        {isWilayah ? (
+          <RegionalAppShell>{children}</RegionalAppShell>
+        ) : (
+          <CooperativeNavProvider>
+            <CooperativeNavGate />
+            <AppShell>{children}</AppShell>
+          </CooperativeNavProvider>
+        )}
+      </PaymentProvider>
     </AppDialogProvider>
   );
 }

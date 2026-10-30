@@ -43,29 +43,32 @@ type DashboardStats = {
     education: { name: string; value: number }[];
   };
   statusDesa?: {
-    idm?: {
-      configured: boolean;
-      year: number;
-      villageCode: string;
-      cached: boolean;
-      sourceUrl: string;
-      score: number | null;
-      status: string | null;
-      subScores: { social: number | null; economic: number | null; ecology: number | null };
-      error: string | null;
-    };
-    idmHistory?: Array<{
-      year: number;
-      cached: boolean;
-      sourceUrl: string;
-      score: number | null;
-      status: string | null;
-      error: string | null;
-    }>;
     sdgs?: {
       dashboardUrl: string;
     };
   };
+};
+
+type DashboardIdm = {
+  idm?: {
+    configured: boolean;
+    year: number;
+    villageCode: string;
+    cached: boolean;
+    sourceUrl: string;
+    score: number | null;
+    status: string | null;
+    subScores: { social: number | null; economic: number | null; ecology: number | null };
+    error: string | null;
+  };
+  idmHistory?: Array<{
+    year: number;
+    cached: boolean;
+    sourceUrl: string;
+    score: number | null;
+    status: string | null;
+    error: string | null;
+  }>;
 };
 
 const fallbackGenderData = [
@@ -102,14 +105,17 @@ function formatCurrency(value: number) {
 export default function AppDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [idmData, setIdmData] = useState<DashboardIdm | null>(null);
+  const [isIdmLoading, setIsIdmLoading] = useState(true);
   const [idmYear, setIdmYear] = useState(() => `${new Date().getFullYear()}`);
 
+  // Kartu & grafik warga dimuat sekali; tidak ikut dimuat ulang saat tahun IDM diganti.
   useEffect(() => {
     let isMounted = true;
 
     const loadStats = async () => {
       try {
-        const res = await fetch(`/api/dashboard/stats?idmYear=${encodeURIComponent(idmYear)}`);
+        const res = await fetch("/api/dashboard/stats");
         if (!res.ok) throw new Error("Failed to fetch stats");
         const data: DashboardStats = await res.json();
         if (isMounted) setStats(data);
@@ -124,6 +130,30 @@ export default function AppDashboard() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  // IDM bergantung pada server Kemendesa yang bisa lambat, jadi dimuat terpisah agar tidak menahan kartu di atas.
+  useEffect(() => {
+    let isMounted = true;
+    setIsIdmLoading(true);
+
+    const loadIdm = async () => {
+      try {
+        const res = await fetch(`/api/dashboard/idm?idmYear=${encodeURIComponent(idmYear)}`);
+        if (!res.ok) throw new Error("Failed to fetch IDM");
+        const data: DashboardIdm = await res.json();
+        if (isMounted) setIdmData(data);
+      } catch (error) {
+        console.error("Gagal memuat status IDM:", error);
+      } finally {
+        if (isMounted) setIsIdmLoading(false);
+      }
+    };
+
+    loadIdm();
+    return () => {
+      isMounted = false;
+    };
   }, [idmYear]);
 
   const genderData = stats?.charts.gender ?? fallbackGenderData;
@@ -131,9 +161,9 @@ export default function AppDashboard() {
   const educationData = stats?.charts.education ?? fallbackEducationData;
 
   const totals = stats?.totals;
-  const idm = stats?.statusDesa?.idm;
+  const idm = idmData?.idm;
   const sdgs = stats?.statusDesa?.sdgs;
-  const idmHistory = stats?.statusDesa?.idmHistory ?? [];
+  const idmHistory = idmData?.idmHistory ?? [];
 
   const idmYearOptions = Array.from({ length: 8 }, (_, i) => `${new Date().getFullYear() - i}`);
 
@@ -262,9 +292,13 @@ export default function AppDashboard() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {isLoading ? (
+          {isIdmLoading ? (
             <p className="text-sm text-muted-foreground">Memuat status…</p>
-          ) : !idm?.configured ? (
+          ) : !idm ? (
+            <p className="text-sm text-muted-foreground">
+              Status IDM belum bisa dimuat. Muat ulang halaman untuk mencoba lagi.
+            </p>
+          ) : !idm.configured ? (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
                 Kode desa IDM/SDGs belum diisi. Isi dulu agar sistem bisa menarik status IDM dari portal

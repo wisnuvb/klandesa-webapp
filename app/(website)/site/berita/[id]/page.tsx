@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { getTenant } from "@/lib/tenant";
+import { trackPublicPageView } from "@/lib/website-engine/track";
 import { prisma } from "@/lib/prisma";
 import { resolveEffectiveSiteSeo, resolveTenantFaviconUrl } from "@/lib/website-engine/normalize";
 import { buildPageMetadata, type TenantSeoContext } from "@/lib/website-engine/seo";
@@ -64,6 +65,8 @@ export default async function AnnouncementDetailPage(props: Props) {
     },
   });
   if (!row) notFound();
+
+  await trackPublicPageView(tenant.village.id);
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-3xl">

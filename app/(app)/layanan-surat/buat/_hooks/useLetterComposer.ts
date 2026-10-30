@@ -403,14 +403,24 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
     router.push(BACK_URL);
   }, [dirty, appConfirm, router]);
 
+  // Semua pengubah stabil (useCallback); objeknya ikut stabil agar bagian formulir yang di-memo tidak ikut render ulang.
+  const actions = useMemo(
+    () => ({
+      selectPerson, clearPerson, setPersonQuery, setPersonManual, setPersonValue,
+      setField, setDate, setNumber,
+      addRow, removeRow, setRowValue, setRowQuery, selectRowResident, clearRowResident,
+    }),
+    [
+      selectPerson, clearPerson, setPersonQuery, setPersonManual, setPersonValue,
+      setField, setDate, setNumber,
+      addRow, removeRow, setRowValue, setRowQuery, selectRowResident, clearRowResident,
+    ],
+  );
+
   return {
     phase, loadError, doc, spec, context, templateId, templateName, letterId, state, openedDraft, issued,
     busy, loadingKeys, submitError, notice, missing, dirty, numberingMode,
     setNotice, setMissing, submit, goBack,
-    actions: {
-      selectPerson, clearPerson, setPersonQuery, setPersonManual, setPersonValue,
-      setField, setDate, setNumber,
-      addRow, removeRow, setRowValue, setRowQuery, selectRowResident, clearRowResident,
-    },
+    actions,
   };
 }

@@ -22,9 +22,6 @@ export interface ActiveWebsite {
   is_active: boolean;
   activated_at: string;
   expires_at: string;
-  total_visitors: number;
-  visitors_today: number;
-  visitors_month: number;
   total_posts: number;
   preview_image: string;
   subscription_status: "active" | "expiring_soon" | "expired";

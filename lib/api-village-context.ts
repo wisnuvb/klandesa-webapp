@@ -10,7 +10,7 @@ import { requirePermissionResponse } from "@/lib/permissions/require-permission"
 import {
   assertSubscriptionForMethod,
   isSubscriptionExemptPath,
-  resolveSubscriptionPhaseWithTransition,
+  applySubscriptionTransition,
 } from "@/lib/subscription";
 import { resolveModuleIdFromApiPath } from "@/lib/modules/api-route-map";
 import { requireModuleEntitlement } from "@/lib/modules/require-module";
@@ -100,10 +100,12 @@ export async function requireVillageApiContext(
 
   const pathname = req.nextUrl.pathname;
   if (!isSubscriptionExemptPath(pathname)) {
-    await resolveSubscriptionPhaseWithTransition(village.id, village);
-    const freshVillage = await prisma.village.findUnique({
-      where: { id: village.id },
-    });
+    // Baris desa baru dibaca ulang hanya bila transisi langganan menulisnya; selain itu `village`
+    // (dibaca beberapa milidetik lalu pada permintaan yang sama) sudah yang terbaru.
+    const { changed } = await applySubscriptionTransition(village.id, village);
+    const freshVillage = changed
+      ? await prisma.village.findUnique({ where: { id: village.id } })
+      : village;
     if (freshVillage) {
       const subErr = assertSubscriptionForMethod(freshVillage, req.method);
       if (subErr) return { ok: false, response: subErr };

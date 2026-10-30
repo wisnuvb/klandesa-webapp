@@ -15,23 +15,26 @@ import {
 } from "@/lib/website-engine/normalize";
 import { parseTemplateStructureManifest } from "@/lib/website-engine/manifest";
 import { listPresetOptions } from "@/lib/website-engine/preset-options";
+import { parseEngineConfigPatchBody } from "@/lib/website-engine/config-patch";
 import {
-  applyEngineConfigPatch,
-  parseEngineConfigPatchBody,
-} from "@/lib/website-engine/config-patch";
+  applyPatchToDraft,
+  editingCustomizationRaw,
+  hasDraft,
+} from "@/lib/website-engine/customization-store";
 import {
   getAllowedSectionKinds,
   sectionSchemaForTemplate,
 } from "@/lib/website-engine/site-sections";
 import { getTemplatePack } from "@/lib/website-engine/template-packs/registry";
+import { mergeVariantAllowlists } from "@/lib/website-engine/block-variants";
 import {
+  clampStructureVariants,
   cleanWebsiteSectionInput,
   sanitizeV2StructureOverride,
   validateRawV2PagesSlugInput,
 } from "@/lib/website-engine/resolved-structure";
 import { checkWebsiteEnginePatchLimit } from "@/lib/website-engine/engine-rate-limit";
 import type { WebsiteSection } from "@/lib/website-engine/types";
-import { invalidateTenantPublicPageCache } from "@/lib/website-engine/site-renderer";
 
 function clientIp(req: NextRequest): string {
   return (
@@ -64,24 +67,28 @@ export async function GET(req: NextRequest) {
 
     const structure = subscription.template.structure;
     const manifest = parseTemplateStructureManifest(structure);
-    const customization = parseCustomization(subscription.customization);
+    // CMS selalu menampilkan versi yang sedang diedit (draf bila ada); situs publik hanya membaca versi live.
+    const editing = editingCustomizationRaw(subscription.customization);
+    const stored = parseCustomization(subscription.customization);
+    const customization = parseCustomization(editing);
     const effective = resolveEffectiveStructure({
       templateStructure: structure,
-      customization: subscription.customization,
+      customization: editing,
     });
     const effective_theme = resolveEffectiveTheme({
       templateStructure: structure,
-      customization: subscription.customization,
+      customization: editing,
     });
     const effective_layout = resolveEffectiveLayout({
       templateStructure: structure,
-      customization: subscription.customization,
+      customization: editing,
     });
 
     const allowedKinds = getAllowedSectionKinds(manifest.capabilities);
     const section_schema = sectionSchemaForTemplate(
       manifest.templateKey,
       allowedKinds,
+      manifest.blockVariants,
     );
     const pack = getTemplatePack(manifest.templateKey);
 
@@ -102,10 +109,12 @@ export async function GET(req: NextRequest) {
       effective_structure: effective,
       effective_theme,
       effective_layout,
-      effective_site_seo: resolveEffectiveSiteSeo(
-        subscription.customization,
-        structure,
-      ),
+      effective_site_seo: resolveEffectiveSiteSeo(editing, structure),
+      has_draft: hasDraft(subscription.customization),
+      history: (stored.history ?? []).map((h) => ({
+        id: h.id,
+        published_at: h.publishedAt,
+      })),
       presets: listPresetOptions(structure),
       allowed_section_kinds: allowedKinds,
       section_schema,
@@ -167,7 +176,10 @@ export async function PATCH(req: NextRequest) {
         if (slugErr) {
           return NextResponse.json({ error: slugErr }, { status: 400 });
         }
-        const cleaned = sanitizeV2StructureOverride(ov, templateKey, caps);
+        const cleaned = clampStructureVariants(
+          sanitizeV2StructureOverride(ov, templateKey, caps),
+          mergeVariantAllowlists(getTemplatePack(templateKey).blockVariants, manifest.blockVariants),
+        );
         patch = { ...patch, overrides: cleaned };
       } else {
         const pages = ov.pages as Record<string, unknown> | undefined;
@@ -197,7 +209,8 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const nextCustomization = applyEngineConfigPatch(subscription.customization, patch);
+    // Perubahan CMS disimpan sebagai draf; situs publik baru berubah setelah diterbitkan.
+    const nextCustomization = applyPatchToDraft(subscription.customization, patch);
 
     const updated = await prisma.websiteSubscription.update({
       where: { id: subscription.id },
@@ -205,9 +218,12 @@ export async function PATCH(req: NextRequest) {
       select: { customization: true },
     });
 
-    invalidateTenantPublicPageCache(village.id);
 
-    return NextResponse.json({ ok: true, customization: parseCustomization(updated.customization) });
+    return NextResponse.json({
+      ok: true,
+      has_draft: hasDraft(updated.customization),
+      customization: parseCustomization(editingCustomizationRaw(updated.customization)),
+    });
   } catch (e) {
     console.error("PATCH /api/website/engine/config error:", e);
     return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });

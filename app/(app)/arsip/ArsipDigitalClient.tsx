@@ -34,6 +34,9 @@ import {
   UploadModal,
 } from "./_components/modals";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { usePayment } from "@/components/billing/PaymentProvider";
+import { BILLING_CATALOG } from "@/lib/billing/catalog";
+import { SUBSCRIPTION_DURATIONS } from "@/lib/billing/duration";
 import { toast } from "sonner";
 
 interface Props {
@@ -65,8 +68,11 @@ export function ArsipDigitalClient(props: Props) {
   const [folderCreating, setFolderCreating] = useState(false);
 
   const router = useRouter();
-  const [currentPlan] = useState<StoragePlan>(
-    getCurrentPlanFromVillage(villageStorage),
+  const { pay } = usePayment();
+  // Diturunkan dari props supaya ikut berubah setelah pembayaran lunas (router.refresh()).
+  const currentPlan = useMemo<StoragePlan>(
+    () => getCurrentPlanFromVillage(villageStorage),
+    [villageStorage],
   );
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -377,10 +383,24 @@ export function ArsipDigitalClient(props: Props) {
     }
   };
 
-  // Pembelian kapasitas dilakukan di halaman Tagihan (checkout nyata + masa berlaku bulanan).
-  const handleUpgradePlan = () => {
+  // Kapasitas arsip = langganan bulanan; pembayaran lewat dialog global (PaymentProvider), tanpa pindah halaman.
+  const handleUpgradePlan = (planId: StoragePlan) => {
+    const code = planId.toLowerCase();
+    const tier = (
+      BILLING_CATALOG.arsip.tiers as Record<string, { name: string; monthlyFee: number; storageGb: number }>
+    )[code];
+    if (!tier) return;
     setShowUpgradeModal(false);
-    router.push("/billing#kapasitas");
+    pay({
+      productType: "arsip",
+      planCode: code,
+      title: `Penyimpanan Arsip ${tier.storageGb} GB`,
+      amount: tier.monthlyFee,
+      durations: SUBSCRIPTION_DURATIONS,
+      note: "File tidak dihapus bila langganan berakhir.",
+      successMessage: `Kapasitas ${tier.storageGb} GB sudah aktif.`,
+      onPaid: () => router.refresh(),
+    });
   };
 
   const uploadArchive = useCallback(

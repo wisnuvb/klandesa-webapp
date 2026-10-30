@@ -12,22 +12,8 @@ import type {
   WebsiteCustomizationSnapshot,
 } from "@/lib/website-engine/types";
 import { parseTemplateStructureManifest } from "@/lib/website-engine/manifest";
-import { invalidateTenantPublicPageCache } from "@/lib/website-engine/site-renderer";
-
-function customizationToJsonObject(
-  c: WebsiteCustomization,
-): Record<string, unknown> {
-  const o: Record<string, unknown> = {};
-  if (c.presetKey !== undefined) o.presetKey = c.presetKey;
-  if (c.overrides !== undefined) o.overrides = c.overrides;
-  if (c.theme !== undefined) o.theme = c.theme;
-  if (c.layout !== undefined) o.layout = c.layout;
-  if (c.siteSeo !== undefined) o.siteSeo = c.siteSeo;
-  if (c.faviconUrl !== undefined) o.faviconUrl = c.faviconUrl;
-  if (c.savedPresets !== undefined) o.savedPresets = c.savedPresets;
-  if (c.savedTemplates !== undefined) o.savedTemplates = c.savedTemplates;
-  return o;
-}
+import { customizationToJsonObject } from "@/lib/website-engine/customization-json";
+import { setDraftFromSnapshot } from "@/lib/website-engine/customization-store";
 
 export async function GET(
   req: NextRequest,
@@ -123,17 +109,12 @@ export async function POST(
 
     if (action === "apply") {
       const snap = templates[idx]!.snapshot as WebsiteCustomizationSnapshot;
-      const next: WebsiteCustomization = {
-        ...parsed,
-        ...snap,
-        savedTemplates: templates,
-        savedPresets: parsed.savedPresets,
-      };
+      // Diterapkan sebagai draf: situs publik tidak berubah sampai desa menerbitkannya.
+      const base = customizationToJsonObject({ ...parsed, savedTemplates: templates });
       await prisma.websiteSubscription.update({
         where: { id: sub.id },
-        data: { customization: customizationToJsonObject(next) as never },
+        data: { customization: setDraftFromSnapshot(base, snap) as never },
       });
-      invalidateTenantPublicPageCache(village.id);
       return NextResponse.json({ ok: true });
     }
 
@@ -155,7 +136,6 @@ export async function POST(
         where: { id: sub.id },
         data: { customization: customizationToJsonObject(next) as never },
       });
-      invalidateTenantPublicPageCache(village.id);
       return NextResponse.json({ ok: true, createdId: copy.id });
     }
 
@@ -186,7 +166,6 @@ export async function POST(
         where: { id: sub.id },
         data: { customization: customizationToJsonObject(next) as never },
       });
-      invalidateTenantPublicPageCache(village.id);
       return NextResponse.json({ ok: true });
     }
 
@@ -236,7 +215,6 @@ export async function DELETE(
       where: { id: sub.id },
       data: { customization: customizationToJsonObject(next) as never },
     });
-    invalidateTenantPublicPageCache(village.id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/website/templates/[id] error:", e);

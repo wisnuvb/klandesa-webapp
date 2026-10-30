@@ -7,12 +7,15 @@ interface TemplateCardProps {
   template: WebsiteTemplate;
   onPreview: (template: WebsiteTemplate) => void;
   onChoose: (template: WebsiteTemplate) => void;
+  /** Label tombol utama; default "Pilih Template" */
+  actionLabel?: string;
 }
 
 export function TemplateCard({
   template,
   onPreview,
   onChoose,
+  actionLabel = "Pilih Template",
 }: TemplateCardProps) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-300 group">
@@ -112,7 +115,7 @@ export function TemplateCard({
           onClick={() => onChoose(template)}
           className="w-full py-3 bg-teal-600 text-white rounded-xl font-medium hover:bg-teal-700 transition-colors"
         >
-          Pilih Template
+          {actionLabel}
         </button>
       </div>
     </div>

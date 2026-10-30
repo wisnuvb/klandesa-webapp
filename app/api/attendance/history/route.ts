@@ -2,7 +2,8 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-import { mapVillagePlanToTier, maxHistoryDaysForTier } from "@/lib/attendance/capacity";
+import { effectiveAttendanceTier, effectiveHistoryDays } from "@/lib/attendance/addons";
+import { getActiveCapacityAddon } from "@/lib/attendance/capacity-server";
 
 type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "LEAVE";
 type CheckInMethod = "QR" | "GPS";
@@ -83,8 +84,9 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const tier = mapVillagePlanToTier(village.subscriptionPlan);
-    const maxDays = maxHistoryDaysForTier(tier);
+    const capacityAddon = await getActiveCapacityAddon(village.id);
+    const tier = effectiveAttendanceTier(village.subscriptionPlan, capacityAddon);
+    const maxDays = effectiveHistoryDays(village.subscriptionPlan, capacityAddon);
 
     const now = new Date();
     const defaultTo = startOfDay(now);

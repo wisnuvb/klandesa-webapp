@@ -42,6 +42,8 @@ model Village {
 
   /// Add-on absensi: check-in dengan validasi radius GPS (pembayaran terpisah).
   absensiGpsAddonActive      Boolean @default(false)
+  /// Akhir masa berlaku add-on GPS (langganan bulanan). NULL = tanpa batas (desa lama / diaktifkan admin).
+  absensiGpsAddonExpiry      DateTime?
   /// Titik acuan geofencing (kantor desa). Wajib diisi admin agar GPS check-in berfungsi.
   absensiOfficeLat           Float?
   absensiOfficeLng           Float?
@@ -111,6 +113,7 @@ model Village {
   aiAssistantThreads     AiAssistantThread[]
   moduleSubscriptions    VillageModuleSubscription[]
   mediaUsage             VillageMediaUsage?
+  websiteDailyStats        WebsiteDailyStat[]
 
   @@index([code])
   @@index([isActive])
@@ -193,6 +196,7 @@ model PlatformUser {
   updatedAt DateTime  @updatedAt
 
   blogPosts           BlogPost[]
+  themePacksReviewed          WebsiteThemePack[]    @relation("ThemePackReviewedBy")
   partnerDisbursementsCreated PartnerDisbursement[] @relation("DisbursementCreatedBy")
 
   @@index([email])
@@ -1502,6 +1506,44 @@ model WebsiteDomainEvent {
 
   @@index([domainId, createdAt(sort: Desc)])
   @@map("website_domain_events")
+}
+
+/// Tayangan halaman website publik per desa per hari (WIB). Tanpa cookie dan tanpa data pribadi.
+model WebsiteDailyStat {
+  id        BigInt   @id @default(autoincrement())
+  villageId Int
+  village   Village  @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  day       DateTime @db.Date
+  pageViews Int      @default(0)
+
+  @@unique([villageId, day])
+  @@map("website_daily_stats")
+}
+
+/// Pengajuan paket tema (Theme Pack Manifest v1) untuk marketplace template website.
+/// Persetujuan menghasilkan/memperbarui baris `website_templates`; kolom ini hanya mengurus siklus review.
+model WebsiteThemePack {
+  id           Int           @id @default(autoincrement())
+  key          String        @db.VarChar(48)
+  version      String        @db.VarChar(20)
+  name         String        @db.VarChar(80)
+  authorName   String        @db.VarChar(80)
+  manifest     Json
+  /// submitted | approved | rejected | superseded | withdrawn
+  status       String        @default("submitted") @db.VarChar(20)
+  reviewNote   String?       @db.Text
+  reviewedById Int?
+  reviewedBy   PlatformUser? @relation("ThemePackReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  /// `website_templates.id` hasil persetujuan
+  templateId   Int?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([key, version])
+  @@index([status])
+  @@index([templateId])
+  @@map("website_theme_packs")
 }
 
 model VillageModuleSubscription {
@@ -3126,4 +3168,26 @@ model MobileRateLimit {
 
   @@index([windowStart])
   @@map("mobile_rate_limits")
+}
+
+/// Status kanal pembayaran LinkQu yang diatur admin platform (satu baris per kode kanal, berlaku untuk semua desa).
+/// Tanpa baris = kanal aktif. Kanal yang ditutup lewat env LINKQU_DISABLED_CHANNELS tetap tertutup apa pun isi tabel ini.
+model PaymentChannelSetting {
+  code             String    @id @db.VarChar(40)
+  enabled          Boolean   @default(true)
+  /// Alasan yang ditulis admin (internal; pengguna hanya melihat "Sedang tidak tersedia").
+  note             String?   @db.VarChar(255)
+  updatedByUserId  Int?
+  updatedByName    String?   @db.VarChar(255)
+  /// Penolakan "kanal tidak aktif" terakhir dari LinkQu saat checkout.
+  lastError        String?   @db.VarChar(255)
+  lastErrorAt      DateTime?
+  /// Hasil uji kanal terakhir dari panel admin.
+  lastProbeOk      Boolean?
+  lastProbeAt      DateTime?
+  lastProbeMessage String?   @db.VarChar(255)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("payment_channel_settings")
 }

@@ -8,183 +8,81 @@ import type { TemplateBody } from "../types";
 
 interface TemplateGridProps {
   templates: TemplateBody[];
-  onCreateSurat: (template: TemplateBody) => void;
-  onPreviewTemplate: (template: TemplateBody) => void;
-  onEditTemplate: (template: TemplateBody) => void;
-  onDeleteTemplate: (template: TemplateBody) => void;
-  /** Buka modal salin / editor untuk template katalog bawaan. */
-  onCustomizeCatalogTemplate?: (template: TemplateBody) => void;
-  /** Jenis surat katalog v2: salin ke desa lalu ubah di editor kanvas. */
-  onSesuaikanTemplate?: (template: TemplateBody) => void;
+  /** Buat surat dari jenis surat ini. */
+  onUse: (template: TemplateBody) => void;
+  /** Lihat contoh tampilan dengan data contoh. */
+  onPreview: (template: TemplateBody) => void;
+  /** Ubah jenis surat milik desa di editor kanvas. */
+  onEdit: (template: TemplateBody) => void;
+  /** Jenis surat bawaan: salin ke desa lalu ubah di editor kanvas. */
+  onCustomize: (template: TemplateBody) => void;
+  onDelete: (template: TemplateBody) => void;
 }
 
-export function TemplateGrid({
-  templates,
-  onCreateSurat,
-  onPreviewTemplate,
-  onEditTemplate,
-  onDeleteTemplate,
-  onCustomizeCatalogTemplate,
-  onSesuaikanTemplate,
-}: TemplateGridProps) {
+export function TemplateGrid({ templates, onUse, onPreview, onEdit, onCustomize, onDelete }: TemplateGridProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {templates.map((template) => {
-        const signerRole =
-          template.footer?.signers?.[0]?.role ||
-          template.footer?.footer_type ||
-          "N/A";
-
-        return (
-          <Card key={template.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{template.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {template.description}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1 justify-end shrink-0 max-w-[140px]">
-                  <Badge variant={template.is_active ? "default" : "secondary"}>
-                    {template.is_active ? "Aktif" : "Nonaktif"}
-                  </Badge>
-                  <Badge
-                    variant={template.is_catalog ? "secondary" : "outline"}
-                  >
-                    {template.is_catalog ? "Katalog bawaan" : "Desa"}
-                  </Badge>
-                </div>
+    <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {templates.map((template) => (
+        <li key={template.id}>
+          <Card className="h-full transition-shadow hover:shadow-lg motion-reduce:transition-none">
+            <CardHeader className="space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant={template.is_catalog ? "secondary" : "default"}>
+                  {template.is_catalog ? "Bawaan" : "Milik desa"}
+                </Badge>
+                <Badge variant="outline">{template.category}</Badge>
               </div>
+              <CardTitle className="text-lg leading-snug">{template.name}</CardTitle>
+              {template.description && <p className="text-sm text-muted-foreground">{template.description}</p>}
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Kategori:</span>
-                <Badge variant="outline">{template.category}</Badge>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                {template.usage_count > 0 ? `Sudah dipakai ${template.usage_count} kali` : "Belum pernah dipakai"}
+              </p>
 
-              {template.schema_version !== 2 && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Penandatangan:</span>
-                  <span className="text-xs font-medium">{signerRole}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Penggunaan:</span>
-                <span className="font-medium">{template.usage_count}x</span>
-              </div>
-
-              {template.schema_version !== 2 && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Field Input:</span>
-                  <span className="font-medium">
-                    {template.variables.length} field
-                  </span>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2 pt-2 border-t">
-                {template.is_catalog ? (
-                  onCustomizeCatalogTemplate ? (
-                    <>
-                      <div className="flex w-full gap-2">
-                      <Button
-                        size="sm"
-                        className="min-w-0 flex-1 gap-2"
-                        onClick={() => onCustomizeCatalogTemplate(template)}
-                      >
-                        <FileEdit className="h-4 w-4 shrink-0" />
-                        Gunakan
-                      </Button>
-                      {template.schema_version === 2 && onSesuaikanTemplate && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1"
-                          aria-label={`Sesuaikan ${template.name}`}
-                          title="Salin ke desa lalu ubah tampilannya"
-                          onClick={() => onSesuaikanTemplate(template)}
-                        >
-                          <Edit className="h-4 w-4" />
-                          <span className="text-xs">Sesuaikan</span>
-                        </Button>
-                      )}
-                      {template.schema_version === 2 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          aria-label={`Lihat contoh ${template.name}`}
-                          title="Lihat contoh"
-                          onClick={() => onPreviewTemplate(template)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      )}
-                      </div>
-                      {template.schema_version === 2 && (
-                        <p className="text-xs text-muted-foreground">
-                          <strong className="font-medium">Gunakan</strong>: langsung buat surat.{" "}
-                          <strong className="font-medium">Sesuaikan</strong>: salin ke desa, ubah tampilannya dulu.
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="w-full gap-2"
-                      onClick={() => onCreateSurat(template)}
-                    >
-                      <FileEdit className="h-4 w-4" />
-                      Gunakan
-                    </Button>
-                  )
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      className="min-w-0 flex-1 gap-2"
-                      onClick={() => onCreateSurat(template)}
-                    >
-                      <FileEdit className="h-4 w-4" />
-                      Buat Surat
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => onPreviewTemplate(template)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 shrink-0 text-destructive hover:text-destructive"
-                      title="Hapus template milik desa"
-                      onClick={() => onDeleteTemplate(template)}
-                    >
-                      <Trash className="h-4 w-4" />
-                      <span className="hidden sm:inline text-xs">Hapus</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1"
-                      title="Ubah template"
-                      onClick={() => onEditTemplate(template)}
-                    >
-                      <Edit className="h-4 w-4" />
-                      <span className="hidden sm:inline text-xs">Ubah</span>
-                    </Button>
-                  </div>
+              <div className="flex flex-wrap gap-2 border-t pt-4">
+                <Button size="sm" className="min-h-9 min-w-0 flex-1 gap-2 pointer-coarse:min-h-11" onClick={() => onUse(template)}>
+                  <FileEdit className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  Buat Surat
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-9 gap-1.5 pointer-coarse:min-h-11"
+                  title={template.is_catalog ? "Salin ke desa Anda lalu ubah tampilannya" : "Ubah tampilan jenis surat ini"}
+                  onClick={() => (template.is_catalog ? onCustomize(template) : onEdit(template))}
+                >
+                  <Edit className="h-4 w-4" aria-hidden="true" />
+                  {template.is_catalog ? "Sesuaikan" : "Ubah"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-9 pointer-coarse:min-h-11"
+                  aria-label={`Lihat contoh ${template.name}`}
+                  title="Lihat contoh"
+                  onClick={() => onPreview(template)}
+                >
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                {!template.is_catalog && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-9 text-destructive hover:text-destructive pointer-coarse:min-h-11"
+                    aria-label={`Hapus ${template.name}`}
+                    title="Hapus jenis surat milik desa"
+                    onClick={() => onDelete(template)}
+                  >
+                    <Trash className="h-4 w-4" aria-hidden="true" />
+                  </Button>
                 )}
               </div>
             </CardContent>
           </Card>
-        );
-      })}
-    </div>
+        </li>
+      ))}
+    </ul>
   );
 }

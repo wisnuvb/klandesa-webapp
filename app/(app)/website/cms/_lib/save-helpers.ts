@@ -1,3 +1,11 @@
+import { cleanBlockVariant } from "@/lib/website-engine/block-variants";
+import {
+  faqItems,
+  featureItems,
+  galleryItems,
+  statItems,
+  testimonialItems,
+} from "@/lib/website-engine/section-items";
 import type {
   ResolvedEngineStructure,
   WebsitePageSeo,
@@ -72,76 +80,49 @@ export function cleanSectionsForSave(
       const columns = s.columns === 2 || s.columns === 3 ? s.columns : undefined;
       return {
         kind: "features",
+        variant: cleanBlockVariant("features", s.variant),
         title: s.title?.trim() || undefined,
         subtitle: s.subtitle?.trim() || undefined,
         columns,
-        item1_title: s.item1_title?.trim() || undefined,
-        item1_body: s.item1_body?.trim() || undefined,
-        item2_title: s.item2_title?.trim() || undefined,
-        item2_body: s.item2_body?.trim() || undefined,
-        item3_title: s.item3_title?.trim() || undefined,
-        item3_body: s.item3_body?.trim() || undefined,
+        items: featureItems(s),
         style: cleanStyleForSave(s.style),
       };
     }
     if (s.kind === "stats") {
       return {
         kind: "stats",
+        variant: cleanBlockVariant("stats", s.variant),
         title: s.title?.trim() || undefined,
         subtitle: s.subtitle?.trim() || undefined,
-        stat1_label: s.stat1_label?.trim() || undefined,
-        stat1_value: s.stat1_value?.trim() || undefined,
-        stat2_label: s.stat2_label?.trim() || undefined,
-        stat2_value: s.stat2_value?.trim() || undefined,
-        stat3_label: s.stat3_label?.trim() || undefined,
-        stat3_value: s.stat3_value?.trim() || undefined,
+        items: statItems(s),
         style: cleanStyleForSave(s.style),
       };
     }
     if (s.kind === "gallery") {
       return {
         kind: "gallery",
+        variant: cleanBlockVariant("gallery", s.variant),
         title: s.title?.trim() || undefined,
         subtitle: s.subtitle?.trim() || undefined,
-        image1_url: s.image1_url?.trim() || undefined,
-        image2_url: s.image2_url?.trim() || undefined,
-        image3_url: s.image3_url?.trim() || undefined,
-        image4_url: s.image4_url?.trim() || undefined,
-        image5_url: s.image5_url?.trim() || undefined,
-        image6_url: s.image6_url?.trim() || undefined,
+        items: galleryItems(s),
         style: cleanStyleForSave(s.style),
       };
     }
     if (s.kind === "faq") {
       return {
         kind: "faq",
+        variant: cleanBlockVariant("faq", s.variant),
         title: s.title?.trim() || undefined,
-        q1: s.q1?.trim() || undefined,
-        a1: s.a1?.trim() || undefined,
-        q2: s.q2?.trim() || undefined,
-        a2: s.a2?.trim() || undefined,
-        q3: s.q3?.trim() || undefined,
-        a3: s.a3?.trim() || undefined,
-        q4: s.q4?.trim() || undefined,
-        a4: s.a4?.trim() || undefined,
-        q5: s.q5?.trim() || undefined,
-        a5: s.a5?.trim() || undefined,
+        items: faqItems(s),
         style: cleanStyleForSave(s.style),
       };
     }
     if (s.kind === "testimonials") {
       return {
         kind: "testimonials",
+        variant: cleanBlockVariant("testimonials", s.variant),
         title: s.title?.trim() || undefined,
-        quote1: s.quote1?.trim() || undefined,
-        name1: s.name1?.trim() || undefined,
-        role1: s.role1?.trim() || undefined,
-        quote2: s.quote2?.trim() || undefined,
-        name2: s.name2?.trim() || undefined,
-        role2: s.role2?.trim() || undefined,
-        quote3: s.quote3?.trim() || undefined,
-        name3: s.name3?.trim() || undefined,
-        role3: s.role3?.trim() || undefined,
+        items: testimonialItems(s),
         style: cleanStyleForSave(s.style),
       };
     }

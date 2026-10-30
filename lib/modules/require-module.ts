@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { Village } from "@prisma/client";
+import { isGpsAddonActive } from "@/lib/attendance/addons";
 import { prisma } from "@/lib/prisma";
 import {
   getModuleEntitlement,
@@ -89,7 +90,7 @@ export async function requireModuleEntitlement(
     subscriptionReadable: true,
     activeAddons,
     websiteActive,
-    absensiGpsActive: village.absensiGpsAddonActive,
+    absensiGpsActive: isGpsAddonActive(village),
   });
 
   if (!access.entitled) {

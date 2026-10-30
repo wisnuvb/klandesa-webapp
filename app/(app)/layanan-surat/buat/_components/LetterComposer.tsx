@@ -8,12 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { usePageHeader, usePageScrollLock } from "@/components/layout/PageHeaderContext";
 import { lintDocument } from "@/lib/letters/document/form-spec";
 import { useLetterComposer } from "../_hooks/useLetterComposer";
-import { buildPreviewValues, isoToDate, missingForCompletion, refToTarget } from "../_utils/composer";
+import { buildPreviewValues, isoToDate, missingForCompletion, refToTarget, stateSignature } from "../_utils/composer";
 import { focusInput } from "../_utils/dom";
 import { CheckPanel } from "./CheckPanel";
-import { CustomFieldInput } from "./CustomFieldInput";
+import { FieldsSection } from "./FieldsSection";
 import { GroupsSection } from "./GroupsSection";
 import { PaperPane } from "./PaperPane";
 import { PeopleSection } from "./PeopleSection";
@@ -31,13 +32,32 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
   const [tab, setTab] = useState<Tab>("isi");
   const { doc, spec, context, state, numberingMode, setNotice } = c;
 
+  // Judul, status, dan tombol kembali tampil di header aplikasi (hemat ruang di halaman).
+  const showMain = Boolean(doc && spec && state && context) && c.phase !== "loading" && c.phase !== "error" && c.phase !== "legacy" && c.phase !== "issued";
+  usePageScrollLock(showMain);
+  usePageHeader(
+    showMain
+      ? {
+          title: c.templateName || "Buat Surat",
+          subtitle: `${c.letterId ? "Melanjutkan draf" : "Surat baru"}${c.dirty ? " · ada perubahan yang belum disimpan" : ""}`,
+          backLabel: "Kembali ke daftar surat",
+          onBack: () => void c.goBack(),
+        }
+      : null,
+  );
+
   // ---- nilai pratinjau (ditunda agar mengetik tetap lancar)
+  // Kunci hanya bagian state yang tampil di kertas: mengetik di kotak pencarian warga (query) tidak
+  // menyusun ulang nilai maupun merender ulang kertas.
+  const previewKey = useMemo(() => (state ? stateSignature(state) : ""), [state]);
   const values = useMemo(
     () =>
       doc && context && state
         ? buildPreviewValues({ doc, context, state, date: isoToDate(state.date), nomor: numberingMode === "manual" ? state.number : "" })
         : null,
-    [doc, context, state, numberingMode],
+    // `state` sengaja tidak masuk dependensi; `previewKey` memuat semua yang dipakai buildPreviewValues.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [doc, context, previewKey, numberingMode],
   );
   const deferredValues = useDeferredValue(values);
 
@@ -120,26 +140,11 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
   const busy = c.busy !== null;
   // Data warga/isian otomatis yang masih diambil: simpan/terbit ditahan agar surat tidak tersimpan tanpa data itu.
   const waitingData = c.loadingKeys.size > 0;
-  const simpleFields = spec.fields;
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <header className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" size="sm" className="min-h-9 gap-2 pointer-coarse:min-h-11" onClick={() => void c.goBack()}>
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Kembali
-        </Button>
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold">{c.templateName}</h1>
-          <p className="text-sm text-muted-foreground">
-            {c.letterId ? "Melanjutkan draf" : "Surat baru"}
-            {c.dirty ? " · ada perubahan yang belum disimpan" : ""}
-          </p>
-        </div>
-      </header>
-
+    <div className="flex h-full min-h-0 flex-col gap-4">
       {c.openedDraft ? (
-        <Alert>
+        <Alert className="shrink-0">
           <Info className="h-4 w-4" aria-hidden="true" />
           <AlertTitle>Draf dibuka sebagai isian manual</AlertTitle>
           <AlertDescription>
@@ -149,7 +154,7 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
       ) : null}
 
       {/* Tab untuk layar kecil: pratinjau selalu bisa dibuka */}
-      <div role="tablist" aria-label="Bagian halaman" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 lg:hidden">
+      <div role="tablist" aria-label="Bagian halaman" className="grid shrink-0 grid-cols-2 gap-1 rounded-lg bg-muted p-1 lg:hidden">
         {(["isi", "pratinjau"] as const).map((t) => (
           <button
             key={t}
@@ -169,13 +174,13 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
         ))}
       </div>
 
-      <div className="lg:grid lg:grid-cols-[minmax(360px,520px)_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <div className="min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(360px,520px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-6">
         {/* ---------------- formulir ---------------- */}
         <div
           id="panel-isi"
           role="tabpanel"
           aria-labelledby="tab-isi"
-          className={`${tab === "isi" ? "block" : "hidden"} lg:block lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto lg:pr-2`}
+          className={`${tab === "isi" ? "block" : "hidden"} lg:block relative h-full min-h-0 overflow-y-auto lg:pr-2`}
         >
           <form
             className="space-y-5"
@@ -211,18 +216,11 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
               ) : null}
             </fieldset>
 
-            <PeopleSection spec={spec} state={state} loadingKeys={c.loadingKeys} actions={a} />
+            <PeopleSection spec={spec} people={state.people} loadingKeys={c.loadingKeys} actions={a} />
 
-            {simpleFields.length > 0 ? (
-              <fieldset className="space-y-4 rounded-lg border p-4">
-                <legend className="px-1 text-sm font-semibold">Isian surat</legend>
-                {simpleFields.map((f) => (
-                  <CustomFieldInput key={f.id} id={`field-${f.id}`} field={f} value={state.fields[f.id] ?? ""} onChange={(v) => a.setField(f.id, v)} />
-                ))}
-              </fieldset>
-            ) : null}
+            <FieldsSection fields={spec.fields} values={state.fields} onChange={a.setField} />
 
-            <GroupsSection spec={spec} state={state} loadingKeys={c.loadingKeys} actions={a} />
+            <GroupsSection spec={spec} groups={state.groups} loadingKeys={c.loadingKeys} actions={a} />
 
             <CheckPanel missing={missing} warnings={warnings} />
 
@@ -255,7 +253,7 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
           id="panel-pratinjau"
           role="tabpanel"
           aria-labelledby="tab-pratinjau"
-          className={`${tab === "pratinjau" ? "block" : "hidden"} lg:block lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto`}
+          className={`${tab === "pratinjau" ? "block" : "hidden"} lg:block relative h-full min-h-0 overflow-y-auto`}
         >
           <PaperPane doc={doc} values={deferredValues} onFieldClick={onFieldClick} notice={c.notice && !c.submitError ? c.notice : ""} />
         </div>
