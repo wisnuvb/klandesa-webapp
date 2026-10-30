@@ -38,6 +38,10 @@ const MODES: VillageAssistantMode[] = [
   "citizen_faq",
 ];
 
+// Di bawah batas proxy nginx (60 dtk) agar kegagalan model lambat tetap berupa JSON, bukan halaman 502 Cloudflare.
+const AI_UPSTREAM_TIMEOUT_MS = 50_000;
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);
@@ -167,10 +171,17 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers: getAiHeaders(config),
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(AI_UPSTREAM_TIMEOUT_MS),
       });
       data = (await res.json().catch(() => null)) as typeof data;
     } catch (e) {
       if (chargeCredit) await refundAiCredit(userId, 1).catch(() => undefined);
+      if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+        return NextResponse.json(
+          { error: "AI terlalu lama merespons. Kredit Anda tidak dipotong, silakan coba lagi atau pilih model lain." },
+          { status: 504 },
+        );
+      }
       throw e;
     }
 
