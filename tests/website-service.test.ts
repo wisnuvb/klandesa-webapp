@@ -60,3 +60,42 @@ describe("masa aktif layanan", () => {
     assert.equal(next.toISOString().slice(0, 10), "2027-02-15");
   });
 });
+
+describe("email pemberitahuan pesanan lunas", () => {
+  const base = {
+    villageName: 'Desa <Karanganyar> & "Co"',
+    villageCode: "KRG01",
+    villagePhone: "08123456789",
+    villageEmail: null,
+    invoiceNumber: "INV-KRG01-1-ABC",
+    amount: 1_900_000,
+    paidAt: new Date("2026-11-10T03:00:00.000Z"),
+    months: 12,
+    expiry: new Date("2027-11-10T03:00:00.000Z"),
+  };
+
+  it("pesanan baru: subjek menyebut pesanan baru dan teks memuat desa, telepon, nominal, tagihan", async () => {
+    const { buildWebsiteOrderEmail } = await import("../lib/website-service/order-notification.ts");
+    const mail = buildWebsiteOrderEmail({ ...base, kind: "first" });
+    assert.match(mail.subject, /Pesanan website baru/);
+    assert.match(mail.text, /KRG01/);
+    assert.match(mail.text, /08123456789/);
+    assert.match(mail.text, /INV-KRG01-1-ABC/);
+    assert.match(mail.text, /1\.900\.000/);
+    assert.match(mail.text, /Email desa: -/);
+  });
+
+  it("perpanjangan: subjek berbeda dan menyebut lama perpanjangan", async () => {
+    const { buildWebsiteOrderEmail } = await import("../lib/website-service/order-notification.ts");
+    const mail = buildWebsiteOrderEmail({ ...base, kind: "renewal", months: 3 });
+    assert.match(mail.subject, /Perpanjangan website/);
+    assert.match(mail.text, /3 bulan/);
+  });
+
+  it("nama desa di-escape pada HTML", async () => {
+    const { buildWebsiteOrderEmail } = await import("../lib/website-service/order-notification.ts");
+    const mail = buildWebsiteOrderEmail({ ...base, kind: "first" });
+    assert.ok(!mail.html.includes("<Karanganyar>"));
+    assert.ok(mail.html.includes("&lt;Karanganyar&gt;"));
+  });
+});

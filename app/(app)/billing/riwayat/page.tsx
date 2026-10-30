@@ -68,7 +68,7 @@ export default function BillingHistoryPage() {
   const invoices = data?.invoices ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="mx-auto space-y-5">
       <div className="space-y-1">
         <Link
           href="/billing"

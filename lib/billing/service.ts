@@ -60,6 +60,7 @@ import {
   nextWebsiteCustomExpiry,
   websiteCustomLineItems,
 } from "@/lib/website-service/subscription";
+import { notifyWebsiteOrderPaid } from "@/lib/website-service/order-notification";
 
 export type BillingPaymentMethod = "qris" | "va" | "ewallet";
 
@@ -802,6 +803,8 @@ async function applyInvoiceOutcome(
   }
 
   const now = new Date();
+  // True hanya untuk panggilan yang memenangkan klaim "paid" atas tagihan website kustom (email pemilik sekali saja).
+  let websiteOrderPaid = false;
 
   await prisma.$transaction(async (tx) => {
     // Update bersyarat: callback ganda/bersamaan atau sinkron status yang berlomba hanya satu yang menang,
@@ -825,6 +828,7 @@ async function applyInvoiceOutcome(
     if (claimed.count === 0) return;
 
     if (!paid) return;
+    if (invoice.productType === "website_custom") websiteOrderPaid = true;
 
     await accrueSubscriptionCommissionInTx(tx, {
       invoiceId: invoice.id,
@@ -1079,6 +1083,9 @@ async function applyInvoiceOutcome(
       });
     }
   });
+
+  // Setelah transaksi tersimpan; tidak di-await agar balasan webhook LinkQu tidak tertahan, dan galat kirim tidak berdampak.
+  if (websiteOrderPaid) void notifyWebsiteOrderPaid(invoice.id);
 
   return { ok: true, status: 200 as const, invoiceStatus: nextStatus };
 }
