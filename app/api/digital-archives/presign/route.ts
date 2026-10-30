@@ -10,6 +10,13 @@ import {
 } from "@/lib/spaces";
 import { assertStorageForUpload, getEffectiveStorageLimitGb } from "@/lib/digitalArchive/quota";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import {
+  MAX_MEDIA_IMAGE_BYTES,
+  MEDIA_CATEGORY,
+  MEDIA_IMAGE_MIME_EXT,
+  normalizeMime,
+  validateImageFile,
+} from "@/lib/digitalArchive/media";
 
 function sanitizeFileName(name: string) {
   return name
@@ -48,19 +55,30 @@ export async function POST(req: NextRequest) {
       folderId?: number | null;
       isPublic?: boolean;
       accessLevel?: string;
+      /** "image": aset gambar untuk konten (publik, hanya JPG/PNG/WebP/GIF, maks 5 MB). */
+      kind?: string;
     };
 
+    const isImageAsset = body.kind === "image";
     const fileNameRaw = body.fileName?.toString() || "";
-    const contentType =
-      body.contentType?.toString() || "application/octet-stream";
+    const contentType = isImageAsset
+      ? normalizeMime(body.contentType?.toString())
+      : body.contentType?.toString() || "application/octet-stream";
     const fileSize = Number(body.fileSize || 0);
     let category = (body.category || "").toString().trim();
+    if (isImageAsset) {
+      const invalid = validateImageFile({ type: contentType, size: fileSize });
+      if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+      if (!category && body.folderId == null) category = MEDIA_CATEGORY;
+    }
     const subCategory = body.subCategory
       ? body.subCategory.toString().trim()
       : null;
     const folderIdRaw = body.folderId;
 
+    // Aset gambar dipakai di konten publik (website, pengumuman), jadi selalu publik.
     const aclPublic =
+      isImageAsset ||
       Boolean(body.isPublic) ||
       (body.accessLevel || "").toString() === "public";
 
@@ -129,7 +147,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const safeName = sanitizeFileName(fileNameRaw);
+    let safeName = sanitizeFileName(fileNameRaw);
+    if (isImageAsset) {
+      // Ekstensi mengikuti tipe yang diizinkan, bukan nama dari klien.
+      const dot = safeName.lastIndexOf(".");
+      const base = (dot > 0 ? safeName.slice(0, dot) : safeName).trim() || "gambar";
+      safeName = `${base}.${MEDIA_IMAGE_MIME_EXT[contentType]}`;
+    }
     const ext = getExtension(safeName);
     const now = new Date();
     const yyyy = String(now.getFullYear());
@@ -159,6 +183,8 @@ export async function POST(req: NextRequest) {
       Bucket: cfg.bucket,
       Key: key,
       ContentType: contentType,
+      // Ukuran ikut ditandatangani: PUT dengan ukuran lain ditolak storage.
+      ...(isImageAsset ? { ContentLength: Math.min(fileSize, MAX_MEDIA_IMAGE_BYTES) } : {}),
       Metadata: {
         original_filename: safeName,
         ext: ext || "",

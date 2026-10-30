@@ -111,7 +111,7 @@ const faqs = [
   },
   {
     question: "Apakah ada fitur yang harus dibayar terpisah?",
-    answer: `Tidak. Semua fitur modul sudah termasuk di Paket Lengkap, tanpa batas jumlah data dan tanpa paket bertingkat. Yang dibayar terpisah hanya hal yang memang menimbulkan biaya dan bisa diukur: penyimpanan arsip di atas ${INCLUDED_STORAGE_GB} GB, kredit Asisten Desa AI, GPS radius untuk absensi, dan template Website Desa.`,
+    answer: `Tidak. Semua fitur modul sudah termasuk di Paket Lengkap, tanpa batas jumlah data dan tanpa paket bertingkat. Yang dibayar terpisah hanya hal yang memang menimbulkan biaya dan bisa diukur: penyimpanan arsip di atas ${INCLUDED_STORAGE_GB} GB, kredit Asisten Desa AI, GPS radius untuk absensi, dan layanan Website Desa kustom.`,
   },
   {
     question: "Berapa perangkat desa yang bisa memakai absensi?",
@@ -378,9 +378,17 @@ export default function PricingPage() {
                 <Globe className="w-6 h-6 text-[#0d9488]" aria-hidden="true" />
               </div>
               <h3 className="text-lg text-gray-900 mb-1">Website Desa</h3>
-              <p className="text-sm text-gray-600">
-                Website resmi desa dengan domain sendiri. Pilih template di menu
-                Website; harga mengikuti template yang dipilih.
+              <p className="text-sm text-gray-600 mb-4">
+                Website resmi desa yang dibangun khusus untuk desa Anda dan
+                dikelola tim Klandesa. Layanan terpisah dari Paket Lengkap.
+              </p>
+              <p className="text-gray-900 tabular-nums">
+                <span className="text-sm text-gray-600">Mulai </span>
+                {formatIdr(BILLING_CATALOG.website_custom.setupFee)}
+                <span className="text-sm text-gray-600">
+                  {" "}
+                  / sudah termasuk 12 bulan pertama
+                </span>
               </p>
             </div>
 

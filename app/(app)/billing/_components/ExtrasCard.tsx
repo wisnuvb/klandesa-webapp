@@ -50,7 +50,7 @@ export function ExtrasCard({ plan, arsipAddon, onActivate, checkoutLoading }: Ex
       href: "/website",
       icon: Globe,
       title: "Website Desa",
-      desc: "Pilih template dan domain di menu Website. Harga mengikuti template yang dipilih.",
+      desc: `Website resmi desa yang dibangun khusus untuk desa Anda. Mulai ${formatIdr(BILLING_CATALOG.website_custom.setupFee)}, sudah termasuk 12 bulan pertama.`,
     },
   ];
 

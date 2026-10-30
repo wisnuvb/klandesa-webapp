@@ -27,6 +27,7 @@ export const PARTNER_ELIGIBLE_BILLING_PRODUCTS: BillingProductType[] = [
   "absensi_gps_addon",
   "arsip",
   "website",
+  "website_custom",
 ];
 
 function isEligibleProduct(productType: string): productType is BillingProductType {

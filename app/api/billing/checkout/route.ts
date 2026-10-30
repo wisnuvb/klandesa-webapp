@@ -143,13 +143,22 @@ export async function POST(req: NextRequest) {
       "absensi",
       "absensi_gps_addon",
       "arsip",
-      "website",
+      // "website", // Marketplace template dimatikan 2026-10-30; diganti layanan website kustom.
+      "website_custom",
       "module_addon",
       "ai_credits",
     ];
     if (!allowedProducts.includes(productType as BillingProductType)) {
       return NextResponse.json(
         { error: "productType tidak valid" },
+        { status: 400 },
+      );
+    }
+
+    // Website Desa dijual sebagai layanan khusus (productType "website_custom"), tidak lagi sebagai add-on modul.
+    if (productType === "module_addon" && planCode === "website") {
+      return NextResponse.json(
+        { error: "Website Desa dipesan lewat menu Website sebagai layanan khusus, bukan add-on modul." },
         { status: 400 },
       );
     }
@@ -161,7 +170,7 @@ export async function POST(req: NextRequest) {
           {
             error:
               planCode === "website"
-                ? "Website Desa dibeli lewat menu Website (pilih template), bukan add-on modul."
+                ? "Website Desa dipesan lewat menu Website sebagai layanan khusus, bukan add-on modul."
                 : "Modul ini sudah termasuk di Paket Lengkap, tidak perlu add-on.",
           },
           { status: 400 },

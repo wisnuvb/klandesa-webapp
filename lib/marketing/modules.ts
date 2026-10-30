@@ -102,7 +102,7 @@ export const MARKETING_MODULE_COPY: Partial<Record<string, string>> = {
   arsip: "Dokumen desa dalam folder terstruktur; kapasitas mengikuti paket desa.",
   ukm: "Katalog dan promosi UKM desa meningkatkan ekonomi lokal.",
   website:
-    "Situs resmi desa satu domain ketika paket desa Anda mendukung.",
+    "Layanan website resmi desa yang dibangun khusus dan dikelola tim Klandesa; dipesan terpisah dari paket desa.",
 };
 
 const DEFAULT_FALLBACK_DESCRIPTION =

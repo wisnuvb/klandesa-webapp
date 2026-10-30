@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSpacesClient, getSpacesConfig, publicUrlToStorageKey } from "@/lib/spaces";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { canDeleteArchiveRecord } from "@/lib/digitalArchive/access";
+import { isVillageArchiveKey } from "@/lib/digitalArchive/media";
 
 export async function PATCH(
   req: NextRequest,
@@ -187,7 +188,10 @@ export async function DELETE(
     const key =
       existing.storageKey?.trim() ||
       publicUrlToStorageKey(existing.filePath);
-    if (key) {
+    if (key && !isVillageArchiveKey(key, village.code)) {
+      // Rekam lama yang menunjuk objek di luar folder desa ini: jangan sentuh objeknya, cukup hapus rekamnya.
+      console.warn(`DELETE archive ${id}: storage key di luar folder desa ${village.code}, objek dilewati`);
+    } else if (key) {
       try {
         const s3 = getSpacesClient();
         const cfg = getSpacesConfig();

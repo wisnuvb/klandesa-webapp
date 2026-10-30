@@ -15,6 +15,7 @@ export const PRODUCT_LABEL: Record<string, string> = {
   arsip: "Penyimpanan Arsip",
   module_addon: "Modul Add-on",
   website: "Website Desa",
+  website_custom: "Website Desa Kustom",
   ai_credits: "Kredit Asisten AI",
 };
 

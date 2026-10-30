@@ -13,9 +13,9 @@ export type LengkapRenewalMonths = (typeof LENGKAP_RENEWAL_MONTHS)[number];
  * Modul fitur yang terbuka penuh (tanpa batas pemakaian, tanpa add-on) di Paket Lengkap.
  * Keputusan 2026-10-29: semua fitur dibuka; add-on hanya untuk hal yang berbiaya dan terukur
  * (penyimpanan arsip, kredit AI, GPS absensi, Website Desa).
- * "website": akses menu terbuka, tetapi produknya (template + domain) dibeli lewat menu Website per template
- * (productType "website", harga di tabel WebsiteTemplate). Add-on modul "website" Rp149rb di katalog menggandakan
- * jalur itu sehingga diblokir untuk Paket Lengkap.
+ * "website": akses menu terbuka, tetapi produknya (layanan website kustom, productType "website_custom") dipesan lewat
+ * menu Website dan dibayar terpisah. Add-on modul "website" Rp149rb di katalog menggandakan jalur itu sehingga
+ * diblokir untuk Paket Lengkap.
  */
 export const LENGKAP_INCLUDED_MODULE_IDS: ReadonlySet<string> = new Set([
   "website",

@@ -4,6 +4,7 @@ export type BillingProductType =
   | "absensi_gps_addon"
   | "arsip"
   | "website"
+  | "website_custom"
   | "ai_credits"
   | "module_addon";
 
@@ -90,6 +91,17 @@ export const BILLING_CATALOG = {
   },
   website: {
     enabled: false,
+  },
+  /**
+   * Website Desa kustom (2026-10-30): layanan jasa, dibangun manual per desa dan di-hosting di VPS Klandesa; menggantikan
+   * marketplace template ("website" di atas, kodenya dibiarkan tetapi tidak dipanggil). Pola harga sama dengan Paket
+   * Lengkap: biaya awal sudah termasuk 12 bulan pertama, perpanjangan per bulan.
+   * ANGKA SEMENTARA: dipilih Claude, BELUM dikunci pemilik. Ubah di sini; halaman /website dan checkout mengikuti.
+   */
+  website_custom: {
+    name: "Website Desa Kustom",
+    setupFee: 2_500_000, // sudah termasuk 12 bulan pertama
+    monthlyFee: 75_000, // perpanjangan, mulai bulan ke-13
   },
   module_addon: {
     // Hanya untuk desa paket lama (starter/profesional): desa Paket Lengkap mendapat semua modul ini tanpa add-on

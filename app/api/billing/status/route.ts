@@ -6,6 +6,7 @@ import { getActiveArsipAddon, getEffectiveStorageLimitGb } from "@/lib/digitalAr
 import { arsipGbForPlanCode } from "@/lib/digitalArchive/storage-limit";
 import { listModuleEntitlementsForVillage } from "@/lib/modules/entitlements";
 import { loadActiveModuleSubs } from "@/lib/modules/require-module";
+import { WEBSITE_CUSTOM_MODULE_CODE, isWebsiteCustomActive } from "@/lib/website-service/subscription";
 import { hasPurchasedLengkap } from "@/lib/billing/service";
 import {
   getSubscriptionPhaseInfo,
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
         ? "profesional"
         : desaTier;
 
-    const [invoices, activeAddons, websiteSub, purchasedLengkap, arsipAddon, arsipLimitGb] = await Promise.all([
+    const [invoices, activeAddons, websiteSub, purchasedLengkap, arsipAddon, arsipLimitGb, websiteService] = await Promise.all([
       prisma.billingInvoice.findMany({
         where: { villageId: village.id },
         orderBy: { createdAt: "desc" },
@@ -71,6 +72,10 @@ export async function GET(req: NextRequest) {
       hasPurchasedLengkap(village.id),
       getActiveArsipAddon(village.id),
       getEffectiveStorageLimitGb(village),
+      prisma.villageModuleSubscription.findUnique({
+        where: { villageId_moduleCode: { villageId: village.id, moduleCode: WEBSITE_CUSTOM_MODULE_CODE } },
+        select: { status: true, startDate: true, expiryDate: true },
+      }),
     ]);
 
     const websiteActive =
@@ -113,6 +118,18 @@ export async function GET(req: NextRequest) {
             planCode: arsipAddon.planCode,
             storageGb: arsipGbForPlanCode(arsipAddon.planCode),
             expiry: arsipAddon.expiryDate.toISOString(),
+          }
+        : null,
+      // Layanan Website Desa Kustom: null = belum pernah dipesan. Masa aktif dikendalikan di Klandesa.
+      websiteService: websiteService
+        ? {
+            active: isWebsiteCustomActive(websiteService),
+            startDate: websiteService.startDate.toISOString(),
+            expiry: websiteService.expiryDate.toISOString(),
+            daysRemaining: Math.max(
+              0,
+              Math.ceil((websiteService.expiryDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
+            ),
           }
         : null,
       absensiGpsAddon: {

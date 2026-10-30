@@ -36,7 +36,8 @@ export function ModuleCatalogCard({
   checkoutLoading,
 }: ModuleCatalogCardProps) {
   const items = Object.entries(modules)
-    .filter(([id]) => !["dashboard", "billing", "pengaturan-desa"].includes(id))
+    // "website": kini layanan khusus yang dipesan lewat menu Website, bukan add-on modul bulanan.
+    .filter(([id]) => !["dashboard", "billing", "pengaturan-desa", "website"].includes(id))
     .map(([id, m]) => ({ id, ...m }))
     .filter((m) => m.locked || m.hasResourceLimit || m.addonMonthlyFee != null)
     .sort((a, b) => a.minPackageTier.localeCompare(b.minPackageTier));

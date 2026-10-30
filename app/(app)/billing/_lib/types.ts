@@ -41,6 +41,13 @@ export type BillingStatusResponse = {
   };
   /** Add-on kapasitas arsip berlangganan yang masih aktif. */
   arsipAddon?: { planCode: string | null; storageGb: number; expiry: string } | null;
+  /** Layanan Website Desa Kustom; null = belum pernah dipesan. */
+  websiteService?: {
+    active: boolean;
+    startDate: string;
+    expiry: string;
+    daysRemaining: number;
+  } | null;
   entitlements:
     | {
         desaTier: string;

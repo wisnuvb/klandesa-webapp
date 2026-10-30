@@ -53,6 +53,13 @@ import {
 } from "@/lib/domain/service";
 import { validateHostnameFqdn } from "@/lib/domain/validators";
 import { isWebsiteSubscriptionLive, nextWebsiteExpiry } from "@/lib/website-engine/subscription-state";
+import {
+  WEBSITE_CUSTOM_MODULE_CODE,
+  WEBSITE_CUSTOM_PLAN_CODE,
+  isWebsiteCustomActive,
+  nextWebsiteCustomExpiry,
+  websiteCustomLineItems,
+} from "@/lib/website-service/subscription";
 
 export type BillingPaymentMethod = "qris" | "va" | "ewallet";
 
@@ -313,7 +320,19 @@ async function prepareCheckoutLineItems(
       totalAmount: total,
       metadata: { kind: "monthly_fee", tier, storageGb: tierInfo.storageGb, months },
     });
+  } else if (input.productType === "website_custom") {
+    // Layanan jasa website kustom: biaya awal (12 bulan) untuk pembelian pertama, perpanjangan bulanan sesudahnya.
+    if (input.planCode !== WEBSITE_CUSTOM_PLAN_CODE) {
+      throw new Error("Paket website tidak valid");
+    }
+    const existing = await prisma.villageModuleSubscription.findUnique({
+      where: { villageId_moduleCode: { villageId: village.id, moduleCode: WEBSITE_CUSTOM_MODULE_CODE } },
+      select: { id: true },
+    });
+    const meta = input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata) ? (input.metadata as Record<string, unknown>) : null;
+    for (const li of websiteCustomLineItems({ isRenewal: existing != null, months: meta?.months })) lineItems.push(li);
   } else if (input.productType === "website") {
+    // Marketplace template lama: tidak lagi dipanggil dari UI maupun /api/billing/checkout (2026-10-30); kode dibiarkan.
     const templateId = Number(input.planCode);
     if (!Number.isFinite(templateId) || templateId <= 0) {
       throw new Error("Template website tidak valid");
@@ -940,6 +959,25 @@ async function applyInvoiceOutcome(
           data: { aiCredits: { increment: creditsToAdd } },
         });
       }
+    }
+
+    if (invoice.productType === "website_custom") {
+      // Masa aktif dikendalikan di sini: perpanjangan menyambung sisa waktu, pembelian pertama / yang sudah habis mulai dari sekarang.
+      const existing = await tx.villageModuleSubscription.findUnique({
+        where: { villageId_moduleCode: { villageId: invoice.villageId, moduleCode: WEBSITE_CUSTOM_MODULE_CODE } },
+        select: { status: true, expiryDate: true, startDate: true },
+      });
+      const stillActive = existing != null && isWebsiteCustomActive(existing, now.getTime());
+      const expiry = nextWebsiteCustomExpiry({
+        now,
+        currentExpiry: existing?.expiryDate ?? null,
+        months: monthsFromInvoiceItems(invoice.items),
+      });
+      await tx.villageModuleSubscription.upsert({
+        where: { villageId_moduleCode: { villageId: invoice.villageId, moduleCode: WEBSITE_CUSTOM_MODULE_CODE } },
+        create: { villageId: invoice.villageId, moduleCode: WEBSITE_CUSTOM_MODULE_CODE, planCode: WEBSITE_CUSTOM_PLAN_CODE, status: "active", startDate: now, expiryDate: expiry },
+        update: { status: "active", startDate: stillActive ? existing.startDate : now, expiryDate: expiry },
+      });
     }
 
     if (invoice.productType === "website") {

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getSpacesClient, getSpacesConfig, publicUrlToStorageKey } from "@/lib/spaces";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { canAccessArchiveBinary } from "@/lib/digitalArchive/access";
+import { isVillageArchiveKey } from "@/lib/digitalArchive/media";
 
 function mimeForArchive(fileName: string, fileType: string) {
   const ext = fileName.split(".").pop()?.toLowerCase() || fileType.toLowerCase();
@@ -75,6 +76,13 @@ export async function GET(
 
     const forceDownload = req.nextUrl.searchParams.get("download") === "1";
 
+    const key =
+      archive.storageKey?.trim() || publicUrlToStorageKey(archive.filePath);
+    // Isolasi antar-desa: hanya objek di folder arsip desa ini yang boleh dialirkan atau diarahkan.
+    if (!isVillageArchiveKey(key, village.code)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     if (
       archive.isPublic &&
       archive.filePath &&
@@ -82,12 +90,6 @@ export async function GET(
       !forceDownload
     ) {
       return NextResponse.redirect(archive.filePath);
-    }
-
-    const key =
-      archive.storageKey?.trim() || publicUrlToStorageKey(archive.filePath);
-    if (!key) {
-      return NextResponse.json({ error: "Storage key tidak ditemukan" }, { status: 500 });
     }
 
     const s3 = getSpacesClient();

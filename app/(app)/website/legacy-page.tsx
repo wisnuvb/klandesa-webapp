@@ -1,3 +1,6 @@
+// NONAKTIF (2026-10-30): halaman marketplace template lama. Bukan route (nama file bukan page.tsx) dan tidak diimpor
+// di mana pun. Halaman /website kini promosi layanan website kustom (page.tsx). Kode dibiarkan; untuk mengaktifkan
+// kembali, ganti nama file ini menjadi page.tsx.
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
