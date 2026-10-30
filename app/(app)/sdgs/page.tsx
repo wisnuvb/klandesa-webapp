@@ -31,28 +31,61 @@ import {
 } from "@/components/ai/LarasDashboardCard";
 import { AI_ASSISTANT_NAME } from "@/lib/ai/persona";
 import { useSdgsDashboard } from "./_hooks/useSdgsDashboard";
-import type { SdgGoalScore } from "@/lib/sdgs/types";
+import {
+  SDG_ATTENTION_BELOW,
+  SDG_GOOD_MIN,
+  type SdgGoalScore,
+} from "@/lib/sdgs/types";
 import type { SdgSpendingSummary } from "@/lib/finance/sdg-spending";
 
+const MODULE_LABELS: Record<string, string> = {
+  residents: "Data warga",
+  pkk: "PKK",
+  bumdes: "BUMDes",
+  finance: "Keuangan",
+  socialBenefits: "Bansos",
+};
+
+const nf = new Intl.NumberFormat("id-ID");
+
+/** Skor selalu ditampilkan sebagai bilangan bulat, apa pun yang dikirim API. */
+function formatScore(score: number | null | undefined): string {
+  return score == null ? "—" : String(Math.round(score));
+}
+
 function statusBadge(status: SdgGoalScore["status"]) {
+  const base = "shrink-0 whitespace-nowrap";
   switch (status) {
     case "good":
-      return <Badge className="bg-emerald-600">Baik</Badge>;
+      return <Badge className={cn(base, "bg-emerald-700 text-white")}>Baik</Badge>;
     case "moderate":
-      return <Badge variant="secondary">Sedang</Badge>;
+      return (
+        <Badge variant="secondary" className={base}>
+          Sedang
+        </Badge>
+      );
     case "low":
-      return <Badge variant="destructive">Perlu perhatian</Badge>;
+      return (
+        <Badge variant="destructive" className={base}>
+          Perlu perhatian
+        </Badge>
+      );
     default:
-      return <Badge variant="outline">Data kurang</Badge>;
+      return (
+        <Badge variant="outline" className={base}>
+          Data kurang
+        </Badge>
+      );
   }
 }
 
 function GoalCard({ goal }: { goal: SdgGoalScore }) {
+  const hasScore = goal.score != null;
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Goal {goal.goalId}</p>
             <CardTitle className="text-base leading-snug">{goal.shortTitle}</CardTitle>
           </div>
@@ -61,20 +94,26 @@ function GoalCard({ goal }: { goal: SdgGoalScore }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <div className="flex items-end justify-between mb-1">
-            <span className="text-2xl font-semibold">
-              {goal.score != null ? `${goal.score}` : "—"}
-            </span>
-            <span className="text-xs text-muted-foreground">/ 100</span>
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <span className="text-2xl font-semibold tabular-nums">{formatScore(goal.score)}</span>
+            {hasScore ? (
+              <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+                / 100
+              </span>
+            ) : null}
           </div>
-          <Progress value={goal.score ?? 0} className="h-2" />
+          <Progress
+            value={goal.score ?? 0}
+            className="h-2"
+            aria-label={`Skor Goal ${goal.goalId} ${goal.shortTitle}`}
+          />
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-2">{goal.title}</p>
-        <ul className="text-xs space-y-1">
-          {goal.indicators.slice(0, 2).map((ind) => (
-            <li key={ind.label} className="flex justify-between gap-2">
-              <span className="text-muted-foreground truncate">{ind.label}</span>
-              <span className="font-medium shrink-0">{ind.value}</span>
+        <p className="text-xs text-muted-foreground">{goal.title}</p>
+        <ul className="space-y-1 text-xs">
+          {goal.indicators.map((ind) => (
+            <li key={ind.label} className="flex items-start justify-between gap-3">
+              <span className="min-w-0 text-muted-foreground">{ind.label}</span>
+              <span className="shrink-0 font-medium tabular-nums">{ind.value}</span>
             </li>
           ))}
         </ul>
@@ -101,7 +140,7 @@ export default function SdgsDashboardPage() {
     ? [
         {
           title: "Skor SDGs Desa",
-          value: data.overallScore != null ? `${data.overallScore}` : "—",
+          value: formatScore(data.overallScore),
           subtitle: `Tahun ${data.year}`,
           icon: Target,
           accent: "primary",
@@ -109,20 +148,20 @@ export default function SdgsDashboardPage() {
         {
           title: "Goal on track",
           value: data.goalsOnTrack,
-          subtitle: "Skor ≥ 70",
+          subtitle: `Skor ≥ ${SDG_GOOD_MIN}`,
           icon: CheckCircle2,
           accent: "green",
         },
         {
           title: "Perlu perhatian",
           value: data.goalsNeedAttention,
-          subtitle: "Skor < 45",
+          subtitle: `Skor < ${SDG_ATTENTION_BELOW}`,
           icon: AlertTriangle,
           accent: "orange",
         },
         {
           title: "RT/RW terpeta",
-          value: data.heatmap.length,
+          value: data.heatmap.filter((r) => r.rt !== "-" || r.rw !== "-").length,
           subtitle: "Heatmap partisipatif",
           icon: TrendingUp,
           accent: "info",
@@ -153,7 +192,7 @@ export default function SdgsDashboardPage() {
                 <div className="flex flex-wrap gap-2 pt-2">
                   {Object.entries(data.moduleCoverage).map(([key, ok]) => (
                     <Badge key={key} variant={ok ? "default" : "outline"}>
-                      {key}: {ok ? "ada data" : "belum"}
+                      {MODULE_LABELS[key] ?? key}: {ok ? "ada data" : "belum"}
                     </Badge>
                   ))}
                 </div>
@@ -213,7 +252,7 @@ export default function SdgsDashboardPage() {
                           Goal {g.goalId} — {g.shortTitle}
                         </p>
                         <p className="text-lg font-semibold">
-                          Rp {g.totalSpending.toLocaleString("id-ID")}
+                          Rp {nf.format(g.totalSpending)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Realisasi anggaran + transaksi belanja
@@ -224,9 +263,7 @@ export default function SdgsDashboardPage() {
                 {spending.untaggedRealized + spending.untaggedTransactions > 0 ? (
                   <p className="text-xs text-muted-foreground mt-4">
                     Belum ditag SDGs: Rp{" "}
-                    {(spending.untaggedRealized + spending.untaggedTransactions).toLocaleString(
-                      "id-ID",
-                    )}{" "}
+                    {nf.format(spending.untaggedRealized + spending.untaggedTransactions)}{" "}
                     — tag via modul Anggaran/Keuangan.
                   </p>
                 ) : null}
@@ -271,24 +308,24 @@ export default function SdgsDashboardPage() {
                       {data.heatmap.map((row) => (
                         <TableRow key={`${row.rt}-${row.rw}`}>
                           <TableCell className="font-medium">{row.label}</TableCell>
-                          <TableCell className="text-right">{row.population}</TableCell>
-                          <TableCell className="text-right">
-                            {row.healthScore ?? "—"}
+                          <TableCell className="text-right tabular-nums">{nf.format(row.population)}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatScore(row.healthScore)}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {row.povertyScore ?? "—"}
+                          <TableCell className="text-right tabular-nums">
+                            {formatScore(row.povertyScore)}
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "text-right font-semibold",
-                              row.compositeScore != null && row.compositeScore < 45
+                              "text-right font-semibold tabular-nums",
+                              row.compositeScore != null && row.compositeScore < SDG_ATTENTION_BELOW
                                 ? "text-destructive"
-                                : row.compositeScore != null && row.compositeScore >= 70
-                                  ? "text-emerald-600"
+                                : row.compositeScore != null && row.compositeScore >= SDG_GOOD_MIN
+                                  ? "text-emerald-700"
                                   : "",
                             )}
                           >
-                            {row.compositeScore ?? "—"}
+                            {formatScore(row.compositeScore)}
                           </TableCell>
                         </TableRow>
                       ))}

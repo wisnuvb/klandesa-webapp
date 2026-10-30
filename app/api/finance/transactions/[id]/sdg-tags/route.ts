@@ -3,7 +3,6 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
 import { parseSdgTagsInput } from "@/lib/pertanian/schemas";
 import { parseSdgGoalIds } from "@/lib/sdgs/parse-goals";
-import { invalidateFinanceSummaryCache } from "@/lib/finance/summary-cache";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -40,8 +39,6 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       where: { id: txId },
       data: { sdgGoalIds },
     });
-
-    invalidateFinanceSummaryCache(village.id);
 
     return NextResponse.json({
       ok: true,

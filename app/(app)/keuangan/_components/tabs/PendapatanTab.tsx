@@ -32,6 +32,14 @@ export function PendapatanTab(props: PendapatanTabProps) {
         </Button>
       </div>
 
+      {pendapatanData.length === 0 && (
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Belum ada pendapatan tercatat pada tahun {selectedYear}.
+          </CardContent>
+        </Card>
+      )}
+
       {pendapatanData.map((kategori, index) => (
         <Card key={index}>
           <CardHeader>

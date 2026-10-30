@@ -42,6 +42,15 @@ export function BelanjaTab(props: BelanjaTabProps) {
         </Button>
       </div>
 
+      {belanjaData.length === 0 && (
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Belum ada belanja tercatat pada tahun {selectedYear}.
+          </CardContent>
+        </Card>
+      )}
+
+      {belanjaData.length > 0 && (
       <Card>
         <CardHeader>
           <CardTitle>Perbandingan Anggaran vs Realisasi</CardTitle>
@@ -73,6 +82,7 @@ export function BelanjaTab(props: BelanjaTabProps) {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+      )}
 
       {belanjaData.map((bidang, index) => (
         <Card key={index}>

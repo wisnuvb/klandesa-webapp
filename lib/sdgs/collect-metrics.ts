@@ -21,6 +21,31 @@ function isLowEducation(education: string | null | undefined): boolean {
   );
 }
 
+/**
+ * Jenjang pendidikan terakhir: 0 = belum/tidak sekolah atau belum tamat SD,
+ * 1 = SD, 2 = SMP/SLTP, 3 = SMA ke atas. null = tidak terisi.
+ */
+function educationLevel(education: string | null | undefined): number | null {
+  if (!education || !education.trim()) return null;
+  const e = education.toLowerCase();
+  if (e.includes("tidak") || e.includes("belum")) return 0;
+  if (e === "sd" || e.startsWith("sd ") || e.startsWith("sd/")) return 1;
+  if (e.includes("smp") || e.includes("sltp") || e.includes("mts")) return 2;
+  return 3;
+}
+
+/**
+ * Pendidikan terakhir tercatat tapi di bawah yang wajar untuk usia 7–18.
+ * Anak SD berpendidikan "SD"/belum sekolah adalah hal normal, bukan putus sekolah:
+ * 7–12 tahun tidak diwajibkan punya ijazah, 13–15 minimal SD, 16–18 minimal SMP.
+ * Data pendidikan kosong tidak dihitung (tidak diketahui).
+ */
+function isBelowExpectedSchooling(age: number, level: number): boolean {
+  if (age <= 12) return age >= 9 && level === 0;
+  if (age <= 15) return level < 1;
+  return level < 2;
+}
+
 function parseDesilNum(desil: string | null | undefined): number | null {
   if (!desil) return null;
   const n = parseInt(String(desil).replace(/\D/g, ""), 10);
@@ -170,8 +195,11 @@ export async function collectVillageMetrics(villageId: number): Promise<{
 
     const age = calcAgeYears(r.birthDate);
     if (age >= 7 && age <= 18) {
-      schoolAgeTotal++;
-      if (!r.education || isLowEducation(r.education)) schoolAgeNoEducation++;
+      const level = educationLevel(r.education);
+      if (level != null) {
+        schoolAgeTotal++;
+        if (isBelowExpectedSchooling(age, level)) schoolAgeNoEducation++;
+      }
     }
 
     if (r.gender === "Perempuan" && age >= 17) {

@@ -22,7 +22,7 @@ export default function Page() {
       <ActionsBar
         searchQuery={jabatan.searchQuery}
         setSearchQuery={jabatan.setSearchQuery}
-        onAdd={() => jabatan.setShowFormDialog(true)}
+        onAdd={jabatan.openCreate}
       />
 
       <Tabs value={jabatan.viewTab} onValueChange={jabatan.setViewTab} className="space-y-4">
@@ -35,6 +35,9 @@ export default function Page() {
           <JabatanTableCard
             isLoading={jabatan.isLoading}
             rows={jabatan.filteredData}
+            deletingId={jabatan.deletingId}
+            onEdit={jabatan.openEdit}
+            onDelete={(row) => void jabatan.handleDelete(row)}
           />
         </TabsContent>
 
@@ -49,6 +52,7 @@ export default function Page() {
       <FormDialog
         showFormDialog={jabatan.showFormDialog}
         setShowFormDialog={jabatan.setShowFormDialog}
+        jabatan={jabatan.editingJabatan}
         onSuccess={() => void jabatan.loadJabatan()}
       />
     </div>

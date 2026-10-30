@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -10,6 +11,7 @@ import {
   Plus,
   Search,
   Wallet,
+  XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,8 @@ type KasTabProps = {
   totalPemasukan: number;
   totalPengeluaran: number;
   saldoKas: number;
+  jumlahTransaksi: number;
+  terpotong: boolean;
   transaksiKas: TransaksiKasItem[];
   onOpenTransaksiDialog: (
     mode: "create" | "edit",
@@ -34,15 +38,43 @@ type KasTabProps = {
   onOpenDetail: (transaksi: TransaksiKasItem) => void;
 };
 
+const STATUS_LABEL: Record<string, { label: string; className: string; Icon: typeof Clock }> = {
+  verified: { label: "Terverifikasi", className: "bg-primary text-primary-foreground", Icon: CheckCircle },
+  approved: { label: "Disetujui", className: "bg-green-600 text-white", Icon: CheckCircle },
+  pending: { label: "Menunggu", className: "bg-secondary text-secondary-foreground", Icon: Clock },
+  rejected: { label: "Ditolak", className: "bg-destructive text-white", Icon: XCircle },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_LABEL[status] ?? STATUS_LABEL.pending!;
+  return (
+    <Badge className={`gap-1 ${cfg.className}`}>
+      <cfg.Icon className="h-3 w-3" aria-hidden />
+      {cfg.label}
+    </Badge>
+  );
+}
+
 export function KasTab(props: KasTabProps) {
+  const [query, setQuery] = useState("");
   const {
     totalPemasukan,
     totalPengeluaran,
     saldoKas,
+    jumlahTransaksi,
+    terpotong,
     transaksiKas,
     onOpenTransaksiDialog,
     onOpenDetail,
   } = props;
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return transaksiKas;
+    return transaksiKas.filter((t) =>
+      [t.uraian, t.kode, t.referensi].some((v) => v.toLowerCase().includes(q)),
+    );
+  }, [query, transaksiKas]);
 
   return (
     <div className="space-y-4 mt-6">
@@ -56,7 +88,13 @@ export function KasTab(props: KasTabProps) {
         <div className="flex gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cari transaksi..." className="pl-10 w-64" />
+            <Input
+              placeholder="Cari uraian atau nomor bukti..."
+              aria-label="Cari transaksi"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10 w-64"
+            />
           </div>
           <Button
             className="gap-2"
@@ -106,6 +144,13 @@ export function KasTab(props: KasTabProps) {
         </Card>
       </div>
 
+      {terpotong && (
+        <p className="text-sm text-muted-foreground">
+          Menampilkan {transaksiKas.length} transaksi terbaru dari {jumlahTransaksi} transaksi.
+          Total pemasukan, pengeluaran, dan saldo mencakup semua transaksi.
+        </p>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -123,7 +168,16 @@ export function KasTab(props: KasTabProps) {
                 </tr>
               </thead>
               <tbody>
-                {transaksiKas.map((transaksi) => (
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">
+                      {transaksiKas.length === 0
+                        ? "Belum ada transaksi pada tahun ini."
+                        : "Tidak ada transaksi yang cocok dengan pencarian."}
+                    </td>
+                  </tr>
+                )}
+                {rows.map((transaksi) => (
                   <tr
                     key={transaksi.id}
                     className="border-t hover:bg-muted/50 transition-colors"
@@ -155,23 +209,14 @@ export function KasTab(props: KasTabProps) {
                       {formatRupiah(transaksi.saldo)}
                     </td>
                     <td className="p-4 text-center">
-                      {transaksi.status === "verified" ? (
-                        <Badge variant="default" className="gap-1">
-                          <CheckCircle className="h-3 w-3" />
-                          Verified
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1">
-                          <Clock className="h-3 w-3" />
-                          Pending
-                        </Badge>
-                      )}
+                      <StatusBadge status={transaksi.status} />
                     </td>
                     <td className="p-4 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
+                          aria-label={`Lihat detail ${transaksi.kode}`}
                           onClick={() => onOpenDetail(transaksi)}
                         >
                           <Eye className="h-4 w-4" />
@@ -179,6 +224,7 @@ export function KasTab(props: KasTabProps) {
                         <Button
                           variant="ghost"
                           size="sm"
+                          aria-label={`Edit ${transaksi.kode}`}
                           onClick={() =>
                             onOpenTransaksiDialog("edit", transaksi)
                           }

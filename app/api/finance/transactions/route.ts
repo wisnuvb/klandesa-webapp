@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toJSONSafe } from "@/utils/json";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
-import { invalidateFinanceSummaryCache } from "@/lib/finance/summary-cache";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { isAddonActive, keuanganLimit } from "@/lib/modules/resource-limits";
 import { loadActiveModuleSubs } from "@/lib/modules/require-module";
 
 function generateTransactionNumber(type: string, date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
+  // Tanggal disimpan sebagai UTC 00:00, jadi tahun/bulan nomor juga dibaca dalam UTC.
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const random = Math.floor(Math.random() * 9999)
     .toString()
     .padStart(4, "0");
@@ -121,18 +122,6 @@ export async function POST(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const [addonsPost, currentCount] = await Promise.all([
-      loadActiveModuleSubs(village.id),
-      prisma.transaction.count({ where: { villageId: village.id } }),
-    ]);
-    const postLimit = keuanganLimit(village.subscriptionPlan, village.subscriptionStatus, isAddonActive("keuangan", addonsPost));
-    if (postLimit !== null && currentCount >= postLimit.transaksiPerYear) {
-      return NextResponse.json(
-        { error: "RESOURCE_LIMIT_REACHED", limit: postLimit.transaksiPerYear, current: currentCount, module: "keuangan", billingUrl: "/billing?module=keuangan" },
-        { status: 402 },
-      );
-    }
-
     const categoryStr =
       typeof category === "string"
         ? category.trim()
@@ -156,6 +145,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (type !== "income" && type !== "expense") {
+      return NextResponse.json(
+        { error: "Jenis transaksi harus income atau expense" },
+        { status: 400 },
+      );
+    }
+
     const amt =
       typeof amount === "number"
         ? amount
@@ -174,25 +170,70 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    const transactionNumber = generateTransactionNumber(type, date);
 
-    const transaction = await prisma.transaction.create({
-      data: {
-        villageId: village.id,
-        transactionNumber,
-        transactionDate: date,
-        type,
-        category: categoryStr,
-        description: descriptionStr,
-        amount: amt,
-        paymentMethod: paymentMethod || "cash",
-        referenceNumber: referenceNumber || transactionNumber,
-        status: status || "verified",
-        verifiedBy: userId,
-      },
-    });
+    // Kuota "per tahun": hitung transaksi di tahun tanggal yang dicatat, bukan seluruh riwayat.
+    const txYear = date.getUTCFullYear();
+    const [addonsPost, currentCount] = await Promise.all([
+      loadActiveModuleSubs(village.id),
+      prisma.transaction.count({
+        where: {
+          villageId: village.id,
+          transactionDate: {
+            gte: new Date(`${txYear}-01-01T00:00:00.000Z`),
+            lt: new Date(`${txYear + 1}-01-01T00:00:00.000Z`),
+          },
+        },
+      }),
+    ]);
+    const postLimit = keuanganLimit(
+      village.subscriptionPlan,
+      village.subscriptionStatus,
+      isAddonActive("keuangan", addonsPost),
+    );
+    if (postLimit !== null && currentCount >= postLimit.transaksiPerYear) {
+      return NextResponse.json(
+        {
+          error: "RESOURCE_LIMIT_REACHED",
+          message: `Batas ${postLimit.transaksiPerYear} transaksi untuk tahun ${txYear} sudah tercapai. Tingkatkan paket atau aktifkan add-on Keuangan di menu Langganan.`,
+          limit: postLimit.transaksiPerYear,
+          current: currentCount,
+          module: "keuangan",
+          billingUrl: "/billing?module=keuangan",
+        },
+        { status: 402 },
+      );
+    }
 
-    invalidateFinanceSummaryCache(village.id);
+    // Klien hanya boleh mengajukan SPP (pending); selain itu langsung sah (verified).
+    const initialStatus = status === "pending" ? "pending" : "verified";
+
+    // Nomor memakai angka acak 4 digit pada kolom unik: ulangi bila bentrok.
+    let transaction;
+    for (let attempt = 0; ; attempt++) {
+      const transactionNumber = generateTransactionNumber(type, date);
+      try {
+        transaction = await prisma.transaction.create({
+          data: {
+            villageId: village.id,
+            transactionNumber,
+            transactionDate: date,
+            type,
+            category: categoryStr,
+            description: descriptionStr,
+            amount: amt,
+            paymentMethod: paymentMethod || "cash",
+            referenceNumber: referenceNumber || transactionNumber,
+            status: initialStatus,
+            verifiedBy: userId,
+          },
+        });
+        break;
+      } catch (e) {
+        const duplicate =
+          e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+        if (!duplicate || attempt >= 4) throw e;
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -244,20 +285,45 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Transaksi tidak ditemukan" }, { status: 404 });
     }
 
+    const data: Prisma.TransactionUpdateInput = {};
+    if (type !== undefined) {
+      if (type !== "income" && type !== "expense") {
+        return NextResponse.json({ error: "Jenis transaksi tidak valid" }, { status: 400 });
+      }
+      data.type = type;
+    }
+    if (category !== undefined) {
+      const c = String(category).trim();
+      if (!c) return NextResponse.json({ error: "Kategori tidak boleh kosong" }, { status: 400 });
+      data.category = c;
+    }
+    if (description !== undefined) {
+      const d = String(description).trim();
+      if (!d) return NextResponse.json({ error: "Uraian tidak boleh kosong" }, { status: 400 });
+      data.description = d;
+    }
+    if (amount !== undefined) {
+      const a = typeof amount === "number" ? amount : parseFloat(String(amount).replace(",", "."));
+      if (!Number.isFinite(a) || a <= 0) {
+        return NextResponse.json({ error: "Jumlah harus berupa angka lebih dari 0" }, { status: 400 });
+      }
+      data.amount = a;
+    }
+    // Tanggal kosong = tidak diubah (klien lama mengirim "" bila kolom tanggal tidak terisi).
+    if (transactionDate) {
+      const d = new Date(transactionDate);
+      if (Number.isNaN(d.getTime())) {
+        return NextResponse.json({ error: "Tanggal transaksi tidak valid" }, { status: 400 });
+      }
+      data.transactionDate = d;
+    }
+    if (paymentMethod) data.paymentMethod = paymentMethod;
+    if (referenceNumber) data.referenceNumber = referenceNumber;
+
     const transaction = await prisma.transaction.update({
       where: { id: existing.id },
-      data: {
-        ...(type && { type }),
-        ...(category && { category }),
-        ...(description && { description }),
-        ...(amount && { amount: parseFloat(amount) }),
-        ...(transactionDate && { transactionDate: new Date(transactionDate) }),
-        ...(paymentMethod && { paymentMethod }),
-        ...(referenceNumber && { referenceNumber }),
-      },
+      data,
     });
-
-    invalidateFinanceSummaryCache(village.id);
 
     return NextResponse.json({
       success: true,
@@ -303,8 +369,6 @@ export async function DELETE(req: NextRequest) {
     await prisma.transaction.delete({
       where: { id: existing.id },
     });
-
-    invalidateFinanceSummaryCache(village.id);
 
     return NextResponse.json({
       success: true,

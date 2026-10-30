@@ -9,15 +9,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { YEAR_OPTIONS } from "../_lib/constants";
 
 type HeaderSectionProps = {
   selectedYear: string;
+  yearOptions: string[];
   setSelectedYear: (year: string) => void;
+  onExport: () => void;
+  canExport: boolean;
 };
 
 export function HeaderSection(props: HeaderSectionProps) {
-  const { selectedYear, setSelectedYear } = props;
+  const { selectedYear, yearOptions, setSelectedYear, onExport, canExport } = props;
 
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -33,16 +35,22 @@ export function HeaderSection(props: HeaderSectionProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {YEAR_OPTIONS.map((y) => (
+            {yearOptions.map((y) => (
               <SelectItem key={y} value={y}>
                 {y}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" className="gap-2">
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={onExport}
+          disabled={!canExport}
+          title="Unduh Buku Kas tahun ini (CSV)"
+        >
           <Download className="h-4 w-4" />
-          Export Laporan
+          Export Buku Kas
         </Button>
       </div>
     </div>

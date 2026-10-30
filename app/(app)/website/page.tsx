@@ -214,7 +214,7 @@ export default function WebsitePage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-14 pb-16">
+    <div className="mx-auto space-y-14 pb-16">
       {/* Hero */}
       <section aria-labelledby="hero-heading" className="space-y-6 pt-2">
         <Badge variant="secondary">Layanan tambahan</Badge>

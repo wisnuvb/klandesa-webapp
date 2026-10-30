@@ -59,7 +59,20 @@ export default function LandingLayout({
         <Footer />
         <WhatsAppButton />
 
-        {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+        {showLogin && (
+          <LoginModal
+            onClose={() => setShowLogin(false)}
+            onRegisterClick={() => {
+              setShowLogin(false);
+              void trackReferralClient("register_open");
+              setShowRegistration(true);
+            }}
+            onContactClick={() => {
+              setShowLogin(false);
+              setShowContact(true);
+            }}
+          />
+        )}
         {showRegistration && (
           <RegistrationModal
             onClose={() => setShowRegistration(false)}

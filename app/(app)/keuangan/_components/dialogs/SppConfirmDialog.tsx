@@ -22,11 +22,20 @@ type SppConfirmDialogProps = {
   alasanReject: string;
   setAlasanReject: (value: string) => void;
   onConfirm: () => Promise<void>;
+  isSubmitting: boolean;
 };
 
 export function SppConfirmDialog(props: SppConfirmDialogProps) {
-  const { open, onOpenChange, confirmMode, selectedSPP, alasanReject, setAlasanReject, onConfirm } =
-    props;
+  const {
+    open,
+    onOpenChange,
+    confirmMode,
+    selectedSPP,
+    alasanReject,
+    setAlasanReject,
+    onConfirm,
+    isSubmitting,
+  } = props;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,6 +93,7 @@ export function SppConfirmDialog(props: SppConfirmDialogProps) {
               <Button
                 className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
                 onClick={() => void onConfirm()}
+                disabled={isSubmitting}
               >
                 <CheckCircle className="h-4 w-4" />
                 Ya, Setujui
@@ -93,7 +103,7 @@ export function SppConfirmDialog(props: SppConfirmDialogProps) {
                 variant="destructive"
                 className="flex-1 gap-2"
                 onClick={() => void onConfirm()}
-                disabled={!alasanReject.trim()}
+                disabled={isSubmitting || !alasanReject.trim()}
               >
                 <XCircle className="h-4 w-4" />
                 Ya, Tolak

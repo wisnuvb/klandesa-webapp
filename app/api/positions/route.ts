@@ -6,6 +6,14 @@ import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+import { parsePositionCreate } from "@/lib/positions/schema";
+
+const MAX_PAGE_SIZE = 200;
+
+function positiveInt(raw: string | null, fallback: number) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,10 +22,10 @@ export async function GET(req: NextRequest) {
     const { village } = loaded.ctx;
 
     const url = new URL(req.url);
-    const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
-    const pageSize = Math.max(
-      1,
-      Number(url.searchParams.get("pageSize") ?? 100),
+    const page = positiveInt(url.searchParams.get("page"), 1);
+    const pageSize = Math.min(
+      MAX_PAGE_SIZE,
+      positiveInt(url.searchParams.get("pageSize"), 100),
     );
     const search = url.searchParams.get("search") ?? undefined;
     const isActive = url.searchParams.get("isActive");
@@ -90,25 +98,32 @@ export async function POST(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const body = await req.json();
-    const { name, level, description, salary, allowance, isActive } = body;
-
-    if (!name || !level) {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json(
-        { error: "Name and level are required" },
+        { error: "Body permintaan tidak valid" },
         { status: 400 },
       );
     }
+
+    const parsed = parsePositionCreate(body);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { name, level, description, salary, allowance, isActive } =
+      parsed.data;
 
     const position = await prisma.position.create({
       data: {
         villageId: village.id,
         name,
-        level: Number(level),
-        description: description || null,
-        salary: salary ? Number(salary) : null,
-        allowance: allowance ? Number(allowance) : null,
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
+        level,
+        description: description ?? null,
+        salary: salary ?? null,
+        allowance: allowance ?? null,
+        isActive: isActive ?? true,
       },
       include: {
         _count: {

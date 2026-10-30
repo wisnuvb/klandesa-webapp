@@ -1,5 +1,11 @@
 import { SDG_GOALS } from "./goals";
-import type { SdgGoalScore, SdgsDashboardPayload, VillageRawMetrics } from "./types";
+import {
+  SDG_ATTENTION_BELOW,
+  SDG_GOOD_MIN,
+  type SdgGoalScore,
+  type SdgsDashboardPayload,
+  type VillageRawMetrics,
+} from "./types";
 
 function clamp(n: number, min = 0, max = 100): number {
   return Math.min(max, Math.max(min, n));
@@ -12,8 +18,8 @@ function pct(part: number, total: number): number {
 
 function statusFromScore(score: number | null): SdgGoalScore["status"] {
   if (score == null) return "no_data";
-  if (score >= 70) return "good";
-  if (score >= 45) return "moderate";
+  if (score >= SDG_GOOD_MIN) return "good";
+  if (score >= SDG_ATTENTION_BELOW) return "moderate";
   return "low";
 }
 
@@ -67,9 +73,15 @@ function scoreGoal2(m: VillageRawMetrics): SdgGoalScore {
 function scoreGoal3(m: VillageRawMetrics): SdgGoalScore {
   const { pkk } = m;
   const stuntingRate = pct(pkk.balitaStunting, Math.max(pkk.balita, 1));
-  let score = clamp(100 - stuntingRate * 1.5);
-  if (pkk.posyanduSessionsThisMonth > 0) score = clamp(score + 10);
-  if (pkk.dasawismaCount > 0) score = clamp(score + 5);
+  const hasData =
+    m.totalResidents > 0 &&
+    (pkk.balita > 0 || pkk.posyanduSessionsThisMonth > 0 || pkk.dasawismaCount > 0);
+  let score: number | null = null;
+  if (hasData) {
+    score = clamp(100 - stuntingRate * 1.5);
+    if (pkk.posyanduSessionsThisMonth > 0) score = clamp(score + 10);
+    if (pkk.dasawismaCount > 0) score = clamp(score + 5);
+  }
 
   return {
     goalId: 3,
@@ -91,7 +103,10 @@ function scoreGoal4(m: VillageRawMetrics): SdgGoalScore {
   const illiteracyRate = pct(m.illiterateCount, Math.max(m.totalResidents, 1));
   const atsRate = pct(m.schoolAgeNoEducation, Math.max(m.schoolAgeTotal, 1));
   const eduFacilities = m.villagePotential?.educationFacilities ?? 0;
-  const score = clamp(100 - illiteracyRate - atsRate * 0.8 + (eduFacilities > 0 ? 10 : 0));
+  const score =
+    m.totalResidents > 0
+      ? clamp(100 - illiteracyRate - atsRate * 0.8 + (eduFacilities > 0 ? 10 : 0))
+      : null;
 
   return {
     goalId: 4,
@@ -102,7 +117,7 @@ function scoreGoal4(m: VillageRawMetrics): SdgGoalScore {
     status: statusFromScore(score),
     indicators: [
       { label: "Buta huruf", value: String(m.illiterateCount), impact: "negative" },
-      { label: "Usia sekolah tanpa pendidikan memadai", value: String(m.schoolAgeNoEducation), impact: "negative" },
+      { label: "Usia sekolah di bawah jenjang wajar", value: String(m.schoolAgeNoEducation), impact: "negative" },
     ],
     dataSources: ["residents", "village_potential"],
   };
@@ -111,7 +126,10 @@ function scoreGoal4(m: VillageRawMetrics): SdgGoalScore {
 function scoreGoal5(m: VillageRawMetrics): SdgGoalScore {
   const femaleParticipation = pct(m.femaleAdultWorkers, Math.max(m.femaleAdults, 1));
   const femaleOfficialRate = pct(m.femaleOfficials, Math.max(m.officialsCount, 1));
-  const score = clamp(femaleParticipation * 0.5 + femaleOfficialRate * 0.5 + (m.pkk.dasawismaCount > 0 ? 15 : 0));
+  const score =
+    m.totalResidents > 0
+      ? clamp(femaleParticipation * 0.5 + femaleOfficialRate * 0.5 + (m.pkk.dasawismaCount > 0 ? 15 : 0))
+      : null;
 
   return {
     goalId: 5,
@@ -161,6 +179,20 @@ function scoreFromFacilities(
   };
 }
 
+/** Goal yang belum punya sumber data di sistem: tampil "Data kurang", bukan skor palsu. */
+function noDataGoal(goalId: number, idx: number, label: string): SdgGoalScore {
+  return {
+    goalId,
+    slug: SDG_GOALS[idx].slug,
+    title: SDG_GOALS[idx].title,
+    shortTitle: SDG_GOALS[idx].shortTitle,
+    score: null,
+    status: "no_data",
+    indicators: [{ label, value: "Belum ada data", impact: "neutral" }],
+    dataSources: [],
+  };
+}
+
 function scoreGoal8(m: VillageRawMetrics): SdgGoalScore {
   let score = 30;
   if (m.bumdes.exists) score += 25;
@@ -178,7 +210,7 @@ function scoreGoal8(m: VillageRawMetrics): SdgGoalScore {
     status: statusFromScore(score),
     indicators: [
       { label: "BUMDes aktif", value: m.bumdes.exists ? "Ya" : "Belum", impact: m.bumdes.exists ? "positive" : "negative" },
-      { label: "Laba BUMDes", value: m.bumdes.netProfit.toLocaleString("id-ID"), impact: m.bumdes.netProfit > 0 ? "positive" : "neutral" },
+      { label: "Laba BUMDes", value: `Rp ${m.bumdes.netProfit.toLocaleString("id-ID")}`, impact: m.bumdes.netProfit > 0 ? "positive" : "neutral" },
       { label: "Produk UKM", value: String(m.ukmProductCount), impact: "positive" },
     ],
     dataSources: ["bumdes", "cooperative", "ukm"],
@@ -188,7 +220,8 @@ function scoreGoal8(m: VillageRawMetrics): SdgGoalScore {
 function scoreGoal10(m: VillageRawMetrics): SdgGoalScore {
   const disabilitySupport = pct(m.bpjsCount, Math.max(m.totalResidents, 1));
   const inequality = pct(m.desil1Count, Math.max(m.totalResidents, 1));
-  const score = clamp(disabilitySupport * 0.4 + (100 - inequality) * 0.6);
+  const score =
+    m.totalResidents > 0 ? clamp(disabilitySupport * 0.4 + (100 - inequality) * 0.6) : null;
 
   return {
     goalId: 10,
@@ -286,40 +319,50 @@ function buildHeatmap(m: VillageRawMetrics) {
       return {
         rt: g.rt,
         rw: g.rw,
-        label: `RT ${g.rt} / RW ${g.rw}`,
+        label:
+          g.rt === "-" && g.rw === "-"
+            ? "Tanpa RT/RW"
+            : `RT ${g.rt} / RW ${g.rw}`,
         population: g.population,
         healthScore: healthScore != null ? Math.round(healthScore) : null,
         povertyScore: povertyScore != null ? Math.round(povertyScore) : null,
         compositeScore,
       };
     })
-    .sort((a, b) => (a.compositeScore ?? 0) - (b.compositeScore ?? 0));
+    .sort((a, b) => (a.compositeScore ?? Infinity) - (b.compositeScore ?? Infinity));
 }
 
 export function computeSdgsDashboard(
   metrics: VillageRawMetrics,
   idmVillageCode: string | null,
 ): SdgsDashboardPayload {
-  const goals: SdgGoalScore[] = [
+  const rawGoals: SdgGoalScore[] = [
     scoreGoal1(metrics),
     scoreGoal2(metrics),
     scoreGoal3(metrics),
     scoreGoal4(metrics),
     scoreGoal5(metrics),
     scoreFromFacilities(metrics, 6, 5, (vp) => vp.waterResources, "Sumber air terdata"),
-    scoreFromFacilities(metrics, 7, 6, () => false, "Energi terbarukan"),
+    noDataGoal(7, 6, "Energi terbarukan"),
     scoreGoal8(metrics),
     scoreFromFacilities(metrics, 9, 8, (vp) => vp.educationFacilities + vp.healthFacilities, "Fasilitas desa"),
     scoreGoal10(metrics),
     scoreFromFacilities(metrics, 11, 10, (vp) => vp.healthFacilities > 0, "Fasilitas kesehatan"),
     scoreFromFacilities(metrics, 12, 11, (vp) => vp.agricultureLand > 0, "Lahan produktif"),
-    scoreFromFacilities(metrics, 13, 12, () => false, "Adaptasi iklim"),
-    scoreFromFacilities(metrics, 14, 13, () => false, "Ekosistem pesisir"),
+    noDataGoal(13, 12, "Adaptasi iklim"),
+    noDataGoal(14, 13, "Ekosistem pesisir"),
     scoreFromFacilities(metrics, 15, 14, (vp) => vp.forestArea, "Luas hutan desa (ha)"),
     scoreGoal16(metrics),
     scoreGoal17(metrics),
     scoreGoal18(metrics),
   ];
+
+  // Bulatkan sekali di sini agar angka kartu, status, dan rata-rata selalu konsisten.
+  const goals = rawGoals.map((g) => {
+    if (g.score == null) return g;
+    const score = Math.round(g.score);
+    return { ...g, score, status: statusFromScore(score) };
+  });
 
   const scored = goals.filter((g) => g.score != null);
   const overallScore =

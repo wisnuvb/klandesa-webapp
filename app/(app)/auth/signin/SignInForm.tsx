@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
+import { loginErrorMessage } from "@/lib/login-error";
 
 export function SignInForm() {
   const searchParams = useSearchParams();
@@ -15,9 +18,16 @@ export function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const turnstileRequired = isTurnstileRequiredOnClient();
   const isFormInvalid = useMemo(
-    () => !email.trim() || !password.trim() || loading,
-    [email, password, loading],
+    () =>
+      !email.trim() ||
+      !password.trim() ||
+      loading ||
+      (turnstileRequired && !turnstileToken),
+    [email, password, loading, turnstileRequired, turnstileToken],
   );
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -37,6 +47,7 @@ export function SignInForm() {
       const result = await signIn("credentials", {
         email: email.trim(),
         password,
+        turnstileToken,
         redirect: false,
       });
 
@@ -87,9 +98,11 @@ export function SignInForm() {
         return;
       }
 
-      setError(result?.error || "Login gagal. Coba lagi.");
+      setError(loginErrorMessage(result?.error));
+      setTurnstileReset((n) => n + 1);
     } catch {
-      setError("Terjadi kesalahan saat login.");
+      setError("Terjadi kesalahan saat login. Periksa koneksi lalu coba lagi.");
+      setTurnstileReset((n) => n + 1);
     } finally {
       setLoading(false);
     }
@@ -179,7 +192,13 @@ export function SignInForm() {
               </div>
             </div>
 
-            {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+            {error && (
+              <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+
+            <TurnstileWidget onToken={setTurnstileToken} resetSignal={turnstileReset} />
 
             <button
               type="submit"

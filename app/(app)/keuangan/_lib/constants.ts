@@ -1,56 +1,19 @@
-export const YEAR_OPTIONS = ["2025", "2024", "2023", "2022"] as const;
+const YEAR_OPTION_SPAN = 5;
 
-export const subKategoriOptions: Record<string, string[]> = {
-  PADes: [
-    "Hasil Usaha Desa",
-    "Hasil Aset Desa",
-    "Swadaya dan Partisipasi",
-    "Lain-lain PADes",
-  ],
-  Transfer: [
-    "Dana Desa",
-    "Alokasi Dana Desa (ADD)",
-    "Bagi Hasil Pajak & Retribusi",
-  ],
-  "Lain-lain": ["Hibah dan Sumbangan", "Lain-lain Pendapatan Desa"],
-};
+/** Tahun berjalan + 4 tahun sebelumnya; `extra` dipakai agar tahun terpilih selalu ada di daftar. */
+export function buildYearOptions(extra?: string): string[] {
+  const current = new Date().getFullYear();
+  const years = new Set<string>(
+    Array.from({ length: YEAR_OPTION_SPAN }, (_, i) => String(current - i)),
+  );
+  if (extra && /^\d{4}$/.test(extra)) years.add(extra);
+  return [...years].sort((a, b) => Number(b) - Number(a));
+}
 
-export const subKegiatanOptions: Record<string, string[]> = {
-  "Penyelenggaraan Pemerintahan Desa": [
-    "Penyelenggaraan Belanja Siltap, Tunjangan dan Operasional Pemerintah Desa",
-    "Sarana dan Prasarana Pemerintah Desa",
-    "Administrasi Pemerintahan Desa",
-    "Tunjangan BPD",
-    "Operasional BPD",
-  ],
-  "Pelaksanaan Pembangunan Desa": [
-    "Pembangunan Jalan Desa",
-    "Pembangunan Jembatan",
-    "Pembangunan Irigasi",
-    "Pembangunan Air Bersih",
-    "Pembangunan Sanitasi",
-    "Pembangunan Fasilitas Umum",
-  ],
-  "Pembinaan Kemasyarakatan": [
-    "Kegiatan Pembinaan Ketentraman dan Ketertiban",
-    "Pembinaan Kerukunan Umat Beragama",
-    "Pengadaan Sarana Prasarana Olahraga",
-    "Pembinaan Lembaga Adat",
-    "Kegiatan Posyandu",
-  ],
-  "Pemberdayaan Masyarakat": [
-    "Pelatihan Kepala Desa dan Perangkat Desa",
-    "Pelatihan BPD",
-    "Peningkatan Kapasitas Masyarakat",
-    "Pelatihan Kelompok Tani",
-    "Pelatihan UMKM",
-  ],
-  "Penanggulangan Bencana & Darurat": [
-    "Penanggulangan Bencana",
-    "Keadaan Darurat",
-    "Keadaan Mendesak",
-  ],
-};
+export {
+  subKategoriOptions,
+  subKegiatanOptions,
+} from "@/lib/finance/taxonomy";
 
 export const kategoriTransaksiMasuk = [
   "Penerimaan Dana Desa",

@@ -23,6 +23,14 @@ Fetches aggregated financial data for a village by year.
       "realisasiPendapatan": 800000000,
       "realisasiBelanja": 600000000
     },
+    "kas": {
+      "totalPemasukan": 800000000,
+      "totalPengeluaran": 600000000,
+      "saldo": 200000000,
+      "jumlahTransaksi": 42,
+      "terpotong": false
+    },
+    "sppStatus": { "approved": 3, "pending": 1, "rejected": 0, "total": 4 },
     "pendapatan": [
       {
         "kategori": "PAD (Pendapatan Asli Desa)",
@@ -85,8 +93,7 @@ Fetches aggregated financial data for a village by year.
         "belanja": 95000000
       }
     ]
-  },
-  "cached": false
+  }
 }
 ```
 
@@ -94,9 +101,11 @@ Fetches aggregated financial data for a village by year.
 - Automatically groups budgets by category and subCategory
 - Populates `subKategori` for income breakdown
 - Populates `subItems` for expense breakdown
-- Calculates 6-month financial trends
-- Derives SPP data from expense transactions with pending status
-- 5-minute cache per village and year
+- Calculates per-month trends for the selected year
+- Only `verified` and `approved` transactions count toward realisasi, trend, and saldo (`pending`/`rejected` SPP are excluded)
+- `transaksi` and `spp` are newest-first, capped at 500 rows; `kas` and `sppStatus` always cover all transactions (`kas.terpotong` = list was capped)
+- `spp` = expense transactions with status `pending`/`approved`/`rejected` (direct `verified` expenses are not SPP)
+- No caching: data is read fresh on every request
 
 ---
 
@@ -433,7 +442,7 @@ All endpoints return consistent error responses:
 ```
 
 ## Caching
-The summary endpoint uses a 5-minute cache per village and year to optimize performance.
+The summary endpoint is not cached. A per-process in-memory cache was removed because production runs multiple PM2 workers, so invalidation on one worker left the others serving stale data.
 
 ## Data Aggregation
 The summary endpoint automatically:

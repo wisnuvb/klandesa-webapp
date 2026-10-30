@@ -1,3 +1,7 @@
+/** Ambang status skor goal (dipakai mesin penilaian dan teks UI). */
+export const SDG_GOOD_MIN = 70;
+export const SDG_ATTENTION_BELOW = 45;
+
 export type VillageRawMetrics = {
   totalResidents: number;
   femaleCount: number;

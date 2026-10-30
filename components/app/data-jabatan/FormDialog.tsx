@@ -23,13 +23,25 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+
+export type JabatanFormTarget = {
+  id: number;
+  name: string;
+  level: number;
+  description: string | null;
+  salary: number | null;
+  allowance: number | null;
+  isActive: boolean;
+};
 
 interface FormDialogProps {
   showFormDialog: boolean;
   setShowFormDialog: (value: boolean) => void;
+  /** Bila diisi, dialog berada dalam mode ubah; bila kosong, mode tambah. */
+  jabatan?: JabatanFormTarget | null;
   onSuccess?: () => void;
 }
 
@@ -42,55 +54,76 @@ type FormValues = {
   isActive: string;
 };
 
+const EMPTY_VALUES: FormValues = {
+  name: "",
+  level: "3",
+  description: "",
+  salary: "",
+  allowance: "",
+  isActive: "true",
+};
+
+function toFormValues(jabatan?: JabatanFormTarget | null): FormValues {
+  if (!jabatan) return EMPTY_VALUES;
+  return {
+    name: jabatan.name,
+    level: String(jabatan.level),
+    description: jabatan.description ?? "",
+    salary: jabatan.salary == null ? "" : String(jabatan.salary),
+    allowance: jabatan.allowance == null ? "" : String(jabatan.allowance),
+    isActive: jabatan.isActive ? "true" : "false",
+  };
+}
+
 export const FormDialog: React.FC<FormDialogProps> = ({
   showFormDialog,
   setShowFormDialog,
+  jabatan,
   onSuccess,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const isEdit = Boolean(jabatan);
 
-  const form = useForm<FormValues>({
-    defaultValues: {
-      name: "",
-      level: "3",
-      description: "",
-      salary: "",
-      allowance: "",
-      isActive: "true",
-    },
-  });
+  const form = useForm<FormValues>({ defaultValues: EMPTY_VALUES });
+
+  // Isi ulang setiap dialog dibuka agar tidak membawa sisa input/edit sebelumnya.
+  useEffect(() => {
+    if (showFormDialog) form.reset(toFormValues(jabatan));
+  }, [showFormDialog, jabatan, form]);
 
   const onSubmit = async (values: FormValues) => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/positions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: values.name,
-          level: values.level,
-          description: values.description,
-          salary: values.salary || null,
-          allowance: values.allowance || null,
-          isActive: values.isActive === "true",
-        }),
-      });
+      const response = await fetch(
+        isEdit ? `/api/positions/${jabatan!.id}` : "/api/positions",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: values.name,
+            level: values.level,
+            description: values.description,
+            salary: values.salary || null,
+            allowance: values.allowance || null,
+            isActive: values.isActive === "true",
+          }),
+        },
+      );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Gagal menambahkan jabatan");
+        const error: { error?: string } | null = await response
+          .json()
+          .catch(() => null);
+        throw new Error(
+          error?.error ||
+            (isEdit ? "Gagal memperbarui jabatan" : "Gagal menambahkan jabatan"),
+        );
       }
 
-      toast.success("Jabatan berhasil ditambahkan");
+      toast.success(
+        isEdit ? "Jabatan berhasil diperbarui" : "Jabatan berhasil ditambahkan",
+      );
       setShowFormDialog(false);
-      form.reset({
-        name: "",
-        level: "3",
-        description: "",
-        salary: "",
-        allowance: "",
-        isActive: "true",
-      });
       onSuccess?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Terjadi kesalahan";
@@ -101,12 +134,20 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   };
 
   return (
-    <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
+    <Dialog
+      open={showFormDialog}
+      onOpenChange={(open) => {
+        // Cegah tertutup (Esc/klik luar) saat simpan berjalan agar hasil tidak hilang tanpa umpan balik.
+        if (!isLoading) setShowFormDialog(open);
+      }}
+    >
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Tambah Jabatan</DialogTitle>
+          <DialogTitle>{isEdit ? "Ubah Jabatan" : "Tambah Jabatan"}</DialogTitle>
           <DialogDescription>
-            Masukkan detail jabatan perangkat desa baru.
+            {isEdit
+              ? "Perbarui detail jabatan perangkat desa."
+              : "Masukkan detail jabatan perangkat desa baru."}
           </DialogDescription>
         </DialogHeader>
 
@@ -192,7 +233,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                   <FormItem>
                     <FormLabel>Gaji Pokok (Rp)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0" {...field} />
+                      <Input type="number" min={0} inputMode="numeric" placeholder="0" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -206,7 +247,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                   <FormItem>
                     <FormLabel>Tunjangan (Rp)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0" {...field} />
+                      <Input type="number" min={0} inputMode="numeric" placeholder="0" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -249,7 +290,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                 Batal
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Menyimpan..." : "Simpan"}
+                {isLoading ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Simpan"}
               </Button>
             </div>
           </form>

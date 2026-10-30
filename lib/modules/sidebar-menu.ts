@@ -82,13 +82,12 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
 
 const GROUP_ICONS: Record<string, LucideIcon> = {
   kependudukan: Users,
-  "profil-ekonomi": Landmark,
-  "layanan-surat": FileText,
-  "portal-warga": Megaphone,
-  operasional: Clock,
+  pemerintahan: Landmark,
+  "surat-arsip": FileText,
+  ekonomi: Store,
+  komunikasi: Megaphone,
+  program: HeartHandshake,
   perencanaan: Target,
-  integrasi: MapIcon,
-  promosi: Archive,
   pengaturan: Settings2,
 };
 

@@ -4,9 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   BelanjaItem,
+  KasSummary,
   KeuanganTab,
   PendapatanItem,
   SPPItem,
+  SppStatusCount,
   TransaksiKasItem,
   TrendItem,
   ApbdesData,
@@ -34,6 +36,8 @@ type KeuanganTabsProps = {
   totalPemasukan: number;
   totalPengeluaran: number;
   saldoKas: number;
+  kas: KasSummary;
+  sppStatus: SppStatusCount;
 
   onOpenPendapatanDialog: () => void;
   onOpenBelanjaDialog: () => void;
@@ -63,6 +67,8 @@ export function KeuanganTabs(props: KeuanganTabsProps) {
     totalPemasukan,
     totalPengeluaran,
     saldoKas,
+    kas,
+    sppStatus,
     onOpenPendapatanDialog,
     onOpenBelanjaDialog,
     onOpenBelanjaDetail,
@@ -120,6 +126,8 @@ export function KeuanganTabs(props: KeuanganTabsProps) {
               totalPemasukan={totalPemasukan}
               totalPengeluaran={totalPengeluaran}
               saldoKas={saldoKas}
+              jumlahTransaksi={kas.jumlahTransaksi}
+              terpotong={kas.terpotong}
               transaksiKas={transaksiKas}
               onOpenTransaksiDialog={onOpenTransaksiDialog}
               onOpenDetail={onOpenTransaksiDetail}
@@ -129,6 +137,7 @@ export function KeuanganTabs(props: KeuanganTabsProps) {
           <TabsContent value="spp">
             <SppTab
               sppData={sppData}
+              statusCount={sppStatus}
               onCreate={onOpenSppDialog}
               onOpenDetail={onOpenSppDetail}
               onOpenConfirm={onOpenSppConfirm}

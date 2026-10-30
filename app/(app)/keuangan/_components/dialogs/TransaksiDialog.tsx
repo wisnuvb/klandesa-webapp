@@ -4,6 +4,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CheckCircle,
+  Loader2,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,10 +35,12 @@ type TransaksiDialogProps = {
   formTransaksi: TransaksiFormState;
   onChange: (field: keyof TransaksiFormState, value: string) => void;
   onSave: () => Promise<void>;
+  isSubmitting: boolean;
 };
 
 export function TransaksiDialog(props: TransaksiDialogProps) {
-  const { open, onOpenChange, transaksiMode, formTransaksi, onChange, onSave } = props;
+  const { open, onOpenChange, transaksiMode, formTransaksi, onChange, onSave, isSubmitting } =
+    props;
 
   const kategoriList =
     formTransaksi.jenis === "masuk" ? kategoriTransaksiMasuk : kategoriTransaksiKeluar;
@@ -180,13 +183,26 @@ export function TransaksiDialog(props: TransaksiDialogProps) {
             <Button
               className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
               onClick={() => void onSave()}
-              disabled={!formTransaksi.kategori || !formTransaksi.uraian || !formTransaksi.jumlah}
+              disabled={
+                isSubmitting ||
+                !formTransaksi.kategori ||
+                !formTransaksi.uraian ||
+                !formTransaksi.jumlah
+              }
             >
-              <CheckCircle className="h-4 w-4" />
-              {transaksiMode === "create" ? "Simpan Transaksi" : "Update Transaksi"}
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4" />
+              )}
+              {isSubmitting
+                ? "Menyimpan..."
+                : transaksiMode === "create"
+                  ? "Simpan Transaksi"
+                  : "Update Transaksi"}
             </Button>
             <Button
-              variant="destructive"
+              variant="outline"
               className="flex-1 gap-2"
               onClick={() => onOpenChange(false)}
             >

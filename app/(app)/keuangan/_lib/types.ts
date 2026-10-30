@@ -36,6 +36,8 @@ export type TransaksiKasItem = {
   id: number;
   tanggal: string;
   kode: string;
+  /** Nomor bukti/SPP yang diinput pengguna (default = kode). */
+  referensi: string;
   uraian: string;
   jenis: "masuk" | "keluar";
   jumlah: number;
@@ -56,8 +58,26 @@ export type SPPItem = {
 
 export type TrendItem = { bulan: string; pendapatan: number; belanja: number };
 
+export type KasSummary = {
+  totalPemasukan: number;
+  totalPengeluaran: number;
+  saldo: number;
+  jumlahTransaksi: number;
+  /** true bila daftar transaksi dipotong; total & saldo tetap mencakup semua transaksi. */
+  terpotong: boolean;
+};
+
+export type SppStatusCount = {
+  approved: number;
+  pending: number;
+  rejected: number;
+  total: number;
+};
+
 export type FinanceResponse = {
   apbdes: ApbdesData;
+  kas: KasSummary;
+  sppStatus: SppStatusCount;
   pendapatan: PendapatanItem[];
   belanja: BelanjaItem[];
   transaksi: TransaksiKasItem[];

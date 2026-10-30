@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React from "react";
@@ -22,17 +21,28 @@ import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 import { KlandesaLogo } from "./KlandesaLogo";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
+import { loginErrorMessage } from "@/lib/login-error";
 
 interface LoginModalProps {
   onClose: () => void;
+  /** Tutup modal login lalu buka formulir pendaftaran. */
+  onRegisterClick?: () => void;
+  /** Tutup modal login lalu buka formulir kontak (bantuan reset password). */
+  onContactClick?: () => void;
 }
 
-export function LoginModal({ onClose }: LoginModalProps) {
+export function LoginModal({
+  onClose,
+  onRegisterClick,
+  onContactClick,
+}: LoginModalProps) {
   const [showPassword, setShowPassword] = React.useState(false);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = React.useState(0);
+  const [error, setError] = React.useState<string | null>(null);
   const turnstileRequired = isTurnstileRequiredOnClient();
   // Initialize hook to sync NextAuth session into Redux store
   useNextAuthSession();
@@ -41,6 +51,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setError(null);
     try {
       try {
         await signOut({ redirect: false });
@@ -49,7 +60,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
       }
 
       const result = await signIn("credentials", {
-        email: username,
+        email: username.trim(),
         password,
         turnstileToken,
         redirect: false,
@@ -67,14 +78,13 @@ export function LoginModal({ onClose }: LoginModalProps) {
         window.location.href = appUrl;
         onClose?.();
       } else {
-        const message =
-          result?.error || "Gagal melakukan login. Silakan coba lagi.";
-        toast.error(message);
+        setError(loginErrorMessage(result?.error));
+        // Token Turnstile sekali pakai: minta token baru untuk percobaan berikutnya.
+        setTurnstileReset((n) => n + 1);
       }
-    } catch (error: Error | any) {
-      toast.error(
-        error?.message || "Gagal melakukan login. Silakan coba lagi.",
-      );
+    } catch {
+      setError("Gagal melakukan login. Periksa koneksi internet lalu coba lagi.");
+      setTurnstileReset((n) => n + 1);
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +125,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
           className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300 fill-mode-forwards"
           onClick={onClose}
         />
-        <div className="relative z-10 w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 fill-mode-forwards max-h-[90vh] overflow-y-auto">
+        <div className="relative z-10 w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 fill-mode-forwards max-h-[calc(100dvh-2rem)] overflow-y-auto">
           {/* Close Button */}
           <button
             onClick={onClose}
@@ -125,19 +135,19 @@ export function LoginModal({ onClose }: LoginModalProps) {
             <X className="w-6 h-6 text-gray-700" />
           </button>
 
-          <div className="grid md:grid-cols-2 min-h-[min(90vh,36rem)]">
+          <div className="grid md:grid-cols-2">
             {/* Left Side - Login Form */}
-            <div className="p-8 md:p-12 flex flex-col justify-center">
+            <div className="p-6 sm:p-8 md:p-10 flex flex-col justify-center">
               <div className="max-w-md mx-auto w-full">
                 {/* Header */}
-                <div className="mb-8">
-                  <div className="inline-flex items-center gap-2 mb-6 group">
+                <div className="mb-6">
+                  <div className="inline-flex items-center gap-2 mb-4 group">
                     <KlandesaLogo />
                   </div>
 
                   <h2
                     id="login-modal-title"
-                    className="text-3xl text-gray-900 mb-2"
+                    className="text-2xl md:text-3xl text-gray-900 mb-1"
                   >
                     Selamat Datang Kembali
                   </h2>
@@ -147,7 +157,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
                 </div>
 
                 {/* Login Form */}
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Email */}
                   <div>
                     <label
@@ -163,6 +173,14 @@ export function LoginModal({ onClose }: LoginModalProps) {
                       <input
                         type="email"
                         id="username"
+                        name="email"
+                        autoComplete="username"
+                        inputMode="email"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error ? "login-error" : undefined}
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
@@ -187,6 +205,10 @@ export function LoginModal({ onClose }: LoginModalProps) {
                       <input
                         type={showPassword ? "text" : "password"}
                         id="password"
+                        name="password"
+                        autoComplete="current-password"
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error ? "login-error" : undefined}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none"
@@ -196,7 +218,12 @@ export function LoginModal({ onClose }: LoginModalProps) {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
+                        aria-label={
+                          showPassword
+                            ? "Sembunyikan password"
+                            : "Tampilkan password"
+                        }
+                        className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-500 hover:text-gray-700"
                       >
                         {showPassword ? (
                           <EyeOff className="w-5 h-5" />
@@ -207,26 +234,32 @@ export function LoginModal({ onClose }: LoginModalProps) {
                     </div>
                   </div>
 
-                  {/* Remember & Forgot */}
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 border-gray-300 rounded text-[#0d9488] focus:ring-[#0d9488]"
-                      />
-                      <span className="text-sm text-gray-600 group-hover:text-gray-900">
-                        Ingat saya
-                      </span>
-                    </label>
-                    <a
-                      href="#"
-                      className="text-sm text-[#0d9488] hover:text-[#0f766e] transition-colors"
+                  {/* Lupa password: belum ada alur reset mandiri di web, arahkan ke bantuan */}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={onContactClick}
+                      className="text-sm text-[#0d9488] hover:text-[#0f766e] transition-colors py-1"
                     >
                       Lupa password?
-                    </a>
+                    </button>
                   </div>
 
-                  <TurnstileWidget className="pt-1" onToken={setTurnstileToken} />
+                  <TurnstileWidget
+                    className="pt-1"
+                    onToken={setTurnstileToken}
+                    resetSignal={turnstileReset}
+                  />
+
+                  {error && (
+                    <p
+                      id="login-error"
+                      role="alert"
+                      className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700"
+                    >
+                      {error}
+                    </p>
+                  )}
 
                   {/* Submit Button */}
                   <button
@@ -238,8 +271,16 @@ export function LoginModal({ onClose }: LoginModalProps) {
                     className="w-full bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white py-3.5 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <span>{isSubmitting ? "Memproses…" : "Masuk"}</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                    />
                   </button>
+                  {turnstileRequired && !turnstileToken && !isSubmitting && (
+                    <p className="text-center text-xs text-gray-500" aria-live="polite">
+                      Menunggu verifikasi keamanan…
+                    </p>
+                  )}
                 </form>
 
                 {/* Divider */}
@@ -262,14 +303,15 @@ export function LoginModal({ onClose }: LoginModalProps) {
               </div> */}
 
                 {/* Sign Up Link */}
-                <p className="mt-6 text-center text-sm text-gray-600">
+                <p className="mt-5 text-center text-sm text-gray-600">
                   Belum punya akun?{" "}
-                  <a
-                    href="#"
+                  <button
+                    type="button"
+                    onClick={onRegisterClick}
                     className="text-[#0d9488] hover:text-[#0f766e] transition-colors"
                   >
                     Daftar sekarang
-                  </a>
+                  </button>
                 </p>
               </div>
             </div>

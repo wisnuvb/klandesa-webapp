@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash2, Users } from "lucide-react";
+import { Edit, Loader2, Trash2, Users } from "lucide-react";
 import type { Jabatan } from "../_lib/types";
 import {
   formatCurrency,
@@ -20,10 +20,13 @@ import {
 type JabatanTableCardProps = {
   isLoading: boolean;
   rows: Jabatan[];
+  deletingId: number | null;
+  onEdit: (jabatan: Jabatan) => void;
+  onDelete: (jabatan: Jabatan) => void;
 };
 
 export function JabatanTableCard(props: JabatanTableCardProps) {
-  const { isLoading, rows } = props;
+  const { isLoading, rows, deletingId, onEdit, onDelete } = props;
 
   return (
     <Card>
@@ -69,55 +72,83 @@ export function JabatanTableCard(props: JabatanTableCardProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((jabatan, index) => (
-                  <TableRow key={jabatan.id} className="hover:bg-muted/50">
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell className="font-medium">{jabatan.name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-md">
-                      {jabatan.description || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getLevelBadgeVariant(jabatan.level)}>
-                        {getLevelName(jabatan.level)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {formatCurrency(jabatan.salary)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {formatCurrency(jabatan.allowance)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="gap-1">
-                        <Users className="h-3 w-3" />
-                        {jabatan.total_staff}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={jabatan.isActive ? "default" : "secondary"}>
-                        {jabatan.isActive ? "Aktif" : "Tidak Aktif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-amber-600 hover:text-amber-600 hover:bg-amber-50"
+                rows.map((jabatan, index) => {
+                  const isDeleting = deletingId === jabatan.id;
+                  return (
+                    <TableRow
+                      key={jabatan.id}
+                      className="hover:bg-muted/50"
+                      aria-busy={isDeleting}
+                    >
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className="font-medium">
+                        {jabatan.name}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-md">
+                        {jabatan.description || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getLevelBadgeVariant(jabatan.level)}>
+                          {getLevelName(jabatan.level)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatCurrency(jabatan.salary)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatCurrency(jabatan.allowance)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="gap-1">
+                          <Users className="h-3 w-3" />
+                          {jabatan.total_staff}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={jabatan.isActive ? "default" : "secondary"}
                         >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          {jabatan.isActive ? "Aktif" : "Tidak Aktif"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-amber-600 hover:text-amber-600 hover:bg-amber-50"
+                            aria-label={`Ubah jabatan ${jabatan.name}`}
+                            title="Ubah"
+                            disabled={deletingId !== null}
+                            onClick={() => onEdit(jabatan)}
+                          >
+                            <Edit className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            aria-label={`Hapus jabatan ${jabatan.name}`}
+                            title="Hapus"
+                            disabled={deletingId !== null}
+                            onClick={() => onDelete(jabatan)}
+                          >
+                            {isDeleting ? (
+                              <Loader2
+                                className="h-4 w-4 animate-spin"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -138,4 +169,3 @@ export function JabatanTableCard(props: JabatanTableCardProps) {
     </Card>
   );
 }
-

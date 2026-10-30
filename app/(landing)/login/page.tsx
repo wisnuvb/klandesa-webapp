@@ -7,6 +7,7 @@ import { Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 import { getSession, signIn, signOut } from "next-auth/react";
+import { loginErrorMessage } from "@/lib/login-error";
 
 function LandingLoginContent() {
   const searchParams = useSearchParams();
@@ -18,6 +19,7 @@ function LandingLoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const turnstileRequired = isTurnstileRequiredOnClient();
 
   const isFormInvalid = useMemo(
@@ -51,7 +53,8 @@ function LandingLoginContent() {
       });
 
       if (!result?.ok) {
-        setError(result?.error || "Login gagal. Periksa email dan password Anda.");
+        setError(loginErrorMessage(result?.error));
+        setTurnstileReset((n) => n + 1);
         return;
       }
 
@@ -77,6 +80,7 @@ function LandingLoginContent() {
       window.location.assign(appUrl);
     } catch {
       setError("Terjadi kesalahan saat login. Silakan coba lagi.");
+      setTurnstileReset((n) => n + 1);
     } finally {
       setLoading(false);
     }
@@ -166,9 +170,13 @@ function LandingLoginContent() {
               </div>
             </div>
 
-            {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+            {error && (
+              <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
 
-            <TurnstileWidget onToken={setTurnstileToken} />
+            <TurnstileWidget onToken={setTurnstileToken} resetSignal={turnstileReset} />
 
             <button
               type="submit"

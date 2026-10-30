@@ -12,6 +12,7 @@ import { HeaderSection } from "./_components/HeaderSection";
 import { KeuanganTabs } from "./_components/KeuanganTabs";
 import { SummaryCards } from "./_components/SummaryCards";
 import { useKeuangan } from "./_hooks/useKeuangan";
+import { downloadBukuKasCsv } from "./_lib/export";
 import { AsyncState } from "@/components/app/patterns";
 import { SdgTagsManager } from "@/components/app/finance/SdgTagsManager";
 
@@ -26,8 +27,20 @@ export default function KeuanganPage() {
       loadingMessage="Memuat data keuangan..."
     >
     <div className="space-y-6">
-      <HeaderSection selectedYear={k.selectedYear} setSelectedYear={k.setSelectedYear} />
+      <HeaderSection
+        selectedYear={k.selectedYear}
+        yearOptions={k.yearOptions}
+        setSelectedYear={k.setSelectedYear}
+        onExport={() => downloadBukuKasCsv(k.transaksiKas, k.selectedYear)}
+        canExport={k.transaksiKas.length > 0}
+      />
 
+      <div
+        className={`space-y-6 transition-opacity ${
+          k.refreshing ? "pointer-events-none opacity-60" : ""
+        }`}
+        aria-busy={k.refreshing}
+      >
       <SummaryCards
         apbdesData={k.apbdesData}
         persentaseRealisasiPendapatan={k.persentaseRealisasiPendapatan}
@@ -35,7 +48,11 @@ export default function KeuanganPage() {
         saldoKas={k.saldoKas}
       />
 
-      <SdgTagsManager defaultYear={Number(k.selectedYear)} compact />
+      <SdgTagsManager
+        key={k.selectedYear}
+        defaultYear={Number(k.selectedYear)}
+        compact
+      />
 
       <KeuanganTabs
         activeTab={k.activeTab}
@@ -51,6 +68,8 @@ export default function KeuanganPage() {
         totalPemasukan={k.totalPemasukan}
         totalPengeluaran={k.totalPengeluaran}
         saldoKas={k.saldoKas}
+        kas={k.kas}
+        sppStatus={k.sppStatus}
         onOpenPendapatanDialog={() => k.setShowPendapatanDialog(true)}
         onOpenBelanjaDialog={() => k.setShowBelanjaDialog(true)}
         onOpenBelanjaDetail={(belanja) => {
@@ -69,6 +88,7 @@ export default function KeuanganPage() {
         }}
         onOpenSppConfirm={k.handleOpenConfirmDialog}
       />
+      </div>
 
       <SppFormDialog
         open={k.showSPPDialog}
@@ -77,6 +97,7 @@ export default function KeuanganPage() {
         formSPP={k.formSPP}
         onChange={k.handleSPPChange}
         onSave={k.handleSaveSPP}
+        isSubmitting={k.isSubmitting}
       />
 
       <SppDetailDialog
@@ -95,6 +116,7 @@ export default function KeuanganPage() {
         alasanReject={k.alasanReject}
         setAlasanReject={k.setAlasanReject}
         onConfirm={k.handleConfirmAction}
+        isSubmitting={k.isSubmitting}
       />
 
       <PendapatanDialog
@@ -130,6 +152,7 @@ export default function KeuanganPage() {
         formTransaksi={k.formTransaksi}
         onChange={k.handleTransaksiChange}
         onSave={k.handleSaveTransaksi}
+        isSubmitting={k.isSubmitting}
       />
 
       <TransaksiDetailDialog

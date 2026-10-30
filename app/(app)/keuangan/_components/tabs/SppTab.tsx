@@ -4,22 +4,24 @@ import { CheckCircle, Clock, Eye, Plus, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { SPPItem } from "../../_lib/types";
+import type { SPPItem, SppStatusCount } from "../../_lib/types";
 import { formatRupiah, formatTanggalShort } from "../../_lib/formatting";
 
 type SppTabProps = {
   sppData: SPPItem[];
+  /** Hitungan dari server (mencakup semua SPP, bukan hanya baris yang ditampilkan). */
+  statusCount: SppStatusCount;
   onCreate: () => void;
   onOpenDetail: (spp: SPPItem) => void;
   onOpenConfirm: (mode: "approve" | "reject", spp: SPPItem) => void;
 };
 
 export function SppTab(props: SppTabProps) {
-  const { sppData, onCreate, onOpenDetail, onOpenConfirm } = props;
+  const { sppData, statusCount, onCreate, onOpenDetail, onOpenConfirm } = props;
 
-  const approvedCount = sppData.filter((s) => s.status === "approved").length;
-  const pendingCount = sppData.filter((s) => s.status === "pending").length;
-  const rejectedCount = sppData.filter((s) => s.status === "rejected").length;
+  const approvedCount = statusCount.approved;
+  const pendingCount = statusCount.pending;
+  const rejectedCount = statusCount.rejected;
 
   return (
     <div className="space-y-4 mt-6">
@@ -85,6 +87,13 @@ export function SppTab(props: SppTabProps) {
                 </tr>
               </thead>
               <tbody>
+                {sppData.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">
+                      Belum ada SPP pada tahun ini.
+                    </td>
+                  </tr>
+                )}
                 {sppData.map((spp) => (
                   <tr key={spp.id} className="border-t hover:bg-muted/50 transition-colors">
                     <td className="p-4 text-sm font-mono">{spp.nomor}</td>
@@ -115,7 +124,12 @@ export function SppTab(props: SppTabProps) {
                     </td>
                     <td className="p-4 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => onOpenDetail(spp)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Lihat detail ${spp.nomor}`}
+                          onClick={() => onOpenDetail(spp)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                         {spp.status === "pending" && (
@@ -124,6 +138,7 @@ export function SppTab(props: SppTabProps) {
                               variant="ghost"
                               size="sm"
                               className="text-green-600"
+                              aria-label={`Setujui ${spp.nomor}`}
                               onClick={() => onOpenConfirm("approve", spp)}
                             >
                               <CheckCircle className="h-4 w-4" />
@@ -132,6 +147,7 @@ export function SppTab(props: SppTabProps) {
                               variant="ghost"
                               size="sm"
                               className="text-red-600"
+                              aria-label={`Tolak ${spp.nomor}`}
                               onClick={() => onOpenConfirm("reject", spp)}
                             >
                               <XCircle className="h-4 w-4" />

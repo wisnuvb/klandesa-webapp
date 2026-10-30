@@ -152,7 +152,7 @@ export function PendapatanDialog(props: PendapatanDialogProps) {
               {isSubmitting ? "Menyimpan..." : "Simpan"}
             </Button>
             <Button
-              variant="destructive"
+              variant="outline"
               className="flex-1 gap-2"
               onClick={() => onOpenChange(false)}
             >

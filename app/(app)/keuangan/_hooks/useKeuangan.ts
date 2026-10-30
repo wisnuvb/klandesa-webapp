@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
@@ -8,25 +8,43 @@ import {
   parseModuleNotEntitledBody,
   type AsyncPageError,
 } from "@/lib/modules/client-error";
-import { subKategoriOptions } from "../_lib/constants";
+import { buildYearOptions, subKategoriOptions } from "../_lib/constants";
 import type {
   ApbdesData,
   BelanjaFormState,
   BelanjaItem,
   FinanceResponse,
+  KasSummary,
   KeuanganTab,
   PendapatanFormState,
   PendapatanItem,
   SPPItem,
   SppFormState,
+  SppStatusCount,
   TransaksiFormState,
   TransaksiKasItem,
   TrendItem,
 } from "../_lib/types";
 import { KEUANGAN_TABS } from "../_lib/types";
 
+/** Tanggal hari ini menurut zona waktu pengguna (bukan UTC, agar tidak mundur sehari dini hari WIB). */
 function todayIso() {
-  return new Date().toISOString().split("T")[0]!;
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+type ApiErrorBody = { error?: string; message?: string } | null;
+
+/** Pesan untuk pengguna: kode kuota dari API diganti penjelasan, bukan "RESOURCE_LIMIT_REACHED". */
+function financeErrorMessage(body: ApiErrorBody, fallback: string) {
+  if (body?.error === "RESOURCE_LIMIT_REACHED") {
+    return (
+      body.message ||
+      "Batas transaksi paket Anda sudah tercapai. Tingkatkan paket atau aktifkan add-on Keuangan di menu Langganan."
+    );
+  }
+  return body?.error || fallback;
 }
 
 function defaultApbdes(): ApbdesData {
@@ -92,14 +110,25 @@ function defaultSppForm(): SppFormState {
 export function useKeuangan() {
   const { appAlert } = useAppDialogs();
 
-  const [selectedYear, setSelectedYear] = useState("2025");
+  const [selectedYear, setSelectedYear] = useState(() =>
+    String(new Date().getFullYear()),
+  );
+  const yearOptions = useMemo(() => buildYearOptions(selectedYear), [selectedYear]);
+  // Selalu menunjuk tahun yang sedang ditampilkan, agar refetch setelah simpan tidak memakai tahun basi.
+  const yearRef = useRef(selectedYear);
   const [activeTab, setActiveTab] = usePersistedTab<KeuanganTab>(
     "keuangan",
     "overview",
     KEUANGAN_TABS,
   );
 
-  const [loading, setLoading] = useState(true);
+  // `refreshing` true selama ada muat data non-senyap; `hasLoaded` membedakan muat pertama (layar penuh)
+  // dari ganti tahun (konten tetap terpasang, hanya diredupkan).
+  const [refreshing, setRefreshing] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const submittingRef = useRef(false);
+  const loading = refreshing && !hasLoaded;
   const [error, setError] = useState<AsyncPageError | null>(null);
 
   const [apbdesData, setApbdesData] = useState<ApbdesData>(() =>
@@ -110,6 +139,19 @@ export function useKeuangan() {
   const [transaksiKas, setTransaksiKas] = useState<TransaksiKasItem[]>([]);
   const [sppData, setSppData] = useState<SPPItem[]>([]);
   const [trendKeuangan, setTrendKeuangan] = useState<TrendItem[]>([]);
+  const [kas, setKas] = useState<KasSummary>({
+    totalPemasukan: 0,
+    totalPengeluaran: 0,
+    saldo: 0,
+    jumlahTransaksi: 0,
+    terpotong: false,
+  });
+  const [sppStatus, setSppStatus] = useState<SppStatusCount>({
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+    total: 0,
+  });
 
   const [showSPPDialog, setShowSPPDialog] = useState(false);
   const [selectedSPP, setSelectedSPP] = useState<SPPItem | null>(null);
@@ -157,62 +199,116 @@ export function useKeuangan() {
     null,
   );
 
-  const fetchFinance = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      const silent = opts?.silent ?? false;
+  const fetchFinance = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
+    const year = yearRef.current;
+
+    // Request baru membatalkan yang lama: respons tahun A tidak boleh menimpa data tahun B.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const isCurrent = () => abortRef.current === controller;
+
+    if (!silent) {
+      setRefreshing(true);
+      setError(null);
+    }
+
+    try {
+      const res = await fetch(`/api/finance/summary?year=${year}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      let body: unknown = null;
       try {
-        if (!silent) setLoading(true);
-        setError(null);
-        const res = await fetch(`/api/finance/summary?year=${selectedYear}`, {
-          cache: "no-store",
-        });
+        body = await res.json();
+      } catch {
+        body = null;
+      }
+      if (!isCurrent()) return;
 
-        let body: unknown = null;
-        try {
-          body = await res.json();
-        } catch {
-          body = null;
-        }
-
-        if (!res.ok) {
-          const entitled = parseModuleNotEntitledBody(body);
-          if (entitled) {
-            setError(entitled);
-            return;
-          }
-
-          const message =
-            body &&
-            typeof body === "object" &&
-            typeof (body as { error?: string }).error === "string"
-              ? (body as { error: string }).error
-              : "Gagal memuat data keuangan";
-          setError(message);
+      if (!res.ok) {
+        const entitled = parseModuleNotEntitledBody(body);
+        if (entitled) {
+          setError(entitled);
           return;
         }
 
-        const result = body as { data: FinanceResponse };
-        setApbdesData(result.data.apbdes);
-        setPendapatanData(result.data.pendapatan);
-        setBelanjaData(result.data.belanja);
-        setTransaksiKas(result.data.transaksi);
-        setSppData(result.data.spp);
-        setTrendKeuangan(result.data.trend);
-      } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Terjadi kesalahan";
-        setError(message);
-        console.error("fetchFinance error", err);
-      } finally {
-        if (!silent) setLoading(false);
+          body &&
+          typeof body === "object" &&
+          typeof (body as { error?: string }).error === "string"
+            ? (body as { error: string }).error
+            : "Gagal memuat data keuangan";
+        if (silent) {
+          // Data sudah tersimpan; jangan ganti seluruh halaman dengan panel error.
+          toast.error(`${message}. Muat ulang halaman untuk melihat data terbaru.`);
+        } else {
+          setError(message);
+        }
+        return;
       }
-    },
-    [selectedYear],
-  );
+
+      const result = body as { data: FinanceResponse };
+      setApbdesData(result.data.apbdes);
+      setPendapatanData(result.data.pendapatan);
+      setBelanjaData(result.data.belanja);
+      setTransaksiKas(result.data.transaksi);
+      setSppData(result.data.spp);
+      setTrendKeuangan(result.data.trend);
+      setKas(result.data.kas);
+      setSppStatus(result.data.sppStatus);
+      setHasLoaded(true);
+    } catch (err) {
+      if (controller.signal.aborted || !isCurrent()) return;
+      const message =
+        err instanceof Error ? err.message : "Terjadi kesalahan";
+      console.error("fetchFinance error", err);
+      if (silent) {
+        toast.error(`${message}. Muat ulang halaman untuk melihat data terbaru.`);
+      } else {
+        setError(message);
+      }
+    } finally {
+      if (isCurrent()) setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
+    yearRef.current = selectedYear;
     void fetchFinance();
-  }, [fetchFinance]);
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, [selectedYear, fetchFinance]);
+
+  /** Setelah simpan: bila tanggal jatuh di tahun lain, pindah ke tahun itu agar data baru langsung terlihat. */
+  const refreshAfterSave = useCallback(
+    async (tanggal: string) => {
+      const savedYear = tanggal.slice(0, 4);
+      if (/^\d{4}$/.test(savedYear) && savedYear !== yearRef.current) {
+        toast.info(`Menampilkan data tahun ${savedYear} agar catatan baru terlihat.`);
+        setSelectedYear(savedYear);
+        return;
+      }
+      await fetchFinance({ silent: true });
+    },
+    [fetchFinance],
+  );
+
+  const beginSubmit = useCallback(() => {
+    if (submittingRef.current) return false;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    return true;
+  }, []);
+
+  const endSubmit = useCallback(() => {
+    submittingRef.current = false;
+    setIsSubmitting(false);
+  }, []);
 
   const persentaseRealisasiPendapatan = useMemo(() => {
     return apbdesData.totalPendapatan > 0
@@ -230,22 +326,10 @@ export function useKeuangan() {
     return apbdesData.totalPendapatan - apbdesData.totalBelanja;
   }, [apbdesData.totalBelanja, apbdesData.totalPendapatan]);
 
-  const totalPemasukan = useMemo(() => {
-    return transaksiKas
-      .filter((t) => t.jenis === "masuk")
-      .reduce((sum, t) => sum + t.jumlah, 0);
-  }, [transaksiKas]);
-
-  const totalPengeluaran = useMemo(() => {
-    return transaksiKas
-      .filter((t) => t.jenis === "keluar")
-      .reduce((sum, t) => sum + t.jumlah, 0);
-  }, [transaksiKas]);
-
-  const saldoKas = useMemo(
-    () => totalPemasukan - totalPengeluaran,
-    [totalPemasukan, totalPengeluaran],
-  );
+  // Total & saldo dihitung server dari semua transaksi sah, bukan dari baris yang dimuat di tabel.
+  const totalPemasukan = kas.totalPemasukan;
+  const totalPengeluaran = kas.totalPengeluaran;
+  const saldoKas = kas.saldo;
 
   const handlePendapatanChange = useCallback(
     (field: keyof PendapatanFormState, value: string) => {
@@ -301,8 +385,8 @@ export function useKeuangan() {
         ? `${uraianTrim} (${formPendapatan.subKategori.trim()})`
         : uraianTrim;
 
+    if (!beginSubmit()) return;
     try {
-      setIsSubmitting(true);
       const response = await fetch("/api/finance/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -317,9 +401,9 @@ export function useKeuangan() {
       });
 
       const raw = await response.text();
-      let parsed: { error?: string } = {};
+      let parsed: NonNullable<ApiErrorBody> = {};
       try {
-        parsed = raw ? (JSON.parse(raw) as { error?: string }) : {};
+        parsed = raw ? (JSON.parse(raw) as NonNullable<ApiErrorBody>) : {};
       } catch {
         parsed = {
           error:
@@ -331,25 +415,25 @@ export function useKeuangan() {
 
       if (!response.ok) {
         throw new Error(
-          parsed.error || `Gagal menyimpan (${response.status}).`,
+          financeErrorMessage(parsed, `Gagal menyimpan (${response.status}).`),
         );
       }
 
-      await fetchFinance({ silent: true });
-
+      const savedTanggal = formPendapatan.tanggal;
       setFormPendapatan(defaultPendapatanForm());
       setPendapatanFormError(null);
       setShowPendapatanDialog(false);
       toast.success("Pendapatan berhasil disimpan");
+      await refreshAfterSave(savedTanggal);
     } catch (err) {
       console.error("Error saving pendapatan:", err);
       const msg =
         err instanceof Error ? err.message : "Gagal menyimpan pendapatan";
       setPendapatanFormError(msg);
     } finally {
-      setIsSubmitting(false);
+      endSubmit();
     }
-  }, [fetchFinance, formPendapatan]);
+  }, [beginSubmit, endSubmit, refreshAfterSave, formPendapatan]);
 
   const handleBelanjaChange = useCallback(
     (field: keyof BelanjaFormState, value: string) => {
@@ -376,15 +460,17 @@ export function useKeuangan() {
       return;
     }
 
+    if (!beginSubmit()) return;
     try {
-      setIsSubmitting(true);
       const response = await fetch("/api/finance/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "expense",
           category: formBelanja.bidang,
-          description: formBelanja.keterangan,
+          description: formBelanja.subKegiatan
+            ? `${formBelanja.keterangan.trim()} (${formBelanja.subKegiatan})`
+            : formBelanja.keterangan.trim(),
           amount: parseFloat(formBelanja.jumlah),
           transactionDate: formBelanja.tanggal,
           referenceNumber: formBelanja.nomorBukti || undefined,
@@ -393,23 +479,23 @@ export function useKeuangan() {
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || "Gagal menyimpan belanja");
+        throw new Error(financeErrorMessage(result, "Gagal menyimpan belanja"));
       }
 
-      await fetchFinance({ silent: true });
-
+      const savedTanggal = formBelanja.tanggal;
       setFormBelanja(defaultBelanjaForm());
       setShowBelanjaDialog(false);
       toast.success("Belanja berhasil disimpan");
+      await refreshAfterSave(savedTanggal);
     } catch (err) {
       console.error("Error saving belanja:", err);
       void appAlert(
         err instanceof Error ? err.message : "Gagal menyimpan belanja",
       );
     } finally {
-      setIsSubmitting(false);
+      endSubmit();
     }
-  }, [appAlert, fetchFinance, formBelanja]);
+  }, [appAlert, beginSubmit, endSubmit, refreshAfterSave, formBelanja]);
 
   const handleTransaksiChange = useCallback(
     (field: keyof TransaksiFormState, value: string) => {
@@ -428,12 +514,12 @@ export function useKeuangan() {
       if (mode === "edit" && transaksi) {
         setFormTransaksi({
           id: transaksi.id,
-          tanggal: transaksi.tanggal,
+          tanggal: transaksi.tanggal.slice(0, 10),
           jenis: transaksi.jenis,
           kategori: "",
           uraian: transaksi.uraian,
           jumlah: transaksi.jumlah.toString(),
-          nomorBukti: transaksi.kode,
+          nomorBukti: transaksi.referensi,
         });
       } else {
         setFormTransaksi(defaultTransaksiForm());
@@ -457,8 +543,8 @@ export function useKeuangan() {
       return;
     }
 
+    if (!beginSubmit()) return;
     try {
-      setIsSubmitting(true);
       const url = "/api/finance/transactions";
       const method = formTransaksi.id ? "PUT" : "POST";
       const body = formTransaksi.id
@@ -488,11 +574,10 @@ export function useKeuangan() {
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || "Gagal menyimpan transaksi");
+        throw new Error(financeErrorMessage(result, "Gagal menyimpan transaksi"));
       }
 
-      await fetchFinance({ silent: true });
-
+      const savedTanggal = formTransaksi.tanggal;
       setFormTransaksi(defaultTransaksiForm());
       setShowTransaksiDialog(false);
       toast.success(
@@ -500,15 +585,16 @@ export function useKeuangan() {
           ? "Transaksi berhasil diupdate"
           : "Transaksi berhasil disimpan",
       );
+      await refreshAfterSave(savedTanggal);
     } catch (err) {
       console.error("Error saving transaksi:", err);
       void appAlert(
         err instanceof Error ? err.message : "Gagal menyimpan transaksi",
       );
     } finally {
-      setIsSubmitting(false);
+      endSubmit();
     }
-  }, [appAlert, fetchFinance, formTransaksi]);
+  }, [appAlert, beginSubmit, endSubmit, refreshAfterSave, formTransaksi]);
 
   const handleSPPChange = useCallback(
     (field: keyof SppFormState, value: string) => {
@@ -528,7 +614,7 @@ export function useKeuangan() {
         setFormSPP({
           id: spp.id,
           nomorSPP: spp.nomor,
-          tanggal: spp.tanggal,
+          tanggal: spp.tanggal.slice(0, 10),
           kegiatan: "",
           subKegiatan: "",
           uraian: spp.keperluan,
@@ -540,7 +626,7 @@ export function useKeuangan() {
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, "0");
-        const autoNomor = `SPP/${month}/${year}/001`;
+        const autoNomor = `SPP/${month}/${year}/${String(sppStatus.total + 1).padStart(3, "0")}`;
         setFormSPP({
           id: null,
           nomorSPP: autoNomor,
@@ -555,7 +641,7 @@ export function useKeuangan() {
       }
       setShowSPPDialog(true);
     },
-    [],
+    [sppStatus.total],
   );
 
   const handleSaveSPP = useCallback(async () => {
@@ -576,15 +662,17 @@ export function useKeuangan() {
       return;
     }
 
+    if (!beginSubmit()) return;
     try {
-      setIsSubmitting(true);
       const response = await fetch("/api/finance/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "expense",
           category: formSPP.kegiatan,
-          description: formSPP.uraian,
+          description: formSPP.subKegiatan
+            ? `${formSPP.uraian.trim()} (${formSPP.subKegiatan})`
+            : formSPP.uraian.trim(),
           amount: parseFloat(formSPP.jumlah),
           transactionDate: formSPP.tanggal,
           referenceNumber: formSPP.nomorSPP,
@@ -594,21 +682,21 @@ export function useKeuangan() {
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || "Gagal menyimpan SPP");
+        throw new Error(financeErrorMessage(result, "Gagal menyimpan SPP"));
       }
 
-      await fetchFinance({ silent: true });
-
+      const savedTanggal = formSPP.tanggal;
       setFormSPP(defaultSppForm());
       setShowSPPDialog(false);
       toast.success("SPP berhasil diajukan");
+      await refreshAfterSave(savedTanggal);
     } catch (err) {
       console.error("Error saving SPP:", err);
       void appAlert(err instanceof Error ? err.message : "Gagal menyimpan SPP");
     } finally {
-      setIsSubmitting(false);
+      endSubmit();
     }
-  }, [appAlert, fetchFinance, formSPP]);
+  }, [appAlert, beginSubmit, endSubmit, refreshAfterSave, formSPP]);
 
   const handleOpenConfirmDialog = useCallback(
     (mode: "approve" | "reject", spp: SPPItem) => {
@@ -628,8 +716,8 @@ export function useKeuangan() {
       return;
     }
 
+    if (!beginSubmit()) return;
     try {
-      setIsSubmitting(true);
       const response = await fetch("/api/finance/spp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -641,25 +729,39 @@ export function useKeuangan() {
       });
 
       if (!response.ok) {
-        throw new Error(`Gagal ${confirmMode} SPP`);
+        const body = (await response.json().catch(() => null)) as ApiErrorBody;
+        throw new Error(
+          financeErrorMessage(
+            body,
+            `Gagal ${confirmMode === "approve" ? "menyetujui" : "menolak"} SPP`,
+          ),
+        );
       }
-
-      await fetchFinance({ silent: true });
 
       setShowConfirmDialog(false);
       setShowDetailSPPDialog(false);
       setAlasanReject("");
+      toast.success(
+        confirmMode === "approve" ? "SPP disetujui" : "SPP ditolak",
+      );
+      await fetchFinance({ silent: true });
     } catch (err) {
       console.error(`Error ${confirmMode} SPP:`, err);
-      void appAlert(`Gagal ${confirmMode} SPP`);
+      void appAlert(
+        err instanceof Error
+          ? err.message
+          : `Gagal ${confirmMode === "approve" ? "menyetujui" : "menolak"} SPP`,
+      );
     } finally {
-      setIsSubmitting(false);
+      endSubmit();
     }
-  }, [alasanReject, appAlert, confirmMode, fetchFinance, selectedSPP]);
+  }, [alasanReject, appAlert, beginSubmit, confirmMode, endSubmit, fetchFinance, selectedSPP]);
 
   return {
     selectedYear,
     setSelectedYear,
+    yearOptions,
+    refreshing,
     activeTab,
     setActiveTab,
     loading,
@@ -678,6 +780,8 @@ export function useKeuangan() {
     totalPemasukan,
     totalPengeluaran,
     saldoKas,
+    kas,
+    sppStatus,
 
     fetchFinance,
 

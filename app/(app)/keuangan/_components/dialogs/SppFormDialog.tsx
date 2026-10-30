@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,10 +29,11 @@ type SppFormDialogProps = {
   formSPP: SppFormState;
   onChange: (field: keyof SppFormState, value: string) => void;
   onSave: () => Promise<void>;
+  isSubmitting: boolean;
 };
 
 export function SppFormDialog(props: SppFormDialogProps) {
-  const { open, onOpenChange, sppMode, formSPP, onChange, onSave } = props;
+  const { open, onOpenChange, sppMode, formSPP, onChange, onSave, isSubmitting } = props;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -183,6 +184,7 @@ export function SppFormDialog(props: SppFormDialogProps) {
               className="flex-1 gap-2"
               onClick={() => void onSave()}
               disabled={
+                isSubmitting ||
                 !formSPP.kegiatan ||
                 !formSPP.subKegiatan ||
                 !formSPP.uraian ||
@@ -190,8 +192,16 @@ export function SppFormDialog(props: SppFormDialogProps) {
                 !formSPP.kodeRekening
               }
             >
-              <CheckCircle className="h-4 w-4" />
-              {sppMode === "create" ? "Simpan SPP" : "Update SPP"}
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4" />
+              )}
+              {isSubmitting
+                ? "Menyimpan..."
+                : sppMode === "create"
+                  ? "Simpan SPP"
+                  : "Update SPP"}
             </Button>
             <Button
               variant="outline"

@@ -45,7 +45,7 @@ type SdgsData = {
 
 function scoreBadge(score: number | null) {
   if (score == null) return <Badge variant="outline">—</Badge>;
-  if (score >= 70) return <Badge className="bg-green-600">Baik</Badge>;
+  if (score >= 70) return <Badge className="bg-green-700 text-white">Baik</Badge>;
   if (score >= 45) return <Badge variant="secondary">Sedang</Badge>;
   return <Badge variant="destructive">Rendah</Badge>;
 }

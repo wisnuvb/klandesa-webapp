@@ -4,9 +4,18 @@ import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import {
-  FINANCE_SUMMARY_CACHE_MS,
-  financeSummaryCache,
-} from "@/lib/finance/summary-cache";
+  isCountedTransactionStatus,
+  isSppFlowStatus,
+} from "@/lib/finance/transaction-status";
+import { classifyExpense, classifyIncome } from "@/lib/finance/taxonomy";
+import {
+  budgetsToGroups,
+  groupTransactions,
+  mergeRealisasi,
+} from "@/lib/finance/summary-groups";
+
+/** Batas baris yang dikirim ke tabel (terbaru dulu). Total & saldo tetap dihitung dari SEMUA transaksi. */
+const MAX_LIST_ROWS = 500;
 
 interface ApbdesData {
   tahun: number;
@@ -44,6 +53,8 @@ interface TransaksiKasItem {
   id: number;
   tanggal: string;
   kode: string;
+  /** Nomor bukti/SPP yang diinput pengguna (default = kode). */
+  referensi: string;
   uraian: string;
   jenis: "masuk" | "keluar";
   jumlah: number;
@@ -68,8 +79,25 @@ interface TrendItem {
   belanja: number;
 }
 
+interface KasSummary {
+  totalPemasukan: number;
+  totalPengeluaran: number;
+  saldo: number;
+  jumlahTransaksi: number;
+  terpotong: boolean;
+}
+
+interface SppStatusCount {
+  approved: number;
+  pending: number;
+  rejected: number;
+  total: number;
+}
+
 interface FinanceResponse {
   apbdes: ApbdesData;
+  kas: KasSummary;
+  sppStatus: SppStatusCount;
   pendapatan: PendapatanItem[];
   belanja: BelanjaItem[];
   transaksi: TransaksiKasItem[];
@@ -110,16 +138,6 @@ export async function GET(req: NextRequest) {
       10
     );
 
-    const cacheKey = `finance-${village.id}-${year}`;
-    const cached = financeSummaryCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < FINANCE_SUMMARY_CACHE_MS) {
-      return NextResponse.json({
-        success: true,
-        data: toJSONSafe(cached.data),
-        cached: true,
-      });
-    }
-
     // Budgets for year
     const budgets = await prisma.budget.findMany({
       where: { villageId: village.id, year, status: "active" },
@@ -131,22 +149,34 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Get transactions for fallback data
+    // Semua transaksi tahun ini (tanggal disimpan sebagai UTC 00:00, jadi batas tahun juga UTC).
     const startYear = new Date(`${year}-01-01T00:00:00.000Z`);
     const endYear = new Date(`${year}-12-31T23:59:59.999Z`);
 
-    const allTransactions = await prisma.transaction.findMany({
+    const allRows = await prisma.transaction.findMany({
       where: {
         villageId: village.id,
         transactionDate: { gte: startYear, lte: endYear },
       },
+      orderBy: [{ transactionDate: "asc" }, { id: "asc" }],
       select: {
-        type: true,
-        category: true,
-        amount: true,
+        id: true,
+        transactionNumber: true,
+        referenceNumber: true,
         transactionDate: true,
+        description: true,
+        type: true,
+        amount: true,
+        status: true,
+        category: true,
       },
     });
+
+    // Realisasi, tren, dan saldo hanya dari transaksi yang benar-benar terjadi
+    // (SPP pending/ditolak tidak ikut).
+    const allTransactions = allRows.filter((t) =>
+      isCountedTransactionStatus(t.status),
+    );
 
     // Calculate totals from transactions
     const incomeFromTrans = allTransactions
@@ -197,8 +227,8 @@ export async function GET(req: NextRequest) {
     const monthlyExpense = Array.from({ length: 12 }, () => 0);
     for (const t of allTransactions) {
       const d = new Date(t.transactionDate);
-      if (d.getFullYear() !== year) continue;
-      const m = d.getMonth();
+      if (d.getUTCFullYear() !== year) continue;
+      const m = d.getUTCMonth();
       const amt = Number(t.amount ?? 0);
       if (t.type === "income") monthlyIncome[m] += amt;
       else if (t.type === "expense") monthlyExpense[m] += amt;
@@ -212,88 +242,21 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Build pendapatan items grouped by category, with subKategori from subCategory
-    const pendapatanMap = new Map<
-      string,
-      {
-        anggaran: number;
-        realisasi: number;
-        subs: Map<string, { anggaran: number; realisasi: number }>;
-      }
-    >();
-
-    for (const b of pendapatanBudgets) {
-      const cat = (b.category || "Pendapatan").trim();
-      const subCat = (b.subCategory || "Lainnya").trim();
-
-      if (!pendapatanMap.has(cat)) {
-        pendapatanMap.set(cat, {
-          anggaran: 0,
-          realisasi: 0,
-          subs: new Map(),
-        });
-      }
-      const entry = pendapatanMap.get(cat)!;
-      entry.anggaran += Number(b.budgetAmount ?? 0);
-      entry.realisasi += Number(b.realizedAmount ?? 0);
-
-      const subPrev = entry.subs.get(subCat) || { anggaran: 0, realisasi: 0 };
-      entry.subs.set(subCat, {
-        anggaran: subPrev.anggaran + Number(b.budgetAmount ?? 0),
-        realisasi: subPrev.realisasi + Number(b.realizedAmount ?? 0),
-      });
-    }
-
-    // Saat ada anggaran pendapatan, samakan realisasi dengan total transaksi pendapatan per kategori (kas)
-    if (pendapatanBudgets.length > 0) {
-      const incomeSumByCategory = new Map<string, number>();
-      for (const t of allTransactions) {
-        if (t.type !== "income") continue;
-        const cat = (t.category || "Pendapatan Lainnya").trim();
-        incomeSumByCategory.set(
-          cat,
-          (incomeSumByCategory.get(cat) || 0) + Number(t.amount ?? 0),
-        );
-      }
-      for (const [cat, sum] of incomeSumByCategory) {
-        if (!pendapatanMap.has(cat)) {
-          pendapatanMap.set(cat, {
-            anggaran: sum,
-            realisasi: sum,
-            subs: new Map([
-              ["Realisasi Kas", { anggaran: sum, realisasi: sum }],
-            ]),
-          });
-        } else {
-          const entry = pendapatanMap.get(cat)!;
-          entry.realisasi = Math.max(entry.realisasi, sum);
-        }
-      }
-    }
-
-    // If no budgets, create from transactions
-    if (pendapatanBudgets.length === 0 && incomeFromTrans > 0) {
-      const incomeByCategory = new Map<string, number>();
-      allTransactions
-        .filter((t) => t.type === "income")
-        .forEach((t) => {
-          const cat = t.category || "Pendapatan Lainnya";
-          incomeByCategory.set(
-            cat,
-            (incomeByCategory.get(cat) || 0) + Number(t.amount ?? 0)
-          );
-        });
-
-      incomeByCategory.forEach((amount, cat) => {
-        pendapatanMap.set(cat, {
-          anggaran: amount,
-          realisasi: amount,
-          subs: new Map([
-            ["Realisasi", { anggaran: amount, realisasi: amount }],
-          ]),
-        });
-      });
-    }
+    // Pendapatan: anggaran dari Budget, realisasi dari transaksi kas yang sah.
+    // Kategori dari dialog "Catat Transaksi" dipetakan ke kelompok yang sama dengan "Catat Pendapatan".
+    const pendapatanMap = budgetsToGroups(pendapatanBudgets, "Pendapatan");
+    mergeRealisasi(
+      pendapatanMap,
+      groupTransactions(
+        allTransactions
+          .filter((t) => t.type === "income")
+          .map((t) => {
+            const c = classifyIncome(t.category, t.description);
+            return { amount: t.amount, group: c.kategori, sub: c.sub };
+          }),
+      ),
+      pendapatanBudgets.length > 0,
+    );
 
     const pendapatan: PendapatanItem[] = Array.from(
       pendapatanMap.entries()
@@ -309,61 +272,20 @@ export async function GET(req: NextRequest) {
       })),
     }));
 
-    // Build belanja items grouped by category, with subItems from subCategory
-    const belanjaMap = new Map<
-      string,
-      {
-        anggaran: number;
-        realisasi: number;
-        subs: Map<string, { anggaran: number; realisasi: number }>;
-      }
-    >();
-
-    for (const b of belanjaBudgets) {
-      const cat = (b.category || "Belanja").trim();
-      const subCat = (b.subCategory || "Lainnya").trim();
-
-      if (!belanjaMap.has(cat)) {
-        belanjaMap.set(cat, {
-          anggaran: 0,
-          realisasi: 0,
-          subs: new Map(),
-        });
-      }
-      const entry = belanjaMap.get(cat)!;
-      entry.anggaran += Number(b.budgetAmount ?? 0);
-      entry.realisasi += Number(b.realizedAmount ?? 0);
-
-      const subPrev = entry.subs.get(subCat) || { anggaran: 0, realisasi: 0 };
-      entry.subs.set(subCat, {
-        anggaran: subPrev.anggaran + Number(b.budgetAmount ?? 0),
-        realisasi: subPrev.realisasi + Number(b.realizedAmount ?? 0),
-      });
-    }
-
-    // If no budgets, create from transactions
-    if (belanjaBudgets.length === 0 && expenseFromTrans > 0) {
-      const expenseByCategory = new Map<string, number>();
-      allTransactions
-        .filter((t) => t.type === "expense")
-        .forEach((t) => {
-          const cat = t.category || "Belanja Lainnya";
-          expenseByCategory.set(
-            cat,
-            (expenseByCategory.get(cat) || 0) + Number(t.amount ?? 0)
-          );
-        });
-
-      expenseByCategory.forEach((amount, cat) => {
-        belanjaMap.set(cat, {
-          anggaran: amount,
-          realisasi: amount,
-          subs: new Map([
-            ["Realisasi", { anggaran: amount, realisasi: amount }],
-          ]),
-        });
-      });
-    }
+    // Belanja: sama — transaksi keluar digabung ke bidang anggaran (juga saat APBDes ada).
+    const belanjaMap = budgetsToGroups(belanjaBudgets, "Belanja");
+    mergeRealisasi(
+      belanjaMap,
+      groupTransactions(
+        allTransactions
+          .filter((t) => t.type === "expense")
+          .map((t) => {
+            const c = classifyExpense(t.category, t.description);
+            return { amount: t.amount, group: c.bidang, sub: c.sub };
+          }),
+      ),
+      belanjaBudgets.length > 0,
+    );
 
     const COLORS = [
       "#0f766e",
@@ -392,39 +314,18 @@ export async function GET(req: NextRequest) {
       })
     );
 
-    // Transactions for year (reuse allTransactions but get full details)
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        villageId: village.id,
-        transactionDate: { gte: startYear, lte: endYear },
-      },
-      orderBy: { transactionDate: "asc" },
-      take: 100,
-      select: {
-        id: true,
-        transactionNumber: true,
-        transactionDate: true,
-        description: true,
-        type: true,
-        amount: true,
-        status: true,
-        category: true,
-      },
-    });
-
-    // Calculate running saldo
+    // Saldo berjalan dihitung dari seluruh transaksi tahun ini; baris pending/ditolak tidak mengubah saldo.
     let runningSaldo = 0;
-    const transaksi: TransaksiKasItem[] = transactions.map((t) => {
+    const withSaldo: TransaksiKasItem[] = allRows.map((t) => {
       const amount = Number(t.amount ?? 0);
-      if (t.type === "income") {
-        runningSaldo += amount;
-      } else {
-        runningSaldo -= amount;
+      if (isCountedTransactionStatus(t.status)) {
+        runningSaldo += t.type === "income" ? amount : -amount;
       }
       return {
         id: Number(t.id),
         tanggal: t.transactionDate.toISOString(),
         kode: t.transactionNumber,
+        referensi: t.referenceNumber || t.transactionNumber,
         uraian: t.description,
         jenis: t.type === "income" ? "masuk" : "keluar",
         jumlah: amount,
@@ -433,15 +334,34 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // Reverse to show newest first
-    transaksi.reverse();
+    // Terbaru dulu
+    const transaksi = withSaldo.slice().reverse().slice(0, MAX_LIST_ROWS);
 
-    // SPP derived from pending expense transactions
-    const spp: SPPItem[] = transactions
-      .filter((t) => t.type === "expense")
+    const kas: KasSummary = {
+      totalPemasukan: incomeFromTrans,
+      totalPengeluaran: expenseFromTrans,
+      saldo: runningSaldo,
+      jumlahTransaksi: allRows.length,
+      terpotong: allRows.length > MAX_LIST_ROWS,
+    };
+
+    // SPP = belanja yang melewati alur persetujuan (pending/approved/rejected), terbaru dulu.
+    const sppRows = allRows.filter(
+      (t) => t.type === "expense" && isSppFlowStatus(t.status),
+    );
+    const sppStatus: SppStatusCount = {
+      approved: sppRows.filter((t) => t.status === "approved").length,
+      pending: sppRows.filter((t) => t.status === "pending").length,
+      rejected: sppRows.filter((t) => t.status === "rejected").length,
+      total: sppRows.length,
+    };
+    const spp: SPPItem[] = sppRows
+      .slice()
+      .reverse()
+      .slice(0, MAX_LIST_ROWS)
       .map((t) => ({
         id: Number(t.id),
-        nomor: t.transactionNumber,
+        nomor: t.referenceNumber || t.transactionNumber,
         tanggal: t.transactionDate.toISOString(),
         keperluan: t.description,
         bidang: t.category,
@@ -452,18 +372,18 @@ export async function GET(req: NextRequest) {
 
     const data: FinanceResponse = {
       apbdes,
+      kas,
+      sppStatus,
       pendapatan,
       belanja,
       transaksi,
       spp,
       trend: trendFromYear,
     };
-    financeSummaryCache.set(cacheKey, { data, timestamp: Date.now() });
 
     return NextResponse.json({
       success: true,
       data: toJSONSafe(data),
-      cached: false,
     });
   } catch (err) {
     console.error("GET /api/finance/summary error:", err);

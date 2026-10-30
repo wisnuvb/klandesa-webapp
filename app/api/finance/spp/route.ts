@@ -41,12 +41,27 @@ export async function POST(req: NextRequest) {
     }
 
     const status = action === "approve" ? "approved" : "rejected";
+    const reasonText = typeof reason === "string" ? reason.trim() : "";
+    if (action === "reject" && !reasonText) {
+      return NextResponse.json(
+        { error: "Alasan penolakan harus diisi" },
+        { status: 400 },
+      );
+    }
 
     const existing = await prisma.transaction.findFirst({
       where: { id: BigInt(transactionId), villageId: village.id },
     });
     if (!existing) {
       return NextResponse.json({ error: "Transaksi tidak ditemukan" }, { status: 404 });
+    }
+
+    // Hanya SPP yang masih menunggu yang boleh diputuskan; mencegah setuju-ulang / tolak-ulang.
+    if (existing.status !== "pending") {
+      return NextResponse.json(
+        { error: "SPP ini sudah diproses dan tidak dapat diubah lagi" },
+        { status: 409 },
+      );
     }
 
     let verifiedBy: number | undefined = ctxUserId;
@@ -61,8 +76,12 @@ export async function POST(req: NextRequest) {
       where: { id: existing.id },
       data: {
         status,
+        verifiedAt: new Date(),
         ...(verifiedBy != null && Number.isFinite(verifiedBy) ? { verifiedBy } : {}),
-        ...(reason ? { description: reason } : {}),
+        // Uraian asli dipertahankan; alasan penolakan ditambahkan di belakangnya.
+        ...(action === "reject"
+          ? { description: `${existing.description} [Ditolak: ${reasonText}]` }
+          : {}),
       },
     });
 

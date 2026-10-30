@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -8,7 +9,9 @@ import {
   UserCircle,
   ChevronDown,
   ChevronRight,
-  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  CircleHelp,
   X,
   Landmark,
   HeartHandshake,
@@ -243,7 +246,7 @@ export function Sidebar({
             }
           }}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
             level > 0 && !isCollapsed && "pl-10",
             isActive &&
               !hasChildren &&
@@ -366,9 +369,14 @@ export function Sidebar({
               isCollapsed && "justify-center",
             )}
           >
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shrink-0">
-              <Home className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <Image
+              src="/brand/klandesa-icon.svg"
+              alt="Klandesa"
+              width={40}
+              height={40}
+              priority
+              className="h-10 w-10 shrink-0"
+            />
             {!isCollapsed && (
               <motion.div
                 initial={{ opacity: 0, width: 0 }}
@@ -406,59 +414,48 @@ export function Sidebar({
         <nav
           className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden space-y-1 transition-all duration-300",
-            isCollapsed ? "p-2" : "p-4",
+            isCollapsed ? "p-2" : "px-3 py-3",
           )}
         >
           {visibleMenuItems.map((item) => renderMenuItem(item))}
         </nav>
 
-        {/* Collapse Toggle Button */}
+        {/* Footer: Bantuan + Collapse dalam satu baris */}
         <div
           className={cn(
-            "border-t border-sidebar-border transition-all duration-300",
-            isCollapsed ? "p-2" : "p-4",
+            "border-t border-sidebar-border flex items-center transition-all duration-300",
+            isCollapsed ? "flex-col gap-1 p-2" : "justify-between gap-1 px-3 py-2",
           )}
         >
+          <Link
+            href="/bantuan"
+            title={`Bantuan · © ${new Date().getFullYear()} Klandesa`}
+            aria-label="Bantuan"
+            className={cn(
+              "flex items-center gap-2 rounded-lg text-sm text-muted-foreground transition-colors",
+              "hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              isCollapsed ? "h-9 w-9 justify-center" : "h-9 flex-1 px-3",
+            )}
+          >
+            <CircleHelp className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {!isCollapsed && <span>Bantuan</span>}
+          </Link>
           <Button
             variant="ghost"
+            size="icon"
             onClick={onCollapse}
-            className={cn(
-              "w-full justify-start gap-2 hidden md:flex",
-              isCollapsed && "justify-center px-2",
-            )}
-            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            className="hidden md:inline-flex h-9 w-9 shrink-0 text-muted-foreground hover:text-sidebar-foreground"
+            title={isCollapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
+            aria-label={isCollapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
           >
             {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronsRight className="h-4 w-4" />
             ) : (
-              <>
-                <ChevronLeft className="h-4 w-4" />
-                <span className="text-sm">Collapse</span>
-              </>
+              <ChevronsLeft className="h-4 w-4" />
             )}
           </Button>
         </div>
-
-        {/* Footer */}
-        {!isCollapsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="p-4 border-t border-sidebar-border"
-          >
-            <Link
-              href="/bantuan"
-              className="mb-2 block rounded-md px-2 py-1.5 text-center text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            >
-              Bantuan
-            </Link>
-            <div className="text-xs text-muted-foreground text-center">
-              © {new Date().getFullYear()} Klandesa
-            </div>
-          </motion.div>
-        )}
       </motion.aside>
     </>
   );

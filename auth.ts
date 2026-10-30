@@ -67,6 +67,9 @@ declare module "next-auth/jwt" {
   }
 }
 
+/** Error yang pesannya aman ditampilkan ke pengguna (diteruskan NextAuth sebagai `error`). */
+class AuthorizeError extends Error {}
+
 const providers: any[] = [];
 
 if (process.env.GITHUB_ID && process.env.GITHUB_SECRET) {
@@ -118,6 +121,17 @@ providers.push(
         });
 
         const data = await res.json();
+
+        // Teruskan pesan dari /api/auth/login (password salah, akun nonaktif,
+        // verifikasi keamanan gagal, dll.) agar tampil jelas di form, bukan
+        // "CredentialsSignin" yang tidak bisa dipahami pengguna.
+        if (!res.ok) {
+          throw new AuthorizeError(
+            typeof data?.error === "string" && data.error
+              ? data.error
+              : "Gagal masuk. Silakan coba lagi.",
+          );
+        }
 
         if (res.ok && data.accountType === "regional" && data.user) {
           return {
@@ -192,10 +206,13 @@ providers.push(
           };
         }
 
-        return null;
+        throw new AuthorizeError("Gagal masuk. Silakan coba lagi.");
       } catch (error) {
+        if (error instanceof AuthorizeError) throw error;
         console.error("Auth error:", error);
-        return null;
+        throw new AuthorizeError(
+          "Layanan login sedang bermasalah. Silakan coba beberapa saat lagi.",
+        );
       }
     },
   }),
