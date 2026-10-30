@@ -45,7 +45,7 @@ export function ModuleCatalog({ modules }: Props) {
         <p className="text-gray-600 max-w-3xl">
           Daftar ini sama dengan fitur di aplikasi Klandesa. Yang bertanda{" "}
           <span className="font-medium text-amber-800">{EARLY_ACCESS_LABEL}</span> masih
-          dalam tahap uji coba di desa percontohan.
+          sudah termasuk Paket Lengkap dan masih disempurnakan bersama desa pengguna.
         </p>
       </div>
 

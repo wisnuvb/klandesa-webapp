@@ -26,10 +26,9 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
     },
     {
       icon: Smartphone,
-      number: "100%",
-      label: "Akses aplikasi daring responsif lintas layar",
+      number: "3",
+      label: "Pengguna aplikasi seluler: warga, RT, dan perangkat desa",
       color: "bg-slate-600",
-      note: "(tanpa aplikasi seluler tambahan dalam janji utama)",
     },
   ];
 
@@ -78,9 +77,6 @@ export function StatsSection({ onRegisterClick }: StatsSectionProps) {
               <div className="text-base text-gray-600 group-hover:text-gray-900 transition-colors">
                 {stat.label}
               </div>
-              {"note" in stat && stat.note ? (
-                <p className="text-xs text-gray-500 mt-3">{stat.note}</p>
-              ) : null}
             </div>
           ))}
         </div>

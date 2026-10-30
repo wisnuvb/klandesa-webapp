@@ -73,7 +73,7 @@ export const MARKETING_MODULE_COPY: Partial<Record<string, string>> = {
   statistik: "Ringkasan indikator desa mendukung kebijakan dan laporan wilayah.",
   "permohonan-warga": "Alur permohonan surat daring dengan status transparan.",
   "layanan-mandiri": "Warga atau admin mengisi layanan secara mandiri dan terstruktur.",
-  "layanan-surat": "Template dan nomor surat resmi konsisten untuk desa.",
+  "layanan-surat": "Susun surat resmi langsung di lembar kertas, dengan nomor surat otomatis.",
   "pengaturan-desa": "Profil dan preferensi desa, termasuk pengaturan pertukaran data.",
   keuangan: "Kas/APBDes, transaksi, dan pelaporan keuangan dengan penanda belanja SDGs.",
   "pengumuman-desa": "Kanal komunikasi resmi antara pemdes dan masyarakat.",
@@ -81,7 +81,7 @@ export const MARKETING_MODULE_COPY: Partial<Record<string, string>> = {
   "pengaduan-masyarakat": "Aduan dapat dilacak demi akuntabilitas pelayanan.",
   "bantuan-program-keluarga": "Pencatatan penerima program sosial mendukung SDGs tanpa menyalahgunakan data.",
   "galeri-desa": "Arsip foto kegiatan desa untuk komunikasi dan transparansi.",
-  absensi: "Presensi perangkat; opsional dengan penanda lokasi kantor desa.",
+  absensi: "Presensi perangkat desa dengan QR; absensi GPS radius tersedia sebagai add-on.",
   pkk:
     "PKK Dasawisma, posyandu, dan indikator kesehatan terhubung skor SDGs (akses awal).",
   sdgs:
@@ -129,14 +129,14 @@ export function getMarketingModules(): MarketingModuleItem[] {
 
 export function getFlagshipMarketingModules(limit = 8): MarketingModuleItem[] {
   const order = [
+    "data-warga",
+    "layanan-surat",
+    "permohonan-warga",
+    "keuangan",
+    "absensi",
+    "pengaduan-masyarakat",
     "sdgs",
     "rpjmdes",
-    "keuangan",
-    "sinkronisasi-data",
-    "peta-infrastruktur",
-    "pkk",
-    "bumdes",
-    "asisten-ai",
   ];
   const all = getMarketingModules();
   const byId = new Map(all.map((m) => [m.id, m]));

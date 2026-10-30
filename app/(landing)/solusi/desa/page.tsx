@@ -18,8 +18,8 @@ const points = [
     body: "Ringkasan 18 tujuan dan peta capaian per RT/RW membantu menentukan program yang tepat sasaran bersama BPD dan warga.",
   },
   {
-    title: "Bersedia jadi desa percontohan",
-    body: "Fitur SDGs lanjutan dan Asisten AI dibuka bertahap bersama tim pendamping Klandesa—bukan dijanjikan sekaligus tanpa pelatihan.",
+    title: "Fitur akses awal sudah termasuk",
+    body: "SDGs lanjutan dan Asisten AI sudah termasuk Paket Lengkap. Keduanya masih berlabel akses awal dan disempurnakan bersama desa pengguna dengan pendampingan tim Klandesa.",
   },
 ];
 

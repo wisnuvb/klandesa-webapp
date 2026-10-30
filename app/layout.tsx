@@ -23,12 +23,14 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://klandesa.com";
 
 export const metadata: Metadata = {
   title: {
-    default: "Klandesa — Platform Operasional Desa Berbasis SDGs",
+    default: "Klandesa — Aplikasi Desa Terpadu Berbasis SDGs",
     template: "%s | Klandesa",
   },
   description:
-    "Klandesa: platform operasional desa berbasis SDGs—administrasi, RPJMDes, integrasi format Kemendesa, dan modul program warga dalam satu sistem.",
+    "Klandesa: aplikasi desa terpadu berbasis SDGs—data warga, surat, keuangan, RPJMDes, format Kemendesa, dan aplikasi seluler warga dalam satu sistem.",
   keywords: [
+    "aplikasi desa",
+    "aplikasi surat desa",
     "platform SDGs desa",
     "aplikasi desa terintegrasi",
     "digitalisasi desa",
@@ -45,23 +47,23 @@ export const metadata: Metadata = {
     locale: "id_ID",
     url: siteUrl,
     siteName: "Klandesa",
-    title: "Klandesa — Platform Operasional Desa Berbasis SDGs",
+    title: "Klandesa — Aplikasi Desa Terpadu Berbasis SDGs",
     description:
-      "Platform operasional desa berbasis SDGs—administrasi, RPJMDes, program PKK/BUMDes, integrasi dokumentasi Kemendesa, satu sistem untuk desa dan pemda.",
+      "Aplikasi desa terpadu berbasis SDGs—data warga, surat, keuangan, RPJMDes, program PKK/BUMDes, dan aplikasi seluler, satu sistem untuk desa dan pemda.",
     images: [
       {
         url: "/images/og-klandesa.png",
         width: 1200,
         height: 630,
-        alt: "Klandesa — Platform operasional desa berbasis SDGs",
+        alt: "Klandesa — Aplikasi desa terpadu berbasis SDGs",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klandesa — Platform Operasional Desa Berbasis SDGs",
+    title: "Klandesa — Aplikasi Desa Terpadu Berbasis SDGs",
     description:
-      "Administrasi sampai laporan SDGs: RPJMDes, integrasi dokumentasi Kemendesa, dan modul program dalam satu platform.",
+      "Administrasi sampai laporan SDGs: surat, keuangan, RPJMDes, format Kemendesa, dan aplikasi seluler warga dalam satu platform.",
     images: ["/images/og-klandesa.png"],
   },
   robots: {

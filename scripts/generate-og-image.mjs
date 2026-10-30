@@ -9,8 +9,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const W = 1200;
 const H = 630;
 
-const HEADLINE = ["Platform operasional desa", "berbasis SDGs"];
-const SUBLINE = "Administrasi, surat, keuangan, RPJMDes, dan laporan SDGs dalam satu sistem.";
+const HEADLINE = ["Aplikasi desa terpadu", "berbasis SDGs"];
+const SUBLINE = "Data warga, surat, keuangan, RPJMDes, dan laporan SDGs dalam satu sistem.";
 
 // Dua baris judul + garis aksen + subjudul; posisi ditulis eksplisit agar mudah disetel.
 const svg = `

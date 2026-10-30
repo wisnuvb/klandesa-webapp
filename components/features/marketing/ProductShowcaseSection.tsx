@@ -13,14 +13,14 @@ export function ProductShowcaseSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0d9488]">
-            Cuplikan antarmuka
+            Ilustrasi antarmuka
           </p>
           <h2 className="text-3xl md:text-4xl text-gray-900">
-            Cuplikan layar aplikasi
+            Gambaran tampilan aplikasi
           </h2>
           <p className="text-lg text-gray-600">
-            Gambaran tampilan unduhan Kemendesa, peta wilayah, asisten AI, dan RPJMDes—
-            supaya Anda bisa membayangkan alur kerja sebelum demo resmi.
+            Ilustrasi (bukan tangkapan layar asli) alur unduhan Kemendesa, peta wilayah, asisten AI,
+            dan RPJMDes—supaya Anda bisa membayangkan alur kerjanya.
           </p>
         </div>
 
@@ -110,10 +110,9 @@ export function ProductShowcaseSection() {
         </div>
 
         <p className="mt-12 text-center text-sm text-gray-500 max-w-2xl mx-auto">
-          Butuh foto layar tinggi atau studi lapangan wilayah tertentu? Tim produk dapat menyiapkannya bersama Anda
-          setelah jadwal demo resmi.&nbsp;
+          Ingin melihat aplikasi yang sebenarnya?&nbsp;
           <Link href="/demo" className="text-[#0d9488] font-semibold underline-offset-4 hover:underline">
-            Kunjungi halaman Demo
+            Coba akun demo
           </Link>
           .
         </p>

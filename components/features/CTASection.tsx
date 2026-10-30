@@ -26,12 +26,12 @@ export function CTASection({
         </div>
 
         <h2 className="text-4xl md:text-5xl lg:text-6xl text-white mb-6 leading-tight">
-          Mau transformasi pembangunan desa Anda?
+          Siap merapikan administrasi desa Anda?
         </h2>
 
         <p className="text-xl md:text-2xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed">
-          Ikuti program desa percontohan untuk fitur SDGs, unduhan Kemendesa, dan peta
-          pembangunan—kami jelaskan dengan jujur mana yang sudah siap pakai dan mana yang masih uji coba.
+          Coba semua fitur gratis 14 hari tanpa bayar di muka. Kami jelaskan dengan jujur
+          mana yang sudah matang dan mana yang masih berlabel akses awal.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center pb-12">
@@ -40,7 +40,7 @@ export function CTASection({
             onClick={onRegisterClick}
             className="group relative bg-white text-[#0d9488] px-8 py-4 rounded-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>Daftar / Gabung Pilot</span>
+            <span>Coba gratis 14 hari</span>
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
 
@@ -85,7 +85,7 @@ export function CTASection({
         </div>
 
         <p className="mt-10 text-white/70 text-xs max-w-xl mx-auto">
-          Persiapan awal meliputi penyesuaian hak akses per jabatan dan orientasi paket penyimpanan. Lama proses bergantung kompleksitas desa Anda.
+          Persiapan awal meliputi penyesuaian hak akses per jabatan dan impor data warga dari Excel. Lama proses bergantung kompleksitas desa Anda.
         </p>
       </div>
     </section>

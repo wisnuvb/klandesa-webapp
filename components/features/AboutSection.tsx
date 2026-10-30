@@ -37,7 +37,7 @@ export function AboutSection() {
       icon: Rocket,
       title: 'Lebih dari 30 fitur, satu aplikasi',
       description:
-        'Administrasi inti sudah siap pakai; fitur SDGs dan peta wilayah dibuka bertahap—daftar fitur di website sama dengan yang ada di aplikasi desa Anda.',
+        'Administrasi inti sudah siap pakai; SDGs dan peta wilayah masih berlabel akses awal—daftar fitur di website sama dengan yang ada di aplikasi desa Anda.',
       bgColor: 'bg-gradient-to-br from-blue-50 to-blue-100',
       iconColor: 'text-blue-600',
       borderColor: 'border-blue-400',

@@ -1,6 +1,10 @@
 import { ArrowRight, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 
+import { LENGKAP_SETUP_FEE } from "@/lib/billing/lengkap";
+
+const SETUP_FEE_LABEL = `Rp${(LENGKAP_SETUP_FEE / 1_000_000).toLocaleString("id-ID")} juta`;
+
 /** Dekoratif hero: satu lapisan absolute penuh, aksen lebih kuat di kanan. */
 function HeroBackdropDecor() {
   return (
@@ -62,62 +66,63 @@ export function HeroSection({
           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-[#0d9488]/20">
             <Target className="w-4 h-4 text-[#0d9488]" aria-hidden />
             <span className="text-sm text-gray-700">
-              Platform operasional desa • berbasis SDGs
+              Aplikasi desa terpadu • berbasis SDGs
             </span>
           </div>
 
           <h1 className="text-4xl md:text-3xl lg:text-5xl text-gray-900 leading-[1.1] tracking-tight font-extrabold flex flex-col gap-2">
-            Administrasi sampai Pelaporan
+            Aplikasi Desa dari Administrasi sampai Pelaporan
             <span className="bg-linear-to-r from-[#0d9488] via-[#0ea5e9] to-[#6366f1] bg-clip-text text-transparent animate-gradient">
-              Dalam satu platform cerdas
+              Dalam satu platform
             </span>
           </h1>
         </div>
 
         <p className="text-lg md:text-xl text-gray-600 leading-relaxed max-w-none w-full">
-          Klandesa menghubungkan surat daring, APBDes dengan penanda sasaran SDGs,
-          perencanaan RPJMDes, program PKK &amp; BUMDes, serta unduhan data dalam format
-          standar Kemendesa—dengan aturan akses yang jelas untuk perangkat desa dan pemda.
+          Klandesa menghubungkan data warga, surat daring, APBDes dengan penanda sasaran SDGs,
+          perencanaan RPJMDes, dan program PKK &amp; BUMDes—lengkap dengan aplikasi seluler untuk
+          warga, RT, dan perangkat desa, serta unduhan format Kemendesa dengan aturan akses yang jelas.
         </p>
 
         <div className="max-w-xl lg:max-w-2xl space-y-6">
           <div className="flex flex-wrap gap-3">
             <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-teal-100">
               <Sparkles className="w-4 h-4 text-amber-500" aria-hidden />
-              <span className="text-sm text-gray-700">Skor SDGs dihitung dari data operasional desa</span>
+              <span className="text-sm text-gray-700">Satu Paket Lengkap {SETUP_FEE_LABEL}, sudah termasuk tahun pertama</span>
             </div>
             <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-indigo-100">
-              <span className="text-sm text-gray-700">Unduh format Kemendesa + catatan riwayat pengiriman</span>
+              <span className="text-sm text-gray-700">Trial gratis 14 hari • semua fitur terbuka</span>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+            <button
+              type="button"
+              onClick={onRegisterClick}
+              className="group inline-flex items-center justify-center gap-2 bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-4 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer"
+            >
+              Coba gratis 14 hari
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+            </button>
             <Link
               href="/platform"
-              className="group inline-flex items-center justify-center gap-2 bg-linear-to-r from-[#0d9488] to-[#0f766e] text-white px-8 py-4 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02]"
+              className="bg-white text-gray-900 px-8 py-4 rounded-xl border border-gray-200 shadow hover:shadow-md transition-all text-center"
             >
               Lihat Platform
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <button
               type="button"
               onClick={onContactClick}
-              className="bg-white text-gray-900 px-8 py-4 rounded-xl border border-gray-200 shadow hover:shadow-md transition-all"
+              className="text-[#0d9488] font-medium px-2 py-4 hover:underline cursor-pointer"
             >
-              Konsultasi Gratis
-            </button>
-            <button
-              type="button"
-              onClick={onRegisterClick}
-              className="text-[#0d9488] font-medium px-2 py-4 hover:underline"
-            >
-              Daftar sekarang
+              Konsultasi gratis
             </button>
           </div>
 
           <div className="rounded-2xl border border-teal-100 bg-white/75 px-4 py-3 text-sm text-gray-700 max-w-md">
-            <strong className="text-[#0d9488]">Akses awal:</strong> modul seperti SDGs, RPJMDes, peta wilayah,
-            unduhan Kemendesa, dan Asisten AI dibuka bertahap untuk desa percontohan—hubungi tim kami untuk jadwalnya.
+            <strong className="text-[#0d9488]">Akses awal:</strong> SDGs, RPJMDes, peta wilayah,
+            unduhan Kemendesa, dan Asisten AI sudah termasuk Paket Lengkap; fiturnya masih
+            disempurnakan bersama desa pengguna.
           </div>
         </div>
       </div>

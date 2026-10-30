@@ -31,17 +31,18 @@ export type LandingPageSeoConfig = {
 const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   home: {
     pathname: "/",
-    title: "Klandesa — Platform Operasional Desa Berbasis SDGs",
+    title: "Klandesa — Aplikasi Desa Terpadu Berbasis SDGs",
     absoluteTitle: true,
     description:
-      "Satu sistem untuk administrasi desa, RPJMDes, program PKK/BUMDes, dashboard 18 sasaran SDGs, peta wilayah, serta export format interoperability Kemendesa.",
+      "Aplikasi desa terpadu: data warga, surat, keuangan, RPJMDes, SDGs, dan aplikasi seluler warga. Paket Lengkap Rp3,5 juta, trial gratis 14 hari.",
     keywords: [
-      "platform SDGs desa",
-      "aplikasi desa terintegrasi",
+      "aplikasi desa",
+      "sistem informasi desa",
+      "aplikasi administrasi desa",
+      "aplikasi surat desa",
       "digitalisasi desa",
       "RPJMDes digital",
-      "integrasi kemendesa",
-      "sistem informasi desa",
+      "platform SDGs desa",
       "klandesa",
     ],
     robots: "index, follow",
