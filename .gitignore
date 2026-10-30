@@ -47,3 +47,6 @@ next-env.d.ts
 *.keystore
 key.properties
 credentials.json
+
+# Cookie jar curl lokal (berisi token sesi dev) — jangan di-commit
+cookies.txt

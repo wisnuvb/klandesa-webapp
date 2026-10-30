@@ -407,14 +407,12 @@ describe("impor warga — pembantu server", () => {
     assert.ok(peak <= 4 && peak > 1, `peak=${peak}`);
     await runPool([], 4, async () => assert.fail("tidak boleh dipanggil"));
   });
-  it("pembacaan lewat readAndPlan identik dengan jalur worker (fungsi yang sama)", async () => {
+  it("readAndPlan = baca workbook + susun rencana (jalur yang dipakai dialog impor)", async () => {
     const { readAndPlan } = await import("../lib/residents-import/read-plan.ts");
     const buf = buildFixture();
     const direct = planWorkbook(readWorkbookGrids(buf));
     const viaHelper = readAndPlan(buf);
     assert.deepEqual(viaHelper.map((p) => [p.sheet.name, p.selected, p.mapping]), direct.map((p) => [p.sheet.name, p.selected, p.mapping]));
-    // hasil harus bisa di-structured-clone (syarat pengiriman dari Worker)
-    assert.equal(structuredClone(viaHelper).length, viaHelper.length);
   });
 });
 

@@ -58,7 +58,7 @@ Bentuk lama `{ residents: [...] }` masih diterima.
 
 ## Performa (data ribuan baris)
 
-- File dibaca di **Web Worker** (`read.worker.ts`); bila Worker tidak tersedia/gagal dimuat, jatuh ke thread utama.
+- File dibaca di thread utama (`readAndPlan`), didahului jeda satu tick agar indikator "Membaca file…" sempat tampil. Web Worker pernah dicoba tetapi dihapus: Turbopack (Next 16) tidak mem-bundle `new Worker(new URL(...))` untuk berkas `.ts`, sehingga di production hanya menghasilkan request gagal.
 - Penyusunan baris menyerahkan kendali ke browser tiap 2.000 baris (progress bar). Ukur di Node: 50.000 baris ±2,6 dtk.
 - Tabel review dirender per 50 baris; analisis lintas-baris (NIK ganda, KK) dihitung ulang hanya bila field kuncinya diedit.
 - Klien mengirim 1.000 baris per permintaan dan hanya kolom yang terisi (payload jauh lebih kecil).

@@ -21,7 +21,7 @@ import {
   type RowStatus,
   type SheetRole,
 } from "@/lib/residents-import";
-import { readPlanInWorker } from "@/lib/residents-import/read-in-worker";
+import { readAndPlan } from "@/lib/residents-import/read-plan";
 import type { ReportLine } from "@/lib/residents-import/template";
 
 export type Step = "upload" | "map" | "review" | "result";
@@ -113,7 +113,9 @@ export function useImportWizard(onImported?: () => void) {
     await tick();
     try {
       const buf = await file.arrayBuffer();
-      const planned = await readPlanInWorker(buf, loadSaved());
+      // Beri kesempatan browser menggambar indikator "Membaca file…" sebelum parsing (sinkron) dimulai.
+      await tick();
+      const planned = readAndPlan(buf, loadSaved());
       const usable = planned.filter((p) => p.sheet.dataRows.length > 0);
       if (usable.length === 0) {
         toast.error("File tidak berisi data. Pastikan ada baris data di bawah header.");

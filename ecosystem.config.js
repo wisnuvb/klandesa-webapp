@@ -11,6 +11,8 @@
  * Set DATABASE_URL di .env server dengan connection_limit=5
  * (8 worker × 5 ≈ 40 koneksi; sisakan quota untuk API mobile nanti).
  */
+// File CommonJS yang dimuat PM2: require() memang satu-satunya cara memuat JSON di sini.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { port } = require("./config/port.json");
 
 module.exports = {
