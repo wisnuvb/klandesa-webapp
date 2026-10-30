@@ -17,7 +17,7 @@ export function GovernanceStrip() {
             <h3 className="font-semibold text-gray-900 mb-2">Hak akses per jabatan</h3>
             <p className="text-sm text-gray-600">
               Admin desa, Kepala Desa, Sekretaris, dan staf melihat menu yang berbeda—
-              siapa mengubah apa dapat dilacak.
+              tindakan staf dan RT di aplikasi seluler tercatat di jejak audit.
             </p>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
@@ -36,8 +36,8 @@ export function GovernanceStrip() {
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">Keamanan cloud</h3>
             <p className="text-sm text-gray-600">
-              Infrastruktur online dengan praktik keamanan standar industri—
-              koneksi aman (HTTPS) dan cadangan data sesuai kebijakan operasional kami.
+              Data diakses lewat koneksi aman (HTTPS) dengan kontrol akses berbasis
+              peran, serta jejak audit untuk tindakan staf dan RT di aplikasi seluler.
             </p>
           </div>
         </div>

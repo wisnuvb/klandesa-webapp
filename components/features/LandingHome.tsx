@@ -17,6 +17,7 @@ import { ModuleHighlightStrip } from "@/components/features/marketing/ModuleHigh
 import { PilotSpotlightSection } from "@/components/features/marketing/PilotSpotlightSection";
 import { ProductShowcaseSection } from "@/components/features/marketing/ProductShowcaseSection";
 import { SdgsValueChainSection } from "@/components/features/marketing/SdgsValueChainSection";
+import { VibeCodingComparisonSection } from "@/components/features/marketing/VibeCodingComparisonSection";
 
 import type { MarketingModuleItem } from "@/lib/marketing/modules";
 import { trackReferralClient } from "@/lib/referrals/client";
@@ -54,6 +55,7 @@ export function LandingHome({
       <AboutSection />
       <BenefitsSection />
       <GovernanceStrip />
+      <VibeCodingComparisonSection onRegisterClick={openRegistration} />
       <StatsSection onRegisterClick={openRegistration} />
       <CTASection
         onRegisterClick={openRegistration}

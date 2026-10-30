@@ -145,7 +145,7 @@ const faqs = [
   {
     question: "Apakah data desa kami aman?",
     answer:
-      "Kami menerapkan praktik keamanan cloud standar: koneksi HTTPS, kontrol akses berbasis peran, cadangan berkala, serta jejak audit operasional. Kebutuhan compliance khusus dibahas bersama tim IT/wilayah Anda.",
+      "Kami menerapkan praktik keamanan cloud standar: koneksi HTTPS, kontrol akses berbasis peran, serta jejak audit tindakan staf dan RT di aplikasi seluler. Kebutuhan compliance khusus dibahas bersama tim IT/wilayah Anda.",
   },
   {
     question: "Bagaimana dengan kabupaten atau kecamatan yang ingin memantau banyak desa?",

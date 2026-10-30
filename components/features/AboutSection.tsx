@@ -19,7 +19,7 @@ export function AboutSection() {
       icon: Database,
       title: 'Hak akses per jabatan',
       description:
-        'Admin, Kepala Desa, Sekretaris, dan staf melihat menu yang berbeda—setiap tindakan tercatat agar akuntabilitas terjaga.',
+        'Admin, Kepala Desa, Sekretaris, dan staf melihat menu yang berbeda, dan tindakan staf serta RT di aplikasi seluler tercatat di jejak audit.',
       bgColor: 'bg-gradient-to-br from-orange-50 to-orange-100',
       iconColor: 'text-orange-600',
       borderColor: 'border-orange-400',
