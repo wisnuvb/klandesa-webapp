@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleLinkquCallback } from "@/lib/billing/service";
 import type { LinkquCallbackPayload } from "@/lib/linkqu";
+import { logger } from "@/lib/logger";
 
 async function parseBody(req: NextRequest): Promise<Record<string, unknown>> {
   const contentType = req.headers.get("content-type") || "";
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
+    // Pembayaran sudah masuk di LinkQu tapi aktivasi gagal: harus terlihat di log, bukan hanya jadi balasan 500.
+    logger.error({ err: error }, "[LinkQu] Callback gagal diproses");
     const message =
       error instanceof Error ? error.message : "Terjadi kesalahan server";
     return NextResponse.json({ error: message }, { status: 500 });

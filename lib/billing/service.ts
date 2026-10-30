@@ -5,6 +5,7 @@ import {
   validateArsipPurchase,
 } from "@/lib/digitalArchive/storage-limit";
 import { aiCreditPriceForCredits } from "@/lib/ai/credit-packages";
+import { AI_CREDITS_APPLIED_KEY, resolveAiCreditGrant } from "@/lib/billing/ai-credit-grant";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLinkquExpiredMinutesFromNow } from "@/lib/linkqu/datetime";
@@ -882,7 +883,7 @@ async function applyInvoiceOutcome(
           { name: string; monthlyFee: number; storageGb: number }
         >
       )[tier];
-      if (!tierInfo) return;
+      if (!tierInfo) throw new Error(`Aktivasi arsip gagal untuk ${invoice.invoiceNumber}: paket "${tier}" tidak dikenal`);
 
       // Berlangganan bulanan: kapasitas berlaku sampai masa berlaku; setelah itu kuota kembali ke kuota dasar paket.
       const existing = await tx.villageModuleSubscription.findUnique({
@@ -945,24 +946,24 @@ async function applyInvoiceOutcome(
     }
 
     if (invoice.productType === "ai_credits") {
-      const meta =
-        invoice.metadata && typeof invoice.metadata === "object"
-          ? (invoice.metadata as Record<string, unknown>)
-          : null;
-      const targetUserId = meta?.userId ? Number(meta.userId) : null;
-      const creditsToAdd = meta?.credits ? Number(meta.credits) : null;
-
-      if (
-        targetUserId &&
-        creditsToAdd != null &&
-        Number.isFinite(creditsToAdd) &&
-        creditsToAdd > 0
-      ) {
-        await tx.user.update({
-          where: { id: targetUserId },
-          data: { aiCredits: { increment: creditsToAdd } },
-        });
-      }
+      const resolved = resolveAiCreditGrant(invoice);
+      // Galat membatalkan transaksi (status tetap pending, callback dijawab 500 agar LinkQu mencoba lagi) —
+      // lebih baik terlihat gagal daripada tagihan "paid" tanpa kredit.
+      if (!resolved.ok) throw new Error(`Aktivasi kredit AI gagal untuk ${invoice.invoiceNumber}: ${resolved.error}`);
+      const { userId, credits } = resolved.grant;
+      await tx.user.update({ where: { id: userId }, data: { aiCredits: { increment: credits } } });
+      await tx.billingInvoice.update({
+        where: { id: invoice.id },
+        data: {
+          metadata: {
+            ...(typeof invoice.metadata === "object" && invoice.metadata ? (invoice.metadata as object) : {}),
+            lastCallbackAt: now.toISOString(),
+            lastCallbackStatus: src.rawStatus,
+            lastCallbackSource: src.source,
+            [AI_CREDITS_APPLIED_KEY]: now.toISOString(),
+          },
+        },
+      });
     }
 
     if (invoice.productType === "website_custom") {
