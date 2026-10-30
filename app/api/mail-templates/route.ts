@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { readJsonBody } from "@/lib/http/read-json";
 import { villageTemplateScope } from "@/lib/mail/template-access";
+import { ensureCatalogSeeded } from "@/lib/mail/ensureCatalog";
 import { TEMPLATE_LIMITS, validateTemplateInput } from "@/lib/mail/template-guard";
 
 export async function GET(req: NextRequest) {
@@ -16,6 +17,9 @@ export async function GET(req: NextRequest) {
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
+
+    // Desa lama / database yang belum disinkronkan: katalog bawaan dilengkapi di sini (sekali per proses).
+    await ensureCatalogSeeded(prisma);
 
     // Daftar ringan: tanpa dokumen (templateStructure) & contentTemplate, yang ±90% dari ukuran baris dan tidak
     // dipakai UI daftar. Hanya dokumen v2 (format lama tidak lagi dipakai); dokumen lengkap lewat GET /api/mail-templates/[id].

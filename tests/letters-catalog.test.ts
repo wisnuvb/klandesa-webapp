@@ -253,3 +253,77 @@ describe("catalogTemplates: baris seed", () => {
     assert.throws(() => buildCatalogInserts(bad), /tidak valid/);
   });
 });
+
+describe("ensureCatalog — katalog muncul tanpa skrip sinkron", () => {
+  type Call = { where: { catalogKey: string }; create: Record<string, unknown>; update: Record<string, unknown> };
+  const fakeDb = (presentKeys: string[]) => {
+    const upserts: Call[] = [];
+    const db = {
+      mailTemplate: {
+        findMany: async () => presentKeys.map((catalogKey) => ({ catalogKey })),
+        upsert: async (args: Call) => {
+          upserts.push(args);
+          return {};
+        },
+      },
+    };
+    return { db: db as unknown as import("@prisma/client").PrismaClient, upserts };
+  };
+
+  it("database kosong: semua entri dibuat sebagai katalog global aktif berformat v2", async () => {
+    const { seedMissingCatalog } = await import("../lib/mail/ensureCatalog.ts");
+    const { db, upserts } = fakeDb([]);
+    assert.equal(await seedMissingCatalog(db), TOTAL);
+    assert.equal(upserts.length, TOTAL);
+    for (const u of upserts) {
+      assert.equal(u.create.villageId, null);
+      assert.equal(u.create.isGlobal, true);
+      assert.equal(u.create.isActive, true);
+      assert.equal((u.create.templateStructure as { schemaVersion: number }).schemaVersion, 2);
+    }
+  });
+
+  it("hanya yang belum v2 yang ditulis (baris v2 tidak disentuh)", async () => {
+    const { seedMissingCatalog } = await import("../lib/mail/ensureCatalog.ts");
+    const all = getCatalogV2().map((e) => e.catalogKey);
+    const stale = ["cat_sk_domisili", "cat_pg_kk"];
+    const { db, upserts } = fakeDb(all.filter((k) => !stale.includes(k)));
+    assert.equal(await seedMissingCatalog(db), 2);
+    assert.deepEqual(upserts.map((u) => u.where.catalogKey).sort(), [...stale].sort());
+    // Baris lama dinaikkan di tempat (update), bukan diduplikasi.
+    assert.equal(upserts[0].update.isActive, true);
+  });
+
+  it("sudah lengkap: tidak menulis apa pun", async () => {
+    const { seedMissingCatalog } = await import("../lib/mail/ensureCatalog.ts");
+    const { db, upserts } = fakeDb(getCatalogV2().map((e) => e.catalogKey));
+    assert.equal(await seedMissingCatalog(db), 0);
+    assert.equal(upserts.length, 0);
+  });
+
+  it("ensureCatalogSeeded: sekali per proses saat sukses, diulang saat gagal, dan tidak pernah melempar", async () => {
+    const { ensureCatalogSeeded, resetCatalogSeedState } = await import("../lib/mail/ensureCatalog.ts");
+    resetCatalogSeedState();
+    let reads = 0;
+    const ok = { mailTemplate: { findMany: async () => (reads++, getCatalogV2().map((e) => ({ catalogKey: e.catalogKey }))), upsert: async () => ({}) } };
+    const okDb = ok as unknown as import("@prisma/client").PrismaClient;
+    await ensureCatalogSeeded(okDb);
+    await ensureCatalogSeeded(okDb);
+    assert.equal(reads, 1);
+
+    resetCatalogSeedState();
+    let fails = 0;
+    const bad = { mailTemplate: { findMany: async () => { fails++; throw new Error("db mati"); }, upsert: async () => ({}) } };
+    const badDb = bad as unknown as import("@prisma/client").PrismaClient;
+    const orig = console.error;
+    console.error = () => {};
+    try {
+      await ensureCatalogSeeded(badDb); // tidak melempar
+      await ensureCatalogSeeded(badDb); // diulang karena sebelumnya gagal
+    } finally {
+      console.error = orig;
+      resetCatalogSeedState();
+    }
+    assert.equal(fails, 2);
+  });
+});
