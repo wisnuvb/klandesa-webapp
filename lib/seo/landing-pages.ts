@@ -15,7 +15,6 @@ export type LandingPageSeoKey =
   | "karir"
   | "demo"
   | "tim"
-  | "mitraPublic"
   | "mitra-klandesa"
   | "blog";
 
@@ -25,12 +24,15 @@ export type LandingPageSeoConfig = {
   description: string;
   keywords: string[];
   robots?: string;
+  /** Judul sudah memuat merek: lewati template "%s | Klandesa" di root layout. */
+  absoluteTitle?: boolean;
 };
 
 const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   home: {
     pathname: "/",
     title: "Klandesa — Platform Operasional Desa Berbasis SDGs",
+    absoluteTitle: true,
     description:
       "Satu sistem untuk administrasi desa, RPJMDes, program PKK/BUMDes, dashboard 18 sasaran SDGs, peta wilayah, serta export format interoperability Kemendesa.",
     keywords: [
@@ -46,8 +48,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   platform: {
     pathname: "/platform",
-    title:
-      "Platform Klandesa — Modul Administrasi, SDGs, Integrasi Kemendesa & Early Access",
+    title: "Platform Klandesa — Modul Aplikasi Desa & SDGs",
     description:
       "Katalog modul aplikasi desa dari data hingga RPJMDes, dashboard SDGs, integrasi Kemendesa, GIS, dan asisten AI. Modul bertanda Early Access bersifat beta.",
     keywords: [
@@ -61,8 +62,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   platformSdgs: {
     pathname: "/platform/sdgs",
-    title:
-      "Stack SDGs Desa — Skor 18 Tujuan, RPJMDes & Tagging Keuangan | Klandesa",
+    title: "Dashboard SDGs Desa — Skor 18 Tujuan & RPJMDes",
     description:
       "Gambaran Dashboard SDGs: skor dari data operasional, RPJMDes, tagging APBDes/kas, heatmap RT/RW—pendukung keputusan yang terpisah dari validasi hukum Kemendesa.",
     keywords: [
@@ -75,8 +75,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   platformIntegrasi: {
     pathname: "/platform/integrasi",
-    title:
-      "Integrasi Kemendesa — Export Penduduk, APBDes-format, Portal SDGs, Prodeskel | Klandesa",
+    title: "Integrasi Kemendesa — Ekspor Penduduk & APBDes",
     description:
       "Adapter interoperability dengan export CSV/JSON, log audit, dan positioning jujur: bukan sync real-time tanpa akses resmi.",
     keywords: [
@@ -90,8 +89,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   solusiDesa: {
     pathname: "/solusi/desa",
-    title:
-      "Solusi untuk Desa — Operasional & SDGs dalam Satu Platform | Klandesa",
+    title: "Solusi untuk Desa — Operasional & SDGs",
     description:
       "Nilai bagi Kades, Sekdes, perangkat: administrasi satu login, PKK/BUMDes, heatmap pembangunan, dan early access untuk modul mutakhir.",
     keywords: ["aplikasi desa", "digitalisasi pemerintahan desa", "sdgs", "klandesa"],
@@ -99,8 +97,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   solusiPemda: {
     pathname: "/solusi/pemerintah-daerah",
-    title:
-      "Untuk Pemda — Tata Kelola, Export Kemendesa & Lintas Desa | Klandesa",
+    title: "Solusi untuk Pemda — Tata Kelola Lintas Desa",
     description:
       "Governance akses RBAC, export format interoperability, spasial pembangunan, akun wilayah—digitalisasi desa untuk skala kabupaten/kecamatan.",
     keywords: ["monitoring sdgs wilayah", "tata kelola aplikasi desa", "pemda", "klandesa"],
@@ -108,9 +105,9 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   harga: {
     pathname: "/harga",
-    title: "Harga Klandesa — Paket Lengkap Rp3,5 juta, tahun ke-2 Rp100 ribu/bulan",
+    title: "Harga Paket Lengkap — Rp3,5 jt, Lalu Rp100 rb/bln",
     description:
-      "Satu Paket Lengkap untuk desa: Rp3.500.000 di awal (sudah termasuk tahun pertama), lalu Rp100.000 per bulan mulai tahun ke-2. Semua fitur terbuka, trial gratis 14 hari.",
+      "Satu Paket Lengkap: Rp3.500.000 di awal (termasuk tahun pertama), lalu Rp100.000/bulan mulai tahun ke-2. Semua fitur terbuka, trial gratis 14 hari.",
     keywords: [
       "harga aplikasi desa",
       "harga klandesa",
@@ -122,7 +119,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   "harga-pangan": {
     pathname: "/harga-pangan",
-    title: "Pantau Harga Pangan — Info Harga Bapok Rata-rata per Kab/Kota",
+    title: "Pantau Harga Pangan per Kab/Kota",
     description:
       "Cek harga rata-rata bahan pokok per kab/kota, bandingkan dengan periode sebelumnya, dan lihat referensi HET/HA. Sumber data: SP2KP Kemendag.",
     keywords: [
@@ -157,8 +154,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   "cek-bantuan-program": {
     pathname: "/cek-bantuan-program",
-    title:
-      "Cek Bantuan Sosial & Program Keluarga — Catatan Desa & Arahan Resmi",
+    title: "Cek Bantuan Sosial & Program Keluarga Desa",
     description:
       "Cek ringkas status program yang dicatat Pemdes lewat Klandesa (tanpa nominal) dan temukan tautan resmi Kemensos untuk verifikasi bansos nasional.",
     keywords: [
@@ -174,7 +170,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   karir: {
     pathname: "/karir",
-    title: "Karir & Kemitraan Klandesa",
+    title: "Karir & Kemitraan",
     description:
       "Program kemitraan Klandesa untuk profesional dan komunitas yang ingin membantu digitalisasi layanan desa dengan skema kolaborasi yang jelas.",
     keywords: [
@@ -187,7 +183,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   demo: {
     pathname: "/demo",
-    title: "Demo Klandesa - Coba Simulasi Sistem Desa",
+    title: "Demo — Coba Simulasi Sistem Desa",
     description:
       "Akses akun demo Klandesa untuk mencoba alur administrasi desa, layanan warga, dan transparansi proses dalam satu dashboard.",
     keywords: [
@@ -200,7 +196,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   tim: {
     pathname: "/tim",
-    title: "Tim Klandesa — Founder & Orang di Balik Platform Desa Digital",
+    title: "Tim — Founder di Balik Platform Desa Digital",
     description:
       "Kenali Wisnu Saputro, founder Klandesa yang membangun platform digitalisasi layanan desa di Indonesia.",
     keywords: [
@@ -212,24 +208,11 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
     ],
     robots: "index, follow",
   },
-  mitraPublic: {
-    pathname: "/m",
-    title: "Digitalisasi Desa — Halaman Publik",
-    description:
-      "Halaman pendamping resmi Klandesa untuk calon konsumen desa dan pemda — digitalisasi layanan dengan pendamping lokal.",
-    keywords: [
-      "digitalisasi desa",
-      "partner desa digital",
-      "konsultan klandesa",
-      "pendamping desa",
-    ],
-    robots: "index, follow",
-  },
   "mitra-klandesa": {
     pathname: "/mitra-klandesa",
-    title: "Program Mitra Klandesa — Kemitraan Digitalisasi Desa",
+    title: "Program Mitra — Kemitraan Digitalisasi Desa",
     description:
-      "Bergabung sebagai mitra Klandesa: bagi hasil per closing, dukungan materi produk, dan fleksibilitas untuk konsultan desa, relasi pemda, atau komunitas yang memperkenalkan solusi digital desa.",
+      "Jadi mitra Klandesa: bagi hasil per closing, materi produk, dan fleksibel untuk konsultan desa, relasi pemda, atau komunitas.",
     keywords: [
       "mitra klandesa",
       "kemitraan digitalisasi desa",
@@ -241,7 +224,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   blog: {
     pathname: "/blog",
-    title: "Blog Klandesa — Artikel Digitalisasi Desa & Layanan Publik",
+    title: "Blog — Digitalisasi Desa & Layanan Publik",
     description:
       "Artikel seputar digitalisasi desa, layanan publik, administrasi pemerintahan desa, dan perkembangan produk Klandesa.",
     keywords: [
@@ -313,8 +296,11 @@ export function getLandingPageSeo(key: LandingPageSeoKey) {
 /** Untuk export `metadata` di layout server (App Router). */
 export function getLandingPageMetadata(key: LandingPageSeoKey): Metadata {
   const seo = getLandingPageSeo(key);
+  const absolute = landingPageSeoMap[key].absoluteTitle === true;
+  // OG/Twitter tidak melewati template layout, jadi merek ditambahkan di sini.
+  const shareTitle = absolute ? seo.title : `${seo.title} | Klandesa`;
   return {
-    title: seo.title,
+    title: absolute ? { absolute: seo.title } : seo.title,
     description: seo.description,
     keywords: seo.keywords,
     robots: seo.robots,
@@ -322,14 +308,15 @@ export function getLandingPageMetadata(key: LandingPageSeoKey): Metadata {
     openGraph: {
       type: "website",
       locale: "id_ID",
-      title: seo.title,
+      siteName: "Klandesa",
+      title: shareTitle,
       description: seo.description,
       url: seo.canonical,
       images: [{ url: seo.ogImage }],
     },
     twitter: {
       card: "summary_large_image",
-      title: seo.title,
+      title: shareTitle,
       description: seo.description,
       images: [seo.ogImage],
     },

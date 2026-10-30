@@ -14,7 +14,18 @@ export default function HomePage() {
     "@type": "Organization",
     name: "Klandesa",
     url: siteOrigin,
-    logo: `${siteOrigin}/images/og-klandesa.png`,
+    logo: `${siteOrigin}/brand/klandesa-logo.png`,
+    sameAs: [
+      "https://www.facebook.com/klandesacom",
+      "https://www.linkedin.com/company/klandesa",
+    ],
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: "+62-823-2033-7777",
+      contactType: "customer service",
+      areaServed: "ID",
+      availableLanguage: "id",
+    },
   };
   const websiteJsonLd = {
     "@context": "https://schema.org",

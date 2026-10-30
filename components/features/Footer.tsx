@@ -9,14 +9,10 @@ import {
   Phone,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { KlandesaLogo } from "./KlandesaLogo";
 
 export function Footer() {
-  // const navigate = useNavigate();
-  const router = useRouter();
-
   const footerSections: {
     title: string;
     links: ({ name: string; path: string; type: "route" } | { name: string; href: string; type: "hash" })[];
@@ -68,28 +64,10 @@ export function Footer() {
     { name: "Cookie Policy", path: "/cookie-policy", type: "route" },
   ];
 
-  const handleLinkClick = (link: {
-    href?: string;
-    path?: string;
-    type?: string;
-  }) => {
-    const { href, path, type } = link;
-    if (type === "route" && path) {
-      router.push(path);
-      window.scrollTo(0, 0);
-    } else if (type === "hash" && href) {
-      if (window.location.pathname !== "/") {
-        router.push("/");
-        setTimeout(() => {
-          const element = document.querySelector(href);
-          element?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
-      } else {
-        const element = document.querySelector(href);
-        element?.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  };
+  /** Tautan nyata (<a href>) agar bisa di-crawl; hash diarahkan ke beranda. */
+  const linkHref = (
+    link: { path: string } | { href: string },
+  ): string => ("path" in link ? link.path : `/${link.href}`);
 
   const socialMedia = [
     {
@@ -179,13 +157,13 @@ export function Footer() {
                   <ul className="space-y-2">
                     {section.links.map((link) => (
                       <li key={link.name}>
-                        <button
-                          onClick={() => handleLinkClick(link)}
-                          className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group cursor-pointer text-left"
+                        <Link
+                          href={linkHref(link)}
+                          className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group text-left"
                         >
                           <span className="w-0 group-hover:w-2 h-0.5 bg-[#0d9488] transition-all duration-300 rounded-full shrink-0" />
                           {link.name}
-                        </button>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -203,13 +181,13 @@ export function Footer() {
             <ul className="space-y-3">
               {companyLinks.map((link, index) => (
                 <li key={index}>
-                  <button
-                    onClick={() => handleLinkClick(link)}
-                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group cursor-pointer"
+                  <Link
+                    href={linkHref(link)}
+                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group"
                   >
                     <span className="w-0 group-hover:w-2 h-0.5 bg-[#6366f1] transition-all duration-300 rounded-full"></span>
                     {link.name}
-                  </button>
+                  </Link>
                 </li>
               ))}
             </ul>

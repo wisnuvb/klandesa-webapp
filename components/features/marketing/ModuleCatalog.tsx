@@ -39,9 +39,9 @@ export function ModuleCatalog({ modules }: Props) {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-12 md:py-16 max-w-7xl mx-auto">
       <div className="mb-10">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
           Fitur aplikasi desa
-        </h1>
+        </h2>
         <p className="text-gray-600 max-w-3xl">
           Daftar ini sama dengan fitur di aplikasi Klandesa. Yang bertanda{" "}
           <span className="font-medium text-amber-800">{EARLY_ACCESS_LABEL}</span> masih

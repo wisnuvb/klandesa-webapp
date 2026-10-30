@@ -14,7 +14,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const mainOrigin = getMainSiteOrigin();
 
   const now = new Date();
-  const urls: MetadataRoute.Sitemap = listStaticMarketingSitemapRoutes().map(
+  // /blog baru masuk sitemap bila sudah ada artikel terbit (halaman kosong = konten tipis).
+  const urls: MetadataRoute.Sitemap = listStaticMarketingSitemapRoutes()
+    .filter((route) => route.pathname !== "/blog")
+    .map(
     (route) => ({
       url: joinUrl(mainOrigin, route.pathname),
       lastModified: now,
@@ -33,6 +36,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
       orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
     });
+
+    if (posts.length > 0) {
+      urls.push({
+        url: joinUrl(mainOrigin, "/blog"),
+        lastModified: posts[0].updatedAt ?? posts[0].publishedAt ?? now,
+        changeFrequency: "weekly",
+        priority: 0.8,
+      });
+    }
 
     for (const post of posts) {
       urls.push({

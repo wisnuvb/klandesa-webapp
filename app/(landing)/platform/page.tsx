@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import { getMarketingModules } from "@/lib/marketing/modules";
 import { ModuleCatalog } from "@/components/features/marketing/ModuleCatalog";
+import { getLandingPageMetadata } from "@/lib/seo/landing-pages";
+
+// Metadata ada di page (bukan layout): title string di layout mereset template "%s | Klandesa" untuk /platform/*.
+export const metadata: Metadata = getLandingPageMetadata("platform");
 
 export default function PlatformPage() {
   const modules = getMarketingModules();

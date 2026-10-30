@@ -3,7 +3,6 @@
 import React from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import {
   DropdownMenu,
@@ -25,7 +24,6 @@ type NavItem = NavLeaf | NavGroup;
 export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
   // const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const router = useRouter();
 
   const navItems: NavItem[] = [
     { name: "Beranda", href: "/", type: "route" },
@@ -76,26 +74,11 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
     { name: "Karir", href: "/karir", type: "route" },
   ];
 
-  const handleNavClick = (href: string, type: string) => {
-    if (type === "route") {
-      // navigate(href);
-      router.push(href);
-      window.scrollTo(0, 0);
-    } else if (type === "hash") {
-      // For hash links, navigate to home first if not already there
-      if (window.location.pathname !== "/") {
-        router.push("/");
-        setTimeout(() => {
-          const element = document.querySelector(href);
-          element?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
-      } else {
-        const element = document.querySelector(href);
-        element?.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-    setIsMenuOpen(false);
-  };
+  /** Tautan nyata (<a href>) agar bisa di-crawl; hash diarahkan ke beranda. */
+  const hrefOf = (item: NavLeaf) =>
+    item.type === "hash" ? `/${item.href}` : item.href;
+
+  const closeMenu = () => setIsMenuOpen(false);
 
   const navBtnClass =
     "text-gray-700 hover:text-[#0d9488] transition-colors whitespace-nowrap rounded-lg hover:bg-gray-50 cursor-pointer text-sm font-medium px-2.5 py-2 lg:px-3";
@@ -111,7 +94,6 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
           <Link
             href="/"
             className="flex items-center group shrink-0 mr-1"
-            onClick={() => window.scrollTo(0, 0)}
           >
             <KlandesaLogo />
           </Link>
@@ -130,12 +112,8 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="min-w-52">
                       {item.children.map((c) => (
-                        <DropdownMenuItem
-                          key={c.name}
-                          onSelect={() => handleNavClick(c.href, c.type)}
-                          className="text-sm"
-                        >
-                          {c.name}
+                        <DropdownMenuItem key={c.name} asChild className="text-sm">
+                          <Link href={hrefOf(c)}>{c.name}</Link>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -144,14 +122,9 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
               }
 
               return (
-                <button
-                  key={item.name}
-                  type="button"
-                  onClick={() => handleNavClick(item.href, item.type)}
-                  className={navBtnClass}
-                >
+                <Link key={item.name} href={hrefOf(item)} className={navBtnClass}>
                   {item.name}
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -201,26 +174,28 @@ export function Navbar({ onLoginClick, onRegisterClick }: NavbarProps) {
                       {item.name}
                     </div>
                     {item.children.map((c) => (
-                      <button
+                      <Link
                         key={c.name}
-                        onClick={() => handleNavClick(c.href, c.type)}
-                        className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg cursor-pointer"
+                        href={hrefOf(c)}
+                        onClick={closeMenu}
+                        className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg"
                       >
                         {c.name}
-                      </button>
+                      </Link>
                     ))}
                   </div>
                 );
               }
 
               return (
-                <button
+                <Link
                   key={item.name}
-                  onClick={() => handleNavClick(item.href, item.type)}
-                  className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg cursor-pointer"
+                  href={hrefOf(item)}
+                  onClick={closeMenu}
+                  className="block w-full text-left text-gray-700 hover:text-[#0d9488] hover:bg-gray-50 transition-colors px-4 py-3 rounded-lg"
                 >
                   {item.name}
-                </button>
+                </Link>
               );
             })}
           </div>
