@@ -6,10 +6,9 @@ import { requireVillageAdminResponse } from "@/lib/access-policy";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { AI_CREDITS_CONSUMPTION_ENABLED } from "@/lib/ai/credits";
 import {
-  DEFAULT_FREE_AI_MODEL,
+  AI_MODEL,
   getAiConfig,
   getAiHeaders,
-  resolveAiModel,
 } from "@/lib/ai/openrouter";
 import { getAiCreditBalance, refundAiCredit, reserveAiCredit } from "@/lib/ai/village-assistant";
 import { mergeVariantAllowlists } from "@/lib/website-engine/block-variants";
@@ -111,7 +110,7 @@ export async function POST(req: NextRequest) {
         headers: getAiHeaders(config),
         signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
         body: JSON.stringify({
-          model: resolveAiModel(process.env.WEBSITE_AI_MODEL, DEFAULT_FREE_AI_MODEL),
+          model: AI_MODEL,
           temperature: 0.4,
           max_tokens: 3000,
           messages: [

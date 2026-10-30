@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
-import { getAiConfig, getAiHeaders, resolveAiModel, OPENROUTER_MODELS } from "@/lib/ai/openrouter";
+import { getAiConfig, getAiHeaders, AI_MODEL } from "@/lib/ai/openrouter";
 
 type GeneratedBlogDraft = {
   title: string;
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json().catch(() => null)) as
-    | { title?: unknown; language?: unknown; model?: unknown }
+    | { title?: unknown; language?: unknown }
     | null;
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
@@ -60,10 +60,7 @@ export async function POST(req: NextRequest) {
   if (!title) return NextResponse.json({ error: "Judul wajib diisi" }, { status: 400 });
 
   const language = String(body.language ?? "id").trim() || "id";
-  const model = resolveAiModel(
-    typeof body.model === "string" ? body.model : null,
-    OPENROUTER_MODELS.gpt4oMini,
-  );
+  const model = AI_MODEL;
 
   const system = [
     "Anda adalah editor blog Klandesa.",

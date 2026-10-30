@@ -20,8 +20,8 @@ import {
   AI_CREDITS_CONSUMPTION_ENABLED,
   ensureDefaultAiCredits,
 } from "@/lib/ai/credits";
-import { resolveSelectableAiModel } from "@/lib/ai/models";
 import {
+  AI_MODEL,
   checkAiCredit,
   getAiConfig,
   getAiHeaders,
@@ -77,7 +77,6 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => null)) as {
       message?: string;
       mode?: string;
-      model?: string;
       threadId?: number | string | null;
     } | null;
 
@@ -139,10 +138,8 @@ export async function POST(req: NextRequest) {
     const ctx = await buildVillageAssistantContext(village.id, userName);
     const system = buildSystemPrompt(mode, ctx);
 
-    const model = resolveSelectableAiModel(body?.model);
-
     const payload = {
-      model,
+      model: AI_MODEL,
       temperature: 0.6,
       messages: [
         { role: "system", content: system },
@@ -178,7 +175,7 @@ export async function POST(req: NextRequest) {
       if (chargeCredit) await refundAiCredit(userId, 1).catch(() => undefined);
       if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
         return NextResponse.json(
-          { error: "AI terlalu lama merespons. Kredit Anda tidak dipotong, silakan coba lagi atau pilih model lain." },
+          { error: "AI terlalu lama merespons. Kredit Anda tidak dipotong, silakan coba lagi" },
           { status: 504 },
         );
       }

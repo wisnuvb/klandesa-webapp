@@ -27,13 +27,6 @@ import { cn } from "@/components/ui/utils";
 import { AI_CREDITS_CONSUMPTION_ENABLED } from "@/lib/ai/credits";
 import { AI_CREDIT_PACKAGES } from "@/lib/ai/credit-packages";
 import {
-  AI_MODEL_STORAGE_KEY,
-  defaultAiModelId,
-  labelForAiModel,
-  SELECTABLE_AI_MODELS,
-  type SelectableAiModelId,
-} from "@/lib/ai/models";
-import {
   AI_ASSISTANT_NAME,
   AI_ASSISTANT_TAGLINE,
   AI_ASSISTANT_TITLE,
@@ -134,7 +127,6 @@ export default function AsistenAiPage() {
   const { pay } = usePayment();
   const [credits, setCredits] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("citizen_faq");
-  const [model, setModel] = useState<SelectableAiModelId>(defaultAiModelId());
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
@@ -185,20 +177,6 @@ export default function AsistenAiPage() {
     void loadCredits();
     void loadThreads();
   }, [loadCredits, loadThreads]);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(AI_MODEL_STORAGE_KEY);
-      if (
-        stored &&
-        SELECTABLE_AI_MODELS.some((m) => m.id === stored)
-      ) {
-        setModel(stored as SelectableAiModelId);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -311,7 +289,6 @@ export default function AsistenAiPage() {
         body: JSON.stringify({
           message: text,
           mode,
-          model,
           threadId: activeThreadId,
         }),
       });
@@ -389,7 +366,7 @@ export default function AsistenAiPage() {
             </>
           ) : (
             <Badge variant="secondary" className="text-sm">
-              Gratis · Nemotron 3 Nano
+              Gratis
             </Badge>
           )}
           <Button
@@ -541,29 +518,6 @@ export default function AsistenAiPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                value={model}
-                onValueChange={(value) => {
-                  const next = value as SelectableAiModelId;
-                  setModel(next);
-                  try {
-                    localStorage.setItem(AI_MODEL_STORAGE_KEY, next);
-                  } catch {
-                    /* ignore */
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SELECTABLE_AI_MODELS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               {modeLocked ? (
                 <span className="text-xs text-muted-foreground">
                   Mode mengikuti percakapan yang dibuka
@@ -684,10 +638,9 @@ export default function AsistenAiPage() {
               )}
             >
               <div className="text-xs text-muted-foreground mb-1.5 px-1 hidden">
-                Model: {labelForAiModel(model)}
                 {AI_CREDITS_CONSUMPTION_ENABLED
-                  ? " · 1 kredit per pesan"
-                  : " · tanpa pemotongan kredit (sementara)"}
+                  ? "1 kredit per pesan"
+                  : "Tanpa pemotongan kredit (sementara)"}
               </div>
               <div className="flex items-end gap-1 rounded-3xl border bg-background px-2 py-1.5 shadow-sm focus-within:ring-1 focus-within:ring-ring/40">
                 <Button
