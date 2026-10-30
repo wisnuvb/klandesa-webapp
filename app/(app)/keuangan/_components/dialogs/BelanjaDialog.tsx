@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -116,10 +117,9 @@ export function BelanjaDialog(props: BelanjaDialogProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Jumlah (Rupiah)</p>
-              <Input
-                type="number"
+              <CurrencyInput
                 value={formBelanja.jumlah}
-                onChange={(e) => onChange("jumlah", e.target.value)}
+                onValueChange={(v) => onChange("jumlah", v)}
                 className="mt-1"
                 placeholder="0"
               />

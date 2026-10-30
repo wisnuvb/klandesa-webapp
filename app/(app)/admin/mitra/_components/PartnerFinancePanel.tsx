@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -217,12 +218,10 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
           </div>
           <div>
             <Label htmlFor={`closing-${partnerId}`}>Nominal tetap (IDR, bila % kosong)</Label>
-            <Input
+            <CurrencyInput
               id={`closing-${partnerId}`}
               value={closing}
-              onChange={(e) => setClosing(e.target.value)}
-              type="number"
-              min={0}
+              onValueChange={setClosing}
             />
           </div>
           <div>

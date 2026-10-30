@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -128,18 +129,12 @@ export function SppFormDialog(props: SppFormDialogProps) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Jumlah yang Diminta (Rp)</p>
-              <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  Rp
-                </span>
-                <Input
-                  type="number"
-                  value={formSPP.jumlah}
-                  onChange={(e) => onChange("jumlah", e.target.value)}
-                  className="pl-10"
-                  placeholder="0"
-                />
-              </div>
+              <CurrencyInput
+                value={formSPP.jumlah}
+                onValueChange={(v) => onChange("jumlah", v)}
+                className="mt-1"
+                placeholder="0"
+              />
               {formSPP.jumlah && (
                 <p className="text-xs text-muted-foreground mt-1">
                   {formatRupiah(Number(formSPP.jumlah))}

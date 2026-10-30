@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Archive, Plus, X } from "lucide-react";
 import Image from "next/image";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { DigitalArchivePickerModal } from "@/components/digital-archive/DigitalArchivePickerModal";
 import type { UkmProductDraft } from "../_types";
 import { firstImage } from "../_utils";
@@ -125,17 +126,15 @@ export default function UkmProductModal(props: Props) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Harga (Rp)
                     </label>
-                    <input
-                      type="number"
+                    <CurrencyInput
                       value={draft.price}
-                      onChange={(e) =>
+                      onValueChange={(v) =>
                         setDraft((prev) => ({
                           ...prev,
-                          price: parseInt(e.target.value) || 0,
+                          price: Number(v) || 0,
                         }))
                       }
-                      min="0"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      inputClassName="h-auto py-2 pl-10 pr-4 border-gray-300 rounded-lg shadow-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:border-transparent"
                     />
                   </div>
                   <div>

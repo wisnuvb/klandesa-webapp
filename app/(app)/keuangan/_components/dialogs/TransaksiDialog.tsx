@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -124,18 +125,12 @@ export function TransaksiDialog(props: TransaksiDialogProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Jumlah (Rupiah)</p>
-              <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  Rp
-                </span>
-                <Input
-                  type="number"
-                  value={formTransaksi.jumlah}
-                  onChange={(e) => onChange("jumlah", e.target.value)}
-                  className="pl-10"
-                  placeholder="0"
-                />
-              </div>
+              <CurrencyInput
+                value={formTransaksi.jumlah}
+                onValueChange={(v) => onChange("jumlah", v)}
+                className="mt-1"
+                placeholder="0"
+              />
               {formTransaksi.jumlah && (
                 <p className="text-xs text-muted-foreground mt-1">
                   {formatRupiah(Number(formTransaksi.jumlah))}

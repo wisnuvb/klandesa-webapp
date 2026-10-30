@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -233,7 +234,14 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                   <FormItem>
                     <FormLabel>Gaji Pokok (Rp)</FormLabel>
                     <FormControl>
-                      <Input type="number" min={0} inputMode="numeric" placeholder="0" {...field} />
+                      <CurrencyInput
+                        name={field.name}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="0"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -247,7 +255,14 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                   <FormItem>
                     <FormLabel>Tunjangan (Rp)</FormLabel>
                     <FormControl>
-                      <Input type="number" min={0} inputMode="numeric" placeholder="0" {...field} />
+                      <CurrencyInput
+                        name={field.name}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="0"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

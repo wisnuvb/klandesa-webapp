@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -62,76 +63,65 @@ export function BudgetFormDialog(props: BudgetFormDialogProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="revenue">Total Pendapatan</Label>
-                  <Input
+                  <CurrencyInput
                     id="revenue"
-                    type="number"
                     placeholder="0"
                     value={formData.revenue}
-                    onChange={(e) => setField("revenue", e.target.value)}
+                    onValueChange={(v) => setField("revenue", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="government_fund">Dana Pemerintah Pusat</Label>
-                  <Input
+                  <CurrencyInput
                     id="government_fund"
-                    type="number"
                     placeholder="0"
                     value={formData.government_fund}
-                    onChange={(e) => setField("government_fund", e.target.value)}
+                    onValueChange={(v) => setField("government_fund", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="province_fund">Dana Provinsi</Label>
-                  <Input
+                  <CurrencyInput
                     id="province_fund"
-                    type="number"
                     placeholder="0"
                     value={formData.province_fund}
-                    onChange={(e) => setField("province_fund", e.target.value)}
+                    onValueChange={(v) => setField("province_fund", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="district_fund">Dana Kabupaten</Label>
-                  <Input
+                  <CurrencyInput
                     id="district_fund"
-                    type="number"
                     placeholder="0"
                     value={formData.district_fund}
-                    onChange={(e) => setField("district_fund", e.target.value)}
+                    onValueChange={(v) => setField("district_fund", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="local_income">Pendapatan Asli Desa</Label>
-                  <Input
+                  <CurrencyInput
                     id="local_income"
-                    type="number"
                     placeholder="0"
                     value={formData.local_income}
-                    onChange={(e) => setField("local_income", e.target.value)}
+                    onValueChange={(v) => setField("local_income", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="community_contribution">Kontribusi Masyarakat</Label>
-                  <Input
+                  <CurrencyInput
                     id="community_contribution"
-                    type="number"
                     placeholder="0"
                     value={formData.community_contribution}
-                    onChange={(e) =>
-                      setField("community_contribution", e.target.value)
-                    }
+                    onValueChange={(v) => setField("community_contribution", v)}
                   />
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="private_sector_contribution">Kontribusi Swasta</Label>
-                  <Input
+                  <CurrencyInput
                     id="private_sector_contribution"
-                    type="number"
                     placeholder="0"
                     value={formData.private_sector_contribution}
-                    onChange={(e) =>
-                      setField("private_sector_contribution", e.target.value)
-                    }
+                    onValueChange={(v) => setField("private_sector_contribution", v)}
                   />
                 </div>
               </div>
@@ -145,68 +135,56 @@ export function BudgetFormDialog(props: BudgetFormDialogProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="employee_budget">Belanja Pegawai</Label>
-                  <Input
+                  <CurrencyInput
                     id="employee_budget"
-                    type="number"
                     placeholder="0"
                     value={formData.employee_budget}
-                    onChange={(e) => setField("employee_budget", e.target.value)}
+                    onValueChange={(v) => setField("employee_budget", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="infrastructure_budget">Infrastruktur & Pembangunan</Label>
-                  <Input
+                  <CurrencyInput
                     id="infrastructure_budget"
-                    type="number"
                     placeholder="0"
                     value={formData.infrastructure_budget}
-                    onChange={(e) =>
-                      setField("infrastructure_budget", e.target.value)
-                    }
+                    onValueChange={(v) => setField("infrastructure_budget", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="health_budget">Kesehatan</Label>
-                  <Input
+                  <CurrencyInput
                     id="health_budget"
-                    type="number"
                     placeholder="0"
                     value={formData.health_budget}
-                    onChange={(e) => setField("health_budget", e.target.value)}
+                    onValueChange={(v) => setField("health_budget", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="education_budget">Pendidikan</Label>
-                  <Input
+                  <CurrencyInput
                     id="education_budget"
-                    type="number"
                     placeholder="0"
                     value={formData.education_budget}
-                    onChange={(e) =>
-                      setField("education_budget", e.target.value)
-                    }
+                    onValueChange={(v) => setField("education_budget", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="agriculture_budget">Pertanian & Ekonomi</Label>
-                  <Input
+                  <CurrencyInput
                     id="agriculture_budget"
-                    type="number"
                     placeholder="0"
                     value={formData.agriculture_budget}
-                    onChange={(e) =>
-                      setField("agriculture_budget", e.target.value)
-                    }
+                    onValueChange={(v) => setField("agriculture_budget", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="social_budget">Sosial & Kemasyarakatan</Label>
-                  <Input
+                  <CurrencyInput
                     id="social_budget"
-                    type="number"
                     placeholder="0"
                     value={formData.social_budget}
-                    onChange={(e) => setField("social_budget", e.target.value)}
+                    onValueChange={(v) => setField("social_budget", v)}
                   />
                 </div>
               </div>
@@ -220,74 +198,56 @@ export function BudgetFormDialog(props: BudgetFormDialogProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="employee_realization">Belanja Pegawai</Label>
-                  <Input
+                  <CurrencyInput
                     id="employee_realization"
-                    type="number"
                     placeholder="0"
                     value={formData.employee_realization}
-                    onChange={(e) =>
-                      setField("employee_realization", e.target.value)
-                    }
+                    onValueChange={(v) => setField("employee_realization", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="infrastructure_realization">Infrastruktur & Pembangunan</Label>
-                  <Input
+                  <CurrencyInput
                     id="infrastructure_realization"
-                    type="number"
                     placeholder="0"
                     value={formData.infrastructure_realization}
-                    onChange={(e) =>
-                      setField("infrastructure_realization", e.target.value)
-                    }
+                    onValueChange={(v) => setField("infrastructure_realization", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="health_realization">Kesehatan</Label>
-                  <Input
+                  <CurrencyInput
                     id="health_realization"
-                    type="number"
                     placeholder="0"
                     value={formData.health_realization}
-                    onChange={(e) =>
-                      setField("health_realization", e.target.value)
-                    }
+                    onValueChange={(v) => setField("health_realization", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="education_realization">Pendidikan</Label>
-                  <Input
+                  <CurrencyInput
                     id="education_realization"
-                    type="number"
                     placeholder="0"
                     value={formData.education_realization}
-                    onChange={(e) =>
-                      setField("education_realization", e.target.value)
-                    }
+                    onValueChange={(v) => setField("education_realization", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="agriculture_realization">Pertanian & Ekonomi</Label>
-                  <Input
+                  <CurrencyInput
                     id="agriculture_realization"
-                    type="number"
                     placeholder="0"
                     value={formData.agriculture_realization}
-                    onChange={(e) =>
-                      setField("agriculture_realization", e.target.value)
-                    }
+                    onValueChange={(v) => setField("agriculture_realization", v)}
                   />
                 </div>
                 <div>
                   <Label htmlFor="social_realization">Sosial & Kemasyarakatan</Label>
-                  <Input
+                  <CurrencyInput
                     id="social_realization"
-                    type="number"
                     placeholder="0"
                     value={formData.social_realization}
-                    onChange={(e) =>
-                      setField("social_realization", e.target.value)
-                    }
+                    onValueChange={(v) => setField("social_realization", v)}
                   />
                 </div>
               </div>
