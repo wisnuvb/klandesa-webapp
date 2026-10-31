@@ -2,6 +2,7 @@ import type { VillageAssistantMode } from "@/lib/ai/village-assistant";
 import { prisma } from "@/lib/prisma";
 
 const MODE_LABELS: Record<VillageAssistantMode, string> = {
+  general: "Umum",
   citizen_faq: "FAQ Layanan Warga",
   sdgs_analysis: "Analisa SDGs",
   rpjmdes_draft: "Draft RPJMDes",

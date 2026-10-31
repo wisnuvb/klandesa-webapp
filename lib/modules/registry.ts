@@ -244,6 +244,41 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     sortOrder: 504,
   },
 
+  // --- Tata kelola pemerintahan desa ---
+  {
+    id: "produk-hukum",
+    label: "Produk Hukum Desa",
+    path: "/produk-hukum",
+    permission: "produk_hukum",
+    sdgGoals: [16],
+    status: "beta",
+    group: "pemerintahan",
+    groupLabel: "Pemerintahan",
+    sortOrder: 204,
+  },
+  {
+    id: "register-surat",
+    label: "Register Surat",
+    path: "/register-surat",
+    permission: "register_surat",
+    sdgGoals: [16],
+    status: "beta",
+    group: "pemerintahan",
+    groupLabel: "Pemerintahan",
+    sortOrder: 205,
+  },
+  {
+    id: "lembaga-desa",
+    label: "Lembaga Desa (BPD, LPM)",
+    path: "/lembaga-desa",
+    permission: "lembaga_desa",
+    sdgGoals: [16],
+    status: "beta",
+    group: "pemerintahan",
+    groupLabel: "Pemerintahan",
+    sortOrder: 206,
+  },
+
   // --- Operasional: Program lapangan ---
   {
     id: "absensi",

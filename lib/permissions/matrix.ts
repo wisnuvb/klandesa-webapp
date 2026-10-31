@@ -198,6 +198,26 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: "crud_export",
     staff: "read",
   },
+  produk_hukum: {
+    // Mencabut produk hukum memakai aksi "update" (dicek di dalam rute karena rutenya POST).
+    admin: "crud_export",
+    village_head: "read",
+    secretary: "crud_export",
+    staff: "read",
+  },
+  register_surat: {
+    // Kepala desa memberi disposisi (mengubah catatan surat) tetapi tidak mencatat surat baru.
+    admin: "crud_export",
+    village_head: ["read", "update"],
+    secretary: "crud_export",
+    staff: "crud",
+  },
+  lembaga_desa: {
+    admin: "crud",
+    village_head: "read",
+    secretary: "crud",
+    staff: "read",
+  },
 };
 
 function resolveActions(

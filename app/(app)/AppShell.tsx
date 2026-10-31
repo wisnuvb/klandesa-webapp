@@ -12,6 +12,7 @@ import { TrialBanner } from "@/components/app/TrialBanner";
 import { UpdateAvailableNotice } from "@/components/app/UpdateAvailableNotice";
 import { LarasFab } from "@/components/ai/LarasFab";
 import { shouldShowLarasFab } from "@/lib/ai/laras-access";
+import { AI_ASSISTANT_AVATAR_SRC, AI_ASSISTANT_TAGLINE, AI_ASSISTANT_TITLE } from "@/lib/ai/persona";
 import { isOnboardingFlowPath } from "@/lib/onboarding";
 import { PageHeaderProvider, usePageHeaderOverride, usePageScrollLocked } from "@/components/layout/PageHeaderContext";
 
@@ -161,8 +162,9 @@ const pageConfig = {
     subtitle: "Aset, proyek, dan titik risiko bencana pada peta desa",
   },
   "asisten-ai": {
-    title: "Asisten Desa AI",
-    subtitle: "Asisten digital perangkat desa — SDGs, RPJMDes, dan layanan warga",
+    title: AI_ASSISTANT_TITLE,
+    subtitle: `${AI_ASSISTANT_TAGLINE} Riwayat tersimpan per akun Anda.`,
+    avatarSrc: AI_ASSISTANT_AVATAR_SRC,
   },
 
   // --- Konten & promosi ---
@@ -269,7 +271,9 @@ function isKnownPageKey(key: string): key is PageKey {
   return key in pageConfig || getModuleById(key) != null;
 }
 
-function resolvePageMeta(pageId: string): { title: string; subtitle: string } {
+type PageMeta = { title: string; subtitle: string; /** Gambar bulat di kiri judul (mis. avatar asisten). */ avatarSrc?: string };
+
+function resolvePageMeta(pageId: string): PageMeta {
   const known = pageConfig[pageId as PageKey];
   if (known) return known;
 
@@ -282,7 +286,7 @@ function resolvePageMeta(pageId: string): { title: string; subtitle: string } {
 }
 
 /** Halaman anak yang judulnya berbeda dari menu induknya (sorotan menu tetap mengikuti induk). */
-const SUBPAGE_META: Array<{ prefix: string; title: string; subtitle: string }> = [
+const SUBPAGE_META: Array<PageMeta & { prefix: string }> = [
   { prefix: "/billing/riwayat", title: "Riwayat Pembayaran", subtitle: "Lihat kembali tagihan, nomor VA, dan status pembayaran" },
   { prefix: "/layanan-surat/buat", title: "Buat Surat", subtitle: "Isi data, lihat hasilnya di kertas, lalu terbitkan" },
   { prefix: "/layanan-surat/editor", title: "Editor Jenis Surat", subtitle: "Ubah isi dan tampilan surat langsung di kertas" },
@@ -408,7 +412,7 @@ function AppShellInner({
     void check();
   }, [pathname, router, sessionStatus, userId, accountType, regional]);
 
-  const { title, subtitle } = useMemo(
+  const { title, subtitle, avatarSrc } = useMemo<PageMeta>(
     () =>
       SUBPAGE_META.find((m) => pathname === m.prefix || pathname.startsWith(`${m.prefix}/`)) ??
       resolvePageMeta(activePage),
@@ -457,6 +461,7 @@ function AppShellInner({
         <Header
           title={headerOverride?.title ?? title}
           subtitle={headerOverride ? headerOverride.subtitle : subtitle}
+          avatarSrc={headerOverride ? undefined : avatarSrc}
           back={headerOverride?.back}
           onMenuClick={() => setIsSidebarOpen(true)}
         />

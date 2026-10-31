@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Bell, CircleHelp, Search, Menu } from "lucide-react";
@@ -38,6 +39,8 @@ interface HeaderProps {
   subtitle?: string;
   /** Tombol kembali di kiri judul (mis. halaman pembuatan surat). */
   back?: { label: string; onClick: () => void };
+  /** Gambar bulat dekoratif di kiri judul (judul sudah menyebut namanya, jadi alt kosong). */
+  avatarSrc?: string;
   onMenuClick?: () => void;
 }
 
@@ -45,7 +48,7 @@ function isExternalHref(href: string) {
   return /^https?:\/\//i.test(href);
 }
 
-export function Header({ title, subtitle, back, onMenuClick }: HeaderProps) {
+export function Header({ title, subtitle, back, avatarSrc, onMenuClick }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, isAuthenticated } = useNextAuthSession();
@@ -184,6 +187,16 @@ export function Header({ title, subtitle, back, onMenuClick }: HeaderProps) {
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
+            {avatarSrc ? (
+              <Image
+                src={avatarSrc}
+                alt=""
+                width={44}
+                height={44}
+                priority
+                className="mb-2 size-11 shrink-0 rounded-full"
+              />
+            ) : null}
             <div className="mb-2 min-w-0">
               <h1 className={cn("text-2xl text-foreground", back && "truncate")} title={back ? title : undefined}>{title}</h1>
               {subtitle && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Loader2, MessageSquarePlus, PanelLeftClose, Trash2 } from "lucide-react";
+import { MessageSquarePlus, PanelLeftClose, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/components/ui/utils";
@@ -102,7 +102,7 @@ export function HistoryPanel({
                       >
                         <span className="line-clamp-2 text-sm font-medium leading-snug">{t.title}</span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
-                          {t.modeLabel} · {t.messageCount} pesan · {formatTime(t.updatedAt, g.key !== "today" && g.key !== "yesterday")}
+                          {t.mode === "general" ? "" : `${t.modeLabel} · `}{t.messageCount} pesan · {formatTime(t.updatedAt, g.key !== "today" && g.key !== "yesterday")}
                         </span>
                       </button>
                       <Button
@@ -129,8 +129,4 @@ export function HistoryPanel({
       </nav>
     </div>
   );
-}
-
-export function HistoryLoadingIndicator() {
-  return <Loader2 className="size-4 animate-spin" aria-hidden="true" />;
 }

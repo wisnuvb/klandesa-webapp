@@ -5,6 +5,8 @@ import { sanitizeForPrompt } from "@/lib/ai/laras-guard";
 import { createTtlCache } from "@/lib/ai/ttl-cache";
 
 export type VillageAssistantMode =
+  /** Bawaan percakapan baru di web: tanpa bias tugas, pendekatan mengikuti pertanyaan. */
+  | "general"
   | "sdgs_analysis"
   | "rpjmdes_draft"
   | "program_recommendation"
@@ -172,6 +174,12 @@ export function buildSystemPrompt(mode: VillageAssistantMode, ctx: VillageAssist
   ];
 
   switch (mode) {
+    case "general":
+      base.push(
+        "",
+        "Tugas: jawab pertanyaan apa pun seputar desa dan pilih pendekatan sesuai pertanyaannya. Pertanyaan layanan warga (surat, bansos, pengaduan): beri langkah yang bisa diikuti. Analisa SDGs: identifikasi 3–5 prioritas intervensi berurutan menurut dampak. Draf RPJMDes: tulis section yang selaras SDGs dan kondisi desa. Rekomendasi program: usulkan program konkret berdasarkan skor SDGs rendah. Pertanyaan yang butuh angka terkini: panggil tool yang relevan. Bila pertanyaan kurang jelas, ajukan satu pertanyaan klarifikasi singkat.",
+      );
+      break;
     case "sdgs_analysis":
       base.push(
         "",

@@ -1,3 +1,4 @@
+import { cleanText as text, isRecord, parseIsoDate, type Parsed } from "@/lib/form-input";
 import {
   CATEGORIES,
   CONDITIONS,
@@ -37,24 +38,9 @@ export interface DisposalInput {
   regencyApproved: boolean;
 }
 
-export type Parsed<T> = { ok: true; value: T } | { ok: false; errors: string[]; fieldErrors: Record<string, string> };
+export type { Parsed };
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-
-function text(raw: unknown, max: number): { value: string | null; tooLong: boolean; bad: boolean } {
-  if (raw === undefined || raw === null) return { value: null, tooLong: false, bad: false };
-  if (typeof raw !== "string") return { value: null, tooLong: false, bad: true };
-  const v = raw.replace(/\s+/g, " ").trim();
-  if (!v) return { value: null, tooLong: false, bad: false };
-  return { value: v, tooLong: v.length > max, bad: false };
-}
-
-/** Tanggal "YYYY-MM-DD" yang benar-benar ada di kalender, disimpan sebagai tengah malam UTC (kolom DATE). */
-export function parseIsoDate(raw: unknown): Date | null {
-  if (typeof raw !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
-  const d = new Date(`${raw}T00:00:00.000Z`);
-  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== raw ? null : d;
-}
+export { parseIsoDate };
 
 function money(raw: unknown): { value: string | null; bad: boolean } {
   if (raw === undefined || raw === null || raw === "") return { value: null, bad: false };

@@ -131,6 +131,10 @@ model Village {
   changeProposals   ChangeProposal[]
   appInstalls       AppInstall[]
   inventoryItems    InventoryItem[]
+  legalDocuments    LegalDocument[]
+  mailRegister      MailRegister[]
+  institutions      VillageInstitution[]
+  institutionMembers InstitutionMember[]
   publishedTemplates AppTemplate[]
   customTables      CustomTable[]
   customRecords     CustomRecord[]
@@ -453,6 +457,8 @@ model Resident {
   headOfHouseholds Household[] @relation("HouseholdHead")
   mutations        ResidentMutation[]
   customRecords    CustomRecord[]
+
+  institutionMemberships InstitutionMember[]
 
   @@unique([villageId, nik])
   @@index([villageId, name])
@@ -3679,4 +3685,114 @@ model InventoryItem {
   @@index([villageId, status, category])
   @@index([mapAssetId])
   @@map("inventory_items")
+}
+
+/// Produk hukum desa: Perdes, Peraturan Kepala Desa, Peraturan Bersama, Keputusan Kepala Desa (register, bukan penyimpan berkas).
+model LegalDocument {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// PERDES | PERKADES | PERBER | KEPKADES | LAINNYA
+  type          String    @db.VarChar(20)
+  number        String    @db.VarChar(60)
+  year          Int
+  title         String    @db.VarChar(300)
+  summary       String?   @db.VarChar(1000)
+  enactedAt     DateTime  @db.Date
+  promulgatedAt DateTime? @db.Date
+  submittedAt   DateTime? @db.Date
+  /// BERLAKU | DICABUT
+  status        String    @default("BERLAKU") @db.VarChar(10)
+  revokedAt     DateTime? @db.Date
+  revokedByRef  String?   @db.VarChar(200)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([villageId, type, year, number])
+  @@index([villageId, status, year])
+  @@map("legal_documents")
+}
+
+/// Register surat masuk/keluar (buku agenda). Nomor agenda berurutan per desa, arah, dan tahun.
+model MailRegister {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// IN | OUT
+  direction    String   @db.VarChar(3)
+  year         Int
+  agendaNo     Int
+  letterNumber String?  @db.VarChar(100)
+  letterDate   DateTime @db.Date
+  /// Tanggal diterima (IN) atau dikirim (OUT)
+  registeredAt DateTime @db.Date
+  /// Asal surat (IN) atau tujuan surat (OUT)
+  party        String   @db.VarChar(200)
+  subject      String   @db.VarChar(300)
+  /// BIASA | PENTING | SEGERA | RAHASIA
+  nature       String   @default("BIASA") @db.VarChar(10)
+  disposition  String?  @db.VarChar(1000)
+  notes        String?  @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([villageId, direction, year, agendaNo])
+  @@index([villageId, direction, registeredAt])
+  @@map("mail_register")
+}
+
+/// Lembaga desa: BPD, LPM/LKD, Karang Taruna, dan lembaga kemasyarakatan lain.
+model VillageInstitution {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// BPD | LPM | KARANG_TARUNA | LAINNYA
+  type         String    @db.VarChar(20)
+  name         String    @db.VarChar(200)
+  decreeNumber String?   @db.VarChar(100)
+  decreeDate   DateTime? @db.Date
+  periodStart  DateTime? @db.Date
+  periodEnd    DateTime? @db.Date
+  description  String?   @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members InstitutionMember[]
+
+  @@index([villageId, type])
+  @@map("village_institutions")
+}
+
+model InstitutionMember {
+  id            Int                @id @default(autoincrement())
+  villageId     Int
+  village       Village            @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  institutionId Int
+  institution   VillageInstitution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  residentId    Int?
+  resident      Resident?          @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  name     String    @db.VarChar(150)
+  /// KETUA | WAKIL_KETUA | SEKRETARIS | BENDAHARA | ANGGOTA
+  role     String    @db.VarChar(20)
+  division String?   @db.VarChar(100)
+  startsAt DateTime? @db.Date
+  endsAt   DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([institutionId])
+  @@index([villageId])
+  @@index([residentId])
+  @@map("institution_members")
 }

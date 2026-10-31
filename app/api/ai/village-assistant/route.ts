@@ -34,6 +34,7 @@ import {
 } from "@/lib/subscription";
 
 const MODES: VillageAssistantMode[] = [
+  "general",
   "sdgs_analysis",
   "rpjmdes_draft",
   "program_recommendation",
