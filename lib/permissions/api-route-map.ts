@@ -64,6 +64,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/tata-kelola/produk-hukum", resource: "produk_hukum" },
   { prefix: "/api/tata-kelola/surat", resource: "register_surat" },
   { prefix: "/api/tata-kelola/lembaga", resource: "lembaga_desa" },
+  { prefix: "/api/dtsen", resource: "dtsen_usulan" },
   { prefix: "/api/integrations/export", resource: "integrations", suffixActions: { "": "export" } },
   { prefix: "/api/integrations", resource: "integrations" },
   { prefix: "/api/gis", resource: "gis" },

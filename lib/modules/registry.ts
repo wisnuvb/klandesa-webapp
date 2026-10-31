@@ -233,6 +233,17 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     sortOrder: 601,
   },
   {
+    id: "dtsen-usulan",
+    label: "Usulan DTSEN",
+    path: "/dtsen",
+    permission: "dtsen_usulan",
+    sdgGoals: [1, 10],
+    status: "beta",
+    group: "program",
+    groupLabel: "Program Desa",
+    sortOrder: 602,
+  },
+  {
     id: "galeri-desa",
     label: "Galeri Kegiatan",
     path: "/galeri-desa",

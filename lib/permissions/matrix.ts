@@ -218,6 +218,13 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: "crud",
     staff: "read",
   },
+  dtsen_usulan: {
+    // Berisi data sosial-ekonomi warga: staf boleh mencatat dan memproses, kepala desa membaca. Tahap lanjut memakai "update" (dicek dalam rute).
+    admin: "crud",
+    village_head: "read",
+    secretary: "crud",
+    staff: ["read", "create", "update"],
+  },
 };
 
 function resolveActions(

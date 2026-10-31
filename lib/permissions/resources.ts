@@ -33,6 +33,7 @@ export const PERMISSION_RESOURCES = [
   "produk_hukum",
   "register_surat",
   "lembaga_desa",
+  "dtsen_usulan",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];

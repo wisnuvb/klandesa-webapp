@@ -135,6 +135,7 @@ model Village {
   mailRegister      MailRegister[]
   institutions      VillageInstitution[]
   institutionMembers InstitutionMember[]
+  dtsenProposals     DtsenProposal[]
   publishedTemplates AppTemplate[]
   customTables      CustomTable[]
   customRecords     CustomRecord[]
@@ -459,6 +460,8 @@ model Resident {
   customRecords    CustomRecord[]
 
   institutionMemberships InstitutionMember[]
+
+  dtsenProposals         DtsenProposal[]
 
   @@unique([villageId, nik])
   @@index([villageId, name])
@@ -3795,4 +3798,51 @@ model InstitutionMember {
   @@index([villageId])
   @@index([residentId])
   @@map("institution_members")
+}
+
+/// Usulan pemutakhiran DTSEN dari desa: warga yang diusulkan masuk/diubah/dikeluarkan, dibawa lewat verifikasi lapangan
+/// dan musyawarah desa, lalu diteruskan ke Dinas Sosial. Desa TIDAK menetapkan desil; hasil akhir hanya dicatat.
+model DtsenProposal {
+  id         Int       @id @default(autoincrement())
+  villageId  Int
+  village    Village   @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  residentId Int?
+  resident   Resident? @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  /// Salinan saat usulan dibuat, supaya riwayat tetap terbaca bila data warga berubah/terhapus. NIK tidak disalin.
+  residentName String  @db.VarChar(255)
+  residentRt   String? @db.VarChar(10)
+  residentRw   String? @db.VarChar(10)
+
+  /// TAMBAH | UBAH | HAPUS
+  kind       String  @db.VarChar(10)
+  /// WARGA | RT | PETUGAS | LAINNYA
+  source     String  @db.VarChar(10)
+  reason     String  @db.VarChar(1000)
+  knownDesil String? @db.VarChar(20)
+
+  /// DIAJUKAN | TERVERIFIKASI | DISETUJUI_MUSDES | DITOLAK_MUSDES | DITERUSKAN | SELESAI | DIBATALKAN
+  status          String   @default("DIAJUKAN") @db.VarChar(20)
+  statusChangedAt DateTime @default(now())
+
+  verifiedAt       DateTime? @db.Date
+  verifiedBy       String?   @db.VarChar(150)
+  verificationNote String?   @db.VarChar(1000)
+  musdesAt         DateTime? @db.Date
+  musdesRef        String?   @db.VarChar(150)
+  forwardedAt      DateTime? @db.Date
+  forwardedRef     String?   @db.VarChar(150)
+  /// DITERIMA | DITOLAK (keputusan Dinas Sosial/Kemensos, dicatat saja)
+  outcome          String?   @db.VarChar(10)
+  outcomeAt        DateTime? @db.Date
+  /// Catatan hasil akhir atau alasan pembatalan
+  outcomeNote      String?   @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, status, statusChangedAt])
+  @@index([villageId, residentId])
+  @@map("dtsen_proposals")
 }
