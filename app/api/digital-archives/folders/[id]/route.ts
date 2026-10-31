@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import { buildFolderPath, slugFolderSegment } from "@/lib/digitalArchive/folderPath";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -116,6 +117,11 @@ export async function PATCH(
       },
     });
 
+    await auditWeb(req, loaded.ctx, "update", "digital_archive_folders", String(folderId), {
+      name: { from: folder.name, to: updated!.name },
+      subfoldersMoved: descendants.length - 1,
+    });
+
     return NextResponse.json({
       id: Number(updated!.id),
       parentId: updated!.parentId ? Number(updated!.parentId) : null,
@@ -160,7 +166,7 @@ export async function DELETE(
 
     const folder = await prisma.digitalArchiveFolder.findFirst({
       where: { id: folderId, villageId: village.id },
-      select: { id: true, path: true },
+      select: { id: true, path: true, name: true },
     });
 
     if (!folder) {
@@ -188,6 +194,8 @@ export async function DELETE(
     }
 
     await prisma.digitalArchiveFolder.delete({ where: { id: folderId } });
+
+    await auditWeb(req, loaded.ctx, "delete", "digital_archive_folders", String(folderId), { name: folder.name });
 
     return NextResponse.json({ success: true });
   } catch (error) {

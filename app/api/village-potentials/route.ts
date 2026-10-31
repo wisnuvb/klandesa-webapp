@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -135,6 +137,8 @@ export async function POST(req: NextRequest) {
         economicPotential: body.economicPotential || null,
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "village_potentials", villagePotential.id, pickSummary(villagePotential, ["year", "population", "households"]));
 
     return NextResponse.json(villagePotential, { status: 201 });
   } catch (error) {

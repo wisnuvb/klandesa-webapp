@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { parseDisasterPointInput } from "@/lib/lingkungan/schemas";
 import {
   isVillageSubscriptionActive,
@@ -57,6 +59,8 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
       },
     });
 
+    await auditWeb(req, loaded.ctx, "update", "disaster_points", rowId, diffRecord(existing, updated, { maskedFields: new Set(["notes", "evacuationPlan"]), ignoreFields: new Set(["updatedAt"]) }));
+
     return NextResponse.json({ ok: true, row: updated });
   } catch (e) {
     console.error("PATCH /api/lingkungan/disaster-points/[id]", e);
@@ -88,6 +92,7 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx) {
     }
 
     await prisma.disasterPoint.delete({ where: { id: rowId } });
+    await auditWeb(req, loaded.ctx, "delete", "disaster_points", rowId, pickSummary(existing, ["name", "disasterType", "riskLevel", "status", "rt", "rw"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/lingkungan/disaster-points/[id]", e);

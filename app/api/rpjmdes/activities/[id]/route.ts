@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { computeSdgPriorityScore } from "@/lib/rpjmdes/priority-scoring";
 import { collectVillageMetrics } from "@/lib/sdgs/collect-metrics";
 import { computeSdgsDashboard } from "@/lib/sdgs/scoring-engine";
@@ -23,6 +25,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const activityId = Number(id);
+    if (!Number.isInteger(activityId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
@@ -57,6 +62,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       },
     });
 
+    await auditWeb(req, loaded.ctx, "update", "rkpdes_activities", activityId, diffRecord(existing, updated, { maskedFields: new Set(["description"]), ignoreFields: new Set(["updatedAt"]) }));
+
     return NextResponse.json({ ok: true, id: updated.id });
   } catch (e) {
     console.error("PATCH /api/rpjmdes/activities/[id]", e);
@@ -75,6 +82,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const activityId = Number(id);
+    if (!Number.isInteger(activityId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const existing = await prisma.rkpdesActivity.findFirst({
       where: { id: activityId, plan: { villageId: village.id } },
     });
@@ -83,6 +93,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.rkpdesActivity.delete({ where: { id: activityId } });
+    await auditWeb(_req, loaded.ctx, "delete", "rkpdes_activities", activityId, pickSummary(existing, ["planId", "title", "year", "status", "source"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/rpjmdes/activities/[id]", e);

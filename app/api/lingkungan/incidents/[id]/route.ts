@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { parseEnvironmentalIncidentInput } from "@/lib/lingkungan/schemas";
 import {
   isVillageSubscriptionActive,
@@ -54,6 +56,8 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
       },
     });
 
+    await auditWeb(req, loaded.ctx, "update", "environmental_incidents", rowId, diffRecord(existing, updated, { maskedFields: new Set(["description", "checklist"]), ignoreFields: new Set(["updatedAt"]) }));
+
     return NextResponse.json({ ok: true, row: updated });
   } catch (e) {
     console.error("PATCH /api/lingkungan/incidents/[id]", e);
@@ -85,6 +89,7 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx) {
     }
 
     await prisma.environmentalIncident.delete({ where: { id: rowId } });
+    await auditWeb(req, loaded.ctx, "delete", "environmental_incidents", rowId, pickSummary(existing, ["title", "incidentType", "severity", "status", "rt", "rw"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/lingkungan/incidents/[id]", e);

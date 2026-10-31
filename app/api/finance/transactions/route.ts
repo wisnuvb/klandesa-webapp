@@ -9,6 +9,18 @@ import {
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { isAddonActive, keuanganLimit } from "@/lib/modules/resource-limits";
 import { loadActiveModuleSubs } from "@/lib/modules/require-module";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
+
+const TX_AUDIT_KEYS = [
+  "transactionNumber", "transactionDate", "type", "category", "description",
+  "amount", "paymentMethod", "referenceNumber", "status",
+] as const;
+
+/** Tampilan aman untuk AuditLog: jumlah (Decimal) diubah ke angka agar bisa diserialisasi ke kolom Json. */
+function txAuditView(t: { amount: unknown } & Record<string, unknown>) {
+  return pickSummary({ ...t, amount: Number(t.amount) }, TX_AUDIT_KEYS);
+}
 
 function generateTransactionNumber(type: string, date: Date) {
   // Tanggal disimpan sebagai UTC 00:00, jadi tahun/bulan nomor juga dibaca dalam UTC.
@@ -235,6 +247,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    await auditWeb(req, loaded.ctx, "create", "transactions", transaction.id, txAuditView(transaction));
+
     return NextResponse.json({
       success: true,
       data: toJSONSafe(transaction),
@@ -325,6 +339,15 @@ export async function PUT(req: NextRequest) {
       data,
     });
 
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "update",
+      "transactions",
+      transaction.id,
+      diffRecord(txAuditView(existing), txAuditView(transaction)),
+    );
+
     return NextResponse.json({
       success: true,
       data: toJSONSafe(transaction),
@@ -369,6 +392,8 @@ export async function DELETE(req: NextRequest) {
     await prisma.transaction.delete({
       where: { id: existing.id },
     });
+
+    await auditWeb(req, loaded.ctx, "delete", "transactions", existing.id, txAuditView(existing));
 
     return NextResponse.json({
       success: true,

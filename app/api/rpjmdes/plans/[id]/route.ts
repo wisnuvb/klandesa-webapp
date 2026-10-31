@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { parsePlanInput } from "@/lib/rpjmdes/schemas";
 import {
   isVillageSubscriptionActive,
@@ -49,6 +51,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       },
     });
 
+    await auditWeb(req, loaded.ctx, "update", "rpjmdes_plans", planId, diffRecord(existing, updated, { maskedFields: new Set(["vision", "mission"]), ignoreFields: new Set(["updatedAt"]) }));
+
     return NextResponse.json({ ok: true, id: updated.id });
   } catch (e) {
     console.error("PATCH /api/rpjmdes/plans/[id]", e);
@@ -75,6 +79,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.rpjmdesPlan.delete({ where: { id: planId } });
+    await auditWeb(_req, loaded.ctx, "delete", "rpjmdes_plans", planId, pickSummary(existing, ["title", "periodStart", "periodEnd", "status"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/rpjmdes/plans/[id]", e);

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parseActivityInput } from "@/lib/rpjmdes/schemas";
 import { computeSdgPriorityScore } from "@/lib/rpjmdes/priority-scoring";
 import { collectVillageMetrics } from "@/lib/sdgs/collect-metrics";
@@ -116,6 +118,8 @@ export async function POST(req: NextRequest) {
         source: "internal",
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "rkpdes_activities", created.id, pickSummary(created, ["planId", "title", "year", "status", "source"]));
 
     return NextResponse.json({ ok: true, row: serializeActivity(created) });
   } catch (e) {

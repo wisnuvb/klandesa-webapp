@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -118,6 +120,18 @@ export async function PATCH(
       data,
     });
 
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "update",
+      "social_benefit_programs",
+      id,
+      diffRecord(existing, updated, {
+        maskedFields: new Set(["internalNote"]),
+        ignoreFields: new Set(["updatedAt", "createdAt"]),
+      }),
+    );
+
     return NextResponse.json({
       ok: true,
       program: {
@@ -159,6 +173,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Program tidak ada" }, { status: 404 });
 
     await prisma.socialBenefitProgram.delete({ where: { id } });
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "delete",
+      "social_benefit_programs",
+      id,
+      pickSummary(existing, ["name", "periodLabel", "isActive"]),
+    );
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE social-benefits/programs/[id]", e);

@@ -11,7 +11,6 @@ import {
   PanelLeftClose,
   Plus,
   Send,
-  Settings,
   Sparkles,
   Trash2,
   User,
@@ -22,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatMarkdown } from "@/components/ui/chat-markdown";
 import { TypingChatMarkdown } from "@/components/ai/TypingChatMarkdown";
+import { LarasActionCards } from "@/components/ai/LarasActionCards";
+import type { ActionCard } from "@/lib/ai/laras-actions";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/components/ui/utils";
 import { AI_CREDITS_CONSUMPTION_ENABLED } from "@/lib/ai/credits";
@@ -48,7 +49,12 @@ import {
 } from "@/components/ui/dialog";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  /** Usulan aksi Laras dari jawaban langsung (tidak dimuat ulang dari riwayat). */
+  actions?: ActionCard[];
+};
 
 type ThreadSummary = {
   id: number;
@@ -135,6 +141,7 @@ export default function AsistenAiPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [topupOpen, setTopupOpen] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
@@ -270,6 +277,7 @@ export default function AsistenAiPage() {
 
     setInput("");
     setError(null);
+    setNotice(null);
     const prevMessages = messages;
     const optimistic: ChatMessage[] = [
       ...messages,
@@ -283,6 +291,8 @@ export default function AsistenAiPage() {
         reply: string;
         threadId: number;
         remainingCredits: number | null;
+        notice?: string;
+        actions?: ActionCard[];
       }>("/api/ai/village-assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -294,11 +304,15 @@ export default function AsistenAiPage() {
       });
 
       setActiveThreadId(data.threadId);
+      if (data.notice) setNotice(data.notice);
       setLoading(false);
       setMessages((prev) => {
         const nextIndex = prev.length;
         setStreamingMessageIndex(nextIndex);
-        return [...prev, { role: "assistant", content: data.reply }];
+        return [
+          ...prev,
+          { role: "assistant", content: data.reply, actions: data.actions },
+        ];
       });
       if (typeof data.remainingCredits === "number") {
         setCredits(data.remainingCredits);
@@ -369,28 +383,6 @@ export default function AsistenAiPage() {
               Gratis
             </Badge>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              const key = prompt(
-                "Masukkan OpenRouter API Key Anda (BYOK):",
-                "",
-              );
-              if (key !== null) {
-                // Simpan di state & localStorage untuk demo
-                localStorage.setItem("byok_api_key", key.trim());
-                alert(
-                  key.trim()
-                    ? "BYOK key disimpan. (Backend integration menyusul)"
-                    : "BYOK dinonaktifkan.",
-                );
-              }
-            }}
-          >
-            <Settings className="h-3.5 w-3.5" /> BYOK
-          </Button>
         </div>
       </div>
 
@@ -611,6 +603,9 @@ export default function AsistenAiPage() {
                         ) : (
                           <ChatMarkdown content={m.content} />
                         )}
+                        {!isUser && !isStreaming && m.actions?.length ? (
+                          <LarasActionCards actions={m.actions} />
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -630,6 +625,7 @@ export default function AsistenAiPage() {
             </div>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
+            {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
 
             <div
               className={cn(
@@ -642,6 +638,10 @@ export default function AsistenAiPage() {
                   ? "1 kredit per pesan"
                   : "Tanpa pemotongan kredit (sementara)"}
               </div>
+              <p className="mb-1.5 px-1 text-xs text-muted-foreground">
+                Pertanyaan diproses oleh penyedia AI pihak ketiga. Jangan menulis NIK, nomor telepon, atau data pribadi
+                warga.
+              </p>
               <div className="flex items-end gap-1 rounded-3xl border bg-background px-2 py-1.5 shadow-sm focus-within:ring-1 focus-within:ring-ring/40">
                 <Button
                   variant="ghost"

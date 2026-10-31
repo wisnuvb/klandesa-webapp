@@ -77,6 +77,8 @@ const markdownComponents: Components = {
     <td className="border border-border px-2 py-1">{children}</td>
   ),
   hr: () => <hr className="my-3 border-border" />,
+  // Gambar dari model diblokir: URL gambar adalah jalur umum membocorkan data lewat permintaan otomatis browser.
+  img: () => null,
 };
 
 type ChatMarkdownProps = {

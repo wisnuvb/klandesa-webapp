@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import {
   buildLetterFormSnapshot,
   mergeMailFormDataForPersistence,
@@ -288,6 +289,14 @@ export async function POST(req: NextRequest) {
       });
 
       return created;
+    });
+
+    // Nama/NIK pemohon & isi form tidak dicatat.
+    await auditWeb(req, loaded.ctx, "create", "mail_services", String(mail.id), {
+      templateId: template.id,
+      templateName: template.name,
+      letterNumber: mail.letterNumber,
+      status: mail.status,
     });
 
     return NextResponse.json(

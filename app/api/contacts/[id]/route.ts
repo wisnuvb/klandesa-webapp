@@ -1,4 +1,4 @@
-import { getApiSession } from "@/lib/api-session";
+import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -7,14 +7,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getApiSession(req);
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // Pesan formulir kontak landing milik platform (lintas desa): hanya admin platform, bukan admin desa mana pun.
+    const auth = await requirePlatformSession(req);
+    if (!auth.ok) return auth.response;
 
     const { id: idStr } = await params;
     const id = BigInt(idStr);
@@ -30,9 +25,9 @@ export async function PATCH(
       );
     }
 
-    const userId = Number(session.user.id);
     const respondedAt = body.isResponded ? new Date() : null;
-    const respondedByUserId = body.isResponded && Number.isFinite(userId) ? userId : null;
+    // `respondedByUserId` berelasi ke users (pengguna desa); id admin platform berasal dari tabel lain, jadi dikosongkan.
+    const respondedByUserId = null;
 
     const updated = await prisma.contact.update({
       where: { id },

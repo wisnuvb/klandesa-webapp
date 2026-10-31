@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -83,6 +85,9 @@ export async function POST(req: NextRequest) {
         createdById: Number(session.user.id),
       },
     });
+
+    // Hanya judul & metadata; isi pengumuman tidak dicatat.
+    await auditWeb(req, loaded.ctx, "create", "announcements", announcement.id, pickSummary(announcement, ["title", "category", "isPinned"]));
 
     return NextResponse.json(announcement, { status: 201 });
   } catch (error: any) {

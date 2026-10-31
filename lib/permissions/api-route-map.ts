@@ -20,6 +20,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/residents/bulk", resource: "residents", suffixActions: { "": "create" } },
   { prefix: "/api/residents", resource: "residents" },
   { prefix: "/api/kk", resource: "residents" },
+  { prefix: "/api/kependudukan", resource: "residents" },
   { prefix: "/api/officials", resource: "officials" },
   { prefix: "/api/positions", resource: "officials" },
   { prefix: "/api/village-potentials", resource: "potentials" },
@@ -59,8 +60,12 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/integrations", resource: "integrations" },
   { prefix: "/api/gis", resource: "gis" },
   { prefix: "/api/lingkungan", resource: "lingkungan" },
-  { prefix: "/api/ai/village-assistant", resource: "ai_assistant" },
-  { prefix: "/api/ai/threads", resource: "ai_assistant" },
+  // Bertanya ke Laras (POST) dan menghapus percakapan sendiri (DELETE) tidak mengubah data desa: cukup izin baca.
+  // Data yang dibaca Laras dicek lagi per tool terhadap izin baca pengguna (lib/ai/laras-tools.ts).
+  { prefix: "/api/ai/village-assistant", resource: "ai_assistant", suffixActions: { "": "read" } },
+  { prefix: "/api/ai/threads", resource: "ai_assistant", suffixActions: { "": "read" } },
+  // Konfirmasi usulan Laras: izin sesungguhnya (mis. mail:update) dicek di dalam handler per jenis aksi.
+  { prefix: "/api/ai/actions", resource: "ai_assistant", suffixActions: { "": "read" } },
   // Menandai notifikasi dibaca hanya mengubah status baca milik sendiri, bukan data desa: cukup izin baca.
   { prefix: "/api/notifications/read", resource: "statistics", suffixActions: { "": "read" } },
   { prefix: "/api/notifications", resource: "statistics" },

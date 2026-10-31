@@ -8,6 +8,8 @@ import {
 } from "@/lib/gis/schemas";
 import { parseListQuery } from "@/lib/pkk/list-query";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -169,6 +171,8 @@ export async function POST(req: NextRequest) {
         endDate: parseOptionalDate(input.endDate),
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "gis_projects", created.id, pickSummary(created, ["title", "projectType", "budget", "status", "rt", "rw"]));
 
     return NextResponse.json({ ok: true, row: serializeProject(created) });
   } catch (e) {

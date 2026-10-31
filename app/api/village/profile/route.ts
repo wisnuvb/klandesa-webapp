@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord } from "@/lib/audit/diff";
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -218,7 +220,7 @@ export async function PUT(req: NextRequest) {
       wilayahCodes,
     );
 
-    await prisma.village.update({
+    const updatedVillage = await prisma.village.update({
       where: { id: village.id },
       data: {
         name: n,
@@ -238,6 +240,23 @@ export async function PUT(req: NextRequest) {
           typeof logoUrl === "string" && logoUrl.trim() ? logoUrl.trim() : null,
         settings: withWilayah as Prisma.InputJsonValue,
       },
+    });
+
+    // Kolom profil: diff aman (kolom sensitif hanya ditandai berubah). Blob JSON `settings`: hanya NAMA kunci tingkat atas yang berubah.
+    const profileKeys = new Set(["name", "district", "regency", "province", "address", "postalCode", "phone", "email", "website", "logoUrl"]);
+    const profileDiff = Object.fromEntries(
+      Object.entries(diffRecord(village, updatedVillage)).filter(([k]) => profileKeys.has(k)),
+    );
+    const asObj = (v: unknown): Record<string, unknown> =>
+      v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+    const prevSettings = asObj(village.settings);
+    const nextSettings = asObj(withWilayah);
+    const settingsKeysChanged = [...new Set([...Object.keys(prevSettings), ...Object.keys(nextSettings)])].filter(
+      (k) => JSON.stringify(prevSettings[k] ?? null) !== JSON.stringify(nextSettings[k] ?? null),
+    );
+    await auditWeb(req, loaded.ctx, "update", "village_profile", village.id, {
+      ...profileDiff,
+      ...(settingsKeysChanged.length ? { settingsKeysChanged } : {}),
     });
 
     return NextResponse.json({ ok: true });

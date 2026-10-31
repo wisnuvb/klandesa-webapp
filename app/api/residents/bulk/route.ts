@@ -1,6 +1,7 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
 import type { Prisma } from "@prisma/client";
 import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -143,6 +144,16 @@ export async function POST(req: NextRequest) {
 
     // Duplikat yang lolos pemeriksaan awal tetapi dibuang oleh skipDuplicates (balapan antar-request)
     const raceSkipped = toCreate.length - result.created;
+
+    await auditWeb(req, loaded.ctx, "bulk_import", "residents", "bulk", {
+      mode,
+      rows: rows.length,
+      created: result.created,
+      updated,
+      skipped: skipped + raceSkipped,
+      rejected: rejected.length,
+      accountsSuspended,
+    });
 
     return NextResponse.json(
       {

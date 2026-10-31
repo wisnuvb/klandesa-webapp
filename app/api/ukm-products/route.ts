@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { normalizeImageUrls } from "@/app/(app)/ukm/_utils";
 import {
@@ -123,6 +125,12 @@ export async function POST(req: NextRequest) {
         status: "active",
       },
       select: ukmProductSelect,
+    });
+
+    // Deskripsi/catatan/gambar tidak dicatat.
+    await auditWeb(req, loaded.ctx, "create", "ukm_products", created.id, {
+      ...pickSummary(created, ["name", "subCategory", "productionUnit", "stockQuantity", "status"]),
+      price: created.productionValue ? Number(created.productionValue) : null,
     });
 
     return NextResponse.json(toUkmProduct(created), { status: 201 });

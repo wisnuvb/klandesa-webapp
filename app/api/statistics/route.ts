@@ -318,7 +318,13 @@ export async function GET(req: NextRequest) {
 }
 
 // Optional: endpoint untuk clear cache
-export async function DELETE() {
-  cache.clear();
+export async function DELETE(req: NextRequest) {
+  const loaded = await requireVillageApiContext(req);
+  if (!loaded.ok) return loaded.response;
+  // Hanya cache desa pemanggil; kunci cache berawalan `stats-<villageId>-`.
+  const prefix = `stats-${loaded.ctx.village.id}-`;
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) cache.delete(key);
+  }
   return NextResponse.json({ success: true, message: "Cache cleared" });
 }

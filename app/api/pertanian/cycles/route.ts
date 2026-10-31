@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parseCropCycleInput } from "@/lib/pertanian/schemas";
 import {
   isVillageSubscriptionActive,
@@ -108,6 +110,8 @@ export async function POST(req: NextRequest) {
         _count: { select: { harvests: true } },
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "crop_cycles", created.id, pickSummary(created, ["plotId", "season", "cropName", "status"]));
 
     return NextResponse.json({ ok: true, row: serializeCycle(created) });
   } catch (e) {

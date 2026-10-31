@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import {
   parseInfrastructureProjectInput,
   parseOptionalDate,
@@ -41,6 +43,16 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
       return NextResponse.json({ error: "Data proyek tidak valid" }, { status: 400 });
     }
 
+    if (input.assetId) {
+      const asset = await prisma.villageAsset.findFirst({
+        where: { id: input.assetId, villageId: village.id },
+        select: { id: true },
+      });
+      if (!asset) {
+        return NextResponse.json({ error: "Aset tidak ditemukan" }, { status: 404 });
+      }
+    }
+
     const updated = await prisma.infrastructureProject.update({
       where: { id: projectId },
       data: {
@@ -59,6 +71,8 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
         endDate: parseOptionalDate(input.endDate) ?? existing.endDate,
       },
     });
+
+    await auditWeb(req, loaded.ctx, "update", "gis_projects", projectId, diffRecord(existing, updated, { maskedFields: new Set(["description"]), ignoreFields: new Set(["updatedAt"]) }));
 
     return NextResponse.json({ ok: true, row: updated });
   } catch (e) {
@@ -91,6 +105,7 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx) {
     }
 
     await prisma.infrastructureProject.delete({ where: { id: projectId } });
+    await auditWeb(req, loaded.ctx, "delete", "gis_projects", projectId, pickSummary(existing, ["title", "projectType", "budget", "status", "rt", "rw"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/gis/projects/[id]", e);

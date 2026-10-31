@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parseHarvestInput } from "@/lib/pertanian/schemas";
 import {
   isVillageSubscriptionActive,
@@ -45,6 +47,8 @@ export async function POST(req: NextRequest) {
       where: { id: input.cycleId },
       data: { status: "harvested" },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "harvest_records", created.id, pickSummary(created, ["cycleId", "harvestDate", "quantityKg", "qualityGrade"]));
 
     return NextResponse.json({
       ok: true,

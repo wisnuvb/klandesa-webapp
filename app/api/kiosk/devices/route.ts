@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -97,6 +98,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await auditWeb(req, loaded.ctx, "create", "kiosk_devices", created.id, {
+      name: created.name,
+      locationLabel: created.locationLabel,
+    });
+
     return NextResponse.json({
       device: {
         id: String(created.id),
@@ -187,6 +193,12 @@ export async function PATCH(req: NextRequest) {
         lastSeenAt: true,
         createdAt: true,
       },
+    });
+
+    await auditWeb(req, loaded.ctx, rotateKey ? "rotate_key" : "update", "kiosk_devices", updated.id, {
+      name: updated.name,
+      ...(rotateKey ? { keyRotated: true } : {}),
+      ...(typeof isActive === "boolean" ? { isActive: { from: existing.isActive, to: updated.isActive } } : {}),
     });
 
     return NextResponse.json({

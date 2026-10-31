@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { prisma } from "@/lib/prisma";
 import { getSpacesClient, getSpacesConfig, publicUrlToStorageKey } from "@/lib/spaces";
@@ -27,7 +29,7 @@ export async function PATCH(
 
     const existing = await prisma.digitalArchive.findFirst({
       where: { id: BigInt(id), villageId: village.id },
-      select: { id: true },
+      select: { id: true, title: true, description: true, category: true, subCategory: true, isPublic: true },
     });
 
     if (!existing) {
@@ -89,6 +91,13 @@ export async function PATCH(
           downloadCount: true,
           updatedAt: true,
         },
+      });
+
+      // Hanya penetapan ke galeri yang dicatat (hitungan lihat/unduh bukan perubahan data). Deskripsi hanya penanda.
+      await auditWeb(req, loaded.ctx, "update", "digital_archives", id, {
+        action: "gallery_assign",
+        fileName: updated.fileName,
+        ...diffRecord(existing, updated, { maskedFields: new Set(["description"]) }),
       });
 
       const uploader = await prisma.user.findFirst({
@@ -165,6 +174,10 @@ export async function DELETE(
         storageKey: true,
         fileSize: true,
         uploadedBy: true,
+        fileName: true,
+        fileType: true,
+        title: true,
+        category: true,
       },
     });
 
@@ -223,6 +236,12 @@ export async function DELETE(
         where: { id: village.id },
         data: { storageUsed: next },
       });
+    });
+
+    // Tanpa filePath/storageKey.
+    await auditWeb(req, loaded.ctx, "delete", "digital_archives", id, {
+      ...pickSummary(existing, ["fileName", "fileType", "title", "category"]),
+      fileSize: Number(existing.fileSize),
     });
 
     return NextResponse.json({ success: true });

@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -91,6 +93,15 @@ export async function POST(req: NextRequest) {
         sortOrder: so,
       },
     });
+
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "create",
+      "social_benefit_programs",
+      created.id,
+      pickSummary(created, ["name", "periodLabel", "isActive", "sortOrder"]),
+    );
 
     return NextResponse.json({
       ok: true,

@@ -2,6 +2,8 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { isGpsAddonActive } from "@/lib/attendance/addons";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord } from "@/lib/audit/diff";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
 const SETTINGS_ROLES = new Set(["admin", "village_head"]);
@@ -93,6 +95,15 @@ export async function PATCH(req: NextRequest) {
         absensiCheckInRadiusMeters: true,
       },
     });
+
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "update",
+      "attendance_gps_office",
+      villageId,
+      diffRecord(villageRow, updated),
+    );
 
     return NextResponse.json({
       ok: true,

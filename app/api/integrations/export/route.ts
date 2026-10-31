@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { runIntegrationExport } from "@/lib/integrations/sync-service";
 import type { IntegrationExportFormat } from "@/lib/integrations/types";
 import {
@@ -30,6 +31,13 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await runIntegrationExport(village.id, adapterId, format);
+
+    await auditWeb(req, loaded.ctx, "export", "integration_export", adapterId, {
+      adapterId,
+      format,
+      recordCount: result.recordCount,
+      filename: result.filename,
+    });
 
     if (format === "json") {
       return NextResponse.json({

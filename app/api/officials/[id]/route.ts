@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -148,6 +150,18 @@ export async function PATCH(
       include: { position: true },
     });
 
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "update",
+      "officials",
+      officialId,
+      diffRecord(existing, updated, {
+        maskedFields: new Set(["birthDate", "birthplace"]),
+        ignoreFields: new Set(["updatedAt", "createdAt"]),
+      }),
+    );
+
     return NextResponse.json({
       id: updated.id,
       name: updated.name,
@@ -200,7 +214,7 @@ export async function DELETE(
 
     const existing = await prisma.official.findUnique({
       where: { id: officialId },
-      select: { id: true, villageId: true },
+      select: { id: true, villageId: true, positionId: true, status: true },
     });
 
     if (!existing || existing.villageId !== village.id) {
@@ -211,6 +225,15 @@ export async function DELETE(
     }
 
     await prisma.official.delete({ where: { id: officialId } });
+
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "delete",
+      "officials",
+      officialId,
+      pickSummary(existing, ["positionId", "status"]),
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {

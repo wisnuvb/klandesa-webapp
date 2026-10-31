@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { toUkmProduct, ukmProductSelect } from "../_serialize";
 
@@ -87,6 +88,8 @@ export async function POST(req: NextRequest) {
       select: ukmProductSelect,
     });
 
+    await auditWeb(req, loaded.ctx, "create", "ukm_categories", created.id, { name });
+
     return NextResponse.json(toUkmProduct(created), { status: 201 });
   } catch (error) {
     console.error("Error creating UKM category:", error);
@@ -131,6 +134,10 @@ export async function PATCH(req: NextRequest) {
       },
       data: { subCategory: to },
     });
+
+    if (result.count > 0) {
+      await auditWeb(req, loaded.ctx, "update", "ukm_categories", from, { name: { from, to }, productsUpdated: result.count });
+    }
 
     return NextResponse.json({ updated: result.count });
   } catch (error) {
@@ -197,7 +204,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Delete placeholder products
-    await prisma.potential.deleteMany({
+    const removed = await prisma.potential.deleteMany({
       where: {
         villageId: village.id,
         category: { in: ["UMKM", "UKM"] },
@@ -206,6 +213,8 @@ export async function DELETE(req: NextRequest) {
         name: { startsWith: "Kategori: " },
       },
     });
+
+    await auditWeb(req, loaded.ctx, "delete", "ukm_categories", name, { name, placeholdersRemoved: removed.count });
 
     return NextResponse.json({ deleted: true });
   } catch (error) {

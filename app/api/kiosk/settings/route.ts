@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -125,6 +126,12 @@ export async function PATCH(req: NextRequest) {
       where: { id: village.id },
       data: { settings: merged as unknown as Prisma.InputJsonValue },
       select: { id: true, code: true, name: true, settings: true },
+    });
+
+    await auditWeb(req, loaded.ctx, "update", "kiosk_settings", updated.id, {
+      fields: Object.keys(patch),
+      ...("enabled" in patch ? { enabled: patch.enabled } : {}),
+      ...("allowedMailTypes" in patch ? { allowedMailTypesCount: patch.allowedMailTypes?.length ?? 0 } : {}),
     });
 
     return NextResponse.json({

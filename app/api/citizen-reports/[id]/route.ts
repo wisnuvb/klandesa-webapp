@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -130,6 +131,12 @@ export async function PATCH(
         },
       });
     }
+
+    // Hanya transisi status; isi laporan, alasan, dan identitas pelapor tidak dicatat.
+    await auditWeb(req, loaded.ctx, "update", "citizen_reports", String(reportId), {
+      status: { from: existing.status, to: updated.status },
+      ...(status === "REJECT" ? { reasonProvided: Boolean(body.reason?.trim()) } : {}),
+    });
 
     // Beri tahu warga pelapor (akun mobile) tanpa menunggu.
     void notifyReportUpdate(reportId, "status");

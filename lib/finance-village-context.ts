@@ -1,13 +1,18 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { Village } from "@prisma/client";
-import { getToken } from "next-auth/jwt";
-import { authOptions } from "@/auth";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 
+function safeEqual(a: string, b: string): boolean {
+  return timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
+}
+
 /**
- * Lane campuran: sesi app desa (ketat), JWT internal (bukan regional), atau `FINANCE_API_KEY` + `villageId` di body.
+ * Lane campuran: sesi app desa (ketat) atau `FINANCE_API_KEY` + `villageId` di body.
+ * Penolakan dari `requireVillageApiContext` (izin, akun nonaktif, langganan, konteks desa) berlaku apa adanya;
+ * hanya "tidak ada sesi" (401) yang boleh jatuh ke kunci layanan.
  */
 export async function resolveFinanceWriteVillage(
   req: NextRequest,
@@ -18,7 +23,7 @@ export async function resolveFinanceWriteVillage(
 > {
   const apiKeyHeader = req.headers.get("x-api-key");
   const validApiKey = process.env.FINANCE_API_KEY;
-  const keyAuth = Boolean(validApiKey && apiKeyHeader === validApiKey);
+  const keyAuth = Boolean(validApiKey && apiKeyHeader && safeEqual(apiKeyHeader, validApiKey));
 
   const loaded = await requireVillageApiContext(req);
   if (loaded.ok) {
@@ -29,18 +34,8 @@ export async function resolveFinanceWriteVillage(
     };
   }
 
-  const token = await getToken({ req, secret: authOptions.secret });
-  if (
-    token &&
-    token.accountType !== "regional" &&
-    typeof token.villageId === "number"
-  ) {
-    const village = await prisma.village.findUnique({
-      where: { id: token.villageId },
-    });
-    if (village) {
-      return { ok: true, village };
-    }
+  if (loaded.response.status !== 401) {
+    return { ok: false, response: loaded.response };
   }
 
   if (keyAuth) {

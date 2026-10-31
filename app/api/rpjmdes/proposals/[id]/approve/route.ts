@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { parseSdgGoalIds } from "@/lib/sdgs/parse-goals";
 import {
   isVillageSubscriptionActive,
@@ -88,6 +89,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       });
 
       return { activity, proposal: updated };
+    });
+
+    await auditWeb(req, loaded.ctx, "approve", "musdes_proposals", proposalId, {
+      proposalId,
+      activityId: result.activity.id,
     });
 
     return NextResponse.json({

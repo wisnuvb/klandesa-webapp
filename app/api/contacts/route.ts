@@ -1,4 +1,4 @@
-import { getApiSession } from "@/lib/api-session";
+import { requirePlatformSession } from "@/app/api/admin/_auth";
 import {
   parseAppsScriptWebAppUrl,
   postAppsScriptWebhook,
@@ -138,14 +138,9 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getApiSession(req);
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // Pesan formulir kontak landing milik platform (lintas desa): hanya admin platform, bukan admin desa mana pun.
+    const auth = await requirePlatformSession(req);
+    if (!auth.ok) return auth.response;
 
     const url = new URL(req.url);
     const responded = url.searchParams.get("responded");

@@ -3,6 +3,8 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { parseListQuery, sessionSearchWhere } from "@/lib/pkk/list-query";
 import { parsePosyanduSessionInput } from "@/lib/pkk/schemas";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import type { Prisma } from "@prisma/client";
 import {
   isVillageSubscriptionActive,
@@ -147,6 +149,8 @@ export async function POST(req: NextRequest) {
         dasawisma: { select: { id: true, rt: true, rw: true, leaderName: true } },
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "posyandu_sessions", created.id, pickSummary(created, ["sessionDate", "location", "dasawismaId"]));
 
     return NextResponse.json({
       ok: true,

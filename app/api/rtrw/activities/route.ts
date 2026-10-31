@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parseRtRwActivityInput } from "@/lib/rtrw/schemas";
 import { parseSdgGoalIds } from "@/lib/sdgs/parse-goals";
 import {
@@ -90,6 +92,8 @@ export async function POST(req: NextRequest) {
         status: "planned",
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "rtrw_activities", created.id, pickSummary(created, ["rt", "rw", "title", "activityType", "activityDate", "status"]));
 
     return NextResponse.json({ ok: true, row: serializeActivity(created) });
   } catch (e) {

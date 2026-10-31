@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord } from "@/lib/audit/diff";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -80,6 +82,18 @@ export async function PATCH(
       data,
     });
 
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "update",
+      "social_benefit_beneficiaries",
+      beneficiaryId,
+      diffRecord(row, updated, {
+        maskedFields: new Set(["nik", "publicNote"]),
+        ignoreFields: new Set(["updatedAt", "createdAt"]),
+      }),
+    );
+
     return NextResponse.json({
       ok: true,
       beneficiary: {
@@ -133,6 +147,10 @@ export async function DELETE(
     }
 
     await prisma.socialBenefitBeneficiary.delete({ where: { id: beneficiaryId } });
+    await auditWeb(req, loaded.ctx, "delete", "social_benefit_beneficiaries", beneficiaryId, {
+      programId: row.programId,
+      status: row.status,
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE social-benefits/beneficiaries/[id]", e);

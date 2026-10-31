@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { prisma } from "@/lib/prisma";
 import { categorySubFromFolderPath } from "@/lib/digitalArchive/folderPath";
 import { assertStorageForUpload, getEffectiveStorageLimitGb } from "@/lib/digitalArchive/quota";
@@ -330,6 +332,13 @@ export async function POST(req: NextRequest) {
         data: { storageUsed: { increment: deltaGb } },
       });
       return created;
+    });
+
+    // Tanpa filePath/storageKey; hanya nama berkas, jenis, ukuran, kategori.
+    await auditWeb(req, loaded.ctx, "create", "digital_archives", String(archive.id), {
+      ...pickSummary(archive, ["fileName", "fileType", "category", "subCategory", "title", "isPublic", "accessLevel"]),
+      fileSize: Number(archive.fileSize),
+      folderId: archive.folderId ? Number(archive.folderId) : null,
     });
 
     const uploader = await prisma.user.findFirst({

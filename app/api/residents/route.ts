@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -118,6 +120,11 @@ export async function POST(req: NextRequest) {
       }
 
       return { resident, user };
+    });
+
+    await auditWeb(req, loaded.ctx, "create", "residents", result.resident.id, {
+      ...pickSummary(result.resident as unknown as Record<string, unknown>, ["rt", "rw", "familyRole", "isAlive"]),
+      loginAccountCreated: result.user != null,
     });
 
     return NextResponse.json(result, { status: 201 });

@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -131,6 +133,15 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "create",
+      "positions",
+      position.id,
+      pickSummary(position, ["name", "level", "isActive"]),
+    );
 
     const mapped = {
       id: position.id,

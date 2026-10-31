@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -108,6 +110,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await auditWeb(req, loaded.ctx, "create", "mail_templates", template.id, pickSummary(template, ["name", "category", "isActive"]));
+
     return NextResponse.json(template, { status: 201 });
   } catch (err) {
     console.error("POST /api/mail-templates error:", err);
@@ -149,7 +153,7 @@ export async function PATCH(req: NextRequest) {
 
     const owned = await prisma.mailTemplate.findFirst({
       where: { id, villageId: village.id },
-      select: { id: true },
+      select: { id: true, name: true, description: true, category: true, isActive: true },
     });
 
     if (!owned) {
@@ -173,6 +177,13 @@ export async function PATCH(req: NextRequest) {
     if (contentTemplate !== undefined) data.contentTemplate = contentTemplate;
     if (isActive !== undefined) data.isActive = isActive;
 
+    // Dokumen/isi template tidak dibandingkan nilainya; hanya penanda "berubah".
+    const auditChanges = () => ({
+      ...diffRecord(owned, data as Record<string, unknown>, { maskedFields: new Set(["description"]) }),
+      ...(templateStructure !== undefined ? { templateStructure: { changed: true } } : {}),
+      ...(contentTemplate !== undefined ? { contentTemplate: { changed: true } } : {}),
+    });
+
     // Penyimpanan otomatis dari editor mengirim `expectedUpdatedAt`: bila template sudah diubah
     // di tempat lain sejak dimuat, tolak (409) agar dua operator tidak saling menimpa.
     const expectedRaw = body?.expectedUpdatedAt;
@@ -191,6 +202,7 @@ export async function PATCH(req: NextRequest) {
           { status: 409 },
         );
       }
+      await auditWeb(req, loaded.ctx, "update", "mail_templates", id, auditChanges());
       return NextResponse.json(await prisma.mailTemplate.findUnique({ where: { id } }));
     }
 
@@ -198,6 +210,8 @@ export async function PATCH(req: NextRequest) {
       where: { id },
       data,
     });
+
+    await auditWeb(req, loaded.ctx, "update", "mail_templates", id, auditChanges());
 
     return NextResponse.json(updated);
   } catch (err) {

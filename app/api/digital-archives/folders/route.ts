@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import { buildFolderPath, slugFolderSegment } from "@/lib/digitalArchive/folderPath";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -120,6 +121,11 @@ export async function POST(req: NextRequest) {
         createdAt: true,
         updatedAt: true,
       },
+    });
+
+    await auditWeb(req, loaded.ctx, "create", "digital_archive_folders", String(created.id), {
+      name: created.name,
+      parentId: created.parentId ? Number(created.parentId) : null,
     });
 
     return NextResponse.json({

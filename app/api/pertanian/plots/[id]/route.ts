@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { parseFarmPlotInput } from "@/lib/pertanian/schemas";
 import {
   isVillageSubscriptionActive,
@@ -20,6 +22,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const plotId = Number(id);
+    if (!Number.isInteger(plotId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const body = await req.json().catch(() => null);
     const input = parseFarmPlotInput(body);
     if (!input) {
@@ -33,7 +38,17 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Lahan tidak ditemukan" }, { status: 404 });
     }
 
-    await prisma.farmPlot.update({
+    if (input.potentialId) {
+      const pot = await prisma.potential.findFirst({
+        where: { id: input.potentialId, villageId: village.id },
+        select: { id: true },
+      });
+      if (!pot) {
+        return NextResponse.json({ error: "Potensi tidak ditemukan" }, { status: 404 });
+      }
+    }
+
+    const updated = await prisma.farmPlot.update({
       where: { id: plotId },
       data: {
         name: input.name,
@@ -46,6 +61,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         potentialId: input.potentialId,
       },
     });
+
+    await auditWeb(req, loaded.ctx, "update", "farm_plots", plotId, diffRecord(existing, updated, { maskedFields: new Set(["ownerName"]), ignoreFields: new Set(["updatedAt"]) }));
 
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -65,6 +82,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const plotId = Number(id);
+    if (!Number.isInteger(plotId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const existing = await prisma.farmPlot.findFirst({
       where: { id: plotId, villageId: village.id },
     });
@@ -73,6 +93,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.farmPlot.delete({ where: { id: plotId } });
+    await auditWeb(_req, loaded.ctx, "delete", "farm_plots", plotId, pickSummary(existing, ["name", "cropType", "areaHa", "rt", "rw"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/pertanian/plots/[id]", e);

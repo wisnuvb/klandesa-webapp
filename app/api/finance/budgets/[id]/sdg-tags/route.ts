@@ -3,6 +3,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
 import { parseSdgTagsInput } from "@/lib/pertanian/schemas";
 import { parseSdgGoalIds } from "@/lib/sdgs/parse-goals";
+import { auditWeb } from "@/lib/audit/web-audit";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -38,6 +39,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     const updated = await prisma.budget.update({
       where: { id: budgetId },
       data: { sdgGoalIds },
+    });
+
+    await auditWeb(req, loaded.ctx, "sdg_tags_update", "budgets", updated.id, {
+      sdgGoalIds: {
+        from: parseSdgGoalIds(existing.sdgGoalIds),
+        to: parseSdgGoalIds(updated.sdgGoalIds),
+      },
     });
 
     return NextResponse.json({

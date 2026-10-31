@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { readJsonBody } from "@/lib/http/read-json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { INPUT_LIMITS } from "@/lib/letters/server/input";
@@ -21,6 +22,12 @@ export async function POST(req: NextRequest) {
 
     const result = await createLetter({ village, userId, body: parsed.body as Record<string, unknown> });
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    // Isi surat & data pemohon tidak dicatat; hanya id, jenis, nomor, status.
+    await auditWeb(req, loaded.ctx, "create", "letters", result.value.id, {
+      templateId: Number((parsed.body as Record<string, unknown>).templateId) || null,
+      letterNumber: result.value.letterNumber,
+      status: result.value.status,
+    });
     return NextResponse.json(result.value, { status: 201 });
   } catch (err) {
     console.error("POST /api/letters error:", err);

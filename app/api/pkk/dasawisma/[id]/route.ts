@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { parseDasawismaInput } from "@/lib/pkk/schemas";
 import {
   isVillageSubscriptionActive,
@@ -20,6 +22,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const dasId = Number(id);
+    if (!Number.isInteger(dasId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const body = await req.json().catch(() => null);
     const input = parseDasawismaInput(body);
     if (!input) {
@@ -33,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Dasawisma tidak ditemukan" }, { status: 404 });
     }
 
-    await prisma.dasawisma.update({
+    const updated = await prisma.dasawisma.update({
       where: { id: dasId },
       data: {
         rt: input.rt,
@@ -42,6 +47,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         memberCount: input.memberCount ?? 0,
       },
     });
+
+    await auditWeb(req, loaded.ctx, "update", "dasawisma", dasId, diffRecord(existing, updated, { maskedFields: new Set(["leaderName"]), ignoreFields: new Set(["updatedAt"]) }));
 
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -65,6 +72,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const dasId = Number(id);
+    if (!Number.isInteger(dasId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const existing = await prisma.dasawisma.findFirst({
       where: { id: dasId, villageId: village.id },
     });
@@ -73,6 +83,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.dasawisma.delete({ where: { id: dasId } });
+    await auditWeb(_req, loaded.ctx, "delete", "dasawisma", dasId, pickSummary(existing, ["rt", "rw", "memberCount"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/pkk/dasawisma/[id]", e);

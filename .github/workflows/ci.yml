@@ -24,6 +24,8 @@ jobs:
       - run: pnpm exec prisma generate
       - name: Web typecheck
         run: pnpm exec tsc --noEmit
+      - name: Web lint
+        run: pnpm lint
       - name: Web unit tests
         run: pnpm test:unit
       - name: Mobile typecheck

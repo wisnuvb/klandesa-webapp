@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parseProposalInput } from "@/lib/rpjmdes/schemas";
 import { computeSdgPriorityScore } from "@/lib/rpjmdes/priority-scoring";
 import { collectVillageMetrics } from "@/lib/sdgs/collect-metrics";
@@ -114,6 +116,8 @@ export async function POST(req: NextRequest) {
         status: "submitted",
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "musdes_proposals", created.id, pickSummary(created, ["planId", "title", "rt", "rw", "status"]));
 
     return NextResponse.json({ ok: true, row: serializeProposal(created) });
   } catch (e) {

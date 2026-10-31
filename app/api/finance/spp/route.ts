@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { resolveFinanceWriteVillage } from "@/lib/finance-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -84,6 +85,15 @@ export async function POST(req: NextRequest) {
           : {}),
       },
     });
+
+    await auditWeb(
+      req,
+      { userId: verifiedBy != null && Number.isFinite(verifiedBy) ? verifiedBy : null, village },
+      action,
+      "transactions",
+      transaction.id,
+      { status, reason: action === "reject" ? reasonText : null, category: transaction.category, amount: Number(transaction.amount) },
+    );
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import {
   DEFAULT_EARLY_WARNING_CHECKLIST,
   parseEnvironmentalIncidentInput,
@@ -83,6 +85,8 @@ export async function POST(req: NextRequest) {
         checklist: input.checklist ?? DEFAULT_EARLY_WARNING_CHECKLIST,
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "environmental_incidents", created.id, pickSummary(created, ["title", "incidentType", "severity", "status", "rt", "rw"]));
 
     return NextResponse.json({ ok: true, row: serialize(created) });
   } catch (e) {

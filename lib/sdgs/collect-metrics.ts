@@ -126,10 +126,7 @@ export async function collectVillageMetrics(villageId: number): Promise<{
       },
     }),
     prisma.socialBenefitProgram.count({ where: { villageId, isActive: true } }),
-    prisma.citizenReport.findMany({
-      where: { villageId },
-      select: { status: true },
-    }),
+    prisma.citizenReport.groupBy({ by: ["status"], where: { villageId }, _count: true }),
     prisma.official.findMany({
       where: { villageId, status: "active" },
       select: { gender: true },
@@ -221,10 +218,10 @@ export async function collectVillageMetrics(villageId: number): Promise<{
     if (desil === 1 || desil === 2) g.desil12Count++;
   }
 
-  const openReports = citizenReports.filter(
-    (c) => c.status !== "DONE" && c.status !== "REJECT",
-  ).length;
-  const resolvedReports = citizenReports.filter((c) => c.status === "DONE").length;
+  const openReports = citizenReports
+    .filter((c) => c.status !== "DONE" && c.status !== "REJECT")
+    .reduce((n, c) => n + c._count, 0);
+  const resolvedReports = citizenReports.filter((c) => c.status === "DONE").reduce((n, c) => n + c._count, 0);
 
   const femaleOfficials = officials.filter((o) => o.gender === "Perempuan").length;
 

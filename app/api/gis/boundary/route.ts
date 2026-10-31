@@ -7,6 +7,7 @@ import {
   parseGisSettings,
 } from "@/lib/gis/boundary";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -66,6 +67,11 @@ export async function PUT(req: NextRequest) {
       data: {
         settings: newSettings as Prisma.InputJsonValue,
       },
+    });
+
+    await auditWeb(req, loaded.ctx, "update", "gis_boundary", village.id, {
+      boundary: { changed: true },
+      cleared: boundary === null,
     });
 
     return NextResponse.json({ ok: true, boundary });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parsePlanInput } from "@/lib/rpjmdes/schemas";
 import {
   isVillageSubscriptionActive,
@@ -95,6 +97,8 @@ export async function POST(req: NextRequest) {
         _count: { select: { activities: true, proposals: true } },
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "rpjmdes_plans", created.id, pickSummary(created, ["title", "periodStart", "periodEnd", "status"]));
 
     return NextResponse.json({ ok: true, row: serializePlan(created) });
   } catch (e) {

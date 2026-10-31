@@ -8,6 +8,26 @@ import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { requireVillagePermissionResponse } from "@/lib/access-policy";
 import { resolveFinanceWriteVillage } from "@/lib/finance-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
+
+const BUDGET_AUDIT_KEYS = [
+  "budgetCode", "year", "category", "subCategory", "description",
+  "budgetAmount", "realizedAmount", "remainingAmount", "status",
+] as const;
+
+/** Tampilan aman untuk AuditLog: kolom Decimal diubah ke angka agar bisa diserialisasi ke kolom Json. */
+function budgetAuditView(b: Record<string, unknown>) {
+  return pickSummary(
+    {
+      ...b,
+      budgetAmount: Number(b.budgetAmount),
+      realizedAmount: Number(b.realizedAmount),
+      remainingAmount: Number(b.remainingAmount),
+    },
+    BUDGET_AUDIT_KEYS,
+  );
+}
 
 function generateBudgetCode(category: string, year: number) {
   const prefix = category.substring(0, 3).toUpperCase();
@@ -137,6 +157,22 @@ export async function POST(req: NextRequest) {
           ? parseInt(String(session.user.id), 10)
           : undefined;
 
+    // Panggilan kunci layanan tidak punya pengguna: atribusikan ke admin aktif desa yang sama (bukan pengguna acak/lintas desa).
+    let createdBy: number;
+    if (creatorIdRaw != null && Number.isFinite(creatorIdRaw)) {
+      createdBy = creatorIdRaw;
+    } else {
+      const fallbackAdmin = await prisma.user.findFirst({
+        where: { villageId: village.id, role: "admin", isActive: true },
+        orderBy: { id: "asc" },
+        select: { id: true },
+      });
+      if (!fallbackAdmin) {
+        return NextResponse.json({ error: "Desa belum memiliki admin aktif untuk atribusi anggaran" }, { status: 422 });
+      }
+      createdBy = fallbackAdmin.id;
+    }
+
     const budget = await prisma.budget.create({
       data: {
         villageId: village.id,
@@ -149,9 +185,18 @@ export async function POST(req: NextRequest) {
         realizedAmount: 0,
         remainingAmount: parseFloat(String(budgetAmount)),
         status: "active",
-        createdBy: creatorIdRaw != null && Number.isFinite(creatorIdRaw) ? creatorIdRaw : 1,
+        createdBy,
       },
     });
+
+    await auditWeb(
+      req,
+      { userId: creatorIdRaw ?? null, village },
+      "create",
+      "budgets",
+      budget.id,
+      budgetAuditView(budget),
+    );
 
     return NextResponse.json({
       success: true,
@@ -224,6 +269,16 @@ export async function PUT(req: NextRequest) {
         remainingAmount: newBudgetAmount - realizedAmount,
       },
     });
+
+    const actorId = session?.user?.id ? parseInt(String(session.user.id), 10) : NaN;
+    await auditWeb(
+      req,
+      { userId: Number.isFinite(actorId) ? actorId : null, village: { id: currentBudget.villageId } },
+      "update",
+      "budgets",
+      budget.id,
+      diffRecord(budgetAuditView(currentBudget), budgetAuditView(budget)),
+    );
 
     return NextResponse.json({
       success: true,

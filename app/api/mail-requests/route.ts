@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -129,7 +130,7 @@ export async function PUT(req: NextRequest) {
 
     const existing = await prisma.mailRequest.findFirst({
       where: { id: BigInt(id), villageId: village.id },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (!existing) {
       return NextResponse.json(
@@ -155,6 +156,21 @@ export async function PUT(req: NextRequest) {
       where: { id: BigInt(id) },
       data: updateData,
     });
+
+    // Catatan/alasan penolakan (teks bebas) dan data pemohon tidak dicatat.
+    await auditWeb(
+      req,
+      loaded.ctx,
+      dbStatus === "approved" || dbStatus === "rejected" ? "decision" : "update",
+      "mail_requests",
+      String(updated.id),
+      {
+        status: { from: existing.status, to: updated.status },
+        requestNumber: updated.requestNumber,
+        rejected: dbStatus === "rejected",
+        noteProvided: Boolean(notes),
+      },
+    );
 
     // Beri tahu warga pemilik akun mobile (tidak menunggu; gagal tidak mengubah hasil).
     if (dbStatus === "approved" || dbStatus === "rejected") void notifyMailRequestStatus(updated.id);

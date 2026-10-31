@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getApiSession } from "@/lib/api-session";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import {
-  appendMessage,
-  createThread,
   getRecentMessagesForAi,
-  getThreadForUser,
+  getThreadOwned,
+  saveExchange,
   titleFromFirstMessage,
 } from "@/lib/ai/thread-store";
 import {
@@ -20,12 +19,12 @@ import {
   AI_CREDITS_CONSUMPTION_ENABLED,
   ensureDefaultAiCredits,
 } from "@/lib/ai/credits";
-import {
-  AI_MODEL,
-  checkAiCredit,
-  getAiConfig,
-  getAiHeaders,
-} from "@/lib/ai/openrouter";
+import { checkAiCredit, getAiConfig } from "@/lib/ai/openrouter";
+import { redactSensitive, sanitizeAssistantMarkdown } from "@/lib/ai/laras-guard";
+import { executeLarasTool, larasToolSpecs } from "@/lib/ai/laras-tools";
+import { runLarasChat } from "@/lib/ai/laras-agent";
+import { checkRateLimitDb, clientIp, limiterKey } from "@/lib/mobile/rate-limit";
+import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -42,12 +41,41 @@ const MODES: VillageAssistantMode[] = [
 const AI_UPSTREAM_TIMEOUT_MS = 50_000;
 export const maxDuration = 60;
 
+// Batas per pengguna (bersama lintas worker PM2 lewat tabel rate limit): cegah ledakan biaya model.
+const RATE_PER_MINUTE = { max: 8, windowMs: 60_000 };
+const RATE_PER_HOUR = { max: 100, windowMs: 3_600_000 };
+
+const OUT_OF_CREDIT = "Kredit AI habis. Isi ulang lewat tombol Top Up di halaman Asisten Desa AI.";
+
+async function auditQuery(
+  req: NextRequest,
+  entry: { villageId: number; userId: number; threadId: number; metadata: Record<string, unknown> },
+) {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        villageId: entry.villageId,
+        userId: entry.userId,
+        action: "ai_query",
+        entity: "ai_assistant",
+        entityId: String(entry.threadId),
+        metadata: entry.metadata as never,
+        ipAddress: clientIp(req).slice(0, 50),
+        userAgent: req.headers.get("user-agent")?.slice(0, 500) ?? null,
+      },
+    });
+  } catch (e) {
+    console.error("audit ai_query failed", e);
+  }
+}
+
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
   try {
     const loaded = await requireVillageApiContext(req);
     if (!loaded.ok) return loaded.response;
 
-    const { village, userId } = loaded.ctx;
+    const { village, userId, session: villageSession, dbUser } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
@@ -56,13 +84,20 @@ export async function POST(req: NextRequest) {
     const accountType = session?.user?.accountType;
     const isPlatform = accountType === "platform";
 
+    for (const [name, rule] of [["m", RATE_PER_MINUTE], ["h", RATE_PER_HOUR]] as const) {
+      const rl = await checkRateLimitDb(limiterKey(`laras:${name}`, userId), rule);
+      if (!rl.ok) {
+        return NextResponse.json(
+          { error: "Terlalu banyak pertanyaan dalam waktu singkat. Coba lagi sebentar lagi." },
+          { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+        );
+      }
+    }
+
     if (!isPlatform && AI_CREDITS_CONSUMPTION_ENABLED) {
       const credit = await checkAiCredit({ userId: String(userId) });
       if (!credit.hasCredit) {
-        return NextResponse.json(
-          { error: "Kredit AI habis. Isi ulang lewat tombol Top Up di halaman Asisten Desa AI." },
-          { status: 402 },
-        );
+        return NextResponse.json({ error: OUT_OF_CREDIT }, { status: 402 });
       }
     }
 
@@ -80,16 +115,19 @@ export async function POST(req: NextRequest) {
       threadId?: number | string | null;
     } | null;
 
-    const message = String(body?.message ?? "").trim();
-    if (!message) {
+    const rawMessage = String(body?.message ?? "").trim();
+    if (!rawMessage) {
       return NextResponse.json({ error: "Pesan wajib diisi" }, { status: 400 });
     }
-    if (message.length > 8000) {
+    if (rawMessage.length > 8000) {
       return NextResponse.json(
         { error: "Pesan terlalu panjang (maks. 8000 karakter)" },
         { status: 400 },
       );
     }
+    // NIK/telepon yang ditempel pengguna disamarkan sebelum disimpan dan sebelum dikirim ke penyedia AI.
+    const inputRedaction = redactSensitive(rawMessage);
+    const message = inputRedaction.text;
 
     const mode = MODES.includes(body?.mode as VillageAssistantMode)
       ? (body!.mode as VillageAssistantMode)
@@ -102,7 +140,7 @@ export async function POST(req: NextRequest) {
       if (!Number.isFinite(parsed) || parsed <= 0) {
         return NextResponse.json({ error: "threadId tidak valid" }, { status: 400 });
       }
-      const existing = await getThreadForUser(
+      const existing = await getThreadOwned(
         village.id,
         userId,
         Math.trunc(parsed),
@@ -116,84 +154,92 @@ export async function POST(req: NextRequest) {
       threadId = existing.id;
     }
 
-    if (!threadId) {
-      const created = await createThread({
-        villageId: village.id,
-        userId,
-        mode,
-        title: titleFromFirstMessage(message),
-      });
-      threadId = created.id;
-    }
-
-    await appendMessage(threadId, "user", message);
-
-    const dbHistory = await getRecentMessagesForAi(threadId, 8);
-    const historyForAi = dbHistory
-      .slice(0, -1)
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => ({ role: m.role, content: m.content }));
+    // Riwayat sebelum pesan ini (pesan baru baru disimpan setelah model menjawab).
+    const historyForAi = threadId
+      ? (await getRecentMessagesForAi(threadId, 8))
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))
+      : [];
 
     const userName = session?.user?.name || session?.user?.email?.split("@")[0];
     const ctx = await buildVillageAssistantContext(village.id, userName);
     const system = buildSystemPrompt(mode, ctx);
 
-    const payload = {
-      model: AI_MODEL,
-      temperature: 0.6,
-      messages: [
-        { role: "system", content: system },
-        ...historyForAi.map((m) => ({ role: m.role, content: m.content })),
-        { role: "user", content: message },
-      ],
-    };
-
     // Kredit dipesan atomik sebelum memanggil AI; dikembalikan bila panggilan gagal atau jawaban kosong.
     const chargeCredit = !isPlatform && AI_CREDITS_CONSUMPTION_ENABLED;
     if (chargeCredit && !(await reserveAiCredit(userId, 1))) {
+      return NextResponse.json({ error: OUT_OF_CREDIT }, { status: 402 });
+    }
+    const refund = () =>
+      chargeCredit ? refundAiCredit(userId, 1).catch(() => undefined) : Promise.resolve();
+
+    const toolCtx = { villageId: village.id, userId, role: dbUser.role, village, session: villageSession, proposals: { count: 0 }, cache: new Map() };
+    const result = await runLarasChat(
+      {
+        config,
+        messages: [
+          { role: "system", content: system },
+          ...historyForAi,
+          { role: "user", content: message },
+        ],
+        deadlineMs: Math.max(5_000, AI_UPSTREAM_TIMEOUT_MS - (Date.now() - startedAt)),
+      },
+      {
+        toolSpecs: larasToolSpecs(),
+        executeTool: (name, args) => executeLarasTool(toolCtx, name, args),
+      },
+    );
+
+    if (!result.ok) {
+      await refund();
+      const error =
+        result.kind === "timeout"
+          ? "AI terlalu lama merespons. Kredit Anda tidak dipotong, silakan coba lagi"
+          : result.kind === "empty"
+            ? "AI tidak memberikan jawaban. Kredit Anda tidak dipotong, silakan coba lagi."
+            : "Layanan AI sedang bermasalah. Kredit Anda tidak dipotong, silakan coba lagi.";
+      return NextResponse.json({ error }, { status: result.status });
+    }
+
+    const output = sanitizeAssistantMarkdown(result.reply);
+    const reply = output.text.trim();
+    if (!reply) {
+      await refund();
       return NextResponse.json(
-        { error: "Kredit AI habis. Isi ulang lewat tombol Top Up di halaman Asisten Desa AI." },
-        { status: 402 },
+        { error: "AI tidak memberikan jawaban. Kredit Anda tidak dipotong, silakan coba lagi." },
+        { status: 502 },
       );
     }
 
-    let res: Response;
-    let data: {
-      choices?: Array<{ message?: { content?: string } }>;
-      error?: { message?: string };
-    } | null;
     try {
-      const url = `${config.baseUrl}/chat/completions`;
-      res = await fetch(url, {
-        method: "POST",
-        headers: getAiHeaders(config),
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(AI_UPSTREAM_TIMEOUT_MS),
+      threadId = await saveExchange({
+        villageId: village.id,
+        userId,
+        mode,
+        threadId,
+        title: titleFromFirstMessage(message),
+        userMessage: message,
+        assistantMessage: reply,
       });
-      data = (await res.json().catch(() => null)) as typeof data;
     } catch (e) {
-      if (chargeCredit) await refundAiCredit(userId, 1).catch(() => undefined);
-      if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
-        return NextResponse.json(
-          { error: "AI terlalu lama merespons. Kredit Anda tidak dipotong, silakan coba lagi" },
-          { status: 504 },
-        );
-      }
+      await refund();
       throw e;
     }
 
-    if (!res.ok) {
-      if (chargeCredit) await refundAiCredit(userId, 1).catch(() => undefined);
-      const errMsg = data?.error?.message || "Gagal memanggil AI";
-      return NextResponse.json({ error: errMsg }, { status: 502 });
-    }
-
-    const reply = data?.choices?.[0]?.message?.content?.trim() || "";
-    if (!reply) {
-      if (chargeCredit) await refundAiCredit(userId, 1).catch(() => undefined);
-      return NextResponse.json({ error: "AI tidak memberikan jawaban. Kredit Anda tidak dipotong, silakan coba lagi." }, { status: 502 });
-    }
-    await appendMessage(threadId, "assistant", reply);
+    await auditQuery(req, {
+      villageId: village.id,
+      userId,
+      threadId,
+      metadata: {
+        mode,
+        tools: result.toolsUsed,
+        rounds: result.rounds,
+        proposals: result.actions.map((a) => a.key),
+        inputRedactions: inputRedaction.redacted,
+        outputRedactions: output.redacted,
+        ms: Date.now() - startedAt,
+      },
+    });
 
     let remaining: number | null = null;
     if (!isPlatform && userId) {
@@ -206,6 +252,10 @@ export async function POST(req: NextRequest) {
       threadId,
       mode,
       remainingCredits: remaining,
+      actions: result.actions,
+      ...(inputRedaction.redacted > 0
+        ? { notice: "NIK/nomor telepon pada pesan Anda disamarkan sebelum diproses demi privasi warga." }
+        : {}),
     });
   } catch (e) {
     console.error("POST /api/ai/village-assistant", e);

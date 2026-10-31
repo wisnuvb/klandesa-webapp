@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -132,6 +133,11 @@ export async function POST(
         status,
         publicNote: publicNote || null,
       },
+    });
+
+    await auditWeb(req, loaded.ctx, "create", "social_benefit_beneficiaries", created.id, {
+      programId,
+      status: created.status,
     });
 
     return NextResponse.json({

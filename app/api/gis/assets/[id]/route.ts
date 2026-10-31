@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { parseVillageAssetInput } from "@/lib/gis/schemas";
 import {
   isVillageSubscriptionActive,
@@ -54,6 +56,8 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
       },
     });
 
+    await auditWeb(req, loaded.ctx, "update", "gis_assets", assetId, diffRecord(existing, updated, { maskedFields: new Set(["description"]), ignoreFields: new Set(["updatedAt"]) }));
+
     return NextResponse.json({ ok: true, row: updated });
   } catch (e) {
     console.error("PATCH /api/gis/assets/[id]", e);
@@ -85,6 +89,7 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx) {
     }
 
     await prisma.villageAsset.delete({ where: { id: assetId } });
+    await auditWeb(req, loaded.ctx, "delete", "gis_assets", assetId, pickSummary(existing, ["name", "assetType", "condition", "status", "rt", "rw"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/gis/assets/[id]", e);

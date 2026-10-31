@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -37,6 +39,8 @@ export async function DELETE(
     await prisma.villagePotential.delete({
       where: { id: potentialId },
     });
+
+    await auditWeb(req, loaded.ctx, "delete", "village_potentials", potentialId, pickSummary(villagePotential, ["year", "population", "households"]));
 
     return NextResponse.json({ message: "Village potential deleted successfully" });
   } catch (error) {

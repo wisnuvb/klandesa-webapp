@@ -5,6 +5,8 @@ import {
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function normalizeStatus(status?: string) {
@@ -239,6 +241,11 @@ export async function POST(req: NextRequest) {
         status: (status || "active").toLowerCase(),
       },
       include: { position: true },
+    });
+
+    await auditWeb(req, loaded.ctx, "create", "officials", official.id, {
+      ...pickSummary(official, ["positionId", "status"]),
+      positionName: official.position?.name ?? null,
     });
 
     const mapped = {

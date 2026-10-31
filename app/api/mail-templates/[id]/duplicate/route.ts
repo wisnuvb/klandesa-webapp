@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -69,6 +70,12 @@ export async function POST(
             isActive: true,
           },
         });
+        await auditWeb(req, loaded.ctx, "duplicate", "mail_templates", refreshed.id, {
+          sourceTemplateId: source.id,
+          name: refreshed.name,
+          catalogKey,
+          refreshed: true,
+        });
         return NextResponse.json(refreshed, { status: 200 });
       }
     }
@@ -88,6 +95,12 @@ export async function POST(
         isActive: true,
         inheritsCatalogKey: catalogKey,
       },
+    });
+
+    await auditWeb(req, loaded.ctx, "duplicate", "mail_templates", dup.id, {
+      sourceTemplateId: source.id,
+      name: dup.name,
+      catalogKey,
     });
 
     return NextResponse.json(dup, { status: 201 });

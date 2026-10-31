@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { parsePosyanduSessionInput } from "@/lib/pkk/schemas";
 import {
   isVillageSubscriptionActive,
@@ -20,6 +22,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const sessionId = Number(id);
+    if (!Number.isInteger(sessionId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const body = await req.json().catch(() => null);
     const input = parsePosyanduSessionInput(body);
     if (!input) {
@@ -33,7 +38,17 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Sesi tidak ditemukan" }, { status: 404 });
     }
 
-    await prisma.posyanduSession.update({
+    if (input.dasawismaId) {
+      const dasawisma = await prisma.dasawisma.findFirst({
+        where: { id: input.dasawismaId, villageId: village.id },
+        select: { id: true },
+      });
+      if (!dasawisma) {
+        return NextResponse.json({ error: "Dasawisma tidak ditemukan" }, { status: 404 });
+      }
+    }
+
+    const updated = await prisma.posyanduSession.update({
       where: { id: sessionId },
       data: {
         sessionDate: new Date(input.sessionDate),
@@ -41,6 +56,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         dasawismaId: input.dasawismaId,
       },
     });
+
+    await auditWeb(req, loaded.ctx, "update", "posyandu_sessions", sessionId, diffRecord(existing, updated, { ignoreFields: new Set(["updatedAt"]) }));
 
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -60,6 +77,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const sessionId = Number(id);
+    if (!Number.isInteger(sessionId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const existing = await prisma.posyanduSession.findFirst({
       where: { id: sessionId, villageId: village.id },
     });
@@ -68,6 +88,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.posyanduSession.delete({ where: { id: sessionId } });
+    await auditWeb(_req, loaded.ctx, "delete", "posyandu_sessions", sessionId, pickSummary(existing, ["sessionDate", "location", "dasawismaId"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/pkk/posyandu/sessions/[id]", e);

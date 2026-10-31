@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -64,6 +65,12 @@ export async function POST(
         responderName: session.user.name || "Admin",
         responderRole: mapRoleLabel(session.user.role),
       },
+    });
+
+    // Isi tanggapan tidak dicatat; hanya id tanggapan.
+    await auditWeb(req, loaded.ctx, "respond", "citizen_reports", String(reportId), {
+      responseId: Number(created.id),
+      reportStatus: existing.status,
     });
 
     void notifyReportUpdate(reportId, "response");

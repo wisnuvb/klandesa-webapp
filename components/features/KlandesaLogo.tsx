@@ -20,7 +20,7 @@ export function KlandesaLogo({
       <Image
         src={logoSrc}
         alt="Klandesa Logo"
-        width={810}
+        width={844}
         height={160}
         className={cn("w-auto h-[34px] object-contain", className)}
       />

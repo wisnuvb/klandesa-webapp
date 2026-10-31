@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { retryIntegrationSync } from "@/lib/integrations/sync-service";
 import {
   isVillageSubscriptionActive,
@@ -25,6 +26,14 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
     }
 
     const { exportResult, sync } = await retryIntegrationSync(village.id, logId);
+
+    await auditWeb(req, loaded.ctx, "retry", "integration_sync", logId, {
+      adapterId: exportResult.adapterId,
+      format: exportResult.format,
+      newLogId: sync.logId,
+      status: sync.status,
+      recordCount: sync.recordCount,
+    });
 
     return NextResponse.json({
       ok: true,

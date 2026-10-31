@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -19,6 +21,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const proposalId = Number(id);
+    if (!Number.isInteger(proposalId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const body = await req.json().catch(() => null);
     const status =
       body && typeof body === "object" && typeof (body as { status?: unknown }).status === "string"
@@ -43,6 +48,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       where: { id: proposalId },
       data: { status },
     });
+    await auditWeb(req, loaded.ctx, "update", "musdes_proposals", proposalId, {
+      status: { from: existing.status, to: status },
+    });
 
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -62,6 +70,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const proposalId = Number(id);
+    if (!Number.isInteger(proposalId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const existing = await prisma.musdesProposal.findFirst({
       where: { id: proposalId, villageId: village.id },
     });
@@ -76,6 +87,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.musdesProposal.delete({ where: { id: proposalId } });
+    await auditWeb(_req, loaded.ctx, "delete", "musdes_proposals", proposalId, pickSummary(existing, ["planId", "title", "rt", "rw", "status"]));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/rpjmdes/proposals/[id]", e);

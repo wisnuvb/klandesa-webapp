@@ -5,6 +5,8 @@ import { assetSearchWhere } from "@/lib/gis/list-query";
 import { parseVillageAssetInput } from "@/lib/gis/schemas";
 import { parseListQuery } from "@/lib/pkk/list-query";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -149,6 +151,8 @@ export async function POST(req: NextRequest) {
         status: input.status ?? "active",
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "gis_assets", created.id, pickSummary(created, ["name", "assetType", "condition", "status", "rt", "rw"]));
 
     return NextResponse.json({ ok: true, row: serializeAsset(created) });
   } catch (e) {

@@ -1,4 +1,6 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord } from "@/lib/audit/diff";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -27,7 +29,7 @@ export async function PATCH(
 
     const existing = await prisma.announcement.findFirst({
       where: { id, villageId: village.id },
-      select: { id: true },
+      select: { id: true, title: true, content: true, category: true, isPinned: true, publishDate: true, isActive: true, viewCount: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
@@ -45,6 +47,12 @@ export async function PATCH(
         isActive: body.isActive,
         viewCount: body.viewCount,
       },
+    });
+
+    // Isi pengumuman hanya ditandai "berubah", nilainya tidak dicatat.
+    await auditWeb(req, loaded.ctx, "update", "announcements", id, {
+      title: announcement.title,
+      ...diffRecord(existing, announcement, { maskedFields: new Set(["content"]) }),
     });
 
     return NextResponse.json(announcement);
@@ -79,13 +87,15 @@ export async function DELETE(
 
     const existing = await prisma.announcement.findFirst({
       where: { id, villageId: village.id },
-      select: { id: true },
+      select: { id: true, title: true, category: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
     }
 
     await prisma.announcement.delete({ where: { id: existing.id } });
+
+    await auditWeb(req, loaded.ctx, "delete", "announcements", id, { title: existing.title, category: existing.category });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -2,12 +2,14 @@
 
 import { DataWargaTable, ExcelUploadDialog } from "@/components/app/data-warga";
 import { useDataWargaPage } from "./_hooks/useDataWargaPage";
+import { KualitasKkBanner } from "./_components/KualitasKkBanner";
 
 export default function DataWarga() {
   const warga = useDataWargaPage();
 
   return (
     <div className="space-y-6">
+      <KualitasKkBanner refreshKey={warga.refreshKey} />
       <DataWargaTable
         refreshKey={warga.refreshKey}
         onRefresh={warga.onRefresh}

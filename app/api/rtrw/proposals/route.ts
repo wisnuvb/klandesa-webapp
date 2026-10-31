@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parseCommunityProposalInput } from "@/lib/rtrw/schemas";
 import { parseSdgGoalIds } from "@/lib/sdgs/parse-goals";
 import {
@@ -88,6 +90,8 @@ export async function POST(req: NextRequest) {
         status: "submitted",
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "community_proposals", created.id, pickSummary(created, ["rt", "rw", "title", "proposalType", "status"]));
 
     return NextResponse.json({ ok: true, row: serializeProposal(created) });
   } catch (e) {

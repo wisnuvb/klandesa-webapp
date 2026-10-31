@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
@@ -53,6 +54,7 @@ export async function DELETE(
         where: { id },
         data: { isActive: false },
       });
+      await auditWeb(req, loaded.ctx, "delete", "mail_templates", id, { name: row.name, archived: true, keptLetters: letterCount });
       return NextResponse.json({ ok: true, archived: true, keptLetters: letterCount });
     }
 
@@ -62,11 +64,13 @@ export async function DELETE(
       // Surat baru saja dibuat dengan template ini (balapan) → arsipkan saja.
       if ((err as { code?: string })?.code === "P2003") {
         await prisma.mailTemplate.update({ where: { id }, data: { isActive: false } });
+        await auditWeb(req, loaded.ctx, "delete", "mail_templates", id, { name: row.name, archived: true, keptLetters: 1 });
         return NextResponse.json({ ok: true, archived: true, keptLetters: 1 });
       }
       throw err;
     }
 
+    await auditWeb(req, loaded.ctx, "delete", "mail_templates", id, { name: row.name, archived: false });
     return NextResponse.json({ ok: true, archived: false, keptLetters: 0 });
   } catch (err) {
     console.error("DELETE /api/mail-templates/[id] error:", err);

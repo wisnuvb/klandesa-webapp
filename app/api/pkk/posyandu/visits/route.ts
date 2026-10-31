@@ -3,6 +3,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { parseListQuery, visitSearchWhere } from "@/lib/pkk/list-query";
 import { parsePosyanduVisitInput } from "@/lib/pkk/schemas";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
 import type { Prisma } from "@prisma/client";
 import {
   isVillageSubscriptionActive,
@@ -163,6 +164,12 @@ export async function POST(req: NextRequest) {
         data: { isStunting: true },
       });
     }
+
+    // Data kesehatan anak: hanya id yang dicatat, tanpa hasil ukur/nama/catatan.
+    await auditWeb(req, loaded.ctx, "create", "posyandu_visits", created.id, {
+      sessionId: created.sessionId,
+      residentId: created.residentId,
+    });
 
     return NextResponse.json({
       ok: true,

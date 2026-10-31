@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { normalizeImageUrls } from "@/app/(app)/ukm/_utils";
 import {
@@ -75,7 +77,17 @@ export async function PATCH(
         villageId: village.id,
         category: { in: ["UMKM", "UKM"] },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        subCategory: true,
+        productionValue: true,
+        productionUnit: true,
+        stockQuantity: true,
+        productNotes: true,
+        images: true,
+      },
     });
 
     if (!existing) {
@@ -177,6 +189,21 @@ export async function PATCH(
       select: ukmProductSelect,
     });
 
+    // Deskripsi/catatan/gambar hanya ditandai "berubah"; PUT mendelegasikan ke sini jadi tercatat sekali.
+    const priceOf = (v: unknown) => (v == null ? null : Number(v));
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "update",
+      "ukm_products",
+      id,
+      diffRecord(
+        { ...existing, productionValue: priceOf(existing.productionValue) },
+        { ...data, ...("productionValue" in data ? { productionValue: priceOf(data.productionValue) } : {}) },
+        { maskedFields: new Set(["description", "productNotes", "images"]) },
+      ),
+    );
+
     return NextResponse.json(toUkmProduct(updated));
   } catch (error) {
     console.error("Error updating UKM product:", error);
@@ -215,7 +242,7 @@ export async function DELETE(
         villageId: village.id,
         category: { in: ["UMKM", "UKM"] },
       },
-      select: { id: true },
+      select: { id: true, name: true, subCategory: true, status: true },
     });
 
     if (!existing) {
@@ -226,6 +253,8 @@ export async function DELETE(
     }
 
     await prisma.potential.delete({ where: { id } });
+
+    await auditWeb(req, loaded.ctx, "delete", "ukm_products", id, pickSummary(existing, ["name", "subCategory", "status"]));
 
     return NextResponse.json({ success: true });
   } catch (error) {

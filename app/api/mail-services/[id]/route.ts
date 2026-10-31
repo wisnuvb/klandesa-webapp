@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -159,6 +160,18 @@ export async function PATCH(
           changedBy,
         },
       });
+    });
+
+    // Nama/NIK pemohon & isi form tidak dicatat; hanya nomor, status, tanggal, penandatangan.
+    await auditWeb(req, loaded.ctx, "update", "mail_services", String(mailId), {
+      ...(existing.status !== requestedStatus ? { status: { from: existing.status, to: requestedStatus } } : {}),
+      ...(existing.letterNumber !== finalLetterNumber
+        ? { letterNumber: { from: existing.letterNumber, to: finalLetterNumber } }
+        : {}),
+      ...(existing.letterDate.getTime() !== resolvedLetterDate.getTime()
+        ? { letterDate: { from: existing.letterDate.toISOString(), to: resolvedLetterDate.toISOString() } }
+        : {}),
+      applicantAndFormUpdated: true,
     });
 
     return NextResponse.json({

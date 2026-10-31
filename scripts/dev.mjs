@@ -21,7 +21,9 @@ if (!MODES.includes(mode)) {
 
 function readDatabaseUrl() {
   const envFile = `${ROOT}.env`;
-  if (!existsSync(envFile)) throw new Error("File .env tidak ditemukan di root (butuh DATABASE_URL).");
+  if (!existsSync(envFile)) {
+    throw new Error("File .env tidak ditemukan di root (butuh DATABASE_URL).\n  Buat dengan: cp .env.example .env, lalu isi user/password MySQL lokal.");
+  }
   const line = readFileSync(envFile, "utf8")
     .split("\n")
     .find((l) => l.startsWith("DATABASE_URL="));

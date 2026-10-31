@@ -60,6 +60,14 @@ export async function getThreadForUser(
   });
 }
 
+/** Cek kepemilikan thread tanpa memuat pesan (biaya tidak naik seiring panjang percakapan). */
+export async function getThreadOwned(villageId: number, userId: number, threadId: number) {
+  return prisma.aiAssistantThread.findFirst({
+    where: { id: threadId, villageId, userId },
+    select: { id: true },
+  });
+}
+
 export async function getRecentMessagesForAi(threadId: number, take = 8) {
   const rows = await prisma.aiAssistantMessage.findMany({
     where: { threadId },
@@ -114,4 +122,42 @@ export async function deleteThreadForUser(
   if (!existing) return false;
   await prisma.aiAssistantThread.delete({ where: { id: threadId } });
   return true;
+}
+
+/**
+ * Simpan satu pertukaran (pesan pengguna + jawaban) sekaligus, dan buat threadnya bila baru. Dipanggil hanya setelah
+ * model menjawab, sehingga kegagalan tidak meninggalkan thread kosong atau pesan pengguna tanpa jawaban.
+ */
+export async function saveExchange(params: {
+  villageId: number;
+  userId: number;
+  mode: VillageAssistantMode;
+  threadId: number | null;
+  title: string;
+  userMessage: string;
+  assistantMessage: string;
+}): Promise<number> {
+  return prisma.$transaction(async (tx) => {
+    const threadId =
+      params.threadId ??
+      (
+        await tx.aiAssistantThread.create({
+          data: {
+            villageId: params.villageId,
+            userId: params.userId,
+            mode: params.mode,
+            title: params.title,
+          },
+        })
+      ).id;
+    const base = Date.now();
+    await tx.aiAssistantMessage.create({
+      data: { threadId, role: "user", content: params.userMessage, createdAt: new Date(base) },
+    });
+    await tx.aiAssistantMessage.create({
+      data: { threadId, role: "assistant", content: params.assistantMessage, createdAt: new Date(base + 1) },
+    });
+    await tx.aiAssistantThread.update({ where: { id: threadId }, data: { updatedAt: new Date() } });
+    return threadId;
+  });
 }

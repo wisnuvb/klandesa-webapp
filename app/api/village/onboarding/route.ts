@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
 
 export type OnboardingSteps = {
   profile?: boolean;
@@ -76,6 +77,15 @@ export async function PATCH(req: NextRequest) {
     where: { id: village.id },
     data,
     select: { onboardingCompletedAt: true, onboardingSteps: true },
+  });
+
+  const stepChanges: Record<string, { from: boolean | undefined; to: boolean | undefined }> = {};
+  for (const key of Object.keys(merged) as (keyof OnboardingSteps)[]) {
+    if (current[key] !== merged[key]) stepChanges[key] = { from: current[key], to: merged[key] };
+  }
+  await auditWeb(req, loaded.ctx, "update", "village_onboarding", village.id, {
+    steps: stepChanges,
+    ...(body?.markComplete === true ? { markComplete: true } : {}),
   });
 
   return NextResponse.json({

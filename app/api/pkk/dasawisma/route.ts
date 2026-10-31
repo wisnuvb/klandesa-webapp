@@ -3,6 +3,8 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { dasawismaSearchWhere, parseListQuery } from "@/lib/pkk/list-query";
 import { parseDasawismaInput } from "@/lib/pkk/schemas";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import type { Prisma } from "@prisma/client";
 import {
   isVillageSubscriptionActive,
@@ -124,6 +126,8 @@ export async function POST(req: NextRequest) {
         memberCount: input.memberCount ?? 0,
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "dasawisma", created.id, pickSummary(created, ["rt", "rw", "memberCount"]));
 
     return NextResponse.json({
       ok: true,

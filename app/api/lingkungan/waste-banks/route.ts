@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parseWasteBankInput } from "@/lib/lingkungan/schemas";
 import {
   isVillageSubscriptionActive,
@@ -76,6 +78,8 @@ export async function POST(req: NextRequest) {
         status: input.status ?? "active",
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "waste_banks", created.id, pickSummary(created, ["name", "rt", "rw", "monthlyKg", "status"]));
 
     return NextResponse.json({ ok: true, row: serialize(created) });
   } catch (e) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -19,6 +20,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const visitId = Number(id);
+    if (!Number.isInteger(visitId)) {
+      return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    }
     const existing = await prisma.posyanduVisit.findFirst({
       where: { id: visitId, session: { villageId: village.id } },
       include: { resident: { select: { id: true } } },
@@ -28,6 +32,11 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.posyanduVisit.delete({ where: { id: visitId } });
+    // Data kesehatan anak: hanya id yang dicatat.
+    await auditWeb(_req, loaded.ctx, "delete", "posyandu_visits", visitId, {
+      sessionId: existing.sessionId,
+      residentId: existing.residentId,
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("DELETE /api/pkk/posyandu/visits/[id]", e);

@@ -1,9 +1,28 @@
-import { getApiSession } from "@/lib/api-session";
+import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, RESIDENT_AUDIT_IGNORED, RESIDENT_AUDIT_MASKED } from "@/lib/audit/diff";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { residentLeavesVillage } from "@/lib/mobile/citizen-status-logic";
-import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+
+type AuditCtx = Parameters<typeof auditWeb>[1];
+
+async function auditResidentUpdate(
+  request: NextRequest,
+  ctx: AuditCtx,
+  id: number,
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+) {
+  const changes = diffRecord(before, after, {
+    maskedFields: RESIDENT_AUDIT_MASKED,
+    ignoreFields: RESIDENT_AUDIT_IGNORED,
+  });
+  if (Object.keys(changes).length > 0) {
+    await auditWeb(request, ctx, "update", "residents", id, changes);
+  }
+}
 
 // GET /api/residents/[id] - Get single resident by ID
 export async function GET(
@@ -11,17 +30,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getApiSession(request);
-    if (!session?.user?.villageId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const village = await prisma.village.findUnique({
-      where: { id: session.user.villageId },
-      select: { subscriptionStatus: true, subscriptionExpiry: true },
-    });
-    if (village && !isVillageSubscriptionActive(village)) {
-      return subscriptionBlockedResponse(village);
-    }
+    const guard = await requireVillageApiContext(request);
+    if (!guard.ok) return guard.response;
+    const { ctx } = guard;
+    const villageId = ctx.village.id;
 
     const { id: idParam } = await params;
     const id = parseInt(idParam);
@@ -32,7 +44,7 @@ export async function GET(
     const resident = await prisma.resident.findFirst({
       where: {
         id,
-        villageId: session.user.villageId,
+        villageId: villageId,
       },
     });
 
@@ -59,17 +71,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getApiSession(request);
-    if (!session?.user?.villageId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const village = await prisma.village.findUnique({
-      where: { id: session.user.villageId },
-      select: { subscriptionStatus: true, subscriptionExpiry: true },
-    });
-    if (village && !isVillageSubscriptionActive(village)) {
-      return subscriptionBlockedResponse(village);
-    }
+    const guard = await requireVillageApiContext(request);
+    if (!guard.ok) return guard.response;
+    const { ctx } = guard;
+    const villageId = ctx.village.id;
 
     const { id: idParam } = await params;
     const id = parseInt(idParam);
@@ -83,7 +88,7 @@ export async function PUT(
     const existing = await prisma.resident.findFirst({
       where: {
         id,
-        villageId: session.user.villageId,
+        villageId: villageId,
       },
     });
 
@@ -132,7 +137,7 @@ export async function PUT(
       const nikExists = await prisma.resident.findFirst({
         where: {
           nik: body.nik,
-          villageId: session.user.villageId,
+          villageId: villageId,
           id: { not: id },
         },
       });
@@ -235,9 +240,11 @@ export async function PUT(
       },
     });
 
+    await auditResidentUpdate(request, ctx, id, existing, updated);
+
     // Warga kini meninggal/pindah → akun mobilenya harus ikut nonaktif.
     if (residentLeavesVillage(updated) && !residentLeavesVillage(existing)) {
-      await suspendCitizenAccounts(session.user.villageId, [updated.id]);
+      await suspendCitizenAccounts(villageId, [updated.id]);
     }
 
     return NextResponse.json({
@@ -259,10 +266,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getApiSession(request);
-    if (!session?.user?.villageId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const guard = await requireVillageApiContext(request);
+    if (!guard.ok) return guard.response;
+    const { ctx } = guard;
+    const villageId = ctx.village.id;
 
     const { id: idParam } = await params;
     const id = parseInt(idParam);
@@ -276,7 +283,7 @@ export async function PATCH(
     const existing = await prisma.resident.findFirst({
       where: {
         id,
-        villageId: session.user.villageId,
+        villageId: villageId,
       },
     });
 
@@ -304,7 +311,7 @@ export async function PATCH(
         const nikExists = await prisma.resident.findFirst({
           where: {
             nik,
-            villageId: session.user.villageId,
+            villageId: villageId,
             id: { not: id },
           },
         });
@@ -520,8 +527,10 @@ export async function PATCH(
       },
     });
 
+    await auditResidentUpdate(request, ctx, id, existing, updated);
+
     if (residentLeavesVillage(updated) && !residentLeavesVillage(existing)) {
-      await suspendCitizenAccounts(session.user.villageId, [updated.id]);
+      await suspendCitizenAccounts(villageId, [updated.id]);
     }
 
     return NextResponse.json({ success: true, data: updated });
@@ -540,10 +549,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getApiSession(request);
-    if (!session?.user?.villageId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const guard = await requireVillageApiContext(request);
+    if (!guard.ok) return guard.response;
+    const { ctx } = guard;
+    const villageId = ctx.village.id;
 
     const { id: idParam } = await params;
     const id = parseInt(idParam);
@@ -555,7 +564,7 @@ export async function DELETE(
     const existing = await prisma.resident.findFirst({
       where: {
         id,
-        villageId: session.user.villageId,
+        villageId: villageId,
       },
     });
 
@@ -569,6 +578,13 @@ export async function DELETE(
     // Delete resident
     await prisma.resident.delete({
       where: { id },
+    });
+
+    await auditWeb(request, ctx, "delete", "residents", id, {
+      name: existing.name,
+      nikLast4: existing.nik.slice(-4),
+      rt: existing.rt,
+      rw: existing.rw,
     });
 
     return NextResponse.json({

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { pickSummary } from "@/lib/audit/diff";
 import { parseDisasterPointInput } from "@/lib/lingkungan/schemas";
 import {
   isVillageSubscriptionActive,
@@ -81,6 +83,8 @@ export async function POST(req: NextRequest) {
         lastCheckedAt: input.lastCheckedAt ? new Date(input.lastCheckedAt) : null,
       },
     });
+
+    await auditWeb(req, loaded.ctx, "create", "disaster_points", created.id, pickSummary(created, ["name", "disasterType", "riskLevel", "status", "rt", "rw"]));
 
     return NextResponse.json({ ok: true, row: serialize(created) });
   } catch (e) {

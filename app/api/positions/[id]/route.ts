@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -58,7 +60,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const existing = await prisma.position.findFirst({
       where: { id: positionId, villageId: village.id },
-      select: { id: true },
     });
     if (!existing) {
       return NextResponse.json(
@@ -72,6 +73,18 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       data: parsed.data,
       include: { _count: { select: { officials: true } } },
     });
+
+    await auditWeb(
+      req,
+      loaded.ctx,
+      "update",
+      "positions",
+      positionId,
+      diffRecord(existing, updated, {
+        maskedFields: new Set(["allowance"]),
+        ignoreFields: new Set(["updatedAt", "createdAt"]),
+      }),
+    );
 
     return NextResponse.json({
       id: updated.id,
@@ -106,7 +119,13 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
 
     const existing = await prisma.position.findFirst({
       where: { id: positionId, villageId: village.id },
-      select: { id: true, _count: { select: { officials: true } } },
+      select: {
+        id: true,
+        name: true,
+        level: true,
+        isActive: true,
+        _count: { select: { officials: true } },
+      },
     });
     if (!existing) {
       return NextResponse.json(
@@ -122,6 +141,14 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
 
     try {
       await prisma.position.delete({ where: { id: positionId } });
+      await auditWeb(
+        req,
+        loaded.ctx,
+        "delete",
+        "positions",
+        positionId,
+        pickSummary(existing, ["name", "level", "isActive"]),
+      );
     } catch (err) {
       // Perangkat baru ditambahkan di antara pengecekan dan penghapusan.
       if (

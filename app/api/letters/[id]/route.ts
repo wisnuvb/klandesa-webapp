@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { readJsonBody } from "@/lib/http/read-json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { INPUT_LIMITS } from "@/lib/letters/server/input";
@@ -49,6 +50,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
     const result = await updateLetter({ village, userId, id, body: parsed.body as Record<string, unknown> });
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    // Isi surat & data pemohon tidak dicatat; hanya nomor dan status akhir.
+    await auditWeb(req, loaded.ctx, "update", "letters", String(id), {
+      letterNumber: result.value.letterNumber,
+      status: result.value.status,
+    });
     return NextResponse.json(result.value);
   } catch (err) {
     console.error("PATCH /api/letters/[id] error:", err);
@@ -68,6 +74,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
 
     const result = await deleteDraft(village, id);
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    await auditWeb(req, loaded.ctx, "delete", "letters", String(id), { status: "draft" });
     return NextResponse.json(result.value);
   } catch (err) {
     console.error("DELETE /api/letters/[id] error:", err);
