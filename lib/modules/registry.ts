@@ -402,6 +402,17 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     sortOrder: 901,
   },
   {
+    id: "data-kustom",
+    label: "Data Kustom",
+    path: "/data-kustom",
+    permission: "custom_data",
+    sdgGoals: [17],
+    status: "beta",
+    group: "pengaturan",
+    groupLabel: "Pengaturan",
+    sortOrder: 904,
+  },
+  {
     id: "billing",
     label: "Langganan & Billing",
     path: "/billing",

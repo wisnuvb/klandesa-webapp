@@ -1,19 +1,16 @@
 import type { DriveStep } from "driver.js";
+import { tourReplayEvent, tourReplayStorageKey } from "@/lib/onboarding-tour";
+
+export const DASHBOARD_TOUR_ID = "dashboard";
 
 /** Event untuk memicu ulang tur saat user sudah berada di /dashboard. */
-export const DASHBOARD_TOUR_REPLAY_EVENT = "klandesa:dashboard-tour:replay";
+export const DASHBOARD_TOUR_REPLAY_EVENT = tourReplayEvent(DASHBOARD_TOUR_ID);
 
 /** Flag sessionStorage: diset sebelum pindah ke /dashboard dari halaman lain, dibaca sekali lalu dihapus. */
-export const DASHBOARD_TOUR_REPLAY_STORAGE_KEY = "klandesa:dashboard-tour:replay-pending";
-
-const TOUR_VERSION = "v1";
+export const DASHBOARD_TOUR_REPLAY_STORAGE_KEY = tourReplayStorageKey(DASHBOARD_TOUR_ID);
 
 /** Breakpoint `md` Tailwind — di bawah ini sidebar tersembunyi lewat transform, bukan dilepas dari DOM. */
 const DESKTOP_NAV_QUERY = "(min-width: 768px)";
-
-export function dashboardTourSeenKey(userId: string): string {
-  return `klandesa:dashboard-tour:${TOUR_VERSION}:seen:${userId}`;
-}
 
 export function buildDashboardTourSteps(): DriveStep[] {
   const isDesktopNav =

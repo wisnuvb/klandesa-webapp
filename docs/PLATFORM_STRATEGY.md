@@ -160,11 +160,11 @@ Prinsip urutan: keamanan sebelum eksposur; kedalaman data inti sebelum ekosistem
 - [x] `AuditLog` di semua mutasi web lane desa (±100 handler, helper `lib/audit/`; nilai sensitif disamarkan otomatis) + tes statis `tests/api-guard-coverage.test.ts` yang menggagalkan CI bila ada rute tanpa guard atau handler tulis tanpa audit. *(selesai 2026-10-31; mesin website lama & Laras dikecualikan bertulis)*
 - [x] Tiga PATCH yang menerima id relasi dari klien kini memeriksa kepemilikan desa (`posyandu/sessions/[id]`, `pertanian/plots/[id]`, `gis/projects/[id]`).
 - [x] CI: lint web ditambahkan (0 galat). Build web belum (butuh env).
-- [ ] Riwayat hapus warga: **diganti `resident_archives`** (aditif, tanpa mengubah kueri; masuk migrasi Fase 1) alih-alih `deletedAt`.
+- [x] Riwayat hapus warga: **diganti `resident_archives`** (aditif, tanpa mengubah kueri) alih-alih `deletedAt`; arsip ditulis saat hapus (desa berbendera), bisa dipulihkan admin, dibuang setelah 365 hari. *(selesai 2026-10-31)*
 - [ ] Klien Prisma ber-scope (`$extends`) + tes isolasi lintas-tenant yang menyentuh DB (butuh DB uji).
 - [x] `createdBy: 1` pada POST anggaran kunci layanan → admin aktif desa yang sama; id non-numerik → 400 di 7 rute. *(selesai)*
-- [ ] Rapikan sisa: `budgets` PUT/DELETE (`assertBudgetVillageAccess`: jalur `getToken`, perbandingan kunci `===`, cari-id-dulu-baru-cek-desa), `createdBy: 1` bila POST anggaran lewat kunci layanan, validasi id numerik (`NaN` → 500), cek langganan di `ukm-products`, cek peran rename folder arsip.
-- [ ] Hapus model mati (`Request`, `BumdesAsset`/pakai, `Statistic`); perbaiki atau sembunyikan `votesCount` RT/RW.
+- [x] Rapikan sisa: `budgets` PUT kini tanpa jalur JWT yang melewati izin, perbandingan kunci waktu-konstan, pencarian hanya di desa pemanggil, id non-numerik → 400. Sisanya (id numerik, cek langganan `ukm-products`, peran rename arsip) sudah diperiksa 2026-10-31: sudah benar / dikelola matriks izin. *(selesai)*
+- [ ] Hapus model mati: `Request` dan `Statistic` tidak dipakai kode (tetapi menghapus = DROP TABLE di produksi; lakukan hanya setelah cek jumlah baris saat rilis). `BumdesAsset` ternyata dipakai Laras (bukan mati). `CommunityProposal.votesCount` selalu 0 (tidak ada mekanisme dukungan): hanya dibaca API RT/RW dan Laras; belum diubah.
 - [ ] Langkah hukum paralel: perjanjian pengendali–pemroses, kontak DPO, prosedur pelanggaran data 3×24 jam, pendaftaran PSE Lingkup Privat; konfirmasi advokat Indonesia (peran desa = pengendali, kita = pemroses belum dipastikan).
 
 ### Fase 1: Kedalaman "sistem operasional" (Q4 2026 – Q1 2027)
@@ -182,11 +182,11 @@ Urut nilai × kesiapan Satu iDesa:
 Pelajaran produk: mulai dari *"isi sekali, lapor ke mana-mana"* dan mode luring yang kuat; operator tunggal dan internet putus adalah kenyataan.
 
 ### Fase 2: Permukaan platform (Q1–Q2 2027)
-1. Tabel kredensial (`ApiKey`, hash, pemilik desa, pembuat, kedaluwarsa, cabut, terakhir dipakai), scope `resource:action` di atas matriks izin yang ada, peran kustom.
-2. `/api/v1` berversi (ekstrak dari konvensi `/api/mobile/v1`), validasi zod, paginasi kursor, kode galat stabil, OpenAPI dihasilkan dari skema, `llms.txt`.
+1. ~~Tabel kredensial~~ **selesai 2026-10-31** (kunci API per desa, scope baca-saja, jejak akses, batas laju, layar admin; lihat [PHASE2_API_KEYS.md](PHASE2_API_KEYS.md)). Peran kustom belum.
+2. ~~`/api/v1`~~ **baca-saja selesai 2026-10-31** (10 endpoint, penyamaran terpusat, paginasi kursor, kode galat stabil, OpenAPI + `llms.txt` dibangkitkan dari satu daftar; lihat [PHASE2_API_KEYS.md](PHASE2_API_KEYS.md)). Tulis-sebagai-usulan belum.
 3. Bus kejadian + webhook keluar (HMAC, retry) + antrean kerja berumur panjang (impor, ekspor, AI, webhook).
 4. Kualitas data: status verifikasi per kolom, validasi NIK (checksum/wilayah), dedupe/merge, batch impor tercatat, ekspor penuh tenant + prosedur cadangan/pulih. Generalisasikan `DataChangeRequest` menjadi layanan maker/checker dengan kebijakan per kolom.
-5. Tabel/kolom kustom (ekstrak pola registri surat) + form dari prompt (kredit AI) + galeri templat.
+5. ~~Tabel/kolom kustom~~ **selesai 2026-10-31** (tipe terbatas, kelas data per kolom, pratinjau, form/daftar/CSV/API otomatis; lihat [PHASE2_CUSTOM_DATA.md](PHASE2_CUSTOM_DATA.md)). Form dari prompt AI dan galeri templat belum.
 
 ### Fase 3: Lapisan AI (Q2–Q3 2027)
 - MCP hosted baca-saja (OAuth per-desa, penyamaran PII, sandbox sintetis), pembersihan PII sebelum panggilan model, audit AI per tenant.

@@ -8,7 +8,13 @@ import { assertStorageForUpload, getEffectiveStorageLimitGb } from "@/lib/digita
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { buildSpacesPublicUrl, publicUrlToStorageKey } from "@/lib/spaces";
 import { MAX_MEDIA_IMAGE_BYTES, MEDIA_CATEGORY, isVillageArchiveKey } from "@/lib/digitalArchive/media";
-import { deleteStorageObjectQuietly, verifyUploadedImage } from "@/lib/digitalArchive/verify-object";
+import { DEFAULT_CATEGORY, MAX_DOCUMENT_BYTES } from "@/lib/digitalArchive/document";
+import { normalizeCategoryInput } from "@/lib/digitalArchive/folderPath";
+import {
+  deleteStorageObjectQuietly,
+  verifyUploadedDocument,
+  verifyUploadedImage,
+} from "@/lib/digitalArchive/verify-object";
 
 function getExtension(name: string) {
   const idx = name.lastIndexOf(".");
@@ -185,7 +191,7 @@ export async function POST(req: NextRequest) {
       description?: string | null;
       tags?: string[] | null;
       isPublic?: boolean;
-      accessLevel?: "admin" | "staff" | "public";
+      accessLevel?: "admin" | "public";
       /** "image": aset gambar (diverifikasi di storage, selalu publik). */
       kind?: string;
     };
@@ -198,16 +204,15 @@ export async function POST(req: NextRequest) {
       : null;
     const contentType = (body.contentType || "").toString().trim();
     let fileSize = Number(body.fileSize || 0);
-    let category = (body.category || "").toString().trim();
+    let category = normalizeCategoryInput((body.category || "").toString());
     let subCategory = body.subCategory
-      ? body.subCategory.toString().trim()
+      ? normalizeCategoryInput(body.subCategory.toString())
       : null;
     const title = (body.title || "").toString().trim() || fileName;
     const description = body.description ? body.description.toString() : null;
     const tags = Array.isArray(body.tags) ? body.tags.map(String) : null;
     const accessLevel = (isImageAsset ? "public" : body.accessLevel || "admin") as
       | "admin"
-      | "staff"
       | "public";
     const isPublic = isImageAsset || Boolean(body.isPublic) || accessLevel === "public";
 
@@ -248,12 +253,8 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    if (!category && isImageAsset) category = MEDIA_CATEGORY;
     if (!category) {
-      return NextResponse.json(
-        { error: "category is required (or provide folderId)" },
-        { status: 400 },
-      );
+      category = isImageAsset ? MEDIA_CATEGORY : DEFAULT_CATEGORY;
     }
     if (!Number.isFinite(fileSize) || fileSize <= 0) {
       return NextResponse.json(
@@ -262,9 +263,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Ukuran dari klien tidak dipercaya (upload langsung ke storage, lewat server): pakai
+    // ukuran nyata objek untuk mencegah klaim ukuran palsu lolos cek kuota.
     if (isImageAsset) {
-      // Ukuran dari klien tidak dipercaya: pakai ukuran nyata objek (menutup celah lolos kuota).
       const verified = await verifyUploadedImage(storageKey, MAX_MEDIA_IMAGE_BYTES);
+      if (!verified.ok) {
+        await deleteStorageObjectQuietly(storageKey);
+        return NextResponse.json({ error: verified.error }, { status: 400 });
+      }
+      fileSize = verified.size;
+    } else {
+      const verified = await verifyUploadedDocument(storageKey, MAX_DOCUMENT_BYTES);
       if (!verified.ok) {
         await deleteStorageObjectQuietly(storageKey);
         return NextResponse.json({ error: verified.error }, { status: 400 });
@@ -278,7 +287,7 @@ export async function POST(req: NextRequest) {
       fileSize,
     );
     if (!quota.ok) {
-      if (isImageAsset) await deleteStorageObjectQuietly(storageKey);
+      await deleteStorageObjectQuietly(storageKey);
       return NextResponse.json(
         {
           error: "Storage limit exceeded",

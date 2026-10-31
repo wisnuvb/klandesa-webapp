@@ -18,14 +18,14 @@ export function CheckPanel({
   const notes = warnings.filter((w) => RELEVANT.has(w.code));
   if (missing.length === 0 && notes.length === 0) {
     return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <p data-tour="composer-check" className="flex items-center gap-2 text-sm text-muted-foreground">
         <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
         Semua isian wajib sudah terisi.
       </p>
     );
   }
   return (
-    <section aria-label="Cek surat" className="space-y-2 rounded-lg border p-3 text-sm">
+    <section data-tour="composer-check" aria-label="Cek surat" className="space-y-2 rounded-lg border p-3 text-sm">
       <h3 className="flex items-center gap-2 font-semibold">
         <CircleAlert className="h-4 w-4" aria-hidden="true" />
         Cek surat

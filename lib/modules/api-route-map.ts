@@ -6,6 +6,7 @@ export const API_ROUTE_MODULE_MAP: Array<{ prefix: string; moduleId: string }> =
   { prefix: "/api/rpjmdes", moduleId: "rpjmdes" },
   { prefix: "/api/gis", moduleId: "peta-infrastruktur" },
   { prefix: "/api/integrations", moduleId: "sinkronisasi-data" },
+  { prefix: "/api/developer", moduleId: "sinkronisasi-data" },
   { prefix: "/api/ai", moduleId: "asisten-ai" },
   { prefix: "/api/finance", moduleId: "keuangan" },
   { prefix: "/api/lingkungan", moduleId: "lingkungan" },

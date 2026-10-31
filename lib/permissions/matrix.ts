@@ -184,6 +184,13 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: "read",
     staff: "read",
   },
+  custom_data: {
+    // Skema tabel (buat/ubah kolom) tambahan dibatasi admin & sekretaris di dalam rute; matriks ini untuk baris data.
+    admin: "crud_export",
+    village_head: "read",
+    secretary: "crud_export",
+    staff: "crud",
+  },
 };
 
 function resolveActions(

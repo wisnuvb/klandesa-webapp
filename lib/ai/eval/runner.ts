@@ -5,6 +5,7 @@ import { buildSystemPrompt, type VillageAssistantContext } from "@/lib/ai/villag
 import { redactSensitive } from "@/lib/ai/laras-guard";
 import { reportSafetyRules, validateReportProposal } from "@/lib/ai/laras-report";
 import { validateAnnouncementProposal } from "@/lib/ai/laras-announcement";
+import { EVAL_USER_NAME } from "./types";
 import type { CheckResult, EvalRun, Scenario, ScenarioResult, ToolCallRecord } from "./types";
 
 /** Desa rekaan: tidak ada data asli yang dikirim ke penyedia model. */
@@ -19,7 +20,7 @@ const FAKE_CONTEXT: VillageAssistantContext = {
   mailServiceCount: 12,
   socialProgramCount: 2,
   totalResidents: 1500,
-  userName: "Pak Budi",
+  userName: EVAL_USER_NAME,
   bumdesSummary: "BUMDes Maju Bersama",
   pengaduanTerbuka: 3,
   pengaduanSelesai: 14,

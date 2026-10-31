@@ -1,3 +1,8 @@
+/** Rapikan input kategori/sub-kategori dari pengguna: trim + lipat spasi ganda, tanpa ubah kapitalisasi. */
+export function normalizeCategoryInput(raw: string): string {
+  return raw.trim().replace(/\s+/g, " ");
+}
+
 /** Segmen aman untuk path folder (tanpa slash). */
 export function slugFolderSegment(name: string): string {
   const s = name.trim().slice(0, 200);

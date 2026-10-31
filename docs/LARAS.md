@@ -27,6 +27,11 @@ Kredit dipesan sebelum model dipanggil dan dikembalikan bila apa pun gagal sebel
 | `cooperative_summary` | cooperative | koperasi |
 | `household_stats` | residents | data-kk |
 | `population_mutations` | residents | data-warga |
+| `environment_summary` | lingkungan | lingkungan |
+| `agriculture_summary` | pertanian | pertanian |
+| `rtrw_activities_summary` | rtrw | partisipasi-rtrw |
+| `posyandu_summary` | pkk | pkk |
+| `archive_summary` | archive | arsip |
 
 Aturan yang tidak boleh dilanggar saat menambah tool:
 
@@ -72,6 +77,20 @@ Keputusan desain:
 - **Penyamaran:** total desa per bulan tidak disamarkan (sama dengan laporan mutasi bulanan resmi); rincian per wilayah, KK perempuan kepala,
   lansia sendiri, dan sebaran ukuran KK disamarkan `<5`.
 - Laras belum mengusulkan/menerapkan mutasi (kelahiran, kematian, pindah). Itu aksi tulis atas data warga; butuh keputusan dan kartu konfirmasi tersendiri.
+
+## Gelombang 4: lingkungan, pertanian, RT/RW, Posyandu, arsip (`lib/ai/laras-sectors.ts`)
+
+| Tool | Isi | Sengaja TIDAK ada |
+|---|---|---|
+| `environment_summary` | Bank sampah, insiden lingkungan aktif, titik rawan bencana (risiko tinggi tanpa rencana evakuasi, lama tidak dicek) | Koordinat, nama pengelola, catatan, **isi** rencana evakuasi (hanya ada/tidaknya) |
+| `agriculture_summary` | Lahan, siklus tanam, panen mendekat/terlambat, hasil panen dan harga rata-rata per komoditas | Nama pemilik lahan |
+| `rtrw_activities_summary` | Kegiatan RT/RW setahun, usulan warga (menunggu, paling didukung) | Nama pengusul |
+| `posyandu_summary` | Sesi per bulan, kunjungan, peserta berbeda, Dasawisma, penanda stunting (disamarkan <5) | Nama, berat/tinggi, catatan per orang; nama ketua dasawisma |
+| `archive_summary` | Jumlah dokumen per kategori/jenis/tahun, ukuran, unggahan terbaru | Judul, nama berkas, isi, tautan |
+
+Tabel anak tanpa `villageId` (siklus tanam, panen) dibatasi lewat petak induk (`plot: { villageId }`, `cycle: { plot: { villageId } }`).
+Status insiden/titik bencana berformat bebas; insiden dianggap selesai bila `resolved/closed/done/completed/selesai`, selebihnya aktif.
+Posyandu hanya mengambil `residentId` untuk menghitung peserta berbeda di memori (tidak dikembalikan).
 
 ## Aksi: Laras mengusulkan, manusia mengonfirmasi
 
@@ -165,6 +184,12 @@ Keterbatasan v1: kartu hanya muncul pada jawaban langsung (tidak dimuat ulang da
   sistem dan spesifikasi tool produksi dengan desa rekaan; tool ditiru dengan aturan server yang sama. Pengecekan bertingkat
   **kritis / perilaku / kualitas**. Pelari sendiri diuji dengan model skrip (`tests/laras-eval-harness.test.ts`). Panduan pengujian
   lengkap: [LARAS_TEST_PLAN.md](LARAS_TEST_PLAN.md).
+- **Membaca hasil `laras:eval`**: kegagalan KRITIS yang konsisten (3/3) pada satu skenario pertama-tama dicurigai sebagai cacat pengecekan, bukan model. Baca
+  `reply` di `hasil.json` sebelum menyimpulkan. Pengalaman 2026-10-31 (29 skenario × 3): 5 kegagalan kritis ternyata semuanya salah tangkap (model menyapa
+  pengguna "Pak Budi" sesuai prompt; kalimat "jumlah tepatnya disamarkan" dikira menyebut angka pasti). Hasil lama bisa dinilai ulang GRATIS tanpa memanggil
+  model dengan memuat `hasil.json` dan menjalankan `scenario.checks[].test` pada `calls`/`reply` tersimpan.
+- **Data skenario harus benar secara fakta**: model menolak membuat pengumuman karena "9 November 2026 jatuh pada Senin, bukan Minggu", dan ia benar.
+  Tanggal/hari, dan angka yang tumpang tindih dengan konteks desa rekaan (1.500 jiwa), harus diperiksa sebelum menyimpulkan model salah.
 - Catatan: `laras:eval` MEMANGGIL MODEL berbayar memakai `OPENROUTER_API_KEY` dari `.env.local`/`.env`; `--dry-run` tidak memanggil.
   Modul env milik proyek memuat `.env` sendiri sehingga mengosongkan variabel di shell tidak cukup untuk mencegah panggilan.
 
@@ -178,7 +203,7 @@ Keterbatasan v1: kartu hanya muncul pada jawaban langsung (tidak dimuat ulang da
 ## Belum dikerjakan
 
 - Aksi lain: pembuatan isi surat dari templat, pengingat iuran, notifikasi massal pengumuman (butuh keputusan tersendiri).
-- Daftar warga bermasker (nama tersamar), APBDes rinci per bidang, arsip digital (hanya metadata), bank sampah/bencana/RT-RW/pertanian rinci, struktur wilayah master (`wilayah_units`) dan usulan mutasi lewat Laras (aksi tulis). Tabel autentikasi, tagihan/mitra/regional, dan data kesehatan per orang sengaja TIDAK akan dibuka untuk Laras.
+- Daftar warga bermasker (nama tersamar), APBDes rinci per bidang, UKM/produk dan potensi desa, forum, galeri, struktur wilayah master (`wilayah_units`) dan usulan mutasi lewat Laras (aksi tulis). Tabel autentikasi, tagihan/mitra/regional, dan data kesehatan per orang sengaja TIDAK akan dibuka untuk Laras.
 - Streaming token sungguhan (butuh sanitasi inkremental); kredit proporsional terhadap token; cache bersama antar worker; kuota harian pengumuman masih rawan balapan kecil antar token berbeda.
 - Streaming jawaban; cache konteks (kini membaca semua baris warga tiap pertanyaan).
 - Set tanya-jawab acuan yang dicocokkan dengan hasil SQL nyata (butuh akses DB); menjalankan `laras:eval` berkala (mis. tiap ganti model/prompt).

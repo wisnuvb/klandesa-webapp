@@ -16,6 +16,7 @@ import { focusInput } from "../_utils/dom";
 import { CheckPanel } from "./CheckPanel";
 import { FieldsSection } from "./FieldsSection";
 import { GroupsSection } from "./GroupsSection";
+import { LetterComposerTour } from "./LetterComposerTour";
 import { PaperPane } from "./PaperPane";
 import { PeopleSection } from "./PeopleSection";
 import { SuccessPanel } from "./SuccessPanel";
@@ -143,6 +144,7 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
+      <LetterComposerTour active={showMain} />
       {c.openedDraft ? (
         <Alert className="shrink-0">
           <Info className="h-4 w-4" aria-hidden="true" />
@@ -234,7 +236,7 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
               ) : null}
               {c.notice ? <p role="status" className="text-sm text-muted-foreground">{c.notice}</p> : null}
               {waitingData ? <p role="status" className="text-sm text-muted-foreground">Mengambil data warga… tombol simpan aktif setelah data terisi.</p> : null}
-              <div className="flex flex-wrap gap-2">
+              <div data-tour="composer-actions" className="flex flex-wrap gap-2">
                 <Button type="submit" disabled={busy || waitingData} aria-busy={c.busy === "completed"} className="min-h-10 flex-1 gap-2 pointer-coarse:min-h-11">
                   {c.busy === "completed" ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Printer className="h-4 w-4" aria-hidden="true" />}
                   {c.busy === "completed" ? "Menerbitkan…" : "Terbitkan & Cetak"}

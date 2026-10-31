@@ -3,13 +3,15 @@ import { getCronSecret } from "@/lib/regional-news/config";
 import { isValidCronAuth } from "@/lib/regional-news/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { reconcileAndClear } from "@/lib/kependudukan/sync";
+import { purgeExpiredArchives } from "@/lib/kependudukan/archive-service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
  * Job harian: rekonsiliasi rumah tangga dan wilayah untuk semua desa yang fiturnya aktif (jaring pengaman bila
- * sinkronisasi saat ubah data pernah gagal, atau data diubah di luar aplikasi). Idempoten.
+ * sinkronisasi saat ubah data pernah gagal, atau data diubah di luar aplikasi), lalu membuang arsip warga terhapus yang
+ * melewati masa simpan (365 hari). Idempoten.
  * Dijalankan dengan `Authorization: Bearer $CRON_SECRET`.
  */
 export async function POST(req: NextRequest) {
@@ -29,5 +31,6 @@ export async function POST(req: NextRequest) {
       console.error(`[cron kependudukan-reconcile] desa ${v.id} gagal:`, e instanceof Error ? e.message : e);
     }
   }
-  return NextResponse.json({ ok: failed === 0, villages: villages.length, changed, failed });
+  const archivesPurged = await purgeExpiredArchives(prisma);
+  return NextResponse.json({ ok: failed === 0, villages: villages.length, changed, failed, archivesPurged });
 }

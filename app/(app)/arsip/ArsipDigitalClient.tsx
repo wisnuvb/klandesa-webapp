@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { isLengkapPlan } from "@/lib/billing/lengkap";
 import { useCallback, useMemo, useState } from "react";
-import { AnimatePresence } from "motion/react";
 import { useSession } from "next-auth/react";
 import { browsePathFromFolderPath } from "@/lib/digitalArchive/folderPath";
 import { canAccessArchiveBinary } from "@/lib/digitalArchive/access";
@@ -32,6 +31,7 @@ import {
   PreviewModal,
   UpgradeModal,
   UploadModal,
+  type UploadProgressOpts,
 } from "./_components/modals";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { usePayment } from "@/components/billing/PaymentProvider";
@@ -43,6 +43,49 @@ interface Props {
   initialEntries: ArchiveEntry[];
   initialFolders: ArchiveFolderEntry[];
   villageStorage: VillageStorageInfo;
+}
+
+/**
+ * PUT ke storage dengan progres & dukungan batal. `fetch` tidak mengekspos event progres upload
+ * secara andal lintas browser, jadi dipakai XMLHttpRequest untuk ini.
+ */
+function putWithProgress(
+  url: string,
+  file: File,
+  headers: Record<string, string>,
+  opts: UploadProgressOpts,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    for (const [k, v] of Object.entries(headers)) {
+      xhr.setRequestHeader(k, v);
+    }
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        opts.onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(
+          new Error(
+            `upload_failed ${xhr.status}${xhr.responseText ? `: ${xhr.responseText.slice(0, 200)}` : ""}`,
+          ),
+        );
+      }
+    };
+    xhr.onerror = () => reject(new Error("upload_failed network_error"));
+    xhr.onabort = () => reject(new Error("upload_cancelled"));
+    if (opts.signal.aborted) {
+      xhr.abort();
+      return;
+    }
+    opts.signal.addEventListener("abort", () => xhr.abort());
+    xhr.send(file);
+  });
 }
 
 export function ArsipDigitalClient(props: Props) {
@@ -411,8 +454,9 @@ export function ArsipDigitalClient(props: Props) {
         subCategory: string | null;
         title: string;
         isPublic: boolean;
-        accessLevel: "admin" | "staff" | "public";
+        accessLevel: "admin" | "public";
       },
+      opts: UploadProgressOpts,
     ): Promise<ArchiveEntry> => {
       const presignRes = await fetch("/api/digital-archives/presign", {
         method: "POST",
@@ -427,6 +471,7 @@ export function ArsipDigitalClient(props: Props) {
           isPublic: meta.isPublic,
           accessLevel: meta.accessLevel,
         }),
+        signal: opts.signal,
       });
 
       if (!presignRes.ok) {
@@ -451,18 +496,7 @@ export function ArsipDigitalClient(props: Props) {
         putHeaders["Content-Type"] = putContentType;
       }
 
-      const putRes = await fetch(presigned.uploadUrl, {
-        method: "PUT",
-        headers: putHeaders,
-        body: file,
-      });
-
-      if (!putRes.ok) {
-        const hint = await putRes.text().catch(() => "");
-        throw new Error(
-          `upload_failed ${putRes.status}${hint ? `: ${hint.slice(0, 200)}` : ""}`,
-        );
-      }
+      await putWithProgress(presigned.uploadUrl, file, putHeaders, opts);
 
       const createRes = await fetch("/api/digital-archives", {
         method: "POST",
@@ -544,53 +578,44 @@ export function ArsipDigitalClient(props: Props) {
         onDeleteItem={handleDeleteItem}
       />
 
-      <AnimatePresence>
-        <UpgradeModal
-          open={showUpgradeModal}
-          currentPlan={currentPlan}
-          includedStarter={isLengkapPlan(villageStorage.subscriptionPlan)}
-          addonExpiry={villageStorage.addonExpiry ?? null}
-          onClose={() => setShowUpgradeModal(false)}
-          onUpgradePlan={handleUpgradePlan}
-        />
-      </AnimatePresence>
+      <UpgradeModal
+        open={showUpgradeModal}
+        currentPlan={currentPlan}
+        includedStarter={isLengkapPlan(villageStorage.subscriptionPlan)}
+        addonExpiry={villageStorage.addonExpiry ?? null}
+        onClose={() => setShowUpgradeModal(false)}
+        onUpgradePlan={handleUpgradePlan}
+      />
 
+      <UploadModal
+        open={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        defaultCategory={uploadDefaults.category}
+        defaultSubCategory={uploadDefaults.subCategory}
+        folderPaths={uploadFolderPaths}
+        onUpload={uploadArchive}
+        onUploaded={(entry) => {
+          setEntries((prev) => [entry, ...prev]);
+        }}
+      />
 
-      <AnimatePresence>
-        <UploadModal
-          open={showUploadModal}
-          onClose={() => setShowUploadModal(false)}
-          defaultCategory={uploadDefaults.category}
-          defaultSubCategory={uploadDefaults.subCategory}
-          folderPaths={uploadFolderPaths}
-          onUpload={uploadArchive}
-          onUploaded={(entry) => {
-            setEntries((prev) => [entry, ...prev]);
-          }}
-        />
-      </AnimatePresence>
+      <PreviewModal
+        open={showPreviewModal}
+        file={previewFile}
+        onClose={() => setShowPreviewModal(false)}
+      />
 
-      <AnimatePresence>
-        <PreviewModal
-          open={showPreviewModal}
-          file={previewFile}
-          onClose={() => setShowPreviewModal(false)}
-        />
-      </AnimatePresence>
-
-      <AnimatePresence>
-        <NewFolderModal
-          open={showNewFolderModal}
-          folderName={newFolderName}
-          setFolderName={setNewFolderName}
-          onClose={() => {
-            setShowNewFolderModal(false);
-            setNewFolderName("");
-          }}
-          onCreate={handleCreateFolder}
-          creating={folderCreating}
-        />
-      </AnimatePresence>
+      <NewFolderModal
+        open={showNewFolderModal}
+        folderName={newFolderName}
+        setFolderName={setNewFolderName}
+        onClose={() => {
+          setShowNewFolderModal(false);
+          setNewFolderName("");
+        }}
+        onCreate={handleCreateFolder}
+        creating={folderCreating}
+      />
     </div>
   );
 }

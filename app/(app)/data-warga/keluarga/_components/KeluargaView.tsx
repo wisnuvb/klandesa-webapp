@@ -2,13 +2,15 @@
 
 import { useDeferredValue, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Info, Loader2, Search, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArchiveRestore, Info, Loader2, Pencil, Search, Users } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { formatTanggal, MUTASI_TYPES } from "@/lib/kependudukan/mutasi-labels";
+import { Label } from "@/components/ui/label";
+import { FAMILY_ROLES, formatTanggal, MUTASI_TYPES } from "@/lib/kependudukan/mutasi-labels";
 import { MUTATION_LABEL, type MutationType } from "@/lib/kependudukan/mutation";
-import { useApiGet } from "../_hooks/useApiGet";
+import { useApiGet } from "@/hooks/useApiGet";
 
 interface HouseholdRow {
   id: number;
@@ -26,6 +28,7 @@ interface HouseholdList {
   items: HouseholdRow[];
 }
 interface HouseholdDetail {
+  id: number;
   kkNumber: string;
   address: string;
   rt: string | null;
@@ -52,6 +55,26 @@ const spaced = (kk: string) => kk.replace(/(\d{4})(?=\d)/g, "$1 ");
 const STATUS_TEXT = { aktif: "Aktif", meninggal: "Meninggal", pindah: "Sudah pindah" } as const;
 const MUTASI_STATUS = { PENDING: "menunggu", APPLIED: "diterapkan", REJECTED: "ditolak", CANCELLED: "dibatalkan" } as Record<string, string>;
 const isMutType = (t: string): t is MutationType => (MUTASI_TYPES as readonly string[]).includes(t);
+
+
+const SELECT_CLASS = "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
+
+async function sendJson(url: string, method: string, body: unknown): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await res.json().catch(() => null);
+    if (res.ok) return { ok: true, data: j ?? {} };
+    return { ok: false, error: typeof j?.error === "string" ? j.error : "Permintaan gagal. Coba lagi." };
+  } catch {
+    return { ok: false, error: "Tidak bisa terhubung. Periksa koneksi lalu coba lagi." };
+  }
+}
+
+interface StatusInfo {
+  enabled?: boolean;
+  isAdmin?: boolean;
+  canManage?: boolean;
+}
 
 function OffNotice() {
   return (
@@ -85,6 +108,83 @@ function Loading({ text }: { text: string }) {
   );
 }
 
+
+function ChangeHeadPanel({ detail, onDone }: { detail: HouseholdDetail; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [newHead, setNewHead] = useState("");
+  const [role, setRole] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const active = detail.members.filter((m) => m.status === "aktif");
+  const candidates = active.filter((m) => m.id !== detail.headResidentId || active.filter((x) => x.familyRole === "Kepala Keluarga").length > 1);
+  const otherHeads = active.filter((m) => m.familyRole === "Kepala Keluarga" && String(m.id) !== newHead);
+  if (active.length === 0) return null;
+
+  async function save() {
+    if (!newHead) return setError("Pilih siapa Kepala Keluarga yang baru.");
+    if (otherHeads.length > 0 && !role) return setError(`Pilih hubungan keluarga yang baru untuk ${otherHeads.map((o) => o.name).join(", ")}.`);
+    setBusy(true);
+    setError(null);
+    const r = await sendJson(`/api/kependudukan/households/${detail.id}`, "PATCH", { headResidentId: Number(newHead), otherHeadsRole: role || undefined });
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
+    toast.success("Kepala Keluarga diganti.");
+    setOpen(false);
+    onDone();
+  }
+
+  if (!open) {
+    return (
+      <Button type="button" variant="outline" className="min-h-11" onClick={() => setOpen(true)}>
+        <Pencil aria-hidden="true" />
+        Ganti Kepala Keluarga
+      </Button>
+    );
+  }
+  return (
+    <section aria-label="Ganti Kepala Keluarga" className="space-y-3 rounded-md border p-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="kepala-baru">Kepala Keluarga yang baru</Label>
+        <select id="kepala-baru" className={SELECT_CLASS} value={newHead} onChange={(e) => setNewHead(e.target.value)}>
+          <option value="">Pilih anggota…</option>
+          {candidates.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} ({m.familyRole})
+            </option>
+          ))}
+        </select>
+      </div>
+      {otherHeads.length > 0 ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="kepala-lama">Hubungan keluarga yang baru untuk {otherHeads.map((o) => o.name).join(", ")}</Label>
+          <select id="kepala-lama" className={SELECT_CLASS} value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="">Pilih…</option>
+            {FAMILY_ROLES.filter((r) => r !== "Kepala Keluarga").map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      {error ? (
+        <p role="alert" className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <Button type="button" className="min-h-11" disabled={busy} onClick={() => void save()}>
+          {busy ? <Loader2 aria-hidden="true" className="animate-spin" /> : null}
+          Simpan
+        </Button>
+        <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => setOpen(false)}>
+          Batal
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 function HouseholdDetailDialog({ id, onClose }: { id: number; onClose: () => void }) {
   const d = useApiGet<HouseholdDetail>(`/api/kependudukan/households/${id}`);
   return (
@@ -106,6 +206,7 @@ function HouseholdDetailDialog({ id, onClose }: { id: number; onClose: () => voi
                 Keluarga ini belum punya Kepala Keluarga yang aktif. Perbaiki lewat halaman Perbaikan Data KK.
               </p>
             ) : null}
+            <ChangeHeadPanel key={d.data.members.map((m) => m.familyRole).join("|")} detail={d.data} onDone={d.reload} />
             <section aria-labelledby="anggota-title">
               <h3 id="anggota-title" className="mb-2 font-semibold">
                 Anggota ({d.data.members.length})
@@ -225,13 +326,89 @@ function Keluarga() {
   );
 }
 
-function Wilayah() {
+type Unit = { id: number; name: string; type: "dusun" | "RW" | "RT"; residents: number };
+const normName = (v: string) => v.trim().replace(/\s+/g, " ").toUpperCase().replace(/^0+(?=\d)/, "");
+
+function RenameDialog({ unit, siblings, onClose, onDone }: { unit: Unit; siblings: string[]; onClose: () => void; onDone: () => void }) {
+  const [name, setName] = useState(unit.name);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const merges = siblings.some((n) => normName(n) === normName(name)) && normName(name) !== normName(unit.name);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return setError("Nama wajib diisi.");
+    setBusy(true);
+    setError(null);
+    const r = await sendJson(`/api/kependudukan/wilayah/${unit.id}`, "PATCH", { name });
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
+    toast.success(r.data.merged ? `Digabung. ${r.data.moved} warga dipindahkan.` : `Nama diubah. ${r.data.moved} warga diperbarui.`);
+    onDone();
+    onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => (!o && !busy ? onClose() : undefined)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Ubah nama atau gabungkan</DialogTitle>
+          <DialogDescription>
+            {unit.type === "dusun" ? "Dusun" : unit.type} {unit.name} · {unit.residents} warga. Berlaku untuk semua warga di wilayah ini.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={save} className="space-y-4" noValidate>
+          <div className="space-y-1.5">
+            <Label htmlFor="wilayah-nama">Nama baru</Label>
+            <Input id="wilayah-nama" list="wilayah-nama-list" className="h-11" value={name} onChange={(e) => setName(e.target.value)} maxLength={unit.type === "dusun" ? 100 : 10} />
+            <datalist id="wilayah-nama-list">
+              {siblings.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
+            <p className="text-sm text-muted-foreground">Pilih nama yang sudah ada dari daftar untuk menggabungkan, misalnya memperbaiki salah ketik.</p>
+          </div>
+          {merges ? (
+            <p role="status" className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-50">
+              <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              Nama ini sudah ada. Kedua wilayah akan digabung menjadi satu.
+            </p>
+          ) : null}
+          {error ? (
+            <p role="alert" className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={onClose}>
+              Batal
+            </Button>
+            <Button type="submit" className="min-h-11" disabled={busy}>
+              {busy ? <Loader2 aria-hidden="true" className="animate-spin" /> : null}
+              {merges ? "Gabungkan" : "Simpan"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Wilayah({ canManage }: { canManage: boolean }) {
   const w = useApiGet<WilayahTree>("/api/kependudukan/wilayah");
+  const [editing, setEditing] = useState<{ unit: Unit; siblings: string[] } | null>(null);
   if (w.off) return <OffNotice />;
   if (w.loading) return <Loading text="Memuat wilayah…" />;
   if (w.error) return <Failure message={w.error} onRetry={w.reload} />;
   if (!w.data) return null;
   const { dusun, rw, rtTanpaRw } = w.data;
+  const edit = (unit: Unit, siblings: WilayahNode[]) =>
+    canManage ? (
+      <Button type="button" variant="ghost" className="min-h-11" aria-label={`Ubah atau gabungkan ${unit.type === "dusun" ? "dusun" : unit.type} ${unit.name}`} onClick={() => setEditing({ unit, siblings: siblings.filter((s) => s.id !== unit.id).map((s) => s.name) })}>
+        <Pencil aria-hidden="true" />
+        Ubah
+      </Button>
+    ) : null;
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <section aria-labelledby="dusun-title" className="space-y-2">
@@ -243,8 +420,11 @@ function Wilayah() {
           {dusun.map((d) => (
             <li key={d.id} className="flex items-center justify-between gap-3 p-3">
               <span className="font-medium">{d.name}</span>
-              <span className="text-sm text-muted-foreground">
-                {d.residents} warga · {d.households} KK
+              <span className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {d.residents} warga · {d.households} KK
+                </span>
+                {edit({ id: d.id, name: d.name, type: "dusun", residents: d.residents }, dusun)}
               </span>
             </li>
           ))}
@@ -265,12 +445,16 @@ function Wilayah() {
                     {r.rt.length} RT · {r.rt.reduce((a, x) => a + x.residents, 0) + r.residents} warga
                   </span>
                 </summary>
+                <div className="flex justify-end border-t px-2">{edit({ id: r.id, name: r.name, type: "RW", residents: r.rt.reduce((a, x) => a + x.residents, 0) + r.residents }, rw)}</div>
                 <ul className="divide-y border-t">
                   {r.rt.map((t) => (
-                    <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+                    <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-1 text-sm">
                       <span>RT {t.name}</span>
-                      <span className="text-muted-foreground">
-                        {t.residents} warga · {t.households} KK
+                      <span className="flex items-center gap-2">
+                        <span className="text-muted-foreground">
+                          {t.residents} warga · {t.households} KK
+                        </span>
+                        {edit({ id: t.id, name: t.name, type: "RT", residents: t.residents }, r.rt)}
                       </span>
                     </li>
                   ))}
@@ -287,12 +471,100 @@ function Wilayah() {
           ) : null}
         </ul>
       </section>
+      {editing ? <RenameDialog key={editing.unit.id} unit={editing.unit} siblings={editing.siblings} onClose={() => setEditing(null)} onDone={w.reload} /> : null}
     </div>
   );
 }
 
+interface ArsipList {
+  retentionDays: number;
+  total: number;
+  items: { id: string; name: string; nikLast4: string; familyRole: string; deletedAt: string; reason: string | null; expiresAt: string }[];
+}
+
+function Arsip() {
+  const a = useApiGet<ArsipList>("/api/kependudukan/arsip?limit=50");
+  const [target, setTarget] = useState<ArsipList["items"][number] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (a.off) return <OffNotice />;
+  if (a.loading) return <Loading text="Memuat arsip…" />;
+  if (a.error) return <Failure message={a.error} onRetry={a.reload} />;
+  if (!a.data) return null;
+
+  async function restore() {
+    if (!target) return;
+    setBusy(true);
+    setError(null);
+    const r = await sendJson("/api/kependudukan/arsip/pulihkan", "POST", { id: target.id });
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
+    toast.success(`${target.name} dipulihkan ke Data Warga.`);
+    setTarget(null);
+    a.reload();
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="max-w-prose text-sm text-muted-foreground">
+        Warga yang dihapus dari Data Warga disimpan di sini selama {a.data.retentionDays} hari, lalu dihapus permanen. Yang dipulihkan hanya data warganya; kunjungan
+        posyandu, keanggotaan koperasi, dan akun aplikasinya tidak ikut kembali.
+      </p>
+      {a.data.items.length === 0 ? (
+        <p className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">Tidak ada warga terhapus yang tersimpan.</p>
+      ) : (
+        <ul className="divide-y rounded-md border">
+          {a.data.items.map((i) => (
+            <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+              <div>
+                <p className="font-medium">{i.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  NIK ••••{i.nikLast4} · {i.familyRole} · dihapus {formatTanggal(i.deletedAt.slice(0, 10))} · disimpan sampai {formatTanggal(i.expiresAt.slice(0, 10))}
+                </p>
+              </div>
+              <Button type="button" variant="outline" className="min-h-11" onClick={() => { setError(null); setTarget(i); }}>
+                <ArchiveRestore aria-hidden="true" />
+                Pulihkan
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {target ? (
+        <Dialog open onOpenChange={(o) => (!o && !busy ? setTarget(null) : undefined)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Pulihkan {target.name}?</DialogTitle>
+              <DialogDescription>Data warga ini dikembalikan ke Data Warga dan dimasukkan lagi ke keluarganya.</DialogDescription>
+            </DialogHeader>
+            {error ? (
+              <p role="alert" className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => setTarget(null)}>
+                Batal
+              </Button>
+              <Button type="button" className="min-h-11" disabled={busy} onClick={() => void restore()}>
+                {busy ? <Loader2 aria-hidden="true" className="animate-spin" /> : null}
+                Ya, pulihkan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </div>
+  );
+}
+
+type Tab = "keluarga" | "wilayah" | "arsip";
+const TAB_LABEL: Record<Tab, string> = { keluarga: "Keluarga (KK)", wilayah: "Wilayah", arsip: "Warga terhapus" };
+
 export function KeluargaView() {
-  const [tab, setTab] = useState<"keluarga" | "wilayah">("keluarga");
+  const [tab, setTab] = useState<Tab>("keluarga");
+  const status = useApiGet<StatusInfo>("/api/kependudukan/status");
+  const tabs: Tab[] = status.data?.isAdmin ? ["keluarga", "wilayah", "arsip"] : ["keluarga", "wilayah"];
   return (
     <div className="space-y-6">
       <header className="space-y-2">
@@ -306,8 +578,8 @@ export function KeluargaView() {
         </h1>
         <p className="max-w-prose text-muted-foreground">Daftar KK beserta anggotanya, dan pembagian dusun, RW, dan RT desa. Dibentuk otomatis dari Data Warga.</p>
       </header>
-      <div role="tablist" aria-label="Tampilan" className="flex gap-2">
-        {(["keluarga", "wilayah"] as const).map((t) => (
+      <div role="tablist" aria-label="Tampilan" className="flex flex-wrap gap-2">
+        {tabs.map((t) => (
           <button
             key={t}
             type="button"
@@ -318,12 +590,12 @@ export function KeluargaView() {
             onClick={() => setTab(t)}
             className={`min-h-11 rounded-full border px-5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === t ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
           >
-            {t === "keluarga" ? "Keluarga (KK)" : "Wilayah"}
+            {TAB_LABEL[t]}
           </button>
         ))}
       </div>
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "keluarga" ? <Keluarga /> : <Wilayah />}
+        {tab === "keluarga" ? <Keluarga /> : tab === "wilayah" ? <Wilayah canManage={Boolean(status.data?.canManage)} /> : <Arsip />}
       </div>
     </div>
   );

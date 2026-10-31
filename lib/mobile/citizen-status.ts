@@ -13,3 +13,16 @@ export async function suspendCitizenAccounts(villageId: number, residentIds: num
   });
   return r.count;
 }
+
+/**
+ * Aktifkan lagi akun mobile warga yang kembali ke desa. Hanya status SUSPENDED yang dipulihkan: nilai itu hanya
+ * ditulis oleh `suspendCitizenAccounts` (warga meninggal/pindah), jadi tidak membatalkan pemblokiran lain.
+ */
+export async function reactivateCitizenAccounts(villageId: number, residentIds: number[]): Promise<number> {
+  if (residentIds.length === 0) return 0;
+  const r = await prisma.citizenAccount.updateMany({
+    where: { villageId, residentId: { in: residentIds }, deletedAt: null, status: "SUSPENDED" },
+    data: { status: "ACTIVE" },
+  });
+  return r.count;
+}

@@ -16,7 +16,7 @@ import {
   type MutasiForm,
 } from "@/lib/kependudukan/mutasi-labels";
 import type { ActionResult } from "../_hooks/useMutasi";
-import { ResidentPicker } from "./ResidentPicker";
+import { ResidentPicker } from "@/components/app/ResidentPicker";
 
 const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";

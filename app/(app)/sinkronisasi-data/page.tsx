@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Download,
+  KeyRound,
   Loader2,
   RefreshCw,
   RotateCcw,
@@ -196,6 +198,12 @@ export default function SinkronisasiDataPage() {
         <p className="text-sm text-muted-foreground mt-1">
           Hub integrasi Kemendesa — export standar, log sinkronisasi, dan retry.
         </p>
+        <Button asChild variant="outline" className="mt-3 min-h-11">
+          <Link href="/sinkronisasi-data/akses-api">
+            <KeyRound className="h-4 w-4" />
+            Akses API untuk aplikasi buatan sendiri
+          </Link>
+        </Button>
       </div>
 
       {error && (

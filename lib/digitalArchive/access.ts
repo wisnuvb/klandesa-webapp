@@ -2,12 +2,10 @@
  * Aturan akses arsip digital per desa (selaras route GET/DELETE berkas).
  */
 
-const FOLDER_MANAGER_ROLES = new Set([
-  "admin",
-  "staff",
-  "secretary",
-  "village_head",
-]);
+// Selaras resource "archive" di lib/permissions/matrix.ts: village_head hanya "read" di sana,
+// jadi requireVillageApiContext sudah menolak village_head sebelum fungsi ini pernah dipanggil
+// untuk method DELETE/PATCH. Jangan sertakan village_head di sini agar tidak membingungkan.
+const FOLDER_MANAGER_ROLES = new Set(["admin", "staff", "secretary"]);
 
 export function isVillageAdminRole(role: string | undefined | null): boolean {
   return role === "admin";

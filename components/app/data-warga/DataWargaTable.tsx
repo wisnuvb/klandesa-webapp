@@ -128,6 +128,7 @@ export const DataWargaTable = ({
     return (
       <div className="flex items-center gap-3">
         <Button
+          data-tour="warga-filter-btn"
           variant="outline"
           onClick={() => setShowFilterModal(true)}
           className="gap-2 relative"
@@ -142,12 +143,12 @@ export const DataWargaTable = ({
         </Button>
 
         <div className="ml-auto space-x-2">
-          <Button onClick={() => setShowAddModal(true)} className="gap-2">
+          <Button data-tour="warga-add-btn" onClick={() => setShowAddModal(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Tambah Warga
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
+              <Button data-tour="warga-more-actions" variant="outline" size="icon">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -186,7 +187,7 @@ export const DataWargaTable = ({
           Total {totalCount} data warga
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent data-tour="warga-table">
         <DataTable<Resident>
           columns={columns}
           fetchData={fetchWarga}

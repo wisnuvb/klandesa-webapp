@@ -17,6 +17,12 @@ import {
   normalizeMime,
   validateImageFile,
 } from "@/lib/digitalArchive/media";
+import {
+  ALLOWED_DOCUMENT_MIME_EXT,
+  DEFAULT_CATEGORY,
+  validateDocumentFile,
+} from "@/lib/digitalArchive/document";
+import { normalizeCategoryInput } from "@/lib/digitalArchive/folderPath";
 
 function sanitizeFileName(name: string) {
   return name
@@ -61,26 +67,7 @@ export async function POST(req: NextRequest) {
 
     const isImageAsset = body.kind === "image";
     const fileNameRaw = body.fileName?.toString() || "";
-    const contentType = isImageAsset
-      ? normalizeMime(body.contentType?.toString())
-      : body.contentType?.toString() || "application/octet-stream";
     const fileSize = Number(body.fileSize || 0);
-    let category = (body.category || "").toString().trim();
-    if (isImageAsset) {
-      const invalid = validateImageFile({ type: contentType, size: fileSize });
-      if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
-      if (!category && body.folderId == null) category = MEDIA_CATEGORY;
-    }
-    const subCategory = body.subCategory
-      ? body.subCategory.toString().trim()
-      : null;
-    const folderIdRaw = body.folderId;
-
-    // Aset gambar dipakai di konten publik (website, pengumuman), jadi selalu publik.
-    const aclPublic =
-      isImageAsset ||
-      Boolean(body.isPublic) ||
-      (body.accessLevel || "").toString() === "public";
 
     if (!fileNameRaw) {
       return NextResponse.json(
@@ -94,6 +81,32 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    let category = normalizeCategoryInput((body.category || "").toString());
+    let contentType: string;
+    if (isImageAsset) {
+      contentType = normalizeMime(body.contentType?.toString());
+      const invalid = validateImageFile({ type: contentType, size: fileSize });
+      if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+      if (!category && body.folderId == null) category = MEDIA_CATEGORY;
+    } else {
+      const invalid = validateDocumentFile({ name: fileNameRaw, size: fileSize });
+      if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+      if (!category && body.folderId == null) category = DEFAULT_CATEGORY;
+      // Content-Type ditentukan dari ekstensi yang sudah divalidasi, bukan klaim klien yang
+      // bisa disetel bebas (mis. text/html) untuk mengeksploitasi objek publik.
+      contentType = ALLOWED_DOCUMENT_MIME_EXT[getExtension(fileNameRaw)] || "application/octet-stream";
+    }
+    const subCategory = body.subCategory
+      ? normalizeCategoryInput(body.subCategory.toString())
+      : null;
+    const folderIdRaw = body.folderId;
+
+    // Aset gambar dipakai di konten publik (website, pengumuman), jadi selalu publik.
+    const aclPublic =
+      isImageAsset ||
+      Boolean(body.isPublic) ||
+      (body.accessLevel || "").toString() === "public";
 
     let pathSegments: string[] = [];
 
@@ -117,12 +130,7 @@ export async function POST(req: NextRequest) {
         category = pathSegments[0] || "Arsip";
       }
     } else {
-      if (!category) {
-        return NextResponse.json(
-          { error: "category is required when folderId is omitted" },
-          { status: 400 },
-        );
-      }
+      // category sudah dijamin terisi (default DEFAULT_CATEGORY/MEDIA_CATEGORY) di atas.
       const categoryPath = sanitizeFileName(category).replace(/\s+/g, "-");
       pathSegments = [categoryPath];
       if (subCategory) {

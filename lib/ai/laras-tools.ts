@@ -37,6 +37,13 @@ import {
   planningSummaryForAi,
 } from "@/lib/ai/laras-insights";
 import { isPeriod } from "@/lib/mobile/fees-logic";
+import {
+  agricultureSummaryForAi,
+  archiveSummaryForAi,
+  environmentSummaryForAi,
+  posyanduSummaryForAi,
+  rtrwSummaryForAi,
+} from "@/lib/ai/laras-sectors";
 import { HOUSEHOLD_GROUP_BY, householdStatsForAi, populationMutationsForAi } from "@/lib/ai/laras-kependudukan";
 
 /**
@@ -275,6 +282,7 @@ const feesSchema = z.object({ period: z.string().refine(isPeriod, "Format period
 const yearOnlySchema = z.object({ year: z.number().int().min(2000).max(2100).optional() });
 const householdSchema = z.object({ group_by: z.enum(HOUSEHOLD_GROUP_BY).optional() });
 const mutationsSchema = z.object({ months: z.number().int().min(1).max(24).optional() });
+const posyanduSchema = z.object({ months: z.number().int().min(1).max(24).optional() });
 const attendanceSchema = z.object({ days: z.number().int().min(1).max(90).optional() });
 
 const proposeAnnouncementSchema = z.object({
@@ -412,6 +420,78 @@ export const LARAS_TOOLS: LarasTool[] = [
     run: runSocial as LarasTool["run"],
   },
   {
+    name: "environment_summary",
+    description:
+      "Ringkasan lingkungan dan kebencanaan: bank sampah (jumlah, kg per bulan, jenis sampah), insiden lingkungan (yang masih aktif, tertua, terbaru), " +
+      "dan titik rawan bencana (per jenis/risiko, risiko tinggi tanpa rencana evakuasi, yang lama tidak dicek). Tanpa koordinat dan nama pengelola.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    resource: "lingkungan",
+    permission: "read",
+    moduleId: "lingkungan",
+    schema: emptySchema,
+    run: (async (ctx: LarasToolContext) => environmentSummaryForAi(ctx.villageId)) as LarasTool["run"],
+  },
+  {
+    name: "agriculture_summary",
+    description:
+      "Ringkasan pertanian: lahan (petak, luas, per komoditas), siklus tanam (per status, panen 30 hari ke depan, lewat perkiraan panen), " +
+      "dan hasil panen setahun (kg dan harga rata-rata per komoditas). Tanpa nama pemilik lahan.",
+    parameters: {
+      type: "object",
+      properties: { year: { type: "integer", minimum: 2000, maximum: 2100, description: "Bawaan: tahun berjalan." } },
+      additionalProperties: false,
+    },
+    resource: "pertanian",
+    permission: "read",
+    moduleId: "pertanian",
+    schema: yearOnlySchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof yearOnlySchema>) => agricultureSummaryForAi(ctx.villageId, a.year)) as LarasTool["run"],
+  },
+  {
+    name: "rtrw_activities_summary",
+    description:
+      "Ringkasan kegiatan RT/RW setahun (per status/jenis/wilayah, peserta, anggaran terpakai) dan USULAN WARGA lewat RT/RW/aplikasi " +
+      "(per status, yang menunggu ditinjau, paling banyak didukung/jumlah suara). Berbeda dari usulan Musdes (planning_summary). Tanpa nama pengusul.",
+    parameters: {
+      type: "object",
+      properties: { year: { type: "integer", minimum: 2000, maximum: 2100, description: "Bawaan: tahun berjalan." } },
+      additionalProperties: false,
+    },
+    resource: "rtrw",
+    permission: "read",
+    moduleId: "partisipasi-rtrw",
+    schema: yearOnlySchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof yearOnlySchema>) => rtrwSummaryForAi(ctx.villageId, a.year)) as LarasTool["run"],
+  },
+  {
+    name: "posyandu_summary",
+    description:
+      "Ringkasan Posyandu dan Dasawisma untuk N bulan terakhir: jumlah sesi per bulan, kunjungan, peserta berbeda, penanda stunting (disamarkan bila kurang dari 5), " +
+      "dan jumlah kelompok Dasawisma. Tanpa data kesehatan per orang.",
+    parameters: {
+      type: "object",
+      properties: { months: { type: "integer", minimum: 1, maximum: 24, description: "Jumlah bulan terakhir termasuk bulan ini (bawaan 12)." } },
+      additionalProperties: false,
+    },
+    resource: "pkk",
+    permission: "read",
+    moduleId: "pkk",
+    schema: posyanduSchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof posyanduSchema>) => posyanduSummaryForAi(ctx.villageId, a.months ?? 12)) as LarasTool["run"],
+  },
+  {
+    name: "archive_summary",
+    description:
+      "Ringkasan arsip digital desa: jumlah dokumen per kategori, jenis berkas, dan tahun, total ukuran, jumlah folder, dan unggahan 30 hari terakhir. " +
+      "Hanya jumlah: judul, nama berkas, dan isi dokumen tidak tersedia.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    resource: "archive",
+    permission: "read",
+    moduleId: "arsip",
+    schema: emptySchema,
+    run: (async (ctx: LarasToolContext) => archiveSummaryForAi(ctx.villageId)) as LarasTool["run"],
+  },
+  {
     name: "household_stats",
     description:
       "Statistik Kartu Keluarga (KK) dan kualitas datanya: jumlah KK aktif, rata-rata anggota, sebaran ukuran KK, KK dikepalai perempuan, " +
@@ -479,8 +559,9 @@ export const LARAS_TOOLS: LarasTool[] = [
   {
     name: "planning_summary",
     description:
-      "Ringkasan perencanaan desa: dokumen RPJMDes, kegiatan RKPDes per tahun (status, perkiraan anggaran, prioritas), dan usulan Musdes " +
-      "yang masuk beserta yang menunggu ditinjau. Nama dan NIK pengusul tidak disertakan.",
+      "Ringkasan perencanaan desa: dokumen RPJMDes, kegiatan RKPDes per tahun (status, perkiraan anggaran, prioritas), dan usulan MUSDES " +
+      "(musyawarah desa, yang bisa masuk RKPDes) beserta yang menunggu ditinjau. BUKAN untuk usulan warga lewat RT/RW dengan dukungan/suara " +
+      "(itu rtrw_activities_summary). Nama dan NIK pengusul tidak disertakan.",
     parameters: {
       type: "object",
       properties: { year: { type: "integer", minimum: 2000, maximum: 2100, description: "Bawaan: tahun berjalan." } },
@@ -692,6 +773,11 @@ const TOOL_LABELS: Record<string, string> = {
   social_benefits_summary: "Memeriksa data bantuan sosial…",
   announcements_recent: "Memeriksa pengumuman terbaru…",
   household_stats: "Memeriksa data Kartu Keluarga…",
+  environment_summary: "Memeriksa lingkungan dan kebencanaan…",
+  agriculture_summary: "Memeriksa data pertanian…",
+  rtrw_activities_summary: "Memeriksa kegiatan RT/RW…",
+  posyandu_summary: "Memeriksa data Posyandu…",
+  archive_summary: "Memeriksa arsip digital…",
   population_mutations: "Memeriksa mutasi penduduk…",
   fees_cash_summary: "Memeriksa iuran dan kas…",
   assets_projects_summary: "Memeriksa aset dan proyek desa…",

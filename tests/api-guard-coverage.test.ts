@@ -22,6 +22,7 @@ const rel = (p: string) => relative(process.cwd(), p).split(sep).join("/");
 // Guard yang dikenal per lane (lihat docs/api-lanes.md). Mobile punya lane bearer sendiri dan dites terpisah.
 const GUARDS = [
   "requireVillageApiContext",
+  "requireApiKey",
   "resolveFinanceWriteVillage",
   "requirePlatformSession",
   "requireRegionalApi",
@@ -51,6 +52,9 @@ const UNGUARDED_ALLOWLIST: Record<string, string> = {
   "app/api/attendance/scan/route.ts": "pindai QR absensi (tanda tangan sendiri)",
   "app/api/billing/linkqu/callback/route.ts": "callback LinkQu bertanda tangan",
   "app/api/test-session/route.ts": "alat uji sesi",
+  "app/api/v1/openapi.json/route.ts": "dokumentasi OpenAPI publik; tidak memuat data desa",
+  "app/api/v1/llms.txt/route.ts": "panduan alat AI publik; tidak memuat data desa",
+  "app/api/app-build-id/route.ts": "hanya mengembalikan build ID (bukan data sensitif); di-poll berkala oleh pemberitahuan pembaruan",
   "app/api/contacts/route.ts": "POST formulir kontak publik; GET dijaga requirePlatformSession",
   // Lane sendiri dengan pemeriksaan di dalam handler:
   "app/api/ai/credit/route.ts": "hanya membaca kredit milik sesi sendiri",
@@ -100,7 +104,7 @@ test("rute lane desa menjaga SETIAP handler yang diekspor (bukan hanya sebagian)
     const src = readFileSync(f, "utf8");
     if (!src.includes("requireVillageApiContext") && !src.includes("resolveFinanceWriteVillage")) continue;
     const handlers = [...src.matchAll(/export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\b/g)].map((m) => m[1]);
-    const guardCalls = [...src.matchAll(/(?:await\s+)(requireVillageApiContext|resolveFinanceWriteVillage|assertBudgetVillageAccess)\(/g)].length;
+    const guardCalls = [...src.matchAll(/(?:await\s+)(requireVillageApiContext|resolveFinanceWriteVillage|resolveBudgetAccess)\(/g)].length;
     if (f in DELEGATING_HANDLERS) continue;
     if (guardCalls < handlers.length) offenders.push(`${f}: ${handlers.length} handler, ${guardCalls} panggilan guard`);
   }

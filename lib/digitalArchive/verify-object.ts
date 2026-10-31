@@ -3,6 +3,7 @@ import { getSpacesClient, getSpacesConfig } from "@/lib/spaces";
 import { detectImageMime, normalizeMime } from "./media";
 
 export type VerifiedImage = { ok: true; size: number; mime: string } | { ok: false; error: string };
+export type VerifiedDocument = { ok: true; size: number } | { ok: false; error: string };
 
 /**
  * Upload langsung ke storage tidak melewati server, jadi data dari klien tidak bisa dipercaya.
@@ -28,6 +29,25 @@ export async function verifyUploadedImage(key: string, maxBytes: number): Promis
     return { ok: false, error: "Jenis berkas tidak sesuai dengan isinya." };
   }
   return { ok: true, size, mime };
+}
+
+/**
+ * Ukuran yang diklaim klien saat POST pencatatan tidak bisa dipercaya (bisa dilaporkan lebih kecil
+ * dari isi aslinya untuk lolos cek kuota). Ambil ukuran nyata dari storage via HEAD sebelum dicatat.
+ */
+export async function verifyUploadedDocument(key: string, maxBytes: number): Promise<VerifiedDocument> {
+  const s3 = getSpacesClient();
+  const { bucket } = getSpacesConfig();
+
+  const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key })).catch(() => null);
+  if (!head) return { ok: false, error: "Berkas belum terunggah. Coba unggah ulang." };
+
+  const size = head.ContentLength ?? 0;
+  if (size <= 0) return { ok: false, error: "Berkas kosong." };
+  if (size > maxBytes) {
+    return { ok: false, error: `Ukuran berkas melebihi batas ${Math.round(maxBytes / (1024 * 1024))} MB.` };
+  }
+  return { ok: true, size };
 }
 
 /** Hapus objek tanpa melempar galat (pembersihan setelah verifikasi gagal). */

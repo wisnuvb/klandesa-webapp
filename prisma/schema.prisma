@@ -124,6 +124,12 @@ model Village {
   wilayahUnits      WilayahUnit[]
   residentMutations ResidentMutation[]
   residentArchives  ResidentArchive[]
+  apiKeys           ApiKey[]
+  apiAccessLogs     ApiAccessLog[]
+  webhookEndpoints  WebhookEndpoint[]
+  webhookDeliveries WebhookDelivery[]
+  customTables      CustomTable[]
+  customRecords     CustomRecord[]
 
   @@map("villages")
 }
@@ -442,6 +448,7 @@ model Resident {
   dusunUnit   WilayahUnit? @relation("DusunResidents", fields: [dusunUnitId], references: [id], onDelete: SetNull)
   headOfHouseholds Household[] @relation("HouseholdHead")
   mutations        ResidentMutation[]
+  customRecords    CustomRecord[]
 
   @@unique([villageId, nik])
   @@index([villageId, name])
@@ -3338,4 +3345,192 @@ model ResidentArchive {
   @@index([villageId, deletedAt(sort: Desc)])
   @@index([villageId, residentId])
   @@map("resident_archives")
+}
+
+// ============================================
+// PERMUKAAN PLATFORM (Fase 2): kunci API per desa + log akses (aditif; lihat docs/PHASE2_API_KEYS.md)
+// ============================================
+
+/// Kunci API milik satu desa. Rahasia kunci TIDAK disimpan: hanya hash SHA-256 dan awalan untuk dikenali di layar.
+model ApiKey {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name      String @db.VarChar(100)
+  /// Awalan yang aman ditampilkan, mis. "kld_a1b2c3d4"
+  keyPrefix String @db.VarChar(16)
+  /// SHA-256 (hex) dari kunci lengkap; kunci beraturan acak 240 bit, jadi hash cepat sudah cukup
+  keyHash   String @unique @db.VarChar(64)
+  /// Daftar scope, mis. ["kependudukan:read"]. Hanya scope baca pada tahap awal.
+  scopes    Json
+
+  createdById Int?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  revokedById Int?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  accessLogs ApiAccessLog[]
+
+  @@index([villageId, revokedAt])
+  @@map("api_keys")
+}
+
+/// Jejak setiap pemakaian kunci (yang bisa diatribusikan ke desa): untuk dilihat kepala desa. Dibersihkan setelah 90 hari.
+model ApiAccessLog {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  apiKeyId  Int?
+  apiKey    ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  keyPrefix String? @db.VarChar(16)
+
+  method    String   @db.VarChar(10)
+  path      String   @db.VarChar(200)
+  status    Int
+  ipAddress String?  @db.VarChar(50)
+  createdAt DateTime @default(now())
+
+  @@index([villageId, createdAt(sort: Desc)])
+  @@index([apiKeyId, createdAt(sort: Desc)])
+  @@map("api_access_logs")
+}
+
+// ============================================
+// DATA KUSTOM (Fase 2): tabel/kolom buatan desa sendiri (aditif; lihat docs/PHASE2_CUSTOM_DATA.md)
+// ============================================
+
+/// Tabel buatan desa (mis. "Penerima bantuan beras", "Data lansia RT 03"). Skema hanya bertambah; kolom tak pernah dihapus, hanya diarsipkan.
+model CustomTable {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// Pengenal URL/API, unik per desa, tak berubah setelah dibuat
+  slug        String  @db.VarChar(60)
+  name        String  @db.VarChar(100)
+  description String? @db.VarChar(500)
+  /// Bila true, tiap baris terkait satu warga (kolom residentId pada baris)
+  linkResident Boolean @default(false)
+  isArchived   Boolean @default(false)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  fields  CustomField[]
+  records CustomRecord[]
+
+  @@unique([villageId, slug])
+  @@index([villageId, isArchived])
+  @@map("custom_tables")
+}
+
+model CustomField {
+  id      Int         @id @default(autoincrement())
+  tableId Int
+  table   CustomTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  /// Pengenal kolom (huruf kecil/angka/_), unik per tabel, tak berubah
+  key      String  @db.VarChar(60)
+  label    String  @db.VarChar(100)
+  /// text | longtext | number | date | boolean | select (tak bisa diubah setelah dibuat)
+  type     String  @db.VarChar(20)
+  required Boolean @default(false)
+  /// select: daftar pilihan (string[]); number: { min?, max?, unit? }
+  options  Json?
+  /// NONE | PERSONAL | SENSITIVE. Selain NONE tidak pernah keluar lewat API v1.
+  piiClass String  @default("NONE") @db.VarChar(12)
+  position Int     @default(0)
+  isArchived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@unique([tableId, key])
+  @@map("custom_fields")
+}
+
+model CustomRecord {
+  id        BigInt      @id @default(autoincrement())
+  villageId Int
+  village   Village     @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  tableId   Int
+  table     CustomTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  /// Nilai kolom: { [field.key]: nilai } — divalidasi terhadap skema saat ditulis
+  data Json
+
+  residentId Int?
+  resident   Resident? @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  createdById Int?
+  updatedById Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  /// Hapus lunak: baris yang dihapus tidak tampil di aplikasi maupun API, tetapi masih ada untuk pemulihan teknisi
+  deletedAt   DateTime?
+
+  @@index([tableId, deletedAt, id])
+  @@index([villageId, tableId])
+  @@index([residentId])
+  @@map("custom_records")
+}
+
+/// Tujuan webhook keluar milik desa. Kejadian dikirim sebagai "kejadian tipis" (hanya id, tanpa data pribadi); penerima
+/// mengambil detailnya lewat /api/v1 dengan kunci API miliknya. Rahasia penandatangan disimpan untuk menghitung HMAC.
+model WebhookEndpoint {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name   String @db.VarChar(100)
+  url    String @db.VarChar(500)
+  secret String @db.VarChar(80)
+  /// Daftar jenis kejadian yang dilanggan, mis. ["mutasi.diterapkan"]
+  events Json
+
+  isActive            Boolean   @default(true)
+  /// Gagal berturut-turut sejak pengiriman sukses terakhir; nonaktif otomatis bila terlalu banyak
+  consecutiveFailures Int       @default(0)
+  disabledReason      String?   @db.VarChar(200)
+  disabledAt          DateTime?
+  lastSuccessAt       DateTime?
+  createdById         Int?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([villageId, isActive])
+  @@map("webhook_endpoints")
+}
+
+/// Antrean keluar (outbox): satu baris per kejadian per tujuan. Dikirim ulang dengan jeda bertambah, lalu menyerah (DEAD).
+model WebhookDelivery {
+  id         BigInt          @id @default(autoincrement())
+  villageId  Int
+  village    Village         @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  endpointId Int
+  endpoint   WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  eventId   String @db.VarChar(40)
+  eventType String @db.VarChar(60)
+  payload   Json
+  /// PENDING (menunggu / dijadwalkan ulang) | SUCCESS | DEAD
+  status    String @default("PENDING") @db.VarChar(10)
+  attempts  Int    @default(0)
+
+  nextAttemptAt  DateTime  @default(now())
+  lastStatusCode Int?
+  lastError      String?   @db.VarChar(300)
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([endpointId, createdAt(sort: Desc)])
+  @@index([villageId, createdAt(sort: Desc)])
+  @@map("webhook_deliveries")
 }

@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { DASHBOARD_TOUR_REPLAY_EVENT, DASHBOARD_TOUR_REPLAY_STORAGE_KEY } from "@/lib/dashboard-tour";
+import { DATA_WARGA_TOUR_REPLAY_EVENT } from "@/lib/data-warga-tour";
+import { LETTER_COMPOSER_TOUR_REPLAY_EVENT } from "@/lib/letter-composer-tour";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,9 +137,17 @@ export function Header({ title, subtitle, back, onMenuClick }: HeaderProps) {
 
   const showNotifications = isAuthenticated && (!accountType || accountType === "village");
   const showVillageSettings = !accountType || accountType === "village";
-  const showDashboardTour = showVillageSettings;
+  const showTourReplay = showVillageSettings;
 
-  const handleReplayDashboardTour = () => {
+  const handleReplayTour = () => {
+    if (pathname === "/data-warga") {
+      window.dispatchEvent(new Event(DATA_WARGA_TOUR_REPLAY_EVENT));
+      return;
+    }
+    if (pathname?.startsWith("/layanan-surat/buat")) {
+      window.dispatchEvent(new Event(LETTER_COMPOSER_TOUR_REPLAY_EVENT));
+      return;
+    }
     if (pathname === "/dashboard") {
       window.dispatchEvent(new Event(DASHBOARD_TOUR_REPLAY_EVENT));
       return;
@@ -294,13 +304,13 @@ export function Header({ title, subtitle, back, onMenuClick }: HeaderProps) {
             </DropdownMenu>
           ) : null}
 
-          {showDashboardTour ? (
+          {showTourReplay ? (
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleReplayDashboardTour}
-              aria-label="Ulangi tur dashboard"
-              title="Ulangi tur dashboard"
+              onClick={handleReplayTour}
+              aria-label="Ulangi tur halaman ini"
+              title="Ulangi tur halaman ini"
             >
               <CircleHelp className="h-5 w-5" />
             </Button>

@@ -28,6 +28,7 @@ export const PERMISSION_RESOURCES = [
   "gis",
   "lingkungan",
   "ai_assistant",
+  "custom_data",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];

@@ -1,8 +1,7 @@
 import { getApiSession } from "@/lib/api-session";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getToken } from "next-auth/jwt";
-import { authOptions } from "@/auth";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
@@ -37,43 +36,33 @@ function generateBudgetCode(category: string, year: number) {
   return `${prefix}-${year}-${random}`;
 }
 
-async function assertBudgetVillageAccess(
-  req: NextRequest,
-  villageId: number,
-  body?: { villageId?: unknown },
-): Promise<NextResponse | null> {
-  const loaded = await requireVillageApiContext(req);
-  if (loaded.ok) {
-    if (loaded.ctx.village.id !== villageId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    return null;
-  }
+function safeEqual(a: string, b: string): boolean {
+  return timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
+}
 
-  const token = await getToken({ req, secret: authOptions.secret });
-  if (
-    token &&
-    token.accountType !== "regional" &&
-    typeof token.villageId === "number" &&
-    token.villageId === villageId
-  ) {
-    return null;
-  }
+/**
+ * Siapa yang mengubah anggaran dan di desa mana. Sesi app desa (ketat: izin, akun aktif, langganan) atau `FINANCE_API_KEY`
+ * + `villageId` di body. Hanya "tidak ada sesi" (401) yang boleh jatuh ke kunci layanan; penolakan lain berlaku apa adanya,
+ * dan tidak ada jalur token JWT yang melewati pemeriksaan izin.
+ */
+async function resolveBudgetAccess(
+  req: NextRequest,
+  body: { villageId?: unknown },
+): Promise<{ ok: true; villageId: number; userId: number | null } | { ok: false; response: NextResponse }> {
+  const loaded = await requireVillageApiContext(req);
+  if (loaded.ok) return { ok: true, villageId: loaded.ctx.village.id, userId: loaded.ctx.userId ?? null };
+  if (loaded.response.status !== 401) return { ok: false, response: loaded.response };
 
   const apiKeyHeader = req.headers.get("x-api-key");
   const validApiKey = process.env.FINANCE_API_KEY;
-  if (validApiKey && apiKeyHeader === validApiKey) {
-    const vid = body != null ? Number(body.villageId) : NaN;
-    if (!Number.isFinite(vid) || vid !== villageId) {
-      return NextResponse.json(
-        { error: "villageId di body harus cocok dengan anggaran" },
-        { status: 403 },
-      );
+  if (validApiKey && apiKeyHeader && safeEqual(apiKeyHeader, validApiKey)) {
+    const vid = Number(body.villageId);
+    if (!Number.isInteger(vid)) {
+      return { ok: false, response: NextResponse.json({ error: "villageId wajib untuk otentikasi service" }, { status: 400 }) };
     }
-    return null;
+    return { ok: true, villageId: vid, userId: null };
   }
-
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
 }
 
 export async function GET(req: NextRequest) {
@@ -217,15 +206,19 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { id, category, subCategory, budgetAmount, status } = body;
 
-    if (!id) {
+    if (!id || !/^\d{1,18}$/.test(String(id))) {
       return NextResponse.json(
         { error: "ID anggaran diperlukan" },
         { status: 400 },
       );
     }
 
-    const currentBudget = await prisma.budget.findUnique({
-      where: { id: BigInt(id) },
+    const access = await resolveBudgetAccess(req, body);
+    if (!access.ok) return access.response;
+
+    // Cari hanya di desa pemanggil: anggaran desa lain tampak "tidak ada" (tidak membocorkan keberadaannya).
+    const currentBudget = await prisma.budget.findFirst({
+      where: { id: BigInt(id), villageId: access.villageId },
     });
 
     if (!currentBudget) {
@@ -234,9 +227,6 @@ export async function PUT(req: NextRequest) {
         { status: 404 },
       );
     }
-
-    const authErr = await assertBudgetVillageAccess(req, currentBudget.villageId, body);
-    if (authErr) return authErr;
 
     const session = await getApiSession(req);
     const updatePermErr = requireVillagePermissionResponse(
@@ -270,10 +260,9 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    const actorId = session?.user?.id ? parseInt(String(session.user.id), 10) : NaN;
     await auditWeb(
       req,
-      { userId: Number.isFinite(actorId) ? actorId : null, village: { id: currentBudget.villageId } },
+      { userId: access.userId, village: { id: currentBudget.villageId } },
       "update",
       "budgets",
       budget.id,

@@ -99,6 +99,7 @@ export const MARKETING_MODULE_COPY: Partial<Record<string, string>> = {
     "Bank sampah, insiden lingkungan, dan titik bahaya bencana (akses awal).",
   "asisten-ai":
     "Asisten teks untuk ringkasan SDGs, draf RPJMDes, dan FAQ warga (akses awal, kuota per pengguna).",
+  "data-kustom": "Buat tabel dan kolom sendiri untuk data desa yang belum ada di aplikasi, lengkap dengan form, ekspor, dan akses API aman.",
   arsip: "Dokumen desa dalam folder terstruktur; kapasitas mengikuti paket desa.",
   ukm: "Katalog dan promosi UKM desa meningkatkan ekonomi lokal.",
   website:

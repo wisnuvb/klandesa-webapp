@@ -20,8 +20,11 @@ export async function GET(req: NextRequest) {
       prisma.wilayahUnit.groupBy({ by: ["type"], where: { villageId: village.id }, _count: { _all: true } }),
       prisma.residentMutation.count({ where: { villageId: village.id, status: "PENDING" } }),
     ]);
+    const role = guard.ctx.dbUser.role;
     return NextResponse.json({
       enabled: true,
+      isAdmin: role === "admin",
+      canManage: role === "admin" || role === "secretary",
       needsReconcileSince: typeof s[SETTINGS_NEEDS_RECONCILE] === "string" ? s[SETTINGS_NEEDS_RECONCILE] : null,
       households: { active: households, withoutHead },
       wilayah: Object.fromEntries(units.map((u) => [u.type, u._count._all])),

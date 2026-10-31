@@ -1,6 +1,7 @@
 "use client";
 
 import { DataWargaTable, ExcelUploadDialog } from "@/components/app/data-warga";
+import { DataWargaTour } from "@/components/app/DataWargaTour";
 import { useDataWargaPage } from "./_hooks/useDataWargaPage";
 import { KualitasKkBanner } from "./_components/KualitasKkBanner";
 import { KependudukanNav } from "./_components/KependudukanNav";
@@ -10,6 +11,7 @@ export default function DataWarga() {
 
   return (
     <div className="space-y-6">
+      <DataWargaTour />
       <KependudukanNav />
       <KualitasKkBanner refreshKey={warga.refreshKey} />
       <DataWargaTable

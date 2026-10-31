@@ -1,5 +1,8 @@
 import type { TokenUsage } from "@/lib/ai/laras-agent";
 
+/** Nama pengguna pada desa rekaan; model memang diminta menyapa dengan nama ini, jadi bukan "nama karangan". */
+export const EVAL_USER_NAME = "Pak Budi";
+
 export type ToolCallRecord = {
   name: string;
   args: Record<string, unknown>;

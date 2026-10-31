@@ -7,13 +7,18 @@ import {
   CheckCircle2,
   ChevronDown,
   Download,
+  Lightbulb,
   Sparkles,
   Star,
   Upload,
-  X,
 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Popover,
   PopoverAnchor,
@@ -21,6 +26,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { categorySubFromFolderPath } from "@/lib/digitalArchive/folderPath";
+import { validateDocumentFile } from "@/lib/digitalArchive/document";
 import type {
   ArchiveEntry,
   FileItem,
@@ -47,28 +53,15 @@ interface UpgradeModalProps {
 
 export function UpgradeModal(props: UpgradeModalProps) {
   const { open, currentPlan, includedStarter, addonExpiry, onClose, onUpgradePlan } = props;
-  if (!open) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto"
-      >
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="max-w-6xl sm:max-w-6xl w-full max-h-[90vh] overflow-y-auto p-0 gap-0">
         <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between z-10">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">
+            <DialogTitle className="text-xl font-bold text-gray-900">
               Upgrade Paket Storage
-            </h3>
+            </DialogTitle>
             <p className="text-sm text-gray-600 mt-1">
               Pilih paket storage yang sesuai dengan kebutuhan desa Anda
             </p>
@@ -79,12 +72,6 @@ export function UpgradeModal(props: UpgradeModalProps) {
               </p>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
         </div>
 
         <div className="p-6">
@@ -205,8 +192,9 @@ export function UpgradeModal(props: UpgradeModalProps) {
           </div>
 
           <div className="mt-8 pt-8 border-t border-gray-200">
-            <h4 className="font-bold text-gray-900 mb-4">
-              💡 Informasi Penting
+            <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-amber-500" aria-hidden="true" />
+              Informasi Penting
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
               {[
@@ -234,9 +222,14 @@ export function UpgradeModal(props: UpgradeModalProps) {
             </div>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+export interface UploadProgressOpts {
+  onProgress: (percent: number) => void;
+  signal: AbortSignal;
 }
 
 interface UploadModalProps {
@@ -256,8 +249,9 @@ interface UploadModalProps {
       subCategory: string | null;
       title: string;
       isPublic: boolean;
-      accessLevel: "admin" | "staff" | "public";
+      accessLevel: "admin" | "public";
     },
+    opts: UploadProgressOpts,
   ) => Promise<ArchiveEntry>;
   onUploaded: (entry: ArchiveEntry) => void;
 }
@@ -274,14 +268,12 @@ export function UploadModal(props: UploadModalProps) {
   } = props;
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [categoryFolderOpen, setCategoryFolderOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [accessLevel, setAccessLevel] = useState<"admin" | "staff" | "public">(
-    "admin",
-  );
   const [isPublic, setIsPublic] = useState(false);
 
   const [compressEnabled, setCompressEnabled] = useState(false);
@@ -290,11 +282,17 @@ export function UploadModal(props: UploadModalProps) {
   const [preparedFile, setPreparedFile] = useState<File | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const canCompress = useMemo(() => {
     if (!selectedFile) return false;
     const t = selectedFile.type;
     return t === "image/jpeg" || t === "image/png" || t === "image/webp";
+  }, [selectedFile]);
+
+  const fileValidationError = useMemo(() => {
+    if (!selectedFile) return null;
+    return validateDocumentFile({ name: selectedFile.name, size: selectedFile.size });
   }, [selectedFile]);
 
   const sortedFolderPaths = useMemo(() => {
@@ -318,12 +316,12 @@ export function UploadModal(props: UploadModalProps) {
     setSelectedFile(null);
     setPreparedFile(null);
     setIsPublic(false);
-    setAccessLevel("admin");
     setCompressEnabled(false);
     setCompressQuality(0.8);
     setMaxDimension(1920);
     setIsPreparing(false);
     setIsUploading(false);
+    setUploadProgress(0);
     setCategoryFolderOpen(false);
   }, [defaultCategory, defaultSubCategory, open]);
 
@@ -413,41 +411,68 @@ export function UploadModal(props: UploadModalProps) {
 
   const canSubmit = Boolean(
     preparedFile &&
-    category.trim() &&
+    !fileValidationError &&
     effectiveTitle &&
     !isPreparing &&
     !isUploading,
   );
 
-  if (!open) return null;
+  const handleCancelUpload = () => {
+    abortControllerRef.current?.abort();
+  };
+
+  const handleSubmit = async () => {
+    if (!preparedFile) return;
+    setIsUploading(true);
+    setUploadProgress(0);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    try {
+      const entry = await onUpload(
+        preparedFile,
+        {
+          category: category.trim(),
+          subCategory: effectiveSubCategory,
+          title: effectiveTitle,
+          isPublic,
+          accessLevel: isPublic ? "public" : "admin",
+        },
+        {
+          onProgress: setUploadProgress,
+          signal: controller.signal,
+        },
+      );
+      onUploaded(entry);
+      toast.success("Upload berhasil", {
+        description: entry.title || entry.fileName,
+      });
+      onClose();
+    } catch (e) {
+      if (controller.signal.aborted) {
+        toast.error("Upload dibatalkan");
+      } else {
+        const msg =
+          e instanceof Error
+            ? e.message
+            : "Upload gagal. Silakan coba lagi.";
+        toast.error("Upload gagal", { description: msg });
+      }
+    } finally {
+      setIsUploading(false);
+      abortControllerRef.current = null;
+    }
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={() => {
-        if (!isUploading) onClose();
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !isUploading) onClose();
       }}
     >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
-      >
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="text-lg font-semibold text-gray-900">Upload File</h3>
-          <button
-            onClick={() => {
-              if (!isUploading) onClose();
-            }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
+      <DialogContent className="max-w-lg sm:max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
+        <div className="px-6 py-4 border-b border-gray-200 shrink-0">
+          <DialogTitle className="text-lg font-semibold text-gray-900">Upload File</DialogTitle>
         </div>
 
         <div className="px-6 py-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
@@ -495,8 +520,8 @@ export function UploadModal(props: UploadModalProps) {
               Pilih File
             </button>
             <p className="text-xs text-gray-400 mt-3">
-              Mendukung berbagai tipe file (gambar, PDF, dokumen, excel, zip,
-              dll)
+              PDF, dokumen Office/ODF, CSV/TXT/RTF, ZIP/RAR, gambar, audio/video
+              umum. Maks 200 MB per berkas.
             </p>
           </div>
 
@@ -511,6 +536,12 @@ export function UploadModal(props: UploadModalProps) {
                     {selectedFile.type || "application/octet-stream"} •{" "}
                     {formatFileSize(selectedFile.size)}
                   </p>
+                  {fileValidationError && (
+                    <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                      {fileValidationError}
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -540,7 +571,7 @@ export function UploadModal(props: UploadModalProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Kategori
+                      Kategori (opsional)
                     </label>
                     <Popover
                       modal={false}
@@ -616,8 +647,8 @@ export function UploadModal(props: UploadModalProps) {
                       </PopoverContent>
                     </Popover>
                     <p className="text-[11px] text-gray-500 mt-1">
-                      Pilih path folder untuk mengisi kategori dan sub
-                      sekaligus, atau ketik nama kategori baru.
+                      Kosongkan untuk masuk ke folder &quot;Umum&quot;, atau
+                      pilih/ketik kategori sendiri.
                     </p>
                   </div>
                   <div>
@@ -633,43 +664,23 @@ export function UploadModal(props: UploadModalProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Akses
-                    </label>
-                    <select
-                      value={accessLevel}
-                      onChange={(e) =>
-                        setAccessLevel(
-                          e.target.value as "admin" | "staff" | "public",
-                        )
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm bg-white"
-                    >
-                      <option value="admin">Admin</option>
-                      <option value="staff">Staff</option>
-                      <option value="public">Publik</option>
-                    </select>
-                  </div>
-                  <div className="flex items-end">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={isPublic}
-                        onChange={(e) => setIsPublic(e.target.checked)}
-                        className="w-4 h-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500"
-                      />
-                      Tampilkan di publik
-                    </label>
-                  </div>
+                <div>
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={isPublic}
+                      onChange={(e) => setIsPublic(e.target.checked)}
+                      className="w-4 h-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500"
+                    />
+                    Tampilkan di publik
+                  </label>
+                  <p className="text-xs text-gray-500 leading-relaxed mt-1">
+                    Tanpa centang: berkas di-set <strong>privat</strong> di
+                    storage; pratinjau dan unduh hanya untuk admin desa atau{" "}
+                    <strong>Anda sebagai pengunggah</strong>. Centang jika
+                    boleh diakses publik via tautan CDN.
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  Tanpa centang: berkas di-set <strong>privat</strong> di
-                  storage; pratinjau dan unduh hanya untuk akun{" "}
-                  <strong>Anda sebagai pengunggah</strong>. Centang jika boleh
-                  diakses publik via tautan CDN.
-                </p>
 
                 {canCompress && (
                   <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
@@ -743,6 +754,20 @@ export function UploadModal(props: UploadModalProps) {
                     )}
                   </div>
                 )}
+
+                {isUploading && (
+                  <div className="space-y-1">
+                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-teal-600 transition-all"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {uploadProgress}% terunggah
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -752,47 +777,26 @@ export function UploadModal(props: UploadModalProps) {
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 shrink-0">
           <button
             onClick={() => {
-              if (!isUploading) onClose();
+              if (isUploading) {
+                handleCancelUpload();
+              } else {
+                onClose();
+              }
             }}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            Batal
+            {isUploading ? "Batal Upload" : "Batal"}
           </button>
           <button
             disabled={!canSubmit}
-            onClick={async () => {
-              if (!preparedFile) return;
-              setIsUploading(true);
-              try {
-                const entry = await onUpload(preparedFile, {
-                  category: category.trim(),
-                  subCategory: effectiveSubCategory,
-                  title: effectiveTitle,
-                  isPublic,
-                  accessLevel,
-                });
-                onUploaded(entry);
-                toast.success("Upload berhasil", {
-                  description: entry.title || entry.fileName,
-                });
-                onClose();
-              } catch (e) {
-                const msg =
-                  e instanceof Error
-                    ? e.message
-                    : "Upload gagal. Silakan coba lagi.";
-                toast.error("Upload gagal", { description: msg });
-              } finally {
-                setIsUploading(false);
-              }
-            }}
+            onClick={() => void handleSubmit()}
             className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isUploading ? "Mengupload..." : "Upload"}
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -804,36 +808,16 @@ interface PreviewModalProps {
 
 export function PreviewModal(props: PreviewModalProps) {
   const { open, file, onClose } = props;
-  if (!open || !file) return null;
+  if (!file) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
-      >
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{file.name}</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {formatFileSize(file.size)} • {file.uploaded_by}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="max-w-4xl sm:max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
+        <div className="px-6 py-4 border-b border-gray-200 shrink-0">
+          <DialogTitle className="text-lg font-semibold text-gray-900">{file.name}</DialogTitle>
+          <p className="text-sm text-gray-500 mt-1">
+            {formatFileSize(file.size)} • {file.uploaded_by}
+          </p>
         </div>
 
         <div className="p-6 flex-1 min-h-0 overflow-y-auto">
@@ -875,8 +859,8 @@ export function PreviewModal(props: PreviewModalProps) {
             </div>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -892,27 +876,14 @@ interface NewFolderModalProps {
 export function NewFolderModal(props: NewFolderModalProps) {
   const { open, folderName, setFolderName, onClose, onCreate, creating } =
     props;
-  if (!open) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-xl max-w-md w-full"
-      >
+    <Dialog open={open} onOpenChange={(next) => { if (!next && !creating) onClose(); }}>
+      <DialogContent className="max-w-md sm:max-w-md w-full p-0 gap-0">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <DialogTitle className="text-lg font-semibold text-gray-900">
             Buat Folder Baru
-          </h3>
+          </DialogTitle>
         </div>
 
         <div className="px-6 py-4">
@@ -947,7 +918,7 @@ export function NewFolderModal(props: NewFolderModalProps) {
             {creating ? "Menyimpan..." : "Buat Folder"}
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 }

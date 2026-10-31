@@ -18,11 +18,11 @@ import {
   type NewResidentData,
 } from "./mutation";
 import { prisma } from "@/lib/prisma";
-import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
+import { reactivateCitizenAccounts, suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { syncResidents, type Db } from "./sync";
 
 export type ServiceResult<T> = { ok: true; data: T } | { ok: false; status: number; errors: string[] };
-const fail = (status: number, ...errors: string[]): { ok: false; status: number; errors: string[] } => ({ ok: false, status, errors });
+export const fail = (status: number, ...errors: string[]): { ok: false; status: number; errors: string[] } => ({ ok: false, status, errors });
 
 const REF_SELECT = { id: true, isAlive: true, moveDate: true, birthDate: true, kk: true, familyRole: true, name: true, nik: true, rt: true, rw: true, address: true, religion: true } as const;
 
@@ -113,6 +113,8 @@ export interface DecideOutcome {
   status: "APPLIED" | "REJECTED";
   residentId: number | null;
   suspendResidentId: number | null;
+  /** Warga yang kembali ke desa: akun mobilenya diaktifkan lagi setelah commit. */
+  reactivateResidentId: number | null;
 }
 
 /** Putuskan pengajuan. Jalankan di dalam `prisma.$transaction`; `suspendResidentId` harus diproses pemanggil setelah commit. */
@@ -130,7 +132,7 @@ export async function decideMutation(tx: Db, a: DecideArgs): Promise<ServiceResu
       data: { status: "REJECTED", decidedById: a.userId, decidedAt: now, rejectionReason: reason.slice(0, 500) },
     });
     if (claimed.count !== 1) return fail(409, "Pengajuan ini sudah diputuskan.");
-    return { ok: true, data: { status: "REJECTED", residentId: row.residentId, suspendResidentId: null } };
+    return { ok: true, data: { status: "REJECTED", residentId: row.residentId, suspendResidentId: null, reactivateResidentId: null } };
   }
 
   // Klaim dulu: dua persetujuan serentak, hanya satu yang lolos.
@@ -220,7 +222,15 @@ export async function decideMutation(tx: Db, a: DecideArgs): Promise<ServiceResu
     },
   });
 
-  return { ok: true, data: { status: "APPLIED", residentId, suspendResidentId: effect.suspendAccount ? residentId : null } };
+  return {
+    ok: true,
+    data: {
+      status: "APPLIED",
+      residentId,
+      suspendResidentId: effect.suspendAccount ? residentId : null,
+      reactivateResidentId: input.type === "MOVE_IN" && row.residentId != null ? residentId : null,
+    },
+  };
 }
 
 type MutationInputDetails = MutationInput["details"];
@@ -265,6 +275,13 @@ export async function decideMutationAtomic(args: DecideArgs): Promise<ServiceRes
       await suspendCitizenAccounts(args.villageId, [outcome.suspendResidentId]);
     } catch (e) {
       console.error("[mutasi] gagal menonaktifkan akun mobile:", e instanceof Error ? e.message : e);
+    }
+  }
+  if (outcome.reactivateResidentId != null) {
+    try {
+      await reactivateCitizenAccounts(args.villageId, [outcome.reactivateResidentId]);
+    } catch (e) {
+      console.error("[mutasi] gagal mengaktifkan lagi akun mobile:", e instanceof Error ? e.message : e);
     }
   }
   return { ok: true, data: outcome };
