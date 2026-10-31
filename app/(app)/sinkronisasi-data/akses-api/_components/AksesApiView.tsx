@@ -99,8 +99,8 @@ export function AksesApiView() {
               Akses API untuk aplikasi buatan sendiri
             </h1>
             <p className="max-w-prose text-muted-foreground">
-              Kunci API memungkinkan aplikasi atau alat yang Anda buat (misalnya dengan bantuan AI) membaca data desa dengan aman. Kunci hanya bisa membaca, data pribadi
-              disamarkan, dan setiap pemakaian tercatat di halaman ini.
+              Kunci API memungkinkan aplikasi atau alat yang Anda buat (misalnya dengan bantuan AI) membaca data desa dengan aman. Data pribadi disamarkan, kunci tidak bisa
+              mengubah data secara langsung (paling jauh mengusulkan, yang harus Anda setujui), dan setiap pemakaian tercatat di halaman ini.
             </p>
           </div>
           <Button type="button" size="lg" className="min-h-11" disabled={!keys.data || full} onClick={() => setCreating(true)}>
@@ -155,7 +155,7 @@ export function AksesApiView() {
                     </span>
                   </div>
                   <p className="text-sm">
-                    <span className="text-muted-foreground">Boleh membaca: </span>
+                    <span className="text-muted-foreground">Akses: </span>
                     {k.scopes.length ? k.scopes.map(scopeLabel).join(", ") : "-"}
                   </p>
                   <p className="text-sm text-muted-foreground">
@@ -193,6 +193,28 @@ export function AksesApiView() {
             panduan untuk alat AI
           </a>
           . Tempel alamat panduan itu ke alat AI Anda agar ia paham cara memakai API ini.
+        </p>
+      </section>
+
+      <section aria-labelledby="mcp-title" className="space-y-2 rounded-lg border bg-card p-4">
+        <h2 id="mcp-title" className="text-lg font-semibold">
+          Hubungkan ke asisten AI (MCP)
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Asisten AI yang mendukung MCP (misalnya Claude atau Cursor) bisa membaca data desa lewat alamat di bawah, memakai kunci yang sama. Alatnya hanya membaca, data pribadi tetap disamarkan,
+          dan setiap pemakaian tercatat di jejak di bawah.
+        </p>
+        <p className="text-sm">
+          Alamat server: <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">{origin}/api/mcp</code>
+        </p>
+        <p className="text-sm text-muted-foreground">Contoh untuk Claude Code (ganti KUNCI_ANDA):</p>
+        <pre className="overflow-x-auto rounded-md bg-muted p-3 text-sm">
+          <code>{`claude mcp add --transport http klandesa ${origin}/api/mcp \
+  --header "Authorization: Bearer KUNCI_ANDA"`}</code>
+        </pre>
+        <p className="text-sm text-muted-foreground">
+          Buat kunci khusus untuk asisten AI dan beri akses secukupnya. Teks bebas dari pengguna lain (misalnya pengumuman) bisa memuat kalimat yang mencoba memerintah AI, karena itu kunci yang membaca data
+          penduduk tidak boleh digabung dengan akses mengusulkan perubahan.
         </p>
       </section>
 

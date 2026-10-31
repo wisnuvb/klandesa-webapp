@@ -7,6 +7,7 @@ import { excerpt } from "@/lib/mobile/mail-logic";
 import {
   ANNOUNCEMENT_CATEGORIES, MAX_ANNOUNCEMENTS_PER_USER_PER_DAY, MAX_BROADCAST_PUSH_PER_DAY, isAnnouncementCategory,
 } from "@/lib/mobile/resident-logic";
+import { emitWebhookEvent } from "@/lib/webhooks/deliver";
 
 export async function GET(req: NextRequest) {
   const g = await requireStaff(req, "announcements", "read");
@@ -49,6 +50,8 @@ export async function POST(req: NextRequest) {
   const created = await prisma.announcement.create({
     data: { villageId: ctx.villageId, title, content, category, isPinned: body?.pinned === true, createdById: ctx.userId },
   });
+
+  emitWebhookEvent(ctx.villageId, "pengumuman.terbit", { announcementId: created.id });
 
   let pushed = 0;
   let pushNote: string | null = null;

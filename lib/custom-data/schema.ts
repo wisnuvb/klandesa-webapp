@@ -51,7 +51,7 @@ export interface FieldDef {
 export const isFieldType = (v: unknown): v is FieldType => typeof v === "string" && (FIELD_TYPES as readonly string[]).includes(v);
 export const isPiiClass = (v: unknown): v is PiiClass => typeof v === "string" && (PII_CLASSES as readonly string[]).includes(v);
 
-const RESERVED_KEYS = new Set(["id", "data", "created_at", "updated_at", "deleted_at", "resident_id", "resident", "table", "village", "village_id"]);
+const RESERVED_KEYS = new Set(["id", "data", "created_at", "updated_at", "deleted_at", "resident_id", "resident", "table", "village", "village_id", "constructor", "prototype", "proto"]);
 export const KEY_PATTERN = /^[a-z][a-z0-9_]{0,59}$/;
 export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,59}$/;
 

@@ -16,6 +16,7 @@ import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
+import { emitWebhookEvent } from "@/lib/webhooks/deliver";
 
 function mapReligionId(id: string) {
   const map: Record<string, string> = {
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
       return { resident, user };
     });
 
+    emitWebhookEvent(village.id, "penduduk.dibuat", { residentId: result.resident.id });
     await auditWeb(req, loaded.ctx, "create", "residents", result.resident.id, {
       ...pickSummary(result.resident as unknown as Record<string, unknown>, ["rt", "rw", "familyRole", "isAlive"]),
       loginAccountCreated: result.user != null,

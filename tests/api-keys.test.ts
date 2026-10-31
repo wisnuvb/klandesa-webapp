@@ -29,7 +29,8 @@ test("scope: hanya yang dikenal, tanpa duplikat, minimal satu", () => {
   assert.equal(parseScopes(["kependudukan:write"]).ok, false);
   assert.equal(parseScopes(["__proto__"]).ok, false);
   assert.equal(parseScopes(["constructor"]).ok, false);
-  assert.ok(ALL_API_SCOPES.every((s) => s.endsWith(":read")), "tahap awal: hanya baca");
+  assert.ok(ALL_API_SCOPES.every((s) => s.endsWith(":read") || s.endsWith(":propose")), "hanya baca, atau mengusulkan (menunggu persetujuan manusia)");
+  assert.ok(ALL_API_SCOPES.filter((s) => s.endsWith(":propose")).every((s) => s === "data-kustom:propose"), "tulis hanya lewat usulan data kustom");
   assert.ok(!isApiScope("toString"));
 });
 

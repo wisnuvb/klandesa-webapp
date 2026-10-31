@@ -20,6 +20,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { reactivateCitizenAccounts, suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { syncResidents, type Db } from "./sync";
+import { emitWebhookEvent } from "@/lib/webhooks/deliver";
 
 export type ServiceResult<T> = { ok: true; data: T } | { ok: false; status: number; errors: string[] };
 export const fail = (status: number, ...errors: string[]): { ok: false; status: number; errors: string[] } => ({ ok: false, status, errors });
@@ -283,6 +284,10 @@ export async function decideMutationAtomic(args: DecideArgs): Promise<ServiceRes
     } catch (e) {
       console.error("[mutasi] gagal mengaktifkan lagi akun mobile:", e instanceof Error ? e.message : e);
     }
+  }
+  if (outcome.status === "APPLIED") {
+    const m = await prisma.residentMutation.findFirst({ where: { id: args.mutationId, villageId: args.villageId }, select: { type: true } });
+    emitWebhookEvent(args.villageId, "mutasi.diterapkan", { mutationId: args.mutationId.toString(), type: m?.type ?? null, residentId: outcome.residentId });
   }
   return { ok: true, data: outcome };
 }

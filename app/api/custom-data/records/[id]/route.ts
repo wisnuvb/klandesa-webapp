@@ -4,6 +4,7 @@ import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import { deleteRecord, updateRecord } from "@/lib/custom-data/service";
 import { failResponse, parseBigId } from "@/lib/custom-data/http";
+import { emitRecordEvent } from "@/lib/custom-data/events";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -20,6 +21,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const r = await updateRecord(prisma, { villageId: ctx.village.id, recordId, userId: ctx.userId ?? null, data: body?.data, residentId: body?.residentId });
     if (!r.ok) return failResponse(r);
     await auditWeb(req, ctx, "update", "custom_records", String(recordId), { tableId: r.data.tableId, fields: Object.keys(body?.data ?? {}) });
+    emitRecordEvent(ctx.village.id, "data-kustom.baris.diubah", r.data.tableId, recordId);
     return NextResponse.json({ success: true, record: r.data });
   } catch (e) {
     console.error("PATCH /api/custom-data/records/[id] error:", e);

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Database, Loader2, Plus } from "lucide-react";
+import { Database, Inbox, LayoutGrid, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApiGet } from "@/hooks/useApiGet";
 import { TEMPLATES } from "@/lib/custom-data/ui-model";
@@ -26,6 +26,7 @@ interface ListResponse {
 
 export function KustomListView() {
   const list = useApiGet<ListResponse>("/api/custom-data/tables");
+  const proposals = useApiGet<{ pending: number }>("/api/custom-data/proposals");
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const full = list.data ? list.data.tables.length >= list.data.limits.tables : false;
@@ -50,6 +51,21 @@ export function KustomListView() {
           </Button>
         ) : null}
       </header>
+
+      <div className="flex flex-wrap gap-2">
+      <Button asChild variant="outline" className="min-h-11">
+        <Link href="/data-kustom/galeri">
+          <LayoutGrid aria-hidden="true" />
+          Galeri aplikasi desa
+        </Link>
+      </Button>
+      <Button asChild variant="outline" className="min-h-11">
+        <Link href="/data-kustom/usulan">
+          <Inbox aria-hidden="true" />
+          Usulan dari aplikasi lain{proposals.data && proposals.data.pending > 0 ? ` (${proposals.data.pending} menunggu)` : ""}
+        </Link>
+      </Button>
+      </div>
 
       {list.loading ? (
         <p role="status" className="flex items-center gap-2 p-6 text-muted-foreground">

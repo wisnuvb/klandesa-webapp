@@ -39,6 +39,9 @@ export function KualitasKkView() {
           Sistem menemukan data keluarga yang perlu dicek. Tiap temuan disertai saran dan alasannya. Anda yang memutuskan. Semua perubahan tercatat dan
           bisa diurungkan.
         </p>
+        <Button asChild variant="outline" className="min-h-11">
+          <Link href="/data-warga/kualitas/nik">Periksa juga NIK warga</Link>
+        </Button>
       </header>
 
       <AsyncState loading={k.loading && !k.data} error={k.error} onRetry={k.reload} loadingMessage="Memeriksa data keluarga…" minHeight="40vh">

@@ -5,6 +5,7 @@ import { pickSummary } from "@/lib/audit/diff";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { emitWebhookEvent } from "@/lib/webhooks/deliver";
 
 export async function GET(req: NextRequest) {
   try {
@@ -88,6 +89,8 @@ export async function POST(req: NextRequest) {
 
     // Hanya judul & metadata; isi pengumuman tidak dicatat.
     await auditWeb(req, loaded.ctx, "create", "announcements", announcement.id, pickSummary(announcement, ["title", "category", "isPinned"]));
+
+    emitWebhookEvent(village.id, "pengumuman.terbit", { announcementId: announcement.id });
 
     return NextResponse.json(announcement, { status: 201 });
   } catch (error: any) {

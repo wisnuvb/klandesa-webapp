@@ -4,6 +4,7 @@ import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import { createRecord, listRecords } from "@/lib/custom-data/service";
 import { failResponse, parseBigId, parseIntId } from "@/lib/custom-data/http";
+import { emitRecordEvent } from "@/lib/custom-data/events";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     // Audit mencatat id baris dan tabelnya saja; isi baris bisa memuat data pribadi.
     await auditWeb(req, ctx, "create", "custom_records", r.data.id, { tableId });
+    emitRecordEvent(ctx.village.id, "data-kustom.baris.dibuat", tableId, r.data.id);
     return NextResponse.json({ success: true, record: r.data }, { status: 201 });
   } catch (e) {
     console.error("POST /api/custom-data/tables/[id]/records error:", e);

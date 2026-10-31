@@ -9,6 +9,7 @@ import {
   type AnnouncementPublishPayload,
 } from "@/lib/ai/laras-actions";
 import { MAX_ANNOUNCEMENTS_PER_USER_PER_DAY } from "@/lib/mobile/resident-logic";
+import { emitWebhookEvent } from "@/lib/webhooks/deliver";
 
 /**
  * Menyusun dan menerbitkan pengumuman desa lewat Laras (usulan → konfirmasi).
@@ -217,6 +218,7 @@ export async function executeAnnouncementPublish(
     },
     select: { id: true },
   });
+  emitWebhookEvent(payload.vi, "pengumuman.terbit", { announcementId: created.id });
 
   try {
     await prisma.auditLog.create({

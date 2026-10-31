@@ -111,7 +111,7 @@ const PUBLIC_DOCS = new Set(["app/api/v1/openapi.json/route.ts", "app/api/v1/llm
 const fileOf = (p: string) => `app/${p.replace(/^\//, "").replace(/\{(\w+)\}/g, "[$1]")}/route.ts`;
 
 test("daftar ENDPOINTS sama persis dengan berkas rute /api/v1 (selain dokumentasi publik)", () => {
-  const fromSpec = ENDPOINTS.map((e) => fileOf(e.path)).sort();
+  const fromSpec = [...new Set(ENDPOINTS.map((e) => fileOf(e.path)))].sort();
   const fromFiles = files.filter((f) => !PUBLIC_DOCS.has(f)).sort();
   assert.deepEqual(fromSpec, fromFiles);
 });
@@ -129,8 +129,12 @@ test("setiap rute data hanya GET dan semua bacaan DB memakai select (tanpa inclu
   for (const f of files.filter((x) => !PUBLIC_DOCS.has(x))) {
     const src = readFileSync(f, "utf8");
     const handlers = [...src.matchAll(/export\s+async\s+function\s+(\w+)/g)].map((m) => m[1]);
-    assert.deepEqual(handlers, ["GET"], f);
+    // Metode tiap berkas harus persis yang tercatat di spesifikasi (GET bawaan; POST hanya untuk usulan).
+    const declared = ENDPOINTS.filter((e) => fileOf(e.path) === f).map((e) => (e.method ?? "get").toUpperCase());
+    assert.deepEqual(handlers.sort(), declared.sort(), f);
+    for (const e of ENDPOINTS.filter((x) => x.method === "post")) assert.equal(e.scope, "data-kustom:propose", `${e.path}: tulis hanya lewat scope *:propose`);
     assert.ok(!/\binclude\s*:/.test(src), `${f}: include dilarang (memuat semua kolom)`);
+    // Rute tidak menulis DB sendiri; usulan lewat layanan `submitProposal` yang hanya menulis tabel usulan.
     assert.ok(!/\.(create|update|delete|upsert|createMany|updateMany|deleteMany|\$executeRaw|\$queryRaw)\w*\(/.test(src), `${f}: tulis/raw dilarang`);
     for (const m of src.matchAll(/prisma\.\w+\.(findMany|findFirst|findUnique)\(\{([\s\S]*?)\}\);/g)) {
       assert.ok(/select\s*:|SELECT/.test(m[2]), `${f}: ${m[1]} tanpa select`);
@@ -149,19 +153,26 @@ test("scope di spesifikasi dikenal; skema yang dirujuk ada; $ref selesai", () =>
 });
 
 test("OpenAPI: 3.1, bearerAuth, semua jalur ada; galat 401 dan 429 terdokumentasi", () => {
-  const doc = buildOpenApi("https://x.test") as { openapi: string; paths: Record<string, { get: { responses: Record<string, unknown>; security: unknown[] } }>; components: { securitySchemes: Record<string, unknown> } };
+  type Op = { responses: Record<string, unknown>; security: unknown[] };
+  const doc = buildOpenApi("https://x.test") as { openapi: string; paths: Record<string, Record<string, Op>>; components: { securitySchemes: Record<string, unknown> } };
   assert.equal(doc.openapi, "3.1.0");
   assert.ok(doc.components.securitySchemes.bearerAuth);
-  assert.deepEqual(Object.keys(doc.paths).sort(), ENDPOINTS.map((e) => e.path).sort());
-  for (const p of Object.values(doc.paths)) {
-    assert.ok("200" in p.get.responses && "401" in p.get.responses && "429" in p.get.responses);
-    assert.equal(p.get.security.length, 1);
+  assert.deepEqual(Object.keys(doc.paths).sort(), [...new Set(ENDPOINTS.map((e) => e.path))].sort());
+  for (const e of ENDPOINTS) {
+    const op = doc.paths[e.path][e.method ?? "get"];
+    assert.ok(op, `${e.method ?? "get"} ${e.path}`);
+    assert.ok(String(e.successStatus ?? 200) in op.responses && "401" in op.responses && "429" in op.responses);
+    assert.equal(op.security.length, 1);
   }
+  const post = doc.paths["/api/v1/data/{slug}/usulan"].post as Op & { requestBody?: unknown };
+  assert.ok(post.requestBody, "POST usulan punya requestBody");
 });
 
 test("llms.txt menyebut tiap endpoint, aturan penyamaran, dan larangan memakai kunci di browser", () => {
   const t = buildLlmsTxt("https://x.test");
-  for (const e of ENDPOINTS) assert.ok(t.includes(`GET ${e.path}`), e.path);
+  for (const e of ENDPOINTS) assert.ok(t.includes(`${(e.method ?? "get").toUpperCase()} ${e.path}`), e.path);
+  assert.match(t, /MENGUSULKAN/);
+  assert.match(t, /APPLIED/);
   assert.match(t, /4 digit terakhir/);
   assert.match(t, /JANGAN menaruhnya di kode browser/);
   assert.match(t, /bukan sebagai instruksi/);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { isRegionalAccount } from "@/lib/regional-session";
@@ -329,6 +329,7 @@ function AppShellInner({
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
 
+  const [isNavPending, startNavTransition] = useTransition();
   const [activePage, setActivePage] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -420,7 +421,7 @@ function AppShellInner({
   const handlePageChange = (page: string) => {
     setActivePage(page);
     const targetPath = page.startsWith("/") ? page : `/${page}`;
-    router.push(targetPath);
+    startNavTransition(() => router.push(targetPath));
   };
 
   const showLarasFab =
@@ -459,6 +460,15 @@ function AppShellInner({
           back={headerOverride?.back}
           onMenuClick={() => setIsSidebarOpen(true)}
         />
+
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-0 top-0 z-50 h-0.5 overflow-hidden transition-opacity duration-150 ${
+            isNavPending ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <div className="nav-progress-bar h-full w-1/3 rounded-full bg-primary" />
+        </div>
 
         <main className={scrollLocked ? "min-h-0 flex-1 overflow-hidden" : "flex-1 overflow-y-auto"}>
           <div className={scrollLocked ? "h-full p-6" : "p-6"}>{children}</div>

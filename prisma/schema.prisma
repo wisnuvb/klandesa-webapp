@@ -128,6 +128,9 @@ model Village {
   apiAccessLogs     ApiAccessLog[]
   webhookEndpoints  WebhookEndpoint[]
   webhookDeliveries WebhookDelivery[]
+  changeProposals   ChangeProposal[]
+  appInstalls       AppInstall[]
+  publishedTemplates AppTemplate[]
   customTables      CustomTable[]
   customRecords     CustomRecord[]
 
@@ -3533,4 +3536,103 @@ model WebhookDelivery {
   @@index([endpointId, createdAt(sort: Desc)])
   @@index([villageId, createdAt(sort: Desc)])
   @@map("webhook_deliveries")
+}
+
+/// Usulan perubahan data dari aplikasi luar (kunci API / MCP). Aplikasi hanya boleh MENGUSULKAN; admin atau sekretaris desa
+/// yang menyetujui (maker-checker). Isi usulan hanya kolom bukan-data-pribadi. Saat ini hanya untuk baris data kustom.
+model ChangeProposal {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// api_key | mcp
+  source    String  @db.VarChar(12)
+  apiKeyId  Int?
+  /// Awalan kunci pengusul (snapshot, aman ditampilkan)
+  keyPrefix String? @db.VarChar(16)
+  keyName   String? @db.VarChar(100)
+
+  /// custom_record
+  entity         String  @db.VarChar(20)
+  /// create | update
+  operation      String  @db.VarChar(10)
+  tableId        Int
+  targetRecordId BigInt?
+  /// Hanya nilai yang diusulkan, { kunciKolom: nilai }
+  payload        Json
+  /// Catatan dari pengusul: teks TIDAK TERPERCAYA, hanya ditampilkan sebagai teks biasa
+  note           String? @db.VarChar(300)
+
+  /// PENDING | APPLIED | REJECTED | EXPIRED
+  status          String    @default("PENDING") @db.VarChar(10)
+  decidedById     Int?
+  decidedAt       DateTime?
+  rejectionReason String?   @db.VarChar(300)
+  appliedRecordId BigInt?
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+
+  @@index([villageId, status, createdAt(sort: Desc)])
+  @@index([apiKeyId, createdAt(sort: Desc)])
+  @@map("change_proposals")
+}
+
+/// Templat "Aplikasi Desa" deklaratif: manifes data murni (tabel kustom + widget dasbor), tanpa kode, URL, atau HTML.
+/// Tiap versi tidak berubah setelah diajukan; perubahan = versi baru yang ditinjau ulang oleh admin platform.
+model AppTemplate {
+  id          Int    @id @default(autoincrement())
+  /// Pengenal garis versi (sama untuk semua versi templat yang sama)
+  lineageKey  String @db.VarChar(40)
+  version     Int
+  publisherVillageId Int?
+  publisher   Village? @relation(fields: [publisherVillageId], references: [id], onDelete: SetNull)
+  /// Snapshot nama penerbit untuk ditampilkan di galeri
+  publisherName String @db.VarChar(150)
+  /// Resmi = diterbitkan platform
+  official    Boolean @default(false)
+
+  name         String @db.VarChar(100)
+  description  String @db.VarChar(500)
+  manifest     Json
+  manifestHash String @db.VarChar(64)
+  /// Peringatan otomatis (mis. kolom tampak pribadi tetapi ditandai bukan pribadi) untuk peninjau
+  warnings     Json
+
+  /// PENDING | PUBLISHED | REJECTED | WITHDRAWN
+  status       String    @default("PENDING") @db.VarChar(10)
+  reviewNote   String?   @db.VarChar(300)
+  reviewedById Int?
+  reviewedAt   DateTime?
+  publishedAt  DateTime?
+  installCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  installs AppInstall[]
+
+  @@unique([lineageKey, version])
+  @@index([status, publishedAt])
+  @@index([publisherVillageId, createdAt(sort: Desc)])
+  @@map("app_templates")
+}
+
+/// Pemasangan templat di satu desa: tabel kustom yang tercipta + widget dasbor yang sudah dipetakan ke id tabel dan kunci kolom.
+model AppInstall {
+  id         Int         @id @default(autoincrement())
+  villageId  Int
+  village    Village     @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  templateId Int
+  template   AppTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  lineageKey String      @db.VarChar(40)
+
+  name        String @db.VarChar(100)
+  /// [{ ref, tableId }]
+  tables      Json
+  /// Widget yang sudah dipetakan ke tableId dan kunci kolom
+  dashboard   Json
+  installedById Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([villageId, lineageKey])
+  @@index([templateId])
+  @@map("app_installs")
 }

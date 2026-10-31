@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronLeft, ChevronRight, Search, XIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImagePlus, Loader2, Search, XIcon } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogPortal,
@@ -11,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/components/ui/utils";
+import { uploadImageAsset, type ImageAssetItem } from "@/lib/digitalArchive/upload-image-client";
+import { MEDIA_CATEGORY, MEDIA_IMAGE_MIME_EXT, MAX_MEDIA_IMAGE_BYTES, formatBytes } from "@/lib/digitalArchive/media";
 
 type ArchiveRow = {
   id: number;
@@ -78,6 +81,14 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ArchiveRow | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(() => new Set());
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /** Unggah hanya untuk gambar: server membatasi aset gambar ke JPG/PNG/WebP/GIF. */
+  const canUpload = imageOnly;
+  const acceptAttr = Object.keys(MEDIA_IMAGE_MIME_EXT).join(",");
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -109,10 +120,11 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     }
   }, [page, search, category, imageOnly]);
 
+  // reloadKey: muat ulang paksa setelah unggah walau filter/halaman tidak berubah
   useEffect(() => {
     if (!open) return;
     void load();
-  }, [open, load]);
+  }, [open, load, reloadKey]);
 
   useEffect(() => {
     if (open) return;
@@ -124,6 +136,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     setSelected(null);
     setSelectedPaths(new Set());
     setError(null);
+    setDragging(false);
   }, [open]);
 
   const applyFilters = () => {
@@ -141,6 +154,62 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
       else next.add(p);
       return next;
     });
+  };
+
+  const handleFiles = async (files: FileList | File[] | null) => {
+    const list = files ? Array.from(files) : [];
+    if (list.length === 0 || uploading || !canUpload) return;
+    // Mode tunggal hanya butuh satu berkas; sisanya diabaikan.
+    const queue = multiple ? list : list.slice(0, 1);
+    setUploading(true);
+    setError(null);
+    const done: ImageAssetItem[] = [];
+    const failed: string[] = [];
+    for (const file of queue) {
+      try {
+        done.push(await uploadImageAsset(file));
+      } catch (e) {
+        failed.push(`${file.name}: ${e instanceof Error ? e.message : "Gagal mengunggah"}`);
+      }
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (failed.length > 0) setError(failed.join("\n"));
+    if (done.length === 0) return;
+
+    // Tampilkan hasil unggahan di urutan teratas: kosongkan filter dan kembali ke halaman 1.
+    setSearchInput("");
+    setCategoryInput("");
+    setSearch("");
+    setCategory("");
+    setPage(1);
+    setReloadKey((k) => k + 1);
+
+    if (multiple) {
+      setSelectedPaths((prev) => {
+        const next = new Set(prev);
+        for (const it of done) next.add(it.url.trim());
+        return next;
+      });
+    } else {
+      const it = done[0];
+      setSelected({
+        id: it.id,
+        fileName: it.name,
+        filePath: it.url,
+        fileType: "image",
+        title: it.name,
+        category: MEDIA_CATEGORY,
+        subCategory: null,
+        isPublic: true,
+      });
+    }
+    toast.success(
+      done.length === 1
+        ? "Gambar berhasil diunggah dan dipilih."
+        : `${done.length} gambar berhasil diunggah dan dipilih.`,
+    );
   };
 
   const handlePick = () => {
@@ -203,15 +272,92 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
               <Search className="size-4" />
               Cari
             </Button>
+            {canUpload ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ImagePlus className="size-4" aria-hidden="true" />
+                )}
+                {uploading ? "Mengunggah…" : "Unggah baru"}
+              </Button>
+            ) : null}
           </div>
-          {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+          {canUpload ? (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={acceptAttr}
+              multiple={multiple}
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Pilih berkas gambar untuk diunggah"
+              onChange={(e) => void handleFiles(e.target.files)}
+            />
+          ) : null}
+          {error ? (
+            <p role="alert" className="whitespace-pre-line text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          ) : null}
         </div>
 
-        <div className="max-h-[min(50vh,420px)] min-h-[200px] flex-1 overflow-y-auto px-6 py-4">
+        <div
+          className="relative max-h-[min(50vh,420px)] min-h-[200px] flex-1 overflow-y-auto px-6 py-4"
+          onDragOver={(e) => {
+            if (!canUpload || !e.dataTransfer.types.includes("Files")) return;
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+          }}
+          onDrop={(e) => {
+            if (!canUpload) return;
+            e.preventDefault();
+            setDragging(false);
+            void handleFiles(e.dataTransfer.files);
+          }}
+        >
+          {dragging ? (
+            <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-background/90 text-sm font-medium text-primary">
+              Lepas gambar di sini untuk mengunggah
+            </div>
+          ) : null}
           {loading ? (
             <p className="text-sm text-muted-foreground">Memuat…</p>
           ) : rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Tidak ada berkas yang cocok.</p>
+            <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 text-center">
+              <p className="text-sm text-muted-foreground">
+                {search || category
+                  ? "Tidak ada berkas yang cocok."
+                  : "Belum ada gambar di arsip."}
+              </p>
+              {canUpload ? (
+                <>
+                  <Button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ImagePlus className="size-4" aria-hidden="true" />
+                    )}
+                    {uploading ? "Mengunggah…" : "Unggah gambar"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Atau seret gambar ke sini. JPG, PNG, WebP, GIF · maks {formatBytes(MAX_MEDIA_IMAGE_BYTES)}.
+                  </p>
+                </>
+              ) : null}
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {rows.map((r) => {
@@ -257,6 +403,13 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
             </div>
           )}
         </div>
+
+        {canUpload && rows.length > 0 ? (
+          <p className="border-t px-6 py-2 text-xs text-muted-foreground">
+            Gambar yang dicari belum ada? Klik <span className="font-medium">Unggah baru</span> atau seret
+            berkas ke daftar. JPG, PNG, WebP, GIF · maks {formatBytes(MAX_MEDIA_IMAGE_BYTES)}.
+          </p>
+        ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t px-6 py-3">
           <div className="text-xs text-muted-foreground">

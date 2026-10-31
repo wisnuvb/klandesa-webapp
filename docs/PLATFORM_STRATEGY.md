@@ -184,17 +184,17 @@ Pelajaran produk: mulai dari *"isi sekali, lapor ke mana-mana"* dan mode luring 
 ### Fase 2: Permukaan platform (Q1–Q2 2027)
 1. ~~Tabel kredensial~~ **selesai 2026-10-31** (kunci API per desa, scope baca-saja, jejak akses, batas laju, layar admin; lihat [PHASE2_API_KEYS.md](PHASE2_API_KEYS.md)). Peran kustom belum.
 2. ~~`/api/v1`~~ **baca-saja selesai 2026-10-31** (10 endpoint, penyamaran terpusat, paginasi kursor, kode galat stabil, OpenAPI + `llms.txt` dibangkitkan dari satu daftar; lihat [PHASE2_API_KEYS.md](PHASE2_API_KEYS.md)). Tulis-sebagai-usulan belum.
-3. Bus kejadian + webhook keluar (HMAC, retry) + antrean kerja berumur panjang (impor, ekspor, AI, webhook).
-4. Kualitas data: status verifikasi per kolom, validasi NIK (checksum/wilayah), dedupe/merge, batch impor tercatat, ekspor penuh tenant + prosedur cadangan/pulih. Generalisasikan `DataChangeRequest` menjadi layanan maker/checker dengan kebijakan per kolom.
+3. ~~Bus kejadian + webhook keluar~~ **selesai 2026-11-01** (kejadian tipis tanpa PII, HMAC + cap waktu, antrean keluar dengan kirim ulang bertahap, anti-SSRF, layar admin; lihat [PHASE2_WEBHOOKS_PROPOSALS.md](PHASE2_WEBHOOKS_PROPOSALS.md)). Antrean kerja umum (impor/ekspor/AI) belum: tabel pengiriman webhook hanya melayani webhook.
+4. Kualitas data: **sebagian selesai 2026-11-01**: periksa NIK (bentuk, provinsi, tanggal, kecocokan, kemungkinan ganda) dan **usulan maker-checker** untuk data kustom (kunci hanya bisa mengusulkan, admin menyetujui; `DataChangeRequest` warga lama dibiarkan terpisah). Belum: status verifikasi per kolom, penggabungan data ganda, batch impor tercatat, ekspor penuh tenant + prosedur cadangan/pulih, maker-checker untuk data penduduk.
 5. ~~Tabel/kolom kustom~~ **selesai 2026-10-31** (tipe terbatas, kelas data per kolom, pratinjau, form/daftar/CSV/API otomatis; lihat [PHASE2_CUSTOM_DATA.md](PHASE2_CUSTOM_DATA.md)). Form dari prompt AI dan galeri templat belum.
 
 ### Fase 3: Lapisan AI (Q2–Q3 2027)
-- MCP hosted baca-saja (OAuth per-desa, penyamaran PII, sandbox sintetis), pembersihan PII sebelum panggilan model, audit AI per tenant.
+- ~~MCP hosted baca-saja~~ **selesai 2026-11-01** dengan kunci API sebagai bearer, penyamaran PII dan jejak akses lewat penangan `/api/v1` yang sama, Aturan Dua pada kunci (lihat [PHASE3_MCP.md](PHASE3_MCP.md)). **Belum:** OAuth per-desa, sandbox sintetis, pembersihan PII sebelum panggilan model, audit AI per tenant.
 - Asisten dengan tool-calling di atas API ber-scope; tulis-sebagai-usulan.
 - Uji tembus injeksi prompt pada teks bebas sebelum buka ke publik.
 
 ### Fase 4: Ekosistem (setelah Fase 3 stabil)
-- "Aplikasi Desa" deklaratif + alur tinjau + templat resmi kabupaten + program mitra bersertifikat.
+- ~~"Aplikasi Desa" deklaratif + alur tinjau~~ **selesai 2026-11-01** (manifes data murni, galeri berjenjang tinjau oleh admin platform, pasang = buat tabel kosong, dasbor; lihat [PHASE4_APPS.md](PHASE4_APPS.md)). **Belum:** templat resmi kabupaten (butuh peran penerbit regional), program mitra bersertifikat (keputusan bisnis).
 - Runtime kode terisolasi hanya bila ada permintaan nyata dan jalur tinjau sudah berjalan.
 
 ---

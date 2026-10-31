@@ -1,6 +1,6 @@
 /**
  * Daftar scope kunci API. Setiap scope memberi akses ke satu kelompok data desa; kunci selalu dimulai dari baca-saja
- * (tangga kepercayaan 1: PII tersamar). Menambah scope baru = menambah baris di sini lalu endpoint /api/v1 yang memakainya.
+ * (tangga kepercayaan 1: PII tersamar). Satu-satunya scope tulis adalah `*:propose` (tangga 3): mengajukan usulan yang harus disetujui manusia. Menambah scope baru = menambah baris di sini lalu endpoint /api/v1 yang memakainya.
  */
 export const API_SCOPES = {
   "kependudukan:read": {
@@ -17,12 +17,30 @@ export const API_SCOPES = {
     detail: "Hanya kolom yang ditandai bukan data pribadi. Kolom pribadi dan sensitif tidak pernah keluar.",
     sensitive: false,
   },
+  "data-kustom:propose": {
+    label: "Mengusulkan perubahan data kustom",
+    detail: "Kunci TIDAK mengubah data langsung. Ia hanya mengirim usulan yang menunggu persetujuan admin atau sekretaris desa. Hanya kolom bukan data pribadi.",
+    sensitive: false,
+  },
   "anggaran:read": { label: "Anggaran desa (ringkasan)", detail: "Pagu dan realisasi per kategori, tanpa rincian transaksi.", sensitive: false },
 } as const;
 
 export type ApiScope = keyof typeof API_SCOPES;
 export const ALL_API_SCOPES = Object.keys(API_SCOPES) as ApiScope[];
 export const isApiScope = (s: unknown): s is ApiScope => typeof s === "string" && Object.prototype.hasOwnProperty.call(API_SCOPES, s);
+
+export const COMBINATION_ERROR =
+  "Akses data penduduk tidak boleh digabung dengan akses mengusulkan perubahan dalam satu kunci. Buat dua kunci terpisah, satu untuk membaca dan satu untuk mengusulkan.";
+
+/**
+ * Aturan Dua: satu kunci (dan satu sesi agen yang memakainya) tidak boleh memegang data sensitif sekaligus kemampuan
+ * mengirim perubahan, karena teks bebas dari pengguna lain bisa memuat perintah tersembunyi yang membujuk agen membocorkan data.
+ */
+export function scopeCombinationError(scopes: readonly ApiScope[]): string | null {
+  const sensitive = scopes.some((s) => API_SCOPES[s].sensitive);
+  const writes = scopes.some((s) => s.endsWith(":propose"));
+  return sensitive && writes ? COMBINATION_ERROR : null;
+}
 
 export type ParsedScopes = { ok: true; scopes: ApiScope[] } | { ok: false; error: string };
 
@@ -33,6 +51,8 @@ export function parseScopes(input: unknown): ParsedScopes {
   if (unknown.length) return { ok: false, error: "Ada akses data yang tidak dikenal." };
   const scopes = [...new Set(input as ApiScope[])];
   if (scopes.length > 10) return { ok: false, error: "Terlalu banyak akses data dipilih." };
+  const combo = scopeCombinationError(scopes);
+  if (combo) return { ok: false, error: combo };
   return { ok: true, scopes };
 }
 

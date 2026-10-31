@@ -34,6 +34,8 @@ export function BuatKunciDialog({ scopes, onClose, onCreated }: { scopes: ScopeI
   const [saved, setSaved] = useState(false);
   const secretRef = useRef<HTMLInputElement>(null);
 
+  const conflict = scopes.some((s) => s.sensitive && picked.has(s.id)) && [...picked].some((id) => id.endsWith(":propose"));
+
   const toggle = (id: string) =>
     setPicked((p) => {
       const n = new Set(p);
@@ -46,7 +48,8 @@ export function BuatKunciDialog({ scopes, onClose, onCreated }: { scopes: ScopeI
     e.preventDefault();
     const errs: string[] = [];
     if (!name.trim()) errs.push("Isi nama kunci, misalnya nama aplikasinya.");
-    if (picked.size === 0) errs.push("Pilih minimal satu data yang boleh dibaca.");
+    if (picked.size === 0) errs.push("Pilih minimal satu akses.");
+    if (conflict) errs.push("Akses data penduduk tidak boleh digabung dengan akses mengusulkan perubahan. Buat dua kunci terpisah.");
     if (errs.length) return setErrors(errs);
     setBusy(true);
     setErrors([]);
@@ -122,7 +125,7 @@ export function BuatKunciDialog({ scopes, onClose, onCreated }: { scopes: ScopeI
           <>
             <DialogHeader>
               <DialogTitle>Buat kunci API</DialogTitle>
-              <DialogDescription>Kunci hanya bisa membaca data yang Anda pilih. Anda bisa mencabutnya kapan saja.</DialogDescription>
+              <DialogDescription>Kunci hanya mendapat akses yang Anda pilih. Anda bisa mencabutnya kapan saja.</DialogDescription>
             </DialogHeader>
             <form onSubmit={submit} className="space-y-5" noValidate>
               <div className="space-y-1.5">
@@ -130,7 +133,7 @@ export function BuatKunciDialog({ scopes, onClose, onCreated }: { scopes: ScopeI
                 <Input id="kunci-nama" className="h-11" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Aplikasi rekap posyandu" />
               </div>
               <fieldset className="space-y-2">
-                <legend className="text-sm font-medium">Data yang boleh dibaca</legend>
+                <legend className="text-sm font-medium">Akses yang diberikan</legend>
                 <ul className="space-y-2">
                   {scopes.map((s) => (
                     <li key={s.id}>
@@ -155,6 +158,11 @@ export function BuatKunciDialog({ scopes, onClose, onCreated }: { scopes: ScopeI
                   ))}
                 </select>
               </div>
+              {conflict ? (
+                <p role="status" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-50">
+                  Akses data penduduk tidak boleh digabung dengan akses mengusulkan perubahan, demi keamanan. Buat dua kunci terpisah.
+                </p>
+              ) : null}
               {errors.length ? (
                 <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
                   <ul className="list-disc pl-5">
