@@ -1,6 +1,6 @@
 # Fase 1: Kependudukan v2 (KK, wilayah, mutasi) + pemetaan Satu iDesa
 
-Tanggal: 2026-10-31. Status: **rancangan + logika murni teruji; skema BELUM diterapkan; kode API/UI belum ditulis.**
+Tanggal: 2026-10-31. Status: **tahap A selesai (lokal + produksi, tabel kosong); tahap C–D sudah dikode dan teruji di MySQL sementara, BELUM di-deploy; bendera `kependudukanV2` mati untuk semua desa.** Rincian di §12.
 Induk: [PLATFORM_STRATEGY.md](PLATFORM_STRATEGY.md) §6 Fase 1. Berkas pendukung:
 `lib/kependudukan/{household,wilayah,mutation,report}.ts` (+ `tests/kependudukan.test.ts`, 19 tes),
 `docs/PHASE1_KEPENDUDUKAN_SCHEMA.diff` (usulan skema, bisa di-`patch`), `docs/PHASE1_KEPENDUDUKAN_MIGRATION.sql` (SQL draf).
@@ -151,3 +151,23 @@ Desa pilot untuk C–D: **Karanganyar (Lumajang)**, dengan data nyata mereka.
 1. **Masa simpan arsip warga terhapus** (usulan 12 bulan).
 2. **Cara menerapkan SQL aditif ke produksi** (SQL manual saat jendela rilis, atau lewat prosedur `db push` yang sudah ada). Rekomendasi: SQL manual, karena `migrate deploy` tidak aman di DB ini.
 3. **Persetujuan menyalakan tahap C–D untuk Karanganyar** setelah dry-run (anomali dibaca bersama operator desa).
+
+## 12. Status implementasi tahap C–D (2026-10-31)
+
+Semua di balik bendera `Village.settings.kependudukanV2` (default mati = perilaku lama persis).
+
+| Bagian | Berkas | Teruji |
+|---|---|---|
+| Mesin sinkron (rekonsiliasi desa, sinkron per-KK, arsip hapus, mutasi `legacy_edit`/`import`, pembungkus tahan-gagal) | `lib/kependudukan/sync.ts` | `tests/kependudukan-sync.integration.test.ts` (12 tes, MySQL nyata: idempoten, varian 01/1 digabung, kolom lama tak berubah, desa lain tak tersentuh) |
+| Titik tulis | `residents` POST, `[id]` PUT/PATCH/DELETE, `bulk` | bendera mati = tidak ada yang berubah |
+| Backfill desa | `scripts/kependudukan-backfill.ts` (default uji coba; `--apply`; `--enable`) | pada salinan Bedahan: 830 KK, 129 unit wilayah, 1,8 dtk, jalan kedua 0 perubahan |
+| Alur mutasi (ajukan, putuskan atomik, batal) | `lib/kependudukan/mutation-service.ts` | `tests/kependudukan-mutation.integration.test.ts` (10 tes: NIK tak tersimpan, rollback saat validasi gagal, persetujuan serentak hanya satu lolos, lintas desa 404) |
+| API | `/api/kependudukan/{status,mutasi,mutasi/keputusan,mutasi/[id],households,households/[id],wilayah,laporan/mutasi}` | tes guard + audit statis |
+| Izin | matriks `residents`: tambah aksi `approve` (admin, sekretaris, kepala desa); `/mutasi/keputusan` → `approve` | tes guard |
+| Layar | `/data-warga/mutasi`, `/data-warga/keluarga` (tab Keluarga, Wilayah), pintu masuk di Data Warga | tsc + lint; **belum dicoba di browser** |
+
+Keputusan implementasi: NIK warga baru tidak disimpan di `details` mutasi (diisi ulang saat persetujuan); keputusan memakai klaim `PENDING → APPLIED` dalam satu transaksi (rollback bila validasi gagal); sinkron yang gagal tidak menggagalkan penulisan warga, desa ditandai `kependudukanV2NeedsReconcile`.
+
+Belum: ganti kepala dari layar Keluarga (sementara lewat Perbaikan Data KK), editor wilayah (gabung/rename unit), mengaktifkan kembali akun mobile warga yang datang kembali, adaptor ekspor `satu_idesa`, pembersihan terjadwal `resident_archives` (usulan 12 bulan), rekonsiliasi terjadwal.
+
+**Tanpa skrip untuk operator (2026-10-31):** admin desa mengaktifkan fitur dengan satu tombol di Data Warga (`POST /api/kependudukan/aktivasi`: bentuk struktur → nyalakan bendera → kejar perubahan, aman diulang). Pemulihan mandiri: sinkronisasi gagal menandai desa; tanda dibersihkan otomatis oleh perubahan data warga berikutnya atau kunjungan halaman Data Warga (`healIfNeeded`). Jaring pengaman opsional: `POST /api/cron/kependudukan-reconcile` harian. `scripts/kependudukan-backfill.ts` tinggal alat darurat/uji coba untuk teknisi.

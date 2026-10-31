@@ -19,6 +19,14 @@ Kredit dipesan sebelum model dipanggil dan dikembalikan bila apa pun gagal sebel
 | `mail_requests_summary` | mail | layanan-surat |
 | `citizen_reports_summary` | citizen_reports | pengaduan-masyarakat |
 | `social_benefits_summary` | social_benefits | bantuan-program-keluarga |
+| `fees_cash_summary` | rtrw | partisipasi-rtrw |
+| `assets_projects_summary` | gis | peta-infrastruktur |
+| `planning_summary` | rpjmdes | rpjmdes |
+| `attendance_summary` | attendance | absensi |
+| `bumdes_summary` | bumdes | bumdes |
+| `cooperative_summary` | cooperative | koperasi |
+| `household_stats` | residents | data-kk |
+| `population_mutations` | residents | data-warga |
 
 Aturan yang tidak boleh dilanggar saat menambah tool:
 
@@ -28,6 +36,42 @@ Aturan yang tidak boleh dilanggar saat menambah tool:
 4. Hitungan 1–4 disamarkan (`<5`) lewat `lib/ai/laras-aggregate.ts` / `suppressSmallCount`.
 5. Tool hanya membaca. Aksi tulis, bila kelak ada, berupa usulan yang dikonfirmasi pengguna.
 6. Tambahkan tes di `tests/laras-*.test.ts`.
+
+## Gelombang 2: tool baca-saja tambahan (`lib/ai/laras-insights.ts`)
+
+Enam tool baru, semuanya baca-saja, dengan aturan yang sama. Logika murni (`summarize*`, `shape*`, `sumLedger`) dipisah dari akses DB.
+
+| Tool | Isi | Sengaja TIDAK ada |
+|---|---|---|
+| `fees_cash_summary` | Rekap iuran per periode (ditagih/terkumpul/sisa, lunas/menunggak, laporan bayar menunggu) dan saldo kas per Desa/RT. Memakai `loadVillageFeeOverview` yang sama dengan dashboard, jadi definisi "lunas/menunggak" identik | Nama kepala keluarga, nomor KK |
+| `assets_projects_summary` | Aset per jenis/kondisi, yang perlu perhatian; proyek per status, anggaran, yang melewati target | Koordinat |
+| `planning_summary` | RPJMDes, kegiatan RKPDes per tahun/status/anggaran, usulan Musdes yang menunggu | Nama dan NIK pengusul |
+| `attendance_summary` | Hadir/terlambat/izin/absen tercatat, persen, **per jabatan** | Nama perangkat desa; hari tanpa catatan tidak dihitung absen |
+| `bumdes_summary` | Unit usaha, pemasukan/pengeluaran per unit setahun, total nilai aset | — |
+| `cooperative_summary` | Anggota per status, pemasukan/pengeluaran per kategori setahun | Daftar anggota, pengurus, NIK |
+
+Pembatasan desa untuk tabel tanpa `villageId`: RKPDes lewat `plan: { villageId }`; BUMDes dan koperasi dicari dulu lewat `villageId`,
+lalu query lanjutan memakai `bumdesId`/`cooperativeId` hasil pencarian itu. `tests/laras-insights.test.ts` memeriksa bahwa SETIAP query
+memuat batas desa. Peran yang tak dikenal oleh `normalizeVillageRole` dianggap `staff` (bawaan aplikasi, bukan khusus Laras).
+
+## Gelombang 3: kependudukan Fase 1 (`lib/ai/laras-kependudukan.ts`)
+
+| Tool | Isi | Sengaja TIDAK ada |
+|---|---|---|
+| `household_stats` | KK aktif, rata-rata anggota, sebaran ukuran KK, KK dikepalai perempuan, KK dengan lansia sendiri, masalah data KK (tanpa nomor KK sah, tanpa kepala, kepala ganda, lintas RT, hubungan tak baku). Opsional per rw/rt/dusun | Nomor KK, nama, alamat. Pesan anomali (memuat nomor KK) tidak diteruskan, hanya jumlahnya |
+| `population_mutations` | Lahir/meninggal/pindah keluar/pindah datang/perubahan KK per bulan dan per RW/RT, plus antrean menunggu keputusan | Nama, NIK, 4 digit NIK, nomor KK, rincian `details` |
+
+Keputusan desain:
+
+- **Statistik KK dihitung dari kolom lama `residents`** (sumber kebenaran, sama dengan halaman Kualitas Data) memakai `planHouseholdBackfill`, jadi
+  benar walau bendera `kependudukanV2` mati dan tabel `households` kosong. `kk` hanya dipakai di memori untuk mengelompokkan lalu dibuang.
+- **Mutasi mengikuti bendera v2.** Hidup: dari `resident_mutations` berstatus `APPLIED` (menurut tanggal kejadian) + antrean `PENDING`. Mati: **perkiraan**
+  dari tanggal lahir/meninggal/pindah pada data warga, berlabel `perkiraan_data_warga`, dan `pindah_datang` sengaja `null` (tidak ada datanya);
+  prompt dan skenario evaluasi mewajibkan Laras menyampaikan keterbatasan itu. Tabel buku mutasi tidak disentuh saat bendera mati
+  (di produksi tabelnya belum tentu ada).
+- **Penyamaran:** total desa per bulan tidak disamarkan (sama dengan laporan mutasi bulanan resmi); rincian per wilayah, KK perempuan kepala,
+  lansia sendiri, dan sebaran ukuran KK disamarkan `<5`.
+- Laras belum mengusulkan/menerapkan mutasi (kelahiran, kematian, pindah). Itu aksi tulis atas data warga; butuh keputusan dan kartu konfirmasi tersendiri.
 
 ## Aksi: Laras mengusulkan, manusia mengonfirmasi
 
@@ -134,7 +178,7 @@ Keterbatasan v1: kartu hanya muncul pada jawaban langsung (tidak dimuat ulang da
 ## Belum dikerjakan
 
 - Aksi lain: pembuatan isi surat dari templat, pengingat iuran, notifikasi massal pengumuman (butuh keputusan tersendiri).
-- Daftar warga bermasker (nama tersamar) dan tool lain (iuran, absensi, aset, RPJMDes/RKPDes, APBDes rinci).
+- Daftar warga bermasker (nama tersamar), APBDes rinci per bidang, arsip digital (hanya metadata), bank sampah/bencana/RT-RW/pertanian rinci, struktur wilayah master (`wilayah_units`) dan usulan mutasi lewat Laras (aksi tulis). Tabel autentikasi, tagihan/mitra/regional, dan data kesehatan per orang sengaja TIDAK akan dibuka untuk Laras.
 - Streaming token sungguhan (butuh sanitasi inkremental); kredit proporsional terhadap token; cache bersama antar worker; kuota harian pengumuman masih rawan balapan kecil antar token berbeda.
 - Streaming jawaban; cache konteks (kini membaca semua baris warga tiap pertanyaan).
 - Set tanya-jawab acuan yang dicocokkan dengan hasil SQL nyata (butuh akses DB); menjalankan `laras:eval` berkala (mis. tiap ganti model/prompt).

@@ -20,6 +20,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/residents/bulk", resource: "residents", suffixActions: { "": "create" } },
   { prefix: "/api/residents", resource: "residents" },
   { prefix: "/api/kk", resource: "residents" },
+  { prefix: "/api/kependudukan/mutasi/keputusan", resource: "residents", suffixActions: { "": "approve" } },
   { prefix: "/api/kependudukan", resource: "residents" },
   { prefix: "/api/officials", resource: "officials" },
   { prefix: "/api/positions", resource: "officials" },

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditWeb } from "@/lib/audit/web-audit";
 import type { Prisma } from "@prisma/client";
+import { recordLegacyMutations, runKependudukanSync, syncResidents } from "@/lib/kependudukan/sync";
 import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { normalizeRow, rowHasError, toDbRecord, type DbRecord } from "@/lib/residents-import/normalize";
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
     const toCreate: Prisma.ResidentCreateManyInput[] = [];
     const toUpdate: Array<{ id: number; data: Record<string, unknown> }> = [];
     const toDeactivate: number[] = [];
+    const updatedBefore = new Map<number, { id: number; nik: string } & Record<string, unknown>>();
     let skipped = 0;
     for (const v of valid) {
       const existing = existingByNik.get(v.record.nik);
@@ -113,6 +115,7 @@ export async function POST(req: NextRequest) {
         const data = buildUpdate(v.record, existing, mode, v.raw);
         if (Object.keys(data).length) {
           toUpdate.push({ id: existing.id, data });
+          updatedBefore.set(existing.id, existing);
           if (deactivatesAccount(data)) toDeactivate.push(existing.id);
         } else skipped++;
       }
@@ -137,6 +140,28 @@ export async function POST(req: NextRequest) {
     await runPool(toUpdate, UPDATE_CONCURRENCY, async (u) => {
       await prisma.resident.update({ where: { id: u.id }, data: u.data as Prisma.ResidentUpdateInput });
       updated++;
+    });
+
+    // Kependudukan v2 (hanya desa yang menyalakan bendera): mutasi dari impor status + sinkronisasi rumah tangga/wilayah.
+    await runKependudukanSync(village, "bulk", async (db) => {
+      if (mode === "status") {
+        const snap = (r: Record<string, unknown>) => ({
+          isAlive: r.isAlive as boolean,
+          deathDate: (r.deathDate as Date | null) ?? null,
+          moveDate: (r.moveDate as Date | null) ?? null,
+          kk: (r.kk as string | null) ?? null,
+          familyRole: String(r.familyRole ?? ""),
+        });
+        for (const u of toUpdate) {
+          const before = updatedBefore.get(u.id);
+          if (!before) continue;
+          const identity = { id: u.id, name: String(before.name ?? ""), nik: before.nik, rt: (before.rt as string | null) ?? null, rw: (before.rw as string | null) ?? null };
+          await recordLegacyMutations(db, village.id, loaded.ctx.userId, identity, snap(before), snap({ ...before, ...u.data }), new Date(), "import");
+        }
+      }
+      const touched = await db.resident.findMany({ where: { villageId: village.id, nik: { in: niks } }, select: { id: true } });
+      const oldKks = [...updatedBefore.values()].map((b) => b.kk as string | null);
+      await syncResidents(db, village.id, touched.map((t) => t.id), oldKks);
     });
 
     // Warga yang kini berstatus meninggal/pindah: nonaktifkan akun mobilenya (mobile hanya memeriksa status akun).

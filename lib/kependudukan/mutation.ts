@@ -36,6 +36,8 @@ export interface NewResidentData {
   rw?: string;
   hamlet?: string;
   address?: string;
+  religion?: string;
+  maritalStatus?: string;
 }
 
 export interface MutationDetails {

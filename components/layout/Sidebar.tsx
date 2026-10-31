@@ -12,6 +12,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   CircleHelp,
+  Search,
   X,
   Landmark,
   HeartHandshake,
@@ -21,12 +22,21 @@ import {
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../ui/command";
 import type { Session } from "next-auth";
 import { hasPartnerPortalAccess } from "@/lib/partner-session";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 import { useCooperativeNav } from "@/components/providers/CooperativeNavProvider";
 import { buildVillageSidebarMenu } from "@/lib/modules/sidebar-menu";
-import { useMemo, useState } from "react";
+import { flattenMenuForSearch } from "@/lib/modules/sidebar-search";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PackageTier } from "@/lib/modules/entitlements";
 
 interface MenuItem {
@@ -156,6 +166,10 @@ export function Sidebar({
   onCollapse,
 }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { access, loading: coopNavLoading } = useCooperativeNav();
   const { user, isLoading } = useNextAuthSession();
@@ -209,6 +223,11 @@ export function Sidebar({
     user?.role,
   ]);
 
+  const searchableMenuItems = useMemo(
+    () => flattenMenuForSearch(visibleMenuItems),
+    [visibleMenuItems],
+  );
+
   const toggleExpand = (id: string) => {
     // Accordion behavior - only one can be open at a time
     setExpandedItems((prev) => (prev.includes(id) ? [] : [id]));
@@ -220,6 +239,41 @@ export function Sidebar({
     if (window.innerWidth < 768) {
       onToggle();
     }
+  };
+
+  const handleSearchSelect = (page: string) => {
+    handlePageChange(page);
+    setSearchQuery("");
+    setIsSearchOpen(false);
+    searchInputRef.current?.blur();
+  };
+
+  const handleSearchIconClick = () => {
+    if (isCollapsed) {
+      onCollapse(); // Perluas sidebar dulu
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    } else {
+      searchInputRef.current?.focus();
+    }
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleCollapseToggle = () => {
+    setSearchQuery("");
+    setIsSearchOpen(false);
+    onCollapse();
   };
 
   const renderMenuItem = (item: MenuItem, level = 0) => {
@@ -344,6 +398,7 @@ export function Sidebar({
 
       {/* Sidebar */}
       <motion.aside
+        data-tour="nav-sidebar"
         initial={false}
         animate={{
           width: isCollapsed ? "80px" : "256px",
@@ -410,6 +465,77 @@ export function Sidebar({
           </Button>
         </div>
 
+        {/* Search menu */}
+        {isCollapsed ? (
+          <div className="flex justify-center px-2 pb-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSearchIconClick}
+              className="h-9 w-9 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              title="Cari menu"
+              aria-label="Cari menu"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div ref={searchWrapperRef} className="relative px-3 pb-2">
+            <Command
+              shouldFilter
+              className="overflow-visible rounded-lg border border-sidebar-border bg-sidebar-accent/40"
+            >
+              <CommandInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onValueChange={(value) => {
+                  setSearchQuery(value);
+                  setIsSearchOpen(true);
+                }}
+                onFocus={() => setIsSearchOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setIsSearchOpen(false);
+                    searchInputRef.current?.blur();
+                  }
+                }}
+                placeholder="Cari menu..."
+                aria-label="Cari menu"
+                className="h-9 text-sm text-sidebar-foreground placeholder:text-muted-foreground"
+              />
+              {isSearchOpen && searchQuery.trim().length > 0 && (
+                <CommandList className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-72 rounded-lg border border-sidebar-border bg-popover text-popover-foreground shadow-lg">
+                  <CommandEmpty className="px-3 py-4 text-sm text-muted-foreground">
+                    {`Menu "${searchQuery}" tidak ditemukan.`}
+                  </CommandEmpty>
+                  <CommandGroup className="p-1">
+                    {searchableMenuItems.map((entry) => {
+                      const EntryIcon = entry.icon;
+                      return (
+                        <CommandItem
+                          key={entry.id}
+                          value={entry.label}
+                          keywords={entry.keywords}
+                          onSelect={() => handleSearchSelect(entry.id)}
+                          className="flex items-center gap-2 rounded-md px-2 py-2 text-sm"
+                        >
+                          <EntryIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="flex-1 truncate">{entry.label}</span>
+                          {entry.groupLabel && (
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {entry.groupLabel}
+                            </span>
+                          )}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              )}
+            </Command>
+          </div>
+        )}
+
         {/* Navigation */}
         <nav
           className={cn(
@@ -444,7 +570,7 @@ export function Sidebar({
           <Button
             variant="ghost"
             size="icon"
-            onClick={onCollapse}
+            onClick={handleCollapseToggle}
             className="hidden md:inline-flex h-9 w-9 shrink-0 text-muted-foreground hover:text-sidebar-foreground"
             title={isCollapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
             aria-label={isCollapsed ? "Perluas sidebar" : "Ciutkan sidebar"}

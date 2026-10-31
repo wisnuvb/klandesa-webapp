@@ -49,6 +49,7 @@ Setelah itu cek: tabel `fee_schedules`, `fee_charges`, `fee_payments`, `cash_ent
   0 18 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/fees
   ```
   (18:00 UTC = 01:00 WIB.) Tanpa ini tagihan hanya dibuat saat jadwal dibuat atau dibuka, dan pengingat tidak terkirim.
+- **Job harian rekonsiliasi kependudukan** (opsional, jaring pengaman): panggil `POST /api/cron/kependudukan-reconcile` dengan header yang sama, sekali sehari (mis. 03:00 WIB). Merapikan rumah tangga dan wilayah semua desa yang fitur Keluarga/Buku Mutasi-nya aktif. Idempoten. Tanpa job ini pun desa pulih sendiri: sinkronisasi yang gagal diulang otomatis pada perubahan data warga berikutnya atau saat halaman Data Warga dibuka.
 - **Job harian pengingat perpanjangan**: panggil `POST /api/cron/subscription-reminders` dengan header yang sama, sekali sehari (mis. 02:00 WIB). Mengirim email via Brevo ke admin/kepala desa dan membuat notifikasi di lonceng aplikasi. Pengingat langganan hanya untuk desa Paket Lengkap (desa paket lama tidak ditagih bulanan, jadi tidak diingatkan); pengingat arsip untuk semua desa. Jadwal: trial (7, 3, 1 hari sebelum berakhir, dan saat berakhir), langganan berbayar (30, 7, 1 hari, dan saat berakhir), add-on arsip (7, 1 hari, dan saat berakhir). Aman dijalankan berulang (satu pengingat tidak dikirim dua kali). Mengembalikan 503 bila `CRON_SECRET` atau Brevo belum dikonfigurasi.
   ```cron
   0 19 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/subscription-reminders

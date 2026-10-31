@@ -28,6 +28,16 @@ import {
 } from "@/lib/ai/laras-announcement";
 import { ANNOUNCEMENT_ACTION_CATEGORIES } from "@/lib/ai/laras-actions";
 import type { PermissionAction } from "@/lib/permissions/actions";
+import {
+  assetsProjectsSummaryForAi,
+  attendanceSummaryForAi,
+  bumdesSummaryForAi,
+  cooperativeSummaryForAi,
+  feesCashSummaryForAi,
+  planningSummaryForAi,
+} from "@/lib/ai/laras-insights";
+import { isPeriod } from "@/lib/mobile/fees-logic";
+import { HOUSEHOLD_GROUP_BY, householdStatsForAi, populationMutationsForAi } from "@/lib/ai/laras-kependudukan";
 
 /**
  * Tool baca-saja untuk Laras. Prinsip:
@@ -261,6 +271,12 @@ async function runReports(ctx: LarasToolContext, a: z.infer<typeof daysSchema>) 
 
 const emptySchema = z.object({});
 
+const feesSchema = z.object({ period: z.string().refine(isPeriod, "Format periode YYYY-MM").optional() });
+const yearOnlySchema = z.object({ year: z.number().int().min(2000).max(2100).optional() });
+const householdSchema = z.object({ group_by: z.enum(HOUSEHOLD_GROUP_BY).optional() });
+const mutationsSchema = z.object({ months: z.number().int().min(1).max(24).optional() });
+const attendanceSchema = z.object({ days: z.number().int().min(1).max(90).optional() });
+
 const proposeAnnouncementSchema = z.object({
   title: z.string().min(TITLE_MIN).max(TITLE_MAX + 100),
   content: z.string().min(CONTENT_MIN).max(CONTENT_MAX + 500),
@@ -394,6 +410,133 @@ export const LARAS_TOOLS: LarasTool[] = [
     moduleId: "bantuan-program-keluarga",
     schema: emptySchema,
     run: runSocial as LarasTool["run"],
+  },
+  {
+    name: "household_stats",
+    description:
+      "Statistik Kartu Keluarga (KK) dan kualitas datanya: jumlah KK aktif, rata-rata anggota, sebaran ukuran KK, KK dikepalai perempuan, " +
+      "KK dengan lansia tinggal sendiri, dan masalah data (warga tanpa nomor KK sah, KK tanpa kepala/kepala ganda, KK tersebar lintas RT). " +
+      "Bisa dikelompokkan per rw, rt, atau hamlet (dusun). Tanpa nomor KK, nama, atau alamat. Jumlah kurang dari 5 pada kelompok tertentu disamarkan.",
+    parameters: {
+      type: "object",
+      properties: { group_by: { type: "string", enum: [...HOUSEHOLD_GROUP_BY], description: "Kosongkan untuk ringkasan desa saja." } },
+      additionalProperties: false,
+    },
+    resource: "residents",
+    permission: "read",
+    moduleId: "data-kk",
+    schema: householdSchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof householdSchema>) =>
+      memo(ctx, `households:${a.group_by ?? ""}`, () => householdStatsForAi(ctx.villageId, ctx.village.settings, a.group_by))) as LarasTool["run"],
+  },
+  {
+    name: "population_mutations",
+    description:
+      "Mutasi penduduk (lahir, meninggal, pindah keluar, pindah datang, perubahan KK) per bulan dan per RW/RT untuk N bulan terakhir, " +
+      "plus mutasi yang menunggu keputusan. Bila pencatatan mutasi belum aktif di desa, hasilnya PERKIRAAN dari data warga tanpa pindah datang " +
+      "(lihat kolom 'sumber' dan 'catatan'; sampaikan keterbatasannya). Tanpa nama atau NIK.",
+    parameters: {
+      type: "object",
+      properties: { months: { type: "integer", minimum: 1, maximum: 24, description: "Jumlah bulan terakhir termasuk bulan ini (bawaan 12)." } },
+      additionalProperties: false,
+    },
+    resource: "residents",
+    permission: "read",
+    moduleId: "data-warga",
+    schema: mutationsSchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof mutationsSchema>) =>
+      memo(ctx, `mutations:${a.months ?? 12}`, () => populationMutationsForAi(ctx.villageId, ctx.village.settings, a.months ?? 12))) as LarasTool["run"],
+  },
+  {
+    name: "fees_cash_summary",
+    description:
+      "Rekap iuran warga dan kas RT/desa untuk satu periode bulan: total ditagih, terkumpul, sisa, jumlah lunas/menunggak, " +
+      "laporan bayar yang menunggu dicek bendahara, dan saldo kas per kelompok (Desa dan tiap RT). Tanpa nama kepala keluarga.",
+    parameters: {
+      type: "object",
+      properties: { period: { type: "string", pattern: "^\\d{4}-(0[1-9]|1[0-2])$", description: "Format YYYY-MM. Bawaan: bulan berjalan." } },
+      additionalProperties: false,
+    },
+    resource: "rtrw",
+    permission: "read",
+    moduleId: "partisipasi-rtrw",
+    schema: feesSchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof feesSchema>) =>
+      memo(ctx, `fees:${a.period ?? ""}`, () => feesCashSummaryForAi(ctx.villageId, a.period))) as LarasTool["run"],
+  },
+  {
+    name: "assets_projects_summary",
+    description:
+      "Ringkasan aset desa (jumlah per jenis, kondisi, dan yang perlu perhatian) serta proyek infrastruktur (per status, anggaran, " +
+      "yang melewati target selesai, dan yang terbaru). Tanpa koordinat.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    resource: "gis",
+    permission: "read",
+    moduleId: "peta-infrastruktur",
+    schema: emptySchema,
+    run: (async (ctx: LarasToolContext) => assetsProjectsSummaryForAi(ctx.villageId)) as LarasTool["run"],
+  },
+  {
+    name: "planning_summary",
+    description:
+      "Ringkasan perencanaan desa: dokumen RPJMDes, kegiatan RKPDes per tahun (status, perkiraan anggaran, prioritas), dan usulan Musdes " +
+      "yang masuk beserta yang menunggu ditinjau. Nama dan NIK pengusul tidak disertakan.",
+    parameters: {
+      type: "object",
+      properties: { year: { type: "integer", minimum: 2000, maximum: 2100, description: "Bawaan: tahun berjalan." } },
+      additionalProperties: false,
+    },
+    resource: "rpjmdes",
+    permission: "read",
+    moduleId: "rpjmdes",
+    schema: yearOnlySchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof yearOnlySchema>) => planningSummaryForAi(ctx.villageId, a.year)) as LarasTool["run"],
+  },
+  {
+    name: "attendance_summary",
+    description:
+      "Rekap kehadiran perangkat desa dalam rentang hari: hadir, terlambat, izin, absen tercatat, persentase, dan per JABATAN " +
+      "(bukan per nama). Hari tanpa catatan tidak dihitung sebagai absen.",
+    parameters: {
+      type: "object",
+      properties: { days: { type: "integer", minimum: 1, maximum: 90, description: "Rentang hari ke belakang (bawaan 30)." } },
+      additionalProperties: false,
+    },
+    resource: "attendance",
+    permission: "read",
+    moduleId: "absensi",
+    schema: attendanceSchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof attendanceSchema>) => attendanceSummaryForAi(ctx.villageId, a.days ?? 30)) as LarasTool["run"],
+  },
+  {
+    name: "bumdes_summary",
+    description:
+      "Ringkasan BUMDes: unit usaha, pemasukan/pengeluaran per unit untuk satu tahun, dan total nilai aset.",
+    parameters: {
+      type: "object",
+      properties: { year: { type: "integer", minimum: 2000, maximum: 2100, description: "Bawaan: tahun berjalan." } },
+      additionalProperties: false,
+    },
+    resource: "bumdes",
+    permission: "read",
+    moduleId: "bumdes",
+    schema: yearOnlySchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof yearOnlySchema>) => bumdesSummaryForAi(ctx.villageId, a.year)) as LarasTool["run"],
+  },
+  {
+    name: "cooperative_summary",
+    description:
+      "Ringkasan koperasi desa: jumlah anggota per status dan pemasukan/pengeluaran per kategori untuk satu tahun. Tanpa daftar anggota.",
+    parameters: {
+      type: "object",
+      properties: { year: { type: "integer", minimum: 2000, maximum: 2100, description: "Bawaan: tahun berjalan." } },
+      additionalProperties: false,
+    },
+    resource: "cooperative",
+    permission: "read",
+    moduleId: "koperasi",
+    schema: yearOnlySchema,
+    run: (async (ctx: LarasToolContext, a: z.infer<typeof yearOnlySchema>) => cooperativeSummaryForAi(ctx.villageId, a.year)) as LarasTool["run"],
   },
   {
     name: "mail_requests_pending",
@@ -548,6 +691,14 @@ const TOOL_LABELS: Record<string, string> = {
   propose_report_action: "Menyiapkan usulan tindak lanjut pengaduan…",
   social_benefits_summary: "Memeriksa data bantuan sosial…",
   announcements_recent: "Memeriksa pengumuman terbaru…",
+  household_stats: "Memeriksa data Kartu Keluarga…",
+  population_mutations: "Memeriksa mutasi penduduk…",
+  fees_cash_summary: "Memeriksa iuran dan kas…",
+  assets_projects_summary: "Memeriksa aset dan proyek desa…",
+  planning_summary: "Memeriksa perencanaan desa…",
+  attendance_summary: "Memeriksa kehadiran perangkat…",
+  bumdes_summary: "Memeriksa data BUMDes…",
+  cooperative_summary: "Memeriksa data koperasi…",
   propose_announcement: "Menyusun pengumuman…",
 };
 

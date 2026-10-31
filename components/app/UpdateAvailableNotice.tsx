@@ -3,29 +3,41 @@
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import pkg from "@/package.json";
 
-const CHECK_INTERVAL_MS = 10 * 60 * 1000;
-const DISMISSED_KEY = "klandesa:update-dismissed-version";
+// Deploy jarang terjadi (tidak tiap menit), jadi interval panjang sudah cukup
+// dan jauh lebih ringan daripada polling cepat.
+const CHECK_INTERVAL_MS = 30 * 60 * 1000;
+const DISMISSED_KEY = "klandesa:update-dismissed-build";
 
-export function UpdateAvailableNotice() {
-  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+export function UpdateAvailableNotice({ currentBuildId }: { currentBuildId: string }) {
+  const [latestBuildId, setLatestBuildId] = useState<string | null>(null);
   const checkingRef = useRef(false);
+  const lastCheckedAtRef = useRef(0);
 
   useEffect(() => {
-    const checkVersion = async () => {
+    // Build ID "dev" hanya muncul di `next dev` (tidak ada file .next/BUILD_ID) —
+    // fitur ini memang tidak relevan di luar production.
+    if (currentBuildId === "dev") return;
+
+    const checkBuildId = async () => {
       if (checkingRef.current || document.visibilityState !== "visible") return;
+      // Throttle: visibilitychange bisa terpicu berkali-kali saat user sering
+      // pindah tab, jadi jangan sampai lebih sering dari interval periodik.
+      const now = Date.now();
+      if (now - lastCheckedAtRef.current < CHECK_INTERVAL_MS) return;
+      lastCheckedAtRef.current = now;
+
       checkingRef.current = true;
       try {
-        const res = await fetch("/api/app-version", { cache: "no-store" });
+        const res = await fetch("/api/app-build-id", { cache: "no-store" });
         if (!res.ok) return;
-        const data = (await res.json().catch(() => null)) as { version?: string } | null;
+        const data = (await res.json().catch(() => null)) as { buildId?: string } | null;
         if (
-          data?.version &&
-          data.version !== pkg.version &&
-          sessionStorage.getItem(DISMISSED_KEY) !== data.version
+          data?.buildId &&
+          data.buildId !== currentBuildId &&
+          sessionStorage.getItem(DISMISSED_KEY) !== data.buildId
         ) {
-          setLatestVersion(data.version);
+          setLatestBuildId(data.buildId);
         }
       } catch {
         // Biarkan diam — ini pengecekan latar belakang, bukan aksi yang diminta pengguna.
@@ -34,17 +46,17 @@ export function UpdateAvailableNotice() {
       }
     };
 
-    void checkVersion();
-    const interval = setInterval(checkVersion, CHECK_INTERVAL_MS);
-    document.addEventListener("visibilitychange", checkVersion);
+    void checkBuildId();
+    const interval = setInterval(checkBuildId, CHECK_INTERVAL_MS);
+    document.addEventListener("visibilitychange", checkBuildId);
 
     return () => {
       clearInterval(interval);
-      document.removeEventListener("visibilitychange", checkVersion);
+      document.removeEventListener("visibilitychange", checkBuildId);
     };
-  }, []);
+  }, [currentBuildId]);
 
-  if (!latestVersion) {
+  if (!latestBuildId) {
     return null;
   }
 
@@ -73,8 +85,8 @@ export function UpdateAvailableNotice() {
         aria-label="Tutup notifikasi update"
         className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         onClick={() => {
-          sessionStorage.setItem(DISMISSED_KEY, latestVersion);
-          setLatestVersion(null);
+          sessionStorage.setItem(DISMISSED_KEY, latestBuildId);
+          setLatestBuildId(null);
         }}
       >
         <X className="size-4" />

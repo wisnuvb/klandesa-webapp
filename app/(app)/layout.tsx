@@ -5,6 +5,7 @@ import { INVOKE_PATHNAME_HEADER } from "@/lib/middleware-headers";
 import { isRegionalAccount } from "@/lib/regional-session";
 import { isPartnerAccount, hasPartnerPortalAccess } from "@/lib/partner-session";
 import { isPlatformAccount } from "@/lib/platform-session";
+import { getAppBuildId } from "@/lib/build-id";
 import { AppLayoutClient } from "./AppLayoutClient";
 import type { Metadata } from "next";
 
@@ -30,9 +31,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const headersList = await headers();
   const pathname = headersList.get(INVOKE_PATHNAME_HEADER) || "/";
   const isAuthRoute = pathname.startsWith("/auth");
+  const buildId = getAppBuildId();
 
   if (isAuthRoute) {
-    return <AppLayoutClient>{children}</AppLayoutClient>;
+    return <AppLayoutClient buildId={buildId}>{children}</AppLayoutClient>;
   }
 
   const session = await auth();
@@ -48,7 +50,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     if (!isAdmin) {
       redirect("/admin");
     }
-    return <AppLayoutClient>{children}</AppLayoutClient>;
+    return <AppLayoutClient buildId={buildId}>{children}</AppLayoutClient>;
   }
   if (isRegionalAccount(session)) {
     if (isAdmin || !isWilayah) {
@@ -67,5 +69,5 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     }
   }
 
-  return <AppLayoutClient>{children}</AppLayoutClient>;
+  return <AppLayoutClient buildId={buildId}>{children}</AppLayoutClient>;
 }

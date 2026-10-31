@@ -16,9 +16,10 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
   RoleActionMap
 > = {
   residents: {
-    admin: "crud_export",
-    village_head: "read",
-    secretary: "crud",
+    // "approve" hanya dipakai keputusan mutasi penduduk (/api/kependudukan/mutasi/keputusan).
+    admin: ["read", "create", "update", "delete", "export", "approve"],
+    village_head: ["read", "approve"],
+    secretary: ["read", "create", "update", "delete", "approve"],
     staff: "crud",
   },
   officials: {

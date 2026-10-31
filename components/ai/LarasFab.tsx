@@ -28,6 +28,7 @@ export function LarasFab({ className }: LarasFabProps) {
       >
         <Link
           href="/asisten-ai"
+          data-tour="laras-fab"
           aria-label={`Buka ${AI_ASSISTANT_NAME} — Asisten Desa AI`}
           title={`Tanya ${AI_ASSISTANT_NAME}`}
           className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-lg shadow-teal-900/20 ring-4 ring-teal-100/80 transition-transform hover:scale-105 hover:bg-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"

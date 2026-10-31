@@ -1,0 +1,66 @@
+/* Override tema driver.js agar konsisten dengan token shadcn/ui (lihat app/styles/theme.css). */
+
+.driver-popover.klandesa-tour-popover {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.25);
+  font-family: var(--font-sans, inherit);
+  padding: 20px;
+  max-width: 340px;
+}
+
+.klandesa-tour-popover .driver-popover-title {
+  color: var(--popover-foreground);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.klandesa-tour-popover .driver-popover-description {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.klandesa-tour-popover .driver-popover-progress-text {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.klandesa-tour-popover .driver-popover-footer button {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  text-shadow: none;
+}
+
+.klandesa-tour-popover .driver-popover-footer .driver-popover-prev-btn {
+  background-color: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.klandesa-tour-popover .driver-popover-footer button:disabled {
+  opacity: 0.5;
+}
+
+.klandesa-tour-popover .driver-popover-close-btn {
+  color: var(--muted-foreground);
+}
+
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--popover);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--popover);
+}
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--popover);
+}
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--popover);
+}

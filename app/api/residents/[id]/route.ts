@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { residentLeavesVillage } from "@/lib/mobile/citizen-status-logic";
+import { archiveResident, isKependudukanV2, runKependudukanSync, syncAfterResidentUpdate, syncResidents } from "@/lib/kependudukan/sync";
 
 type AuditCtx = Parameters<typeof auditWeb>[1];
 
@@ -246,6 +247,8 @@ export async function PUT(
     if (residentLeavesVillage(updated) && !residentLeavesVillage(existing)) {
       await suspendCitizenAccounts(villageId, [updated.id]);
     }
+
+    await syncAfterResidentUpdate(ctx.village, ctx.userId, existing, updated);
 
     return NextResponse.json({
       success: true,
@@ -533,6 +536,8 @@ export async function PATCH(
       await suspendCitizenAccounts(villageId, [updated.id]);
     }
 
+    await syncAfterResidentUpdate(ctx.village, ctx.userId, existing, updated);
+
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     console.error("Error patching resident:", error);
@@ -575,10 +580,18 @@ export async function DELETE(
       );
     }
 
-    // Delete resident
-    await prisma.resident.delete({
-      where: { id },
-    });
+    // Delete resident. Desa berfitur kependudukan v2: cuplikan arsip ditulis dalam transaksi yang sama.
+    if (isKependudukanV2(ctx.village.settings)) {
+      await prisma.$transaction(async (tx) => {
+        await archiveResident(tx, villageId, existing, ctx.userId, "Dihapus lewat Data Warga");
+        await tx.resident.delete({ where: { id } });
+      });
+      await runKependudukanSync(ctx.village, "delete", (db) => syncResidents(db, villageId, [], [existing.kk]));
+    } else {
+      await prisma.resident.delete({
+        where: { id },
+      });
+    }
 
     await auditWeb(request, ctx, "delete", "residents", id, {
       name: existing.name,

@@ -4,6 +4,7 @@ import { pickSummary } from "@/lib/audit/diff";
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runKependudukanSync, syncResidents } from "@/lib/kependudukan/sync";
 import {
   getEducationLevel,
   getJob,
@@ -126,6 +127,8 @@ export async function POST(req: NextRequest) {
       ...pickSummary(result.resident as unknown as Record<string, unknown>, ["rt", "rw", "familyRole", "isAlive"]),
       loginAccountCreated: result.user != null,
     });
+
+    await runKependudukanSync(loaded.ctx.village, "create", (db) => syncResidents(db, loaded.ctx.village.id, [result.resident.id]));
 
     return NextResponse.json(result, { status: 201 });
   } catch (err: unknown) {

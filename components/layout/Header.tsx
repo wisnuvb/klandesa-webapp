@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bell, Search, Menu } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowLeft, Bell, CircleHelp, Search, Menu } from "lucide-react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { DASHBOARD_TOUR_REPLAY_EVENT, DASHBOARD_TOUR_REPLAY_STORAGE_KEY } from "@/lib/dashboard-tour";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +44,8 @@ function isExternalHref(href: string) {
 }
 
 export function Header({ title, subtitle, back, onMenuClick }: HeaderProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { user, isLoading, isAuthenticated } = useNextAuthSession();
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -131,12 +135,23 @@ export function Header({ title, subtitle, back, onMenuClick }: HeaderProps) {
 
   const showNotifications = isAuthenticated && (!accountType || accountType === "village");
   const showVillageSettings = !accountType || accountType === "village";
+  const showDashboardTour = showVillageSettings;
+
+  const handleReplayDashboardTour = () => {
+    if (pathname === "/dashboard") {
+      window.dispatchEvent(new Event(DASHBOARD_TOUR_REPLAY_EVENT));
+      return;
+    }
+    sessionStorage.setItem(DASHBOARD_TOUR_REPLAY_STORAGE_KEY, "1");
+    router.push("/dashboard");
+  };
 
   return (
     <header className="bg-card border-b border-border px-6 py-2">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
           <Button
+            data-tour="nav-menu-btn"
             variant="ghost"
             size="icon"
             onClick={onMenuClick}
@@ -277,6 +292,18 @@ export function Header({ title, subtitle, back, onMenuClick }: HeaderProps) {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : null}
+
+          {showDashboardTour ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleReplayDashboardTour}
+              aria-label="Ulangi tur dashboard"
+              title="Ulangi tur dashboard"
+            >
+              <CircleHelp className="h-5 w-5" />
+            </Button>
           ) : null}
 
           <DropdownMenu>

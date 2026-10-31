@@ -304,15 +304,27 @@ function derivePageKey(pathname: string): string {
 }
 
 /** Halaman boleh menggantikan judul header lewat `usePageHeader`, jadi penyedianya ada di luar badan shell. */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  buildId,
+}: {
+  children: React.ReactNode;
+  buildId: string;
+}) {
   return (
     <PageHeaderProvider>
-      <AppShellInner>{children}</AppShellInner>
+      <AppShellInner buildId={buildId}>{children}</AppShellInner>
     </PageHeaderProvider>
   );
 }
 
-function AppShellInner({ children }: { children: React.ReactNode }) {
+function AppShellInner({
+  children,
+  buildId,
+}: {
+  children: React.ReactNode;
+  buildId: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
@@ -454,7 +466,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       </div>
 
       {showLarasFab ? <LarasFab /> : null}
-      <UpdateAvailableNotice />
+      <UpdateAvailableNotice currentBuildId={buildId} />
       <Toaster />
     </div>
   );

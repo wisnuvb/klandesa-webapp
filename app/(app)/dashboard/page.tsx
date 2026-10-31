@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { DashboardTour } from "@/components/app/DashboardTour";
 import { RecentActivity } from "@/components/app/RecentActivity";
 import { StatsCard } from "@/components/app/StatsCard";
 import { LarasDashboardCard } from "@/components/ai/LarasDashboardCard";
@@ -207,10 +208,14 @@ export default function AppDashboard() {
 
   return (
     <div className="space-y-6">
-      <LarasDashboardCard />
+      <DashboardTour />
+
+      <div data-tour="laras-card">
+        <LarasDashboardCard />
+      </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div data-tour="stats-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Warga"
           value={
@@ -261,7 +266,7 @@ export default function AppDashboard() {
         />
       </div>
 
-      <Card>
+      <Card data-tour="idm-card">
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Status IDM & SDGs</CardTitle>
@@ -386,6 +391,7 @@ export default function AppDashboard() {
         </CardContent>
       </Card>
 
+      <div data-tour="charts-activity" className="space-y-6">
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gender Distribution */}
@@ -474,9 +480,10 @@ export default function AppDashboard() {
           <RegionalNewsCard defaultOpen={false} itemLimit={3} />
         </div>
       </div>
+      </div>
 
       {/* Quick Actions */}
-      <Card>
+      <Card data-tour="quick-actions">
         <CardHeader>
           <CardTitle>Aksi Cepat</CardTitle>
         </CardHeader>

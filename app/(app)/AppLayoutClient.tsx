@@ -17,8 +17,10 @@ import { AppShell } from "./AppShell";
  */
 export function AppLayoutClient({
   children,
+  buildId,
 }: {
   children: React.ReactNode;
+  buildId: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -47,7 +49,7 @@ export function AppLayoutClient({
         ) : (
           <CooperativeNavProvider>
             <CooperativeNavGate />
-            <AppShell>{children}</AppShell>
+            <AppShell buildId={buildId}>{children}</AppShell>
           </CooperativeNavProvider>
         )}
       </PaymentProvider>
