@@ -35,6 +35,11 @@ type Props = {
   buttonClassName?: string;
   /** Override popover panel styles; default z-index is above app modals (z-100). */
   contentClassName?: string;
+  /** Untuk `<Label htmlFor>`: id dipasang pada tombol pemicu. */
+  id?: string;
+  "aria-describedby"?: string;
+  /** Tombol tidak mendukung aria-invalid; dipetakan ke data-invalid untuk gaya galat. */
+  "aria-invalid"?: boolean;
 };
 
 export function Combobox(props: Props) {
@@ -50,6 +55,7 @@ export function Combobox(props: Props) {
     disabled,
     buttonClassName,
     contentClassName,
+    id,
   } = props;
 
   const [open, setOpen] = React.useState(false);
@@ -63,9 +69,12 @@ export function Combobox(props: Props) {
       <PopoverTrigger asChild>
         <button
           type="button"
+          id={id}
+          aria-describedby={props["aria-describedby"]}
+          data-invalid={props["aria-invalid"] || undefined}
           disabled={disabled}
           className={cn(
-            "w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none bg-white disabled:bg-gray-50 disabled:text-gray-400 flex items-center justify-between gap-3 cursor-pointer disabled:cursor-not-allowed",
+            "w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none bg-white disabled:bg-gray-50 disabled:text-gray-400 data-[invalid=true]:border-destructive data-[invalid=true]:focus:ring-destructive flex items-center justify-between gap-3 cursor-pointer disabled:cursor-not-allowed",
             buttonClassName,
           )}
         >

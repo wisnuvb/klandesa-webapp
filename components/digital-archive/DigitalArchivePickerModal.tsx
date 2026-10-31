@@ -13,7 +13,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/components/ui/utils";
 import { uploadImageAsset, type ImageAssetItem } from "@/lib/digitalArchive/upload-image-client";
-import { MEDIA_CATEGORY, MEDIA_IMAGE_MIME_EXT, MAX_MEDIA_IMAGE_BYTES, formatBytes } from "@/lib/digitalArchive/media";
+import {
+  MEDIA_CATEGORY,
+  MEDIA_IMAGE_MIME_EXT,
+  MAX_MEDIA_IMAGE_BYTES,
+  formatBytes,
+  normalizeMime,
+  validateImageFile,
+} from "@/lib/digitalArchive/media";
+import { ImageEditStep } from "./ImageEditStep";
 
 type ArchiveRow = {
   id: number;
@@ -48,6 +56,11 @@ export type DigitalArchivePickerModalProps = {
   imageOnly?: boolean;
   /** Pilih banyak gambar sekaligus (toggle kategori kartu) */
   multiple?: boolean;
+  /**
+   * Hanya tampilkan berkas publik. Wajib untuk gambar yang dibaca tanpa sesi login
+   * (kop surat/PDF, halaman publik): URL berkas privat tidak bisa dimuat di sana.
+   */
+  publicOnly?: boolean;
 };
 
 const PAGE_SIZE = 24;
@@ -62,6 +75,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     description: descriptionProp,
     imageOnly = true,
     multiple = false,
+    publicOnly = false,
   } = props;
 
   const description =
@@ -85,6 +99,12 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
   const [dragging, setDragging] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Berkas yang menunggu langkah potong/kompres; queue[0] sedang diedit. */
+  const [queue, setQueue] = useState<File[]>([]);
+  const [queueTotal, setQueueTotal] = useState(0);
+  const [editError, setEditError] = useState<string | null>(null);
+  const uploadedCountRef = useRef(0);
+  const editing = queue.length > 0;
 
   /** Unggah hanya untuk gambar: server membatasi aset gambar ke JPG/PNG/WebP/GIF. */
   const canUpload = imageOnly;
@@ -101,6 +121,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
         skip: String((page - 1) * PAGE_SIZE),
       });
       if (imageOnly) params.set("type", "image");
+      if (publicOnly) params.set("public", "1");
       if (search.trim()) params.set("search", search.trim());
       if (category.trim()) params.set("category", category.trim());
       const res = await fetch(`/api/digital-archives?${params.toString()}`);
@@ -118,7 +139,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     } finally {
       setLoading(false);
     }
-  }, [page, search, category, imageOnly]);
+  }, [page, search, category, imageOnly, publicOnly]);
 
   // reloadKey: muat ulang paksa setelah unggah walau filter/halaman tidak berubah
   useEffect(() => {
@@ -137,6 +158,11 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     setSelectedPaths(new Set());
     setError(null);
     setDragging(false);
+    setQueue([]);
+    setQueueTotal(0);
+    setEditError(null);
+    setUploading(false);
+    uploadedCountRef.current = 0;
   }, [open]);
 
   const applyFilters = () => {
@@ -156,44 +182,51 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
     });
   };
 
-  const handleFiles = async (files: FileList | File[] | null) => {
+  /** Validasi awal, lalu antrekan berkas ke langkah potong/kompres (belum mengunggah apa pun). */
+  const handleFiles = (files: FileList | File[] | null) => {
     const list = files ? Array.from(files) : [];
-    if (list.length === 0 || uploading || !canUpload) return;
+    if (list.length === 0 || uploading || editing || !canUpload) return;
     // Mode tunggal hanya butuh satu berkas; sisanya diabaikan.
-    const queue = multiple ? list : list.slice(0, 1);
-    setUploading(true);
-    setError(null);
-    const done: ImageAssetItem[] = [];
-    const failed: string[] = [];
-    for (const file of queue) {
-      try {
-        done.push(await uploadImageAsset(file));
-      } catch (e) {
-        failed.push(`${file.name}: ${e instanceof Error ? e.message : "Gagal mengunggah"}`);
-      }
+    const picked = multiple ? list : list.slice(0, 1);
+    const ok: File[] = [];
+    const bad: string[] = [];
+    for (const f of picked) {
+      // Format harus sah. Ukuran berlebih pada JPG/PNG/WebP tidak ditolak di sini karena bisa
+      // dikompres di langkah berikutnya; GIF tidak bisa diolah, jadi ukurannya dicek langsung.
+      const isGif = normalizeMime(f.type) === "image/gif";
+      const err = validateImageFile({ type: f.type, size: isGif ? f.size : Math.min(f.size, MAX_MEDIA_IMAGE_BYTES) });
+      if (err) bad.push(`${f.name}: ${err}`);
+      else ok.push(f);
     }
-    setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    setError(bad.length > 0 ? bad.join("\n") : null);
+    if (ok.length === 0) return;
+    uploadedCountRef.current = 0;
+    setEditError(null);
+    setQueueTotal(ok.length);
+    setQueue(ok);
+  };
 
-    if (failed.length > 0) setError(failed.join("\n"));
-    if (done.length === 0) return;
-
-    // Tampilkan hasil unggahan di urutan teratas: kosongkan filter dan kembali ke halaman 1.
+  /** Tampilkan hasil unggahan di urutan teratas: kosongkan filter dan kembali ke halaman 1. */
+  const finishUploads = () => {
+    const count = uploadedCountRef.current;
+    uploadedCountRef.current = 0;
+    if (count === 0) return;
     setSearchInput("");
     setCategoryInput("");
     setSearch("");
     setCategory("");
     setPage(1);
     setReloadKey((k) => k + 1);
+    toast.success(
+      count === 1 ? "Gambar berhasil diunggah dan dipilih." : `${count} gambar berhasil diunggah dan dipilih.`,
+    );
+  };
 
+  const applyUploaded = (it: ImageAssetItem) => {
     if (multiple) {
-      setSelectedPaths((prev) => {
-        const next = new Set(prev);
-        for (const it of done) next.add(it.url.trim());
-        return next;
-      });
+      setSelectedPaths((prev) => new Set(prev).add(it.url.trim()));
     } else {
-      const it = done[0];
       setSelected({
         id: it.id,
         fileName: it.name,
@@ -205,11 +238,29 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
         isPublic: true,
       });
     }
-    toast.success(
-      done.length === 1
-        ? "Gambar berhasil diunggah dan dipilih."
-        : `${done.length} gambar berhasil diunggah dan dipilih.`,
-    );
+  };
+
+  const handleConfirmEdit = async (processed: File) => {
+    if (uploading) return;
+    setUploading(true);
+    setEditError(null);
+    try {
+      applyUploaded(await uploadImageAsset(processed));
+      uploadedCountRef.current += 1;
+      const rest = queue.slice(1);
+      setQueue(rest);
+      if (rest.length === 0) finishUploads();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "Gagal mengunggah");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setQueue([]);
+    setEditError(null);
+    finishUploads();
   };
 
   const handlePick = () => {
@@ -244,9 +295,27 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
         <p className="sr-only">{description}</p>
 
         <div className="px-6 pb-2 pt-6">
-          <h2 className="text-lg font-semibold leading-none tracking-tight">{title}</h2>
-          <p className="text-sm text-muted-foreground pt-2">{description}</p>
+          <h2 className="text-lg font-semibold leading-none tracking-tight">
+            {editing ? "Potong & kompres gambar" : title}
+          </h2>
+          <p className="text-sm text-muted-foreground pt-2">
+            {editing ? "Atur hasil gambar sebelum diunggah ke arsip desa." : description}
+          </p>
         </div>
+
+        {editing ? (
+          <ImageEditStep
+            key={queueTotal - queue.length}
+            file={queue[0]}
+            progressLabel={queueTotal > 1 ? `Gambar ${queueTotal - queue.length + 1} dari ${queueTotal}` : undefined}
+            busy={uploading}
+            error={editError}
+            onCancel={handleCancelEdit}
+            onConfirm={(f) => void handleConfirmEdit(f)}
+          />
+        ) : null}
+
+        <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", editing && "hidden")}>
 
         <div className="flex flex-col gap-3 border-b px-6 pb-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -297,7 +366,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
               className="sr-only"
               tabIndex={-1}
               aria-label="Pilih berkas gambar untuk diunggah"
-              onChange={(e) => void handleFiles(e.target.files)}
+              onChange={(e) => handleFiles(e.target.files)}
             />
           ) : null}
           {error ? (
@@ -321,7 +390,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
             if (!canUpload) return;
             e.preventDefault();
             setDragging(false);
-            void handleFiles(e.dataTransfer.files);
+            handleFiles(e.dataTransfer.files);
           }}
         >
           {dragging ? (
@@ -458,6 +527,7 @@ export function DigitalArchivePickerModal(props: DigitalArchivePickerModalProps)
               ? `Tambah ${selectedPaths.size} gambar`
               : "Gunakan berkas ini"}
           </Button>
+        </div>
         </div>
           </div>
         </DialogPrimitive.Content>
