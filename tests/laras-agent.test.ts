@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   MAX_COMPLETION_TOKENS,
+  MAX_TOOL_CHARS_PER_TURN,
   MAX_TOOL_ROUNDS,
   providerPreferences,
   runLarasChat,
@@ -117,12 +118,59 @@ describe("runLarasChat", () => {
       { config, messages: msgs, deadlineMs: 30_000 },
       { ...deps, fetchFn: fakeFetch([json(500, { error: { message: "rahasia internal penyedia" } })]) },
     );
-    assert.deepEqual(bad, { ok: false, kind: "upstream", status: 502 });
+    assert.ok(!bad.ok && bad.kind === "upstream" && bad.status === 502);
     const empty = await runLarasChat(
       { config, messages: msgs, deadlineMs: 30_000 },
       { ...deps, fetchFn: fakeFetch([json(200, { choices: [{ message: { content: "  " } }] })]) },
     );
-    assert.deepEqual(empty, { ok: false, kind: "empty", status: 502 });
+    assert.ok(!empty.ok && empty.kind === "empty" && empty.status === 502);
+  });
+});
+
+describe("pencatatan token", () => {
+  const deps = (responses: Response[], tool?: () => Promise<{ ok: boolean; result: unknown }>) => ({
+    fetchFn: fakeFetch(responses),
+    executeTool: tool ?? (async () => ({ ok: true, result: {} })),
+    toolSpecs: [{ type: "function" }],
+  });
+  it("menjumlahkan usage dari semua putaran model", async () => {
+    const r = await runLarasChat(
+      { config, messages: msgs, deadlineMs: 30_000 },
+      deps([
+        json(200, { usage: { prompt_tokens: 1000, completion_tokens: 50, total_tokens: 1050 }, choices: [{ message: { content: null, tool_calls: [toolCall("population_stats")] } }] }),
+        json(200, { usage: { prompt_tokens: 1400, completion_tokens: 200, total_tokens: 1600 }, choices: [{ message: { content: "Selesai." } }] }),
+      ]),
+    );
+    assert.ok(r.ok);
+    assert.deepEqual(r.usage, { prompt: 2400, completion: 250, total: 2650, estimated: false });
+  });
+  it("bila penyedia tidak melaporkan usage, diperkirakan dari panjang teks dan ditandai estimasi", async () => {
+    const r = await runLarasChat({ config, messages: msgs, deadlineMs: 30_000 }, deps([json(200, { choices: [{ message: { content: "Halo dunia" } }] })]));
+    assert.ok(r.ok && r.usage.estimated === true && r.usage.total > 0);
+  });
+  it("token tetap dicatat walau jawaban gagal (kosong)", async () => {
+    const r = await runLarasChat(
+      { config, messages: msgs, deadlineMs: 30_000 },
+      deps([json(200, { usage: { prompt_tokens: 900, completion_tokens: 0, total_tokens: 900 }, choices: [{ message: { content: "  " } }] })]),
+    );
+    assert.ok(!r.ok && r.usage.total === 900);
+  });
+  it("hasil tool yang menumpuk dibatasi per pertanyaan (tiap putaran mengirim ulang semuanya)", async () => {
+    const big = JSON.stringify({ data: "x".repeat(7000) });
+    const tcs = Array.from({ length: 6 }, (_, i) => ({ id: `c${i}`, type: "function", function: { name: "population_stats", arguments: "{}" } }));
+    const seen: Array<Record<string, unknown>> = [];
+    const f = fakeFetch(
+      [json(200, { choices: [{ message: { content: null, tool_calls: tcs } }] }), json(200, { choices: [{ message: { content: "ok" } }] })],
+      seen,
+    );
+    await runLarasChat(
+      { config, messages: msgs, deadlineMs: 30_000 },
+      { fetchFn: f, executeTool: async () => ({ ok: true, result: JSON.parse(big) }), toolSpecs: [{ type: "function" }] },
+    );
+    const toolMsgs = (seen[1]!.messages as Array<{ role: string; content: string }>).filter((m) => m.role === "tool");
+    const total = toolMsgs.reduce((n, m) => n + m.content.length, 0);
+    assert.ok(total <= MAX_TOOL_CHARS_PER_TURN + 200, `total ${total}`);
+    assert.ok(toolMsgs.some((m) => /Batas data per pertanyaan/.test(m.content)));
   });
 });
 

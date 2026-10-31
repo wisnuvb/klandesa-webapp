@@ -23,6 +23,7 @@ import { ChatMarkdown } from "@/components/ui/chat-markdown";
 import { TypingChatMarkdown } from "@/components/ai/TypingChatMarkdown";
 import { LarasActionCards } from "@/components/ai/LarasActionCards";
 import type { ActionCard } from "@/lib/ai/laras-actions";
+import { NDJSON_CONTENT_TYPE, readNdjson } from "@/lib/ai/ndjson";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/components/ui/utils";
 import { AI_CREDITS_CONSUMPTION_ENABLED } from "@/lib/ai/credits";
@@ -79,6 +80,50 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Gagal memuat data");
   return data as T;
+}
+
+type ChatReply = {
+  reply: string;
+  threadId: number;
+  remainingCredits: number | null;
+  notice?: string;
+  actions?: ActionCard[];
+};
+
+/**
+ * Kirim pertanyaan ke Laras. Meminta aliran status (NDJSON) agar langkah yang sedang berjalan terlihat; bila server atau
+ * proxy membalas JSON biasa (atau galat sebelum aliran dimulai), tetap ditangani seperti biasa.
+ */
+async function askLaras(
+  body: { message: string; mode: string; threadId: number | null },
+  onProgress: (label: string) => void,
+): Promise<ChatReply> {
+  const res = await fetch("/api/ai/village-assistant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: `${NDJSON_CONTENT_TYPE}, application/json` },
+    body: JSON.stringify(body),
+  });
+  const isStream = res.headers.get("content-type")?.includes(NDJSON_CONTENT_TYPE) && res.body;
+  if (!isStream) {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Gagal memuat data");
+    return data as ChatReply;
+  }
+
+  let done: ChatReply | null = null;
+  let failure: string | null = null;
+  await readNdjson(res.body!, (e) => {
+    if (e.type === "progress") onProgress(e.label);
+    else if (e.type === "done") done = e as unknown as ChatReply;
+    else if (e.type === "error") failure = e.error;
+  });
+  if (failure) throw new Error(failure);
+  if (!done) {
+    throw new Error(
+      "Koneksi terputus sebelum jawaban selesai. Buka kembali riwayat percakapan untuk melihat apakah jawabannya sudah tersimpan.",
+    );
+  }
+  return done;
 }
 
 function formatThreadDate(iso: string): string {
@@ -149,6 +194,7 @@ export default function AsistenAiPage() {
     null,
   );
   const [thinkingStep, setThinkingStep] = useState<string | null>(null);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -284,24 +330,11 @@ export default function AsistenAiPage() {
       { role: "user", content: text },
     ];
     setMessages(optimistic);
+    setProgressLabel(null);
     setLoading(true);
 
     try {
-      const data = await fetchJson<{
-        reply: string;
-        threadId: number;
-        remainingCredits: number | null;
-        notice?: string;
-        actions?: ActionCard[];
-      }>("/api/ai/village-assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          mode,
-          threadId: activeThreadId,
-        }),
-      });
+      const data = await askLaras({ message: text, mode, threadId: activeThreadId }, setProgressLabel);
 
       setActiveThreadId(data.threadId);
       if (data.notice) setNotice(data.notice);
@@ -324,6 +357,7 @@ export default function AsistenAiPage() {
       setStreamingMessageIndex(null);
     } finally {
       setLoading(false);
+      setProgressLabel(null);
     }
   }
 
@@ -615,8 +649,8 @@ export default function AsistenAiPage() {
                   <LarasAvatar size={32} className="mt-0.5" />
                   <div className="flex items-center gap-2.5 rounded-2xl rounded-tl-md border bg-card px-3.5 py-2.5 text-sm text-muted-foreground min-w-[12rem]">
                     <Loader2 className="h-4 w-4 animate-spin shrink-0 text-primary/70" />
-                    <span key={thinkingStep} className="animate-in fade-in duration-300">
-                      {thinkingStep}
+                    <span key={progressLabel ?? thinkingStep} className="animate-in fade-in duration-300">
+                      {progressLabel ?? thinkingStep}
                     </span>
                   </div>
                 </div>
@@ -640,7 +674,7 @@ export default function AsistenAiPage() {
               </div>
               <p className="mb-1.5 px-1 text-xs text-muted-foreground">
                 Pertanyaan diproses oleh penyedia AI pihak ketiga. Jangan menulis NIK, nomor telepon, atau data pribadi
-                warga.
+                warga. Riwayat percakapan dihapus otomatis setelah 90 hari.
               </p>
               <div className="flex items-end gap-1 rounded-3xl border bg-background px-2 py-1.5 shadow-sm focus-within:ring-1 focus-within:ring-ring/40">
                 <Button

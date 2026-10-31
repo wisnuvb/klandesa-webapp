@@ -2,12 +2,15 @@ import type { AiConfig } from "@/lib/ai/openrouter";
 import { AI_MODEL, getAiHeaders } from "@/lib/ai/openrouter";
 import type { ToolOutcome } from "@/lib/ai/laras-tools";
 import type { ActionCard } from "@/lib/ai/laras-actions";
+import { estimateTokens } from "@/lib/ai/token-budget";
 
 /** Batas biaya/latensi per pertanyaan (1 kredit): jumlah putaran model↔tool dan panggilan tool per putaran. */
 export const MAX_TOOL_ROUNDS = 3;
 export const MAX_TOOL_CALLS_PER_ROUND = 10;
 export const MAX_COMPLETION_TOKENS = 1500;
 const MAX_TOOL_RESULT_CHARS = 8000;
+/** Total isi hasil tool yang boleh menumpuk dalam satu pertanyaan (tiap putaran mengirim ulang semuanya ke model). */
+export const MAX_TOOL_CHARS_PER_TURN = 30_000;
 
 type ToolCall = { id: string; type?: string; function?: { name?: string; arguments?: string } };
 type AiMessage = {
@@ -17,13 +20,16 @@ type AiMessage = {
   tool_call_id?: string;
 };
 type CompletionResponse = {
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   choices?: Array<{ message?: { content?: string | null; tool_calls?: ToolCall[] } }>;
   error?: { message?: string };
 };
 
+export type TokenUsage = { prompt: number; completion: number; total: number; estimated: boolean };
+
 export type LarasChatResult =
-  | { ok: true; reply: string; toolsUsed: string[]; rounds: number; actions: ActionCard[] }
-  | { ok: false; kind: "timeout" | "upstream" | "empty"; status: number };
+  | { ok: true; reply: string; toolsUsed: string[]; rounds: number; actions: ActionCard[]; usage: TokenUsage }
+  | { ok: false; kind: "timeout" | "upstream" | "empty"; status: number; usage: TokenUsage };
 
 export type LarasChatDeps = {
   fetchFn?: typeof fetch;
@@ -68,11 +74,14 @@ export async function runLarasChat(
   const messages: AiMessage[] = params.messages.map((m) => ({ ...m }));
   const toolsUsed: string[] = [];
   const actions = new Map<string, ActionCard>();
+  const usage: TokenUsage = { prompt: 0, completion: 0, total: 0, estimated: false };
+  let toolChars = 0;
+  const fail = (kind: "timeout" | "upstream" | "empty", status: number): LarasChatResult => ({ ok: false, kind, status, usage });
   let useTools = deps.toolSpecs.length > 0;
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const remaining = deadline - now();
-    if (remaining <= 1000) return { ok: false, kind: "timeout", status: 504 };
+    if (remaining <= 1000) return fail("timeout", 504);
 
     // Putaran terakhir tanpa tool supaya model wajib menjawab dengan data yang sudah ada.
     const offerTools = useTools && round < MAX_TOOL_ROUNDS;
@@ -97,10 +106,13 @@ export async function runLarasChat(
       data = (await res.json().catch(() => null)) as CompletionResponse | null;
     } catch (e) {
       if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
-        return { ok: false, kind: "timeout", status: 504 };
+        usage.prompt += estimateTokens(JSON.stringify(messages).length);
+        usage.total = usage.prompt + usage.completion;
+        usage.estimated = true;
+        return fail("timeout", 504);
       }
       console.error("laras upstream fetch failed", e);
-      return { ok: false, kind: "upstream", status: 502 };
+      return fail("upstream", 502);
     }
 
     if (!res.ok) {
@@ -112,7 +124,21 @@ export async function runLarasChat(
         continue;
       }
       console.error("laras upstream error", res.status, data?.error?.message);
-      return { ok: false, kind: "upstream", status: 502 };
+      return fail("upstream", 502);
+    }
+
+    // Catat pemakaian token; bila penyedia tidak melaporkannya, perkirakan dari panjang teks.
+    if (typeof data?.usage?.total_tokens === "number") {
+      usage.prompt += data.usage.prompt_tokens ?? 0;
+      usage.completion += data.usage.completion_tokens ?? 0;
+      usage.total += data.usage.total_tokens;
+    } else {
+      const reqTokens = estimateTokens(JSON.stringify(messages).length);
+      const outTokens = estimateTokens((data?.choices?.[0]?.message?.content ?? "").length + JSON.stringify(data?.choices?.[0]?.message?.tool_calls ?? "").length);
+      usage.prompt += reqTokens;
+      usage.completion += outTokens;
+      usage.total += reqTokens + outTokens;
+      usage.estimated = true;
     }
 
     const msg = data?.choices?.[0]?.message;
@@ -129,16 +155,19 @@ export async function runLarasChat(
         let content = JSON.stringify(outcome.result);
         if (content.length > MAX_TOOL_RESULT_CHARS) {
           content = JSON.stringify({ error: "Hasil terlalu besar; persempit filter atau kelompokkan datanya." });
+        } else if (toolChars + content.length > MAX_TOOL_CHARS_PER_TURN) {
+          content = JSON.stringify({ error: "Batas data per pertanyaan tercapai. Jawab dengan data yang sudah ada." });
         }
+        toolChars += content.length;
         messages.push({ role: "tool", tool_call_id: call.id, content });
       }
       continue;
     }
 
     const reply = msg?.content?.trim() ?? "";
-    if (!reply) return { ok: false, kind: "empty", status: 502 };
-    return { ok: true, reply, toolsUsed, rounds: round + 1, actions: Array.from(actions.values()) };
+    if (!reply) return fail("empty", 502);
+    return { ok: true, reply, toolsUsed, rounds: round + 1, actions: Array.from(actions.values()), usage };
   }
 
-  return { ok: false, kind: "empty", status: 502 };
+  return fail("empty", 502);
 }

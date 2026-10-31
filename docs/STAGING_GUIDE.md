@@ -53,6 +53,12 @@ Setelah itu cek: tabel `fee_schedules`, `fee_charges`, `fee_payments`, `cash_ent
   ```cron
   0 19 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/subscription-reminders
   ```
+- **Job harian batas simpan riwayat chat Laras**: panggil `POST /api/cron/ai-retention` dengan header yang sama, sekali sehari (mis. 03:30 WIB). Menghapus permanen percakapan Laras (`ai_assistant_threads`; pesannya ikut terhapus lewat cascade) yang tidak berubah lebih dari 90 hari. Angkanya ada di `lib/ai/retention-policy.ts`. Dihapus per batch 500 thread (maks 20 batch per panggilan), aman dijalankan berulang. `audit_logs` tidak memuat isi pesan sehingga tidak ikut dihapus.
+
+  ```
+  30 20 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/ai-retention
+  ```
+
 - **Job harian batas simpan notifikasi**: panggil `POST /api/cron/notification-retention` dengan header yang sama, sekali sehari (mis. 03:00 WIB). Menghapus permanen notifikasi lonceng web (`admin_notifications`, status bacanya ikut terhapus) yang lebih tua dari 90 hari, serta notifikasi mobile (`user_notifications`) yang lebih tua dari 90 hari atau sudah dibaca dan lebih tua dari 30 hari. Notifikasi lebih tua dari 30 hari sudah tidak ditampilkan/dibuat lagi. Angkanya ada di `lib/notifications/retention-policy.ts`. Dihapus per batch 1.000 baris (maks 20 batch per panggilan), aman dijalankan berulang.
   ```cron
   0 20 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/notification-retention
@@ -131,6 +137,9 @@ Hal yang masih di luar panduan ini: keystore dan upload key Play Store, Sentry/C
 - [ ] Komisi mitra: hubungkan desa ke mitra → entri CLOSING = 10% x harga Paket Lengkap (Rp350.000 pada Rp3,5 jt); bayar Paket Lengkap lewat desa itu → entri SUBSCRIPTION = 10% invoice. Di admin/mitra kolom "Bonus closing (% harga paket)" menampilkan perkiraan nominal; kosongkan untuk memakai nominal tetap.
 - [ ] Penghitung foto (`village_media_usage`): unggah foto → `mobileBytes` bertambah; hapus postingan Warga yang berfoto → berkurang. Pada unggahan pertama desa yang sudah punya foto, baris terisi dari isi bucket (sekali saja). Jalankan `npx tsx scripts/reconcile-mobile-media.ts <kodeDesa>` untuk mencocokkan ulang dengan bucket.
 - [ ] Kredit AI: kirim pertanyaan → saldo berkurang 1; saldo 0 → ditolak (402); panggilan AI gagal → saldo dikembalikan; beli paket kredit → saldo bertambah sesuai paket.
+- [ ] Laras: jalankan `pnpm laras:eval --runs 3` (memanggil model berbayar; data rekaan) → kegagalan **kritis** harus 0; lalu ikuti [LARAS_TEST_PLAN.md](LARAS_TEST_PLAN.md).
+- [ ] `POST /api/cron/ai-retention` tanpa header → 401; dengan secret benar → `{ ok, threadsDeleted }`; dijalankan dua kali → panggilan kedua menghapus 0.
+- [ ] Laras: kirim pertanyaan yang memanggil tool (mis. "ringkasan keuangan bulan ini") dari UI → label langkah muncul ("Memeriksa data keuangan…") lalu jawaban; `curl -N -H 'Accept: application/x-ndjson'` ke `/api/ai/village-assistant` → baris `progress` lalu `done`; tanpa header Accept → satu JSON seperti biasa. Cek `audit_logs` (`ai_query`) memuat `tokens`.
 - [ ] `POST /api/cron/notification-retention` tanpa header → 401; dengan secret benar → `{ ok, adminDeleted, mobileDeleted }`; dijalankan dua kali → panggilan kedua menghapus 0.
 - [ ] Lonceng desa: klik notifikasi atau "Tandai semua dibaca" → badge hilang dan tetap hilang setelah muat ulang halaman (untuk semua peran, termasuk staf, dan saat trial/grace).
 - [ ] `POST /api/cron/subscription-reminders` tanpa header → 401; email uji terkirim ke admin desa; dijalankan dua kali → tidak ada email ganda.

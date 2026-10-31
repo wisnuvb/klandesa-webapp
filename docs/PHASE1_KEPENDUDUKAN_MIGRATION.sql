@@ -1,4 +1,5 @@
--- DRAFT Fase 1 kependudukan (aditif). BELUM diterapkan ke DB mana pun, BELUM di prisma/migrations.
+-- Fase 1 kependudukan (aditif). Sudah diterapkan ke DB lokal klandesa_db (2026-10-31) dan modelnya ada di prisma/schema.prisma.
+-- Produksi: BELUM diterapkan (menunggu langkah di docs/PHASE1_KEPENDUDUKAN_DESIGN.md tahap A). Tidak di prisma/migrations.
 -- Dihasilkan offline: prisma migrate diff dari prisma/schema.prisma ke skema usulan. Lihat docs/PHASE1_KEPENDUDUKAN_DESIGN.md.
 -- Satu-satunya perubahan pada tabel lama: residents + 3 kolom NULL (householdId, wilayahUnitId, dusunUnitId), indeks, dan FK.
 

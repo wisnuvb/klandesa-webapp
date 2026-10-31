@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { collectVillageMetrics } from "@/lib/sdgs/collect-metrics";
 import { computeSdgsDashboard } from "@/lib/sdgs/scoring-engine";
 import { sanitizeForPrompt } from "@/lib/ai/laras-guard";
+import { createTtlCache } from "@/lib/ai/ttl-cache";
 
 export type VillageAssistantMode =
   | "sdgs_analysis"
@@ -29,10 +30,22 @@ export type VillageAssistantContext = {
   pertanianPlotCount: number;
 };
 
+/**
+ * Ringkasan desa dibangun dari ±24 query dan tidak berubah dalam hitungan detik. Disimpan per desa selama 60 detik
+ * (bersama untuk permintaan serentak). Data terkini yang tepat tetap diambil lewat tool saat ditanyakan.
+ */
+const CONTEXT_TTL_MS = 60_000;
+const contextCache = createTtlCache<number, Omit<VillageAssistantContext, "userName">>({ ttlMs: CONTEXT_TTL_MS, max: 300 });
+
 export async function buildVillageAssistantContext(
   villageId: number,
   userName?: string,
 ): Promise<VillageAssistantContext> {
+  const base = await contextCache.get(villageId, () => loadVillageContext(villageId));
+  return { ...base, userName: sanitizeForPrompt(userName) || undefined };
+}
+
+async function loadVillageContext(villageId: number): Promise<Omit<VillageAssistantContext, "userName">> {
   const village = await prisma.village.findUnique({
     where: { id: villageId },
     select: {
@@ -98,7 +111,6 @@ export async function buildVillageAssistantContext(
     mailServiceCount,
     socialProgramCount: metrics.socialBenefitPrograms,
     totalResidents: metrics.totalResidents,
-    userName: sanitizeForPrompt(userName) || undefined,
     bumdesSummary,
     pengaduanTerbuka: metrics.citizenReportsOpen,
     pengaduanSelesai: metrics.citizenReportsResolved,

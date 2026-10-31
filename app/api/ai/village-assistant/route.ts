@@ -21,8 +21,11 @@ import {
 } from "@/lib/ai/credits";
 import { checkAiCredit, getAiConfig } from "@/lib/ai/openrouter";
 import { redactSensitive, sanitizeAssistantMarkdown } from "@/lib/ai/laras-guard";
-import { executeLarasTool, larasToolSpecs } from "@/lib/ai/laras-tools";
+import { executeLarasTool, larasToolLabel, larasToolSpecs } from "@/lib/ai/laras-tools";
 import { runLarasChat } from "@/lib/ai/laras-agent";
+import { trimHistoryForAi } from "@/lib/ai/history";
+import { addTokensUsed, checkTokenBudget } from "@/lib/ai/token-budget";
+import { NDJSON_CONTENT_TYPE, ndjsonResponse, type StreamEvent } from "@/lib/ai/ndjson";
 import { checkRateLimitDb, clientIp, limiterKey } from "@/lib/mobile/rate-limit";
 import { prisma } from "@/lib/prisma";
 import {
@@ -94,6 +97,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Anggaran token harian per pengguna: kredit flat 1/pertanyaan, tetapi biaya model mengikuti token.
+    const budget = await checkTokenBudget(userId);
+    if (!budget.ok) {
+      return NextResponse.json(
+        { error: "Batas pemakaian harian Laras tercapai. Coba lagi besok, atau hubungi admin bila perlu tambahan." },
+        { status: 429 },
+      );
+    }
+
     if (!isPlatform && AI_CREDITS_CONSUMPTION_ENABLED) {
       const credit = await checkAiCredit({ userId: String(userId) });
       if (!credit.hasCredit) {
@@ -156,9 +168,11 @@ export async function POST(req: NextRequest) {
 
     // Riwayat sebelum pesan ini (pesan baru baru disimpan setelah model menjawab).
     const historyForAi = threadId
-      ? (await getRecentMessagesForAi(threadId, 8))
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))
+      ? trimHistoryForAi(
+          (await getRecentMessagesForAi(threadId, 8))
+            .filter((m) => m.role === "user" || m.role === "assistant")
+            .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        )
       : [];
 
     const userName = session?.user?.name || session?.user?.email?.split("@")[0];
@@ -174,89 +188,122 @@ export async function POST(req: NextRequest) {
       chargeCredit ? refundAiCredit(userId, 1).catch(() => undefined) : Promise.resolve();
 
     const toolCtx = { villageId: village.id, userId, role: dbUser.role, village, session: villageSession, proposals: { count: 0 }, cache: new Map() };
-    const result = await runLarasChat(
-      {
-        config,
-        messages: [
-          { role: "system", content: system },
-          ...historyForAi,
-          { role: "user", content: message },
-        ],
-        deadlineMs: Math.max(5_000, AI_UPSTREAM_TIMEOUT_MS - (Date.now() - startedAt)),
-      },
-      {
-        toolSpecs: larasToolSpecs(),
-        executeTool: (name, args) => executeLarasTool(toolCtx, name, args),
-      },
-    );
 
-    if (!result.ok) {
-      await refund();
-      const error =
-        result.kind === "timeout"
-          ? "AI terlalu lama merespons. Kredit Anda tidak dipotong, silakan coba lagi"
-          : result.kind === "empty"
-            ? "AI tidak memberikan jawaban. Kredit Anda tidak dipotong, silakan coba lagi."
-            : "Layanan AI sedang bermasalah. Kredit Anda tidak dipotong, silakan coba lagi.";
-      return NextResponse.json({ error }, { status: result.status });
-    }
+    type Outcome = { status: number; body: Record<string, unknown> };
+    const fail = (status: number, error: string): Outcome => ({ status, body: { error } });
 
-    const output = sanitizeAssistantMarkdown(result.reply);
-    const reply = output.text.trim();
-    if (!reply) {
-      await refund();
-      return NextResponse.json(
-        { error: "AI tidak memberikan jawaban. Kredit Anda tidak dipotong, silakan coba lagi." },
-        { status: 502 },
+    // Seluruh pekerjaan setelah kredit dipesan. `emit` hanya ada pada mode streaming (status per langkah).
+    const finish = async (emit?: (e: StreamEvent) => void): Promise<Outcome> => {
+      const result = await runLarasChat(
+        {
+          config,
+          messages: [
+            { role: "system", content: system },
+            ...historyForAi,
+            { role: "user", content: message },
+          ],
+          deadlineMs: Math.max(5_000, AI_UPSTREAM_TIMEOUT_MS - (Date.now() - startedAt)),
+        },
+        {
+          toolSpecs: larasToolSpecs(),
+          executeTool: (name, args) => {
+            emit?.({ type: "progress", label: larasToolLabel(name) });
+            return executeLarasTool(toolCtx, name, args);
+          },
+        },
       );
-    }
 
-    try {
-      threadId = await saveExchange({
+      // Pemakaian token dicatat walau jawaban gagal (token sudah terpakai di penyedia).
+      await addTokensUsed(userId, result.usage.total).catch((e) => console.error("addTokensUsed failed", e));
+
+      if (!result.ok) {
+        await refund();
+        return fail(
+          result.status,
+          result.kind === "timeout"
+            ? "AI terlalu lama merespons. Kredit Anda tidak dipotong, silakan coba lagi"
+            : result.kind === "empty"
+              ? "AI tidak memberikan jawaban. Kredit Anda tidak dipotong, silakan coba lagi."
+              : "Layanan AI sedang bermasalah. Kredit Anda tidak dipotong, silakan coba lagi.",
+        );
+      }
+
+      const output = sanitizeAssistantMarkdown(result.reply);
+      const reply = output.text.trim();
+      if (!reply) {
+        await refund();
+        return fail(502, "AI tidak memberikan jawaban. Kredit Anda tidak dipotong, silakan coba lagi.");
+      }
+
+      let savedThreadId: number;
+      try {
+        savedThreadId = await saveExchange({
+          villageId: village.id,
+          userId,
+          mode,
+          threadId,
+          title: titleFromFirstMessage(message),
+          userMessage: message,
+          assistantMessage: reply,
+        });
+      } catch (e) {
+        await refund();
+        throw e;
+      }
+
+      await auditQuery(req, {
         villageId: village.id,
         userId,
-        mode,
-        threadId,
-        title: titleFromFirstMessage(message),
-        userMessage: message,
-        assistantMessage: reply,
+        threadId: savedThreadId,
+        metadata: {
+          mode,
+          tools: result.toolsUsed,
+          rounds: result.rounds,
+          proposals: result.actions.map((a) => a.key),
+          inputRedactions: inputRedaction.redacted,
+          outputRedactions: output.redacted,
+          tokens: result.usage.total,
+          promptTokens: result.usage.prompt,
+          completionTokens: result.usage.completion,
+          tokensEstimated: result.usage.estimated,
+          ms: Date.now() - startedAt,
+        },
       });
-    } catch (e) {
-      await refund();
-      throw e;
+
+      let remaining: number | null = null;
+      if (!isPlatform && userId) {
+        remaining = chargeCredit ? await getAiCreditBalance(userId) : await ensureDefaultAiCredits(userId);
+      }
+
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          reply,
+          threadId: savedThreadId,
+          mode,
+          remainingCredits: remaining,
+          actions: result.actions,
+          ...(inputRedaction.redacted > 0
+            ? { notice: "NIK/nomor telepon pada pesan Anda disamarkan sebelum diproses demi privasi warga." }
+            : {}),
+        },
+      };
+    };
+
+    // Klien yang meminta NDJSON mendapat status per langkah; yang lain tetap menerima satu JSON seperti sebelumnya.
+    if (req.headers.get("accept")?.includes(NDJSON_CONTENT_TYPE)) {
+      return ndjsonResponse(async (emit) => {
+        const out = await finish(emit);
+        emit(
+          out.status === 200
+            ? ({ type: "done", ...out.body } as StreamEvent)
+            : { type: "error", error: String(out.body.error ?? "Gagal"), status: out.status },
+        );
+      });
     }
-
-    await auditQuery(req, {
-      villageId: village.id,
-      userId,
-      threadId,
-      metadata: {
-        mode,
-        tools: result.toolsUsed,
-        rounds: result.rounds,
-        proposals: result.actions.map((a) => a.key),
-        inputRedactions: inputRedaction.redacted,
-        outputRedactions: output.redacted,
-        ms: Date.now() - startedAt,
-      },
-    });
-
-    let remaining: number | null = null;
-    if (!isPlatform && userId) {
-      remaining = chargeCredit ? await getAiCreditBalance(userId) : await ensureDefaultAiCredits(userId);
-    }
-
-    return NextResponse.json({
-      ok: true,
-      reply,
-      threadId,
-      mode,
-      remainingCredits: remaining,
-      actions: result.actions,
-      ...(inputRedaction.redacted > 0
-        ? { notice: "NIK/nomor telepon pada pesan Anda disamarkan sebelum diproses demi privasi warga." }
-        : {}),
-    });
+    const out = await finish();
+    return NextResponse.json(out.body, { status: out.status });
   } catch (e) {
     console.error("POST /api/ai/village-assistant", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

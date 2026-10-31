@@ -93,6 +93,37 @@ Keterbatasan v1: kartu hanya muncul pada jawaban langsung (tidak dimuat ulang da
 - **Performa**: cek kepemilikan thread tanpa memuat pesan; konteks 26→24 query (hapus hitungan ganda, pengaduan via
   `groupBy`); data warga dan cek modul di-cache per pertanyaan; UI mengungkap bahwa pertanyaan diproses penyedia AI pihak ketiga.
 
+## Tahap 2: biaya, kecepatan, retensi
+
+- **Token dicatat dan dibatasi.** `usage` dari penyedia dijumlahkan semua putaran (diperkirakan chars/3,5 bila tidak ada, ditandai
+  `tokensEstimated`) dan ditulis ke `AuditLog` (`tokens`, `promptTokens`, `completionTokens`). Batas **harian per pengguna**
+  (`lib/ai/token-budget.ts`, jendela 24 jam sejak pemakaian pertama, tabel `mobile_rate_limits`): bawaan 800.000 token,
+  ubah dengan env `LARAS_DAILY_TOKEN_CAP` (minimal 10.000). Lewat batas → 429. Kredit tetap flat 1/pertanyaan.
+- **Pembatasan per pertanyaan**: riwayat ke model maks. 16.000 karakter (pesan terbaru diutamakan, satu pesan maks. 4.000;
+  `lib/ai/history.ts`) dan hasil tool yang menumpuk maks. 30.000 karakter per pertanyaan. Menurunkan selisih biaya terburuk vs biasa.
+- **Cache konteks desa** 60 detik per desa per worker (`lib/ai/ttl-cache.ts`, permintaan serentak berbagi satu pemuatan).
+  Angka terkini yang tepat tetap lewat tool. Nama pengguna tidak ikut di-cache.
+- **Status per langkah (NDJSON)**: klien yang mengirim `Accept: application/x-ndjson` menerima baris `progress` (mis. "Memeriksa data
+  keuangan…") lalu satu baris `done`/`error`; tanpa header itu respons tetap satu JSON. Kesalahan sebelum aliran dimulai
+  (401/402/429/dst.) tetap JSON. Ini BUKAN streaming token: jawaban sengaja dikirim utuh setelah disanitasi (tautan/gambar/PII),
+  disimpan, dan diaudit, sehingga tidak ada teks mentah model yang sampai ke layar atau ke warga sebelum disaring.
+  Bila aliran terputus sebelum `done`, UI meminta pengguna membuka ulang riwayat (jawaban mungkin sudah tersimpan).
+- **Retensi**: thread yang tidak berubah > 90 hari dihapus job harian `POST /api/cron/ai-retention` (lihat STAGING_GUIDE).
+
+## Tahap 3: red-team dan evaluasi
+
+- **Red-team offline** (`tests/laras-redteam.test.ts`, DB tiruan yang benar-benar memfilter `villageId`: `tests/helpers/fake-db.ts`):
+  model diasumsikan SEPENUHNYA dikuasai penyerang. Terbukti di server: usulan/eksekusi tidak menjangkau data desa lain, token milik
+  pengguna/desa lain tidak dieksekusi, usulan melanggar aturan (setujui berperingatan, tolak laporan keamanan) ditolak, maks. 10 usulan
+  per pertanyaan walau model memanggil 25 kali, argumen berbahaya/aneh (injeksi, tipe salah, polusi prototipe) ditolak, tautan/gambar
+  dibuang, dan tidak ada nama/NIK pemohon atau pelapor yang sampai ke model.
+- **Evaluasi model asli**: `pnpm laras:eval` (skenario di `lib/ai/eval/scenarios.ts`, pelari di `lib/ai/eval/runner.ts`). Memakai prompt
+  sistem dan spesifikasi tool produksi dengan desa rekaan; tool ditiru dengan aturan server yang sama. Pengecekan bertingkat
+  **kritis / perilaku / kualitas**. Pelari sendiri diuji dengan model skrip (`tests/laras-eval-harness.test.ts`). Panduan pengujian
+  lengkap: [LARAS_TEST_PLAN.md](LARAS_TEST_PLAN.md).
+- Catatan: `laras:eval` MEMANGGIL MODEL berbayar memakai `OPENROUTER_API_KEY` dari `.env.local`/`.env`; `--dry-run` tidak memanggil.
+  Modul env milik proyek memuat `.env` sendiri sehingga mengosongkan variabel di shell tidak cukup untuk mencegah panggilan.
+
 ## Konfigurasi
 
 - `OPENROUTER_ALLOW_DATA_COLLECTION=1` — mematikan `provider.data_collection: "deny"`. Bawaan: deny (penyedia yang
@@ -104,10 +135,9 @@ Keterbatasan v1: kartu hanya muncul pada jawaban langsung (tidak dimuat ulang da
 
 - Aksi lain: pembuatan isi surat dari templat, pengingat iuran, notifikasi massal pengumuman (butuh keputusan tersendiri).
 - Daftar warga bermasker (nama tersamar) dan tool lain (iuran, absensi, aset, RPJMDes/RKPDes, APBDes rinci).
-- Retensi riwayat chat (kini disimpan tanpa batas waktu).
-- Pencatatan/pembatasan token (kredit masih flat 1/pertanyaan), cache konteks per desa, streaming; kuota harian pengumuman masih rawan balapan kecil antar token berbeda.
+- Streaming token sungguhan (butuh sanitasi inkremental); kredit proporsional terhadap token; cache bersama antar worker; kuota harian pengumuman masih rawan balapan kecil antar token berbeda.
 - Streaming jawaban; cache konteks (kini membaca semua baris warga tiap pertanyaan).
-- Red-team otomatis (injeksi, lintas desa) dan set tanya-jawab acuan terhadap hasil SQL.
+- Set tanya-jawab acuan yang dicocokkan dengan hasil SQL nyata (butuh akses DB); menjalankan `laras:eval` berkala (mis. tiap ganti model/prompt).
 
 ## Pengujian
 

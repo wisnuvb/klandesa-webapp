@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/Header";
 import { getModuleById } from "@/lib/modules/registry";
 import { Toaster } from "sonner";
 import { TrialBanner } from "@/components/app/TrialBanner";
+import { UpdateAvailableNotice } from "@/components/app/UpdateAvailableNotice";
 import { LarasFab } from "@/components/ai/LarasFab";
 import { shouldShowLarasFab } from "@/lib/ai/laras-access";
 import { isOnboardingFlowPath } from "@/lib/onboarding";
@@ -453,6 +454,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       </div>
 
       {showLarasFab ? <LarasFab /> : null}
+      <UpdateAvailableNotice />
       <Toaster />
     </div>
   );

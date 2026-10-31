@@ -120,6 +120,11 @@ model Village {
   @@index([regency])
   @@index([regency, district])
   @@index([acquiredByPartnerId])
+  households        Household[]
+  wilayahUnits      WilayahUnit[]
+  residentMutations ResidentMutation[]
+  residentArchives  ResidentArchive[]
+
   @@map("villages")
 }
 
@@ -426,10 +431,25 @@ model Resident {
   posyanduVisits     PosyanduVisit[]
   citizenAccount     CitizenAccount?
 
+  /// Rumah tangga (KK) hasil sinkronisasi dari `kk`; `kk` tetap sumber kebenaran sampai Fase 1 selesai.
+  householdId Int?
+  household   Household? @relation("HouseholdMembers", fields: [householdId], references: [id], onDelete: SetNull)
+  /// Unit terdalam pada pohon RW → RT (RT, atau RW bila RT kosong), hasil sinkronisasi dari `rw/rt`.
+  wilayahUnitId Int?
+  wilayahUnit   WilayahUnit? @relation("AreaResidents", fields: [wilayahUnitId], references: [id], onDelete: SetNull)
+  /// Unit dusun (dimensi terpisah: dusun dan RW saling silang), hasil sinkronisasi dari `hamlet`.
+  dusunUnitId Int?
+  dusunUnit   WilayahUnit? @relation("DusunResidents", fields: [dusunUnitId], references: [id], onDelete: SetNull)
+  headOfHouseholds Household[] @relation("HouseholdHead")
+  mutations        ResidentMutation[]
+
   @@unique([villageId, nik])
   @@index([villageId, name])
   @@index([villageId, nik])
   @@index([villageId, kk])
+  @@index([villageId, householdId])
+  @@index([villageId, wilayahUnitId])
+  @@index([villageId, dusunUnitId])
   @@map("residents")
 }
 
@@ -3190,4 +3210,132 @@ model PaymentChannelSetting {
   updatedAt        DateTime  @updatedAt
 
   @@map("payment_channel_settings")
+}
+
+
+// ============================================
+// KEPENDUDUKAN V2: KK, wilayah, mutasi, arsip hapus (aditif; lihat docs/PHASE1_KEPENDUDUKAN_DESIGN.md)
+// ============================================
+
+model Household {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// Nomor KK 16 digit, unik per desa
+  kkNumber String @db.VarChar(16)
+
+  headResidentId Int?
+  headResident   Resident? @relation("HouseholdHead", fields: [headResidentId], references: [id], onDelete: SetNull)
+
+  address String  @db.VarChar(500)
+  rt      String? @db.VarChar(10)
+  rw      String? @db.VarChar(10)
+  hamlet  String? @db.VarChar(100)
+
+  wilayahUnitId Int?
+  wilayahUnit   WilayahUnit? @relation("AreaHouseholds", fields: [wilayahUnitId], references: [id], onDelete: SetNull)
+  dusunUnitId   Int?
+  dusunUnit     WilayahUnit? @relation("DusunHouseholds", fields: [dusunUnitId], references: [id], onDelete: SetNull)
+
+  /// ACTIVE | INACTIVE (semua anggota meninggal/pindah)
+  status String @default("ACTIVE") @db.VarChar(20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members Resident[] @relation("HouseholdMembers")
+
+  @@unique([villageId, kkNumber])
+  @@index([villageId, status])
+  @@index([villageId, wilayahUnitId])
+  @@index([villageId, dusunUnitId])
+  @@map("households")
+}
+
+model WilayahUnit {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// dusun | rw | rt. Dua pohon terpisah: dusun (datar) dan RW → RT. Dusun dan RW saling silang.
+  type String @db.VarChar(10)
+  name String @db.VarChar(100)
+  /// Kunci kanonik, mis. "dusun:MAWAR", "rw:1", "rt:1|2" ("01" dan "1" satu unit); unik per desa
+  canonicalKey String @db.VarChar(200)
+
+  parentId Int?
+  parent   WilayahUnit?  @relation("WilayahTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children WilayahUnit[] @relation("WilayahTree")
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  areaResidents    Resident[]  @relation("AreaResidents")
+  dusunResidents   Resident[]  @relation("DusunResidents")
+  areaHouseholds   Household[] @relation("AreaHouseholds")
+  dusunHouseholds  Household[] @relation("DusunHouseholds")
+
+  @@unique([villageId, canonicalKey])
+  @@index([villageId, type])
+  @@map("wilayah_units")
+}
+
+model ResidentMutation {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// BIRTH | DEATH | MOVE_OUT | MOVE_IN | KK_CHANGE
+  type String @db.VarChar(20)
+  /// PENDING | APPLIED | REJECTED | CANCELLED
+  status String @default("PENDING") @db.VarChar(20)
+  /// web | mobile | import | legacy_edit
+  source String @default("web") @db.VarChar(20)
+
+  effectiveDate DateTime @db.Date
+
+  residentId Int?
+  resident   Resident? @relation(fields: [residentId], references: [id], onDelete: SetNull)
+  /// Cuplikan agar catatan tetap terbaca setelah warga dihapus
+  residentName     String? @db.VarChar(255)
+  residentNikLast4 String? @db.VarChar(4)
+  rt               String? @db.VarChar(10)
+  rw               String? @db.VarChar(10)
+  householdKk      String? @db.VarChar(16)
+
+  /// Isi per jenis (tujuan pindah, sebab meninggal, data warga baru, dst). Tanpa NIK lengkap.
+  details Json?
+
+  requestedById   Int?
+  decidedById     Int?
+  decidedAt       DateTime?
+  rejectionReason String?   @db.VarChar(500)
+  appliedAt       DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([villageId, effectiveDate])
+  @@index([villageId, status])
+  @@index([residentId])
+  @@map("resident_mutations")
+}
+
+/// Cuplikan penuh warga sebelum dihapus permanen (pengganti soft delete tanpa mengubah kueri yang ada).
+model ResidentArchive {
+  id        BigInt  @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  residentId Int
+  snapshot   Json
+  reason     String?  @db.VarChar(500)
+  deletedById Int?
+  deletedAt  DateTime @default(now())
+
+  @@index([villageId, deletedAt(sort: Desc)])
+  @@index([villageId, residentId])
+  @@map("resident_archives")
 }

@@ -537,6 +537,25 @@ export const LARAS_TOOLS: LarasTool[] = [
   },
 ];
 
+const TOOL_LABELS: Record<string, string> = {
+  population_stats: "Memeriksa data penduduk…",
+  finance_summary: "Memeriksa data keuangan…",
+  mail_requests_summary: "Memeriksa permohonan surat…",
+  mail_requests_pending: "Memeriksa permohonan surat yang menunggu…",
+  propose_mail_decision: "Menyiapkan usulan keputusan surat…",
+  citizen_reports_summary: "Memeriksa pengaduan warga…",
+  citizen_reports_open: "Memeriksa pengaduan yang masih aktif…",
+  propose_report_action: "Menyiapkan usulan tindak lanjut pengaduan…",
+  social_benefits_summary: "Memeriksa data bantuan sosial…",
+  announcements_recent: "Memeriksa pengumuman terbaru…",
+  propose_announcement: "Menyusun pengumuman…",
+};
+
+/** Teks status yang ramah pengguna untuk langkah tool yang sedang berjalan. */
+export function larasToolLabel(name: string): string {
+  return TOOL_LABELS[name] ?? "Mengambil data desa…";
+}
+
 export function larasToolSpecs() {
   return LARAS_TOOLS.map((t) => ({
     type: "function" as const,
