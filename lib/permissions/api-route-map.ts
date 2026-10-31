@@ -59,6 +59,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/rtrw", resource: "rtrw" },
   { prefix: "/api/developer", resource: "integrations" },
   { prefix: "/api/custom-data", resource: "custom_data" },
+  { prefix: "/api/aset-desa/buku", resource: "aset_desa", suffixActions: { "": "export" } },
+  { prefix: "/api/aset-desa", resource: "aset_desa" },
   { prefix: "/api/integrations/export", resource: "integrations", suffixActions: { "": "export" } },
   { prefix: "/api/integrations", resource: "integrations" },
   { prefix: "/api/gis", resource: "gis" },

@@ -342,6 +342,17 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     billingAddon: "gis",
   },
   {
+    id: "aset-desa",
+    label: "Aset Desa",
+    path: "/aset-desa",
+    permission: "aset_desa",
+    sdgGoals: [16],
+    status: "beta",
+    group: "perencanaan",
+    groupLabel: "Perencanaan & Peta",
+    sortOrder: 705,
+  },
+  {
     id: "sinkronisasi-data",
     label: "Sinkronisasi Data",
     path: "/sinkronisasi-data",

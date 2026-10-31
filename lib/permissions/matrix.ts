@@ -191,6 +191,13 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: "crud_export",
     staff: "crud",
   },
+  aset_desa: {
+    // Penghapusan dari buku inventaris (Pasal 21-23) memakai aksi "delete": hanya yang berwenang menetapkannya.
+    admin: "crud_export",
+    village_head: ["read", "export"],
+    secretary: "crud_export",
+    staff: "read",
+  },
 };
 
 function resolveActions(

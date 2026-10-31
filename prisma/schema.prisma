@@ -130,6 +130,7 @@ model Village {
   webhookDeliveries WebhookDelivery[]
   changeProposals   ChangeProposal[]
   appInstalls       AppInstall[]
+  inventoryItems    InventoryItem[]
   publishedTemplates AppTemplate[]
   customTables      CustomTable[]
   customRecords     CustomRecord[]
@@ -2534,6 +2535,7 @@ model VillageAsset {
   updatedAt DateTime @updatedAt
 
   infrastructureProjects InfrastructureProject[]
+  inventoryItems         InventoryItem[]
 
   @@index([villageId])
   @@map("village_assets")
@@ -3635,4 +3637,46 @@ model AppInstall {
   @@unique([villageId, lineageKey])
   @@index([templateId])
   @@map("app_installs")
+}
+
+/// Buku Inventaris Aset Desa (Permendagri 1/2016, Lampiran C): satu baris = satu jenis barang milik desa.
+/// Terpisah dari `VillageAsset` (titik peta); boleh ditautkan lewat mapAssetId.
+model InventoryItem {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  mapAssetId Int?
+  mapAsset   VillageAsset? @relation(fields: [mapAssetId], references: [id], onDelete: SetNull)
+
+  name     String  @db.VarChar(200)
+  category String  @db.VarChar(40)
+  itemCode String? @db.VarChar(60)
+  identity String? @db.VarChar(255)
+  quantity Int     @default(1)
+  /// APBDES | PEROLEHAN_LAIN | ASLI_DESA (kolom 5-7 buku inventaris)
+  origin           String   @db.VarChar(20)
+  acquiredYear     Int
+  acquiredAt       DateTime? @db.Date
+  acquisitionValue Decimal?  @db.Decimal(15, 2)
+  /// BAIK | RUSAK_RINGAN | RUSAK_BERAT
+  condition String  @default("BAIK") @db.VarChar(20)
+  location  String? @db.VarChar(255)
+  notes     String? @db.VarChar(1000)
+
+  /// ACTIVE | DISPOSED (dihapus dari buku inventaris dengan SK Kepala Desa; barisnya tetap tersimpan)
+  status         String    @default("ACTIVE") @db.VarChar(10)
+  disposedAt     DateTime? @db.Date
+  /// BERALIH_KEPEMILIKAN | PEMUSNAHAN | SEBAB_LAIN (Pasal 21)
+  disposalReason String?   @db.VarChar(20)
+  disposalDecree String?   @db.VarChar(100)
+  disposalNote   String?   @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, status, category])
+  @@index([mapAssetId])
+  @@map("inventory_items")
 }

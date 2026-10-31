@@ -29,6 +29,7 @@ export const PERMISSION_RESOURCES = [
   "lingkungan",
   "ai_assistant",
   "custom_data",
+  "aset_desa",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];
