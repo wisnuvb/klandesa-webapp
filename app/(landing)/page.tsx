@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LandingHome } from "@/components/features/LandingHome";
-import { getFlagshipMarketingModules } from "@/lib/marketing/modules";
+import { getCatalogV2 } from "@/lib/letters/catalog";
+import { getFlagshipMarketingModules, getMarketingModuleCountLabel } from "@/lib/marketing/modules";
 import { getMainSiteOrigin } from "@/lib/seo/url";
 import { getLandingPageMetadata } from "@/lib/seo/landing-pages";
 
@@ -46,7 +47,11 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
 
-      <LandingHome flagshipModules={flagshipModules} />
+      <LandingHome
+        flagshipModules={flagshipModules}
+        moduleCountLabel={getMarketingModuleCountLabel()}
+        letterTypeCount={getCatalogV2().length}
+      />
     </>
   );
 }

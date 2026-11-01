@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Minus } from "lucide-react";
+import { ArrowRight, Blocks, Check, KeyRound, Minus, Plug, Webhook } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { LENGKAP_MONTHLY_FEE, LENGKAP_SETUP_FEE } from "@/lib/billing/lengkap";
 
@@ -11,16 +12,18 @@ type Row = { aspect: string; diy: string; klandesa: string };
 
 /**
  * Setiap sisi Klandesa harus bisa ditunjuk di kode (lihat catatan di PR/riwayat audit):
- * katalog surat v2 (37 jenis) + penomoran otomatis, impor Excel warga, 4 peran desa + RT + pemda,
- * penyamaran NIK & pencatatan reveal-nik (30/jam), QR verifikasi surat, aplikasi seluler, tes otomatis.
+ * katalog surat v2 (37 jenis) + penomoran otomatis, modul APB Desa/Dana Desa/RKP Desa, 4 peran desa + RT + pemda,
+ * penyamaran NIK & pencatatan reveal-nik (30/jam), AuditLog web+seluler, QR verifikasi surat, aplikasi seluler,
+ * >2.000 kasus uji (hitung statik di tests/ untuk daftar test:unit). Sisi pengembang: kunci API, MCP (15 alat),
+ * webhook (6 kejadian), Data Kustom + galeri.
  * Jangan menambah klaim tanpa bukti di kode (mis. cadangan data, kode Dukcapil resmi).
  */
 const ROWS: Row[] = [
   {
     aspect: "Aturan & format desa",
-    diy: "Anda yang harus paham tata naskah surat desa dan format Kemendesa, lalu menjelaskannya ke AI sampai hasilnya benar.",
+    diy: "Anda yang harus paham tata naskah surat desa, Permendagri 20/2018, dan aturan Dana Desa tahun berjalan, lalu menjelaskannya ke AI sampai hasilnya benar.",
     klandesa:
-      "Sudah ada: 37 jenis surat dengan nomor surat otomatis, impor Excel data warga yang mengenali kolom umum desa, skor 18 tujuan SDGs, dan 4 format unduhan Kemendesa.",
+      "Sudah ada: 37 jenis surat dengan nomor otomatis, APB Desa/DPA/SPP/Buku Kas Umum, Dana Desa (8 fokus, 8 larangan, BLT, PKTD), RKP Desa dengan tenggat otomatis, dan 4 format unduhan Kemendesa.",
   },
   {
     aspect: "Peran & hak akses",
@@ -32,7 +35,7 @@ const ROWS: Row[] = [
     aspect: "Data pribadi warga",
     diy: "NIK dan KK adalah data pribadi. Penyamaran, pembatasan akses, dan pencatatan siapa membukanya perlu Anda bangun dan uji sendiri.",
     klandesa:
-      "NIK disamarkan di aplikasi seluler. Membuka NIK lengkap dicatat dan dibatasi 30 kali per jam untuk tiap pengguna.",
+      "NIK disamarkan di aplikasi seluler. Membuka NIK lengkap dicatat dan dibatasi 30 kali per jam untuk tiap pengguna; tindakan tulis di dashboard dan aplikasi seluler tercatat di jejak audit.",
   },
   {
     aspect: "Keaslian surat",
@@ -50,12 +53,38 @@ const ROWS: Row[] = [
     aspect: "Perawatan jangka panjang",
     diy: "Server, pembaruan keamanan, perbaikan bug, dan siapa yang mengerti kodenya saat pembuatnya pindah tugas menjadi tanggungan desa.",
     klandesa:
-      "Server, pembaruan, dan perbaikan ditangani tim Klandesa, dengan dukungan email & chat di jam kerja. Kode diuji lewat puluhan berkas uji otomatis (surat, impor warga, penagihan, akses seluler).",
+      "Server, pembaruan, dan perbaikan ditangani tim Klandesa, dengan dukungan email & chat di jam kerja. Kode diuji lewat lebih dari 2.000 kasus uji otomatis (surat, keuangan, Dana Desa, impor warga, akses seluler).",
   },
   {
     aspect: "Biaya sebenarnya",
     diy: "Langganan alat AI memang murah di awal. Biaya sesungguhnya ada di jam kerja, hosting, dan perawatan.",
     klandesa: `${rupiah(LENGKAP_SETUP_FEE)} sudah termasuk tahun pertama, lalu ${rupiah(LENGKAP_MONTHLY_FEE)} per bulan mulai tahun ke-2. Trial gratis 14 hari.`,
+  },
+];
+
+type DevItem = { icon: LucideIcon; title: string; body: string };
+
+/** Setiap butir ada di kode: docs/PHASE2_API_KEYS.md, PHASE3_MCP.md, PHASE2_WEBHOOKS_PROPOSALS.md, PHASE4_APPS.md. */
+const DEV_ITEMS: DevItem[] = [
+  {
+    icon: KeyRound,
+    title: "Kunci API per desa",
+    body: "Akses baca-saja per kelompok data. NIK dan telepon tersamar, kunci berumur terbatas dan bisa dicabut seketika, dan setiap pemakaian tercatat.",
+  },
+  {
+    icon: Plug,
+    title: "Server MCP baca-saja",
+    body: "Hubungkan Claude Code, Cursor, atau klien MCP lain ke 15 alat data desa. Perubahan hanya berupa usulan yang harus disetujui admin desa.",
+  },
+  {
+    icon: Webhook,
+    title: "Webhook bertanda tangan",
+    body: "Dapat kabar saat ada penduduk baru, mutasi, pengumuman, atau usulan. Isinya hanya id dan bertanda tangan HMAC; pengiriman gagal diulang otomatis.",
+  },
+  {
+    icon: Blocks,
+    title: "Data Kustom & galeri aplikasi",
+    body: "Buat tabel sendiri dengan formulir, unduhan CSV, dan jejak audit otomatis. Pasang templat dari galeri yang sudah ditinjau admin platform.",
   },
 ];
 
@@ -145,6 +174,31 @@ export function VibeCodingComparisonSection({ onRegisterClick }: Props) {
           Bedanya mulai terasa saat aplikasi menyimpan data warga dan dipakai banyak
           orang. Perbandingan ini bersifat umum; hasil buatan sendiri bergantung pada
           kemampuan dan waktu pembuatnya.
+        </div>
+
+        <div className="mt-14" aria-labelledby="vibe-bersama-judul" role="group">
+          <h3 id="vibe-bersama-judul" className="text-2xl font-bold text-gray-900 text-balance">
+            Tetap mau bikin tampilan sendiri? Pakai Klandesa sebagai backend-nya.
+          </h3>
+          <p className="mt-2 max-w-3xl text-gray-600 leading-relaxed">
+            Alat AI cocok untuk membuat tampilan. Data warga, hak akses, dan jejak audit tetap
+            dijaga Klandesa, jadi aplikasi buatan Anda tidak perlu menyimpan data pribadi sendiri.
+          </p>
+          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {DEV_ITEMS.map((d) => (
+              <li key={d.title} className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm">
+                <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50">
+                  <d.icon className="h-5 w-5 text-indigo-700" aria-hidden="true" />
+                </span>
+                <h4 className="font-semibold text-gray-900 mb-1">{d.title}</h4>
+                <p className="text-sm text-gray-600 leading-relaxed">{d.body}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-sm text-gray-500 max-w-3xl">
+            Berlabel Akses awal. Belum tersedia: OAuth per desa untuk MCP, akses tulis langsung, dan
+            menjalankan kode bebas di dalam Klandesa. Kunci API dikelola admin desa di menu Sinkronisasi Data.
+          </p>
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">

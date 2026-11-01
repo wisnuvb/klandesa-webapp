@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     template: "%s | Klandesa",
   },
   description:
-    "Klandesa: aplikasi desa terpadu berbasis SDGs—data warga, surat, keuangan, RPJMDes, format Kemendesa, dan aplikasi seluler warga dalam satu sistem.",
+    "Klandesa: aplikasi desa terpadu berbasis SDGs—data warga, surat, APB Desa, Dana Desa, RKP Desa, format Kemendesa, dan aplikasi seluler dalam satu sistem.",
   keywords: [
     "aplikasi desa",
     "aplikasi surat desa",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     siteName: "Klandesa",
     title: "Klandesa — Aplikasi Desa Terpadu Berbasis SDGs",
     description:
-      "Aplikasi desa terpadu berbasis SDGs—data warga, surat, keuangan, RPJMDes, program PKK/BUMDes, dan aplikasi seluler, satu sistem untuk desa dan pemda.",
+      "Aplikasi desa terpadu berbasis SDGs—data warga, surat, APB Desa, Dana Desa, perencanaan, program PKK/BUMDes, dan aplikasi seluler, satu sistem untuk desa dan pemda.",
     images: [
       {
         url: "/images/og-klandesa.png",
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Klandesa — Aplikasi Desa Terpadu Berbasis SDGs",
     description:
-      "Administrasi sampai laporan SDGs: surat, keuangan, RPJMDes, format Kemendesa, dan aplikasi seluler warga dalam satu platform.",
+      "Dari musyawarah sampai laporan: surat, APB Desa, Dana Desa, RKP Desa, format Kemendesa, dan aplikasi seluler dalam satu platform.",
     images: ["/images/og-klandesa.png"],
   },
   robots: {

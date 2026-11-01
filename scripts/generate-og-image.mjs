@@ -10,7 +10,7 @@ const W = 1200;
 const H = 630;
 
 const HEADLINE = ["Aplikasi desa terpadu", "berbasis SDGs"];
-const SUBLINE = "Data warga, surat, keuangan, RPJMDes, dan laporan SDGs dalam satu sistem.";
+const SUBLINE = "Surat, APB Desa, Dana Desa, perencanaan, dan aplikasi warga.";
 
 // Dua baris judul + garis aksen + subjudul; posisi ditulis eksplisit agar mudah disetel.
 const svg = `

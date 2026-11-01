@@ -79,9 +79,9 @@ export function HeroSection({
         </div>
 
         <p className="text-lg md:text-xl text-gray-600 leading-relaxed max-w-none w-full">
-          Klandesa menghubungkan data warga, surat daring, APBDes dengan penanda sasaran SDGs,
-          perencanaan RPJMDes, dan program PKK &amp; BUMDes—lengkap dengan aplikasi seluler untuk
-          warga, RT, dan perangkat desa, serta unduhan format Kemendesa dengan aturan akses yang jelas.
+          Klandesa menghubungkan data warga, surat daring, perencanaan (Musyawarah Desa sampai RKP Desa),
+          APB Desa dan Dana Desa, hingga laporan dan skor SDGs—lengkap dengan aplikasi seluler untuk warga,
+          RT, dan perangkat desa, serta unduhan format Kemendesa dengan aturan akses yang jelas.
         </p>
 
         <div className="max-w-xl lg:max-w-2xl space-y-6">

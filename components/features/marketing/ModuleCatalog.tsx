@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
-import { badgeLabelForStatus } from "@/lib/marketing/modules";
+import { badgeLabelForStatus, groupMarketingModules } from "@/lib/marketing/modules";
 import type { MarketingAudience, MarketingModuleItem } from "@/lib/marketing/modules";
 
 type Props = { modules: MarketingModuleItem[] };
@@ -36,11 +36,13 @@ export function ModuleCatalog({ modules }: Props) {
     });
   }, [modules, q, audience]);
 
+  const groups = useMemo(() => groupMarketingModules(filtered), [filtered]);
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-12 md:py-16 max-w-7xl mx-auto">
       <div className="mb-10">
         <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-          Fitur aplikasi desa
+          {modules.length} fitur aplikasi desa
         </h2>
         <p className="text-gray-600 max-w-3xl">
           Daftar ini sama dengan fitur di aplikasi Klandesa. Yang bertanda{" "}
@@ -75,14 +77,37 @@ export function ModuleCatalog({ modules }: Props) {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((m) => (
-          <article
-            key={m.id}
+      {groups.length > 1 && (
+        <nav aria-label="Kelompok fitur" className="mb-10 flex flex-wrap gap-2">
+          {groups.map((g) => (
+            <a
+              key={g.id}
+              href={`#kelompok-${g.id}`}
+              className="rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-sm text-gray-700 transition-colors hover:border-[#0d9488]/40 hover:text-[#0f766e] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488]"
+            >
+              {g.title}
+              <span className="ml-1.5 text-xs text-gray-500">{g.modules.length}</span>
+            </a>
+          ))}
+        </nav>
+      )}
+
+      <div className="space-y-14">
+        {groups.map((g) => (
+          <section key={g.id} id={`kelompok-${g.id}`} aria-labelledby={`kelompok-${g.id}-judul`} className="scroll-mt-24">
+            <div className="mb-5">
+              <h2 id={`kelompok-${g.id}-judul`} className="text-xl md:text-2xl font-semibold text-gray-900">
+                {g.title}
+              </h2>
+              <p className="mt-1 text-sm text-gray-600 max-w-3xl">{g.blurb}</p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {g.modules.map((m) => (
+                <article key={m.id}
             className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:border-[#0d9488]/25 transition-colors"
           >
             <div className="flex items-start justify-between gap-2 mb-3 flex-wrap">
-              <h2 className="font-semibold text-gray-900">{m.label}</h2>
+              <h3 className="font-semibold text-gray-900">{m.label}</h3>
               <div className="flex items-center gap-1 shrink-0">
                 {m.status === "beta" && (
                   <span className="text-[10px] uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold tracking-wide">
@@ -120,6 +145,9 @@ export function ModuleCatalog({ modules }: Props) {
               </span>
             </div>
           </article>
+              ))}
+            </div>
+          </section>
         ))}
       </div>
 

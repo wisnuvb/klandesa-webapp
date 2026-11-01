@@ -7,7 +7,7 @@ export const metadata: Metadata = getLandingPageMetadata("solusiPemda");
 const points = [
   {
     title: "Hak akses per jabatan",
-    body: "Sekdes, Kades, dan staf desa melihat menu yang berbeda, dan tindakan staf serta RT di aplikasi seluler tercatat di jejak audit untuk keperluan audit internal.",
+    body: "Sekdes, Kades, dan staf desa melihat menu yang berbeda, dan tindakan tulis di dashboard maupun aplikasi seluler tercatat di jejak audit untuk keperluan audit internal.",
   },
   {
     title: "Format laporan siap Kemendesa",
@@ -16,6 +16,10 @@ const points = [
   {
     title: "Peta untuk perencanaan",
     body: "Infrastruktur, titik risiko lingkungan, dan peta capaian SDGs membantu membaca prioritas pembangunan per wilayah desa.",
+  },
+  {
+    title: "Rekap kepatuhan laporan desa",
+    body: "Kalender 18 butir laporan wajib per desa dengan status otomatis dari data aplikasi. Akun kabupaten melihat rekap per desa dan dapat menyesuaikan tenggat sesuai ketentuan daerah.",
   },
   {
     title: "Pantau banyak desa",

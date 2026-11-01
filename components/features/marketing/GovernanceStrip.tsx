@@ -17,7 +17,7 @@ export function GovernanceStrip() {
             <h3 className="font-semibold text-gray-900 mb-2">Hak akses per jabatan</h3>
             <p className="text-sm text-gray-600">
               Admin desa, Kepala Desa, Sekretaris, dan staf melihat menu yang berbeda—
-              tindakan staf dan RT di aplikasi seluler tercatat di jejak audit.
+              tindakan tulis di dashboard maupun aplikasi seluler tercatat di jejak audit.
             </p>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
@@ -36,8 +36,8 @@ export function GovernanceStrip() {
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">Keamanan cloud</h3>
             <p className="text-sm text-gray-600">
-              Data diakses lewat koneksi aman (HTTPS) dengan kontrol akses berbasis
-              peran, serta jejak audit untuk tindakan staf dan RT di aplikasi seluler.
+              Data diakses lewat koneksi aman (HTTPS) dengan kontrol akses berbasis peran.
+              NIK disamarkan di aplikasi seluler, dan membuka NIK lengkap dicatat serta dibatasi.
             </p>
           </div>
         </div>

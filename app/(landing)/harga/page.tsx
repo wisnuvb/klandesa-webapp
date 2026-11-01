@@ -41,8 +41,8 @@ const highlights = [
   "Layanan surat dan permohonan warga online",
   "Pengaduan warga dan pengumuman desa",
   "Aplikasi seluler untuk warga, RT, dan perangkat desa",
-  "Keuangan Desa, BUMDes, dan PKK & Posyandu",
-  "SDGs Desa, RPJMDes, dan peta infrastruktur",
+  "APB Desa, Dana Desa, BLT, dan Padat Karya Tunai",
+  "Musyawarah Desa, RKP Desa, RPJM Desa, dan SDGs Desa",
 ];
 
 const includedGroups = [
@@ -50,14 +50,16 @@ const includedGroups = [
     title: "Administrasi & kependudukan",
     items: [
       "Data warga, kartu keluarga, perangkat desa, dan struktur jabatan",
-      "Statistik penduduk, profil & kop surat desa",
+      "Statistik penduduk (export Excel/CSV/PDF), profil & kop surat desa",
+      "Register surat, produk hukum, lembaga desa, dan aset desa",
     ],
   },
   {
     title: "Layanan surat & warga",
     items: [
-      "Template surat, antrian permohonan, dan kiosk layanan mandiri",
-      "Pengaduan warga, pengumuman, dan bantuan/program keluarga",
+      "Editor surat di lembar kertas dengan 37 jenis surat dan nomor surat otomatis",
+      "Antrian permohonan, kiosk layanan mandiri, pengaduan warga, dan pengumuman",
+      "Bantuan/program keluarga, usulan DTSEN, dan polling warga",
     ],
   },
   {
@@ -65,29 +67,33 @@ const includedGroups = [
     items: [
       "Aplikasi untuk warga, perangkat desa, dan RT (pengantar surat, siaran)",
       "Warga: kabar desa dengan foto, komentar, dan moderasi — bisa dimatikan desa",
+      "Iuran dan kas RT, serta produk UKM milik warga dengan pesanan sederhana",
       "Kuota foto aplikasi seluler 5 GB per desa (setara belasan ribu foto)",
     ],
   },
   {
     title: "Keuangan & usaha desa",
     items: [
-      "Keuangan Desa: pembukuan kas dan laporan",
-      "BUMDes dan PKK & Posyandu",
+      "APB Desa, DPA, SPP, dan Buku Kas Umum menurut Permendagri 20/2018",
+      "Dana Desa: kepatuhan, BLT, Padat Karya Tunai, dan dukungan KDMP",
+      "Keuangan Desa, BUMDes (jurnal, neraca, laba rugi), dan koperasi simpan pinjam",
     ],
   },
   {
     title: "Perencanaan & pelaporan",
     items: [
-      "Skor SDGs Desa dan RPJMDes",
-      "Peta infrastruktur (GIS)",
-      "Sinkronisasi & ekspor data (integrasi resmi dibahas setelah assessment)",
+      "Musyawarah Desa, siklus RKP Desa, tahapan RPJM Desa, dan RPJMDes",
+      "Skor SDGs Desa, peta infrastruktur (GIS), dan impor IDM",
+      "LPPD/LKPPD dan kalender kepatuhan laporan wajib",
+      "Sinkronisasi & ekspor data, kunci API, webhook, server MCP baca-saja, dan Data Kustom (integrasi resmi dibahas setelah assessment)",
     ],
   },
   {
     title: "Program lapangan",
     items: [
-      "Lingkungan Hidup, Pertanian, dan Kegiatan RT/RW",
-      "Potensi desa, ringkasan anggaran, koperasi, dan UMKM",
+      "PKK & Posyandu (KIA, imunisasi, gizi balita), Lingkungan Hidup dengan bank sampah, Pertanian, dan Kegiatan RT/RW",
+      "Kebencanaan (Desa Tangguh Bencana), keamanan dan ronda, pengadaan, dan kerja sama desa",
+      "Potensi desa, ringkasan anggaran, dan UMKM",
     ],
   },
   {
@@ -145,7 +151,7 @@ const faqs = [
   {
     question: "Apakah data desa kami aman?",
     answer:
-      "Kami menerapkan praktik keamanan cloud standar: koneksi HTTPS, kontrol akses berbasis peran, serta jejak audit tindakan staf dan RT di aplikasi seluler. Kebutuhan compliance khusus dibahas bersama tim IT/wilayah Anda.",
+      "Kami menerapkan praktik keamanan cloud standar: koneksi HTTPS, kontrol akses berbasis peran, serta jejak audit untuk tindakan tulis di dashboard dan aplikasi seluler. Kebutuhan compliance khusus dibahas bersama tim IT/wilayah Anda.",
   },
   {
     question: "Bagaimana dengan kabupaten atau kecamatan yang ingin memantau banyak desa?",

@@ -13,6 +13,7 @@ import { ContactModal } from "@/components/features/ContactModal";
 import { AudiencePickerSection } from "@/components/features/marketing/AudiencePickerSection";
 import { GovernanceStrip } from "@/components/features/marketing/GovernanceStrip";
 import { IntegrationStrip } from "@/components/features/marketing/IntegrationStrip";
+import { MobileAppSection } from "@/components/features/marketing/MobileAppSection";
 import { ModuleHighlightStrip } from "@/components/features/marketing/ModuleHighlightStrip";
 import { PilotSpotlightSection } from "@/components/features/marketing/PilotSpotlightSection";
 import { ProductShowcaseSection } from "@/components/features/marketing/ProductShowcaseSection";
@@ -24,8 +25,13 @@ import { trackReferralClient } from "@/lib/referrals/client";
 
 export function LandingHome({
   flagshipModules,
+  moduleCountLabel,
+  letterTypeCount,
 }: {
   flagshipModules: MarketingModuleItem[];
+  /** Mis. "50+": dihitung di server dari registry modul. */
+  moduleCountLabel: string;
+  letterTypeCount: number;
 }) {
   const [showRegistration, setShowRegistration] = React.useState(false);
   const [showContact, setShowContact] = React.useState(false);
@@ -49,14 +55,19 @@ export function LandingHome({
       <AudiencePickerSection />
       <SdgsValueChainSection />
       <ModuleHighlightStrip modules={flagshipModules} />
+      <MobileAppSection />
       <IntegrationStrip />
       <ProductShowcaseSection />
       <PilotSpotlightSection />
-      <AboutSection />
+      <AboutSection moduleCountLabel={moduleCountLabel} />
       <BenefitsSection />
       <GovernanceStrip />
       <VibeCodingComparisonSection onRegisterClick={openRegistration} />
-      <StatsSection onRegisterClick={openRegistration} />
+      <StatsSection
+        onRegisterClick={openRegistration}
+        moduleCountLabel={moduleCountLabel}
+        letterTypeCount={letterTypeCount}
+      />
       <CTASection
         onRegisterClick={openRegistration}
         onContactClick={openContact}

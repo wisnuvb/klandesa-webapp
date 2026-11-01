@@ -1,27 +1,31 @@
-import { Database, Landmark, Layers, Smartphone } from "lucide-react";
+import { FileText, Landmark, Layers, Smartphone } from "lucide-react";
 
 interface StatsSectionProps {
   onRegisterClick: () => void;
+  /** Mis. "50+", dihitung di server dari registry modul. */
+  moduleCountLabel: string;
+  /** Jumlah jenis surat di katalog surat v2. */
+  letterTypeCount: number;
 }
 
-export function StatsSection({ onRegisterClick }: StatsSectionProps) {
+export function StatsSection({ onRegisterClick, moduleCountLabel, letterTypeCount }: StatsSectionProps) {
   const stats = [
     {
       icon: Layers,
-      number: "18",
-      label: "Tujuan SDGs dihitung dari data desa",
+      number: moduleCountLabel,
+      label: "Fitur dalam satu aplikasi, dari data warga sampai Dana Desa",
       color: "bg-[#6366f1]",
     },
     {
-      icon: Landmark,
-      number: "4",
-      label: "Format unduhan Kemendesa + catatan riwayat",
+      icon: FileText,
+      number: String(letterTypeCount),
+      label: "Jenis surat desa siap pakai dengan nomor surat otomatis",
       color: "bg-[#0d9488]",
     },
     {
-      icon: Database,
-      number: "4",
-      label: "Empat peran utama desa (admin, pemimpin, sekdes, staf)",
+      icon: Landmark,
+      number: "18",
+      label: "Tujuan SDGs dihitung dari data desa",
       color: "bg-[#f59e0b]",
     },
     {

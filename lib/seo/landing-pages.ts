@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getMarketingModuleCountLabel } from "@/lib/marketing/modules";
 import { buildLandingSeo } from "@/lib/seo/landing";
 
 export type LandingPageSeoKey =
@@ -34,12 +35,14 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
     title: "Klandesa — Aplikasi Desa Terpadu Berbasis SDGs",
     absoluteTitle: true,
     description:
-      "Aplikasi desa terpadu: data warga, surat, keuangan, RPJMDes, SDGs, dan aplikasi seluler warga. Paket Lengkap Rp3,5 juta, trial gratis 14 hari.",
+      "Aplikasi desa terpadu: data warga, surat, APB Desa, Dana Desa, RKP Desa, SDGs, dan aplikasi seluler. Paket Lengkap Rp3,5 juta, trial gratis 14 hari.",
     keywords: [
       "aplikasi desa",
       "sistem informasi desa",
       "aplikasi administrasi desa",
       "aplikasi surat desa",
+      "aplikasi APBDes",
+      "aplikasi Dana Desa",
       "digitalisasi desa",
       "RPJMDes digital",
       "platform SDGs desa",
@@ -51,7 +54,7 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
     pathname: "/platform",
     title: "Platform Klandesa — Modul Aplikasi Desa & SDGs",
     description:
-      "Katalog modul aplikasi desa dari data hingga RPJMDes, dashboard SDGs, integrasi Kemendesa, GIS, dan asisten AI. Modul bertanda Early Access bersifat beta.",
+      `Katalog ${getMarketingModuleCountLabel()} fitur aplikasi desa: data warga, surat, APB Desa, Dana Desa, perencanaan, SDGs, GIS, dan asisten AI. Modul Akses awal masih disempurnakan.`,
     keywords: [
       "modul aplikasi desa",
       "platform sdgs desa",

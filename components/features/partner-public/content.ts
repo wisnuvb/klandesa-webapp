@@ -20,7 +20,7 @@ export const desaValuePoints = [
 export const pemdaValuePoints = [
   {
     title: "Hak akses per jabatan",
-    body: "Sekdes, Kades, dan staf desa melihat menu yang berbeda, dan tindakan staf serta RT di aplikasi seluler tercatat di jejak audit untuk keperluan audit internal.",
+    body: "Sekdes, Kades, dan staf desa melihat menu yang berbeda, dan tindakan tulis di dashboard maupun aplikasi seluler tercatat di jejak audit untuk keperluan audit internal.",
   },
   {
     title: "Format laporan siap Kemendesa",

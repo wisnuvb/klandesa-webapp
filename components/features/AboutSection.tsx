@@ -4,13 +4,13 @@ import Link from 'next/link';
 import React from 'react';
 import { Database, Landmark, Layers, Rocket } from 'lucide-react';
 
-export function AboutSection() {
+export function AboutSection({ moduleCountLabel }: { moduleCountLabel: string }) {
   const features = [
     {
       icon: Layers,
-      title: 'Rantai pembangunan',
+      title: 'Satu alur data',
       description:
-        'Menghubungkan data warga dan APBDes, perencanaan RPJMDes, program PKK & BUMDes, hingga skor 18 tujuan SDGs dan unduhan format Kemendesa.',
+        'Menghubungkan Musyawarah Desa, RKP Desa, APB Desa, SPP, dan Dana Desa sampai laporan, lalu skor 18 tujuan SDGs dan unduhan format Kemendesa.',
       bgColor: 'bg-gradient-to-br from-purple-50 to-purple-100',
       iconColor: 'text-purple-600',
       borderColor: 'border-purple-400',
@@ -19,7 +19,7 @@ export function AboutSection() {
       icon: Database,
       title: 'Hak akses per jabatan',
       description:
-        'Admin, Kepala Desa, Sekretaris, dan staf melihat menu yang berbeda, dan tindakan staf serta RT di aplikasi seluler tercatat di jejak audit.',
+        'Admin, Kepala Desa, Sekretaris, dan staf melihat menu yang berbeda, dan tindakan tulis staf di dashboard maupun aplikasi seluler tercatat di jejak audit.',
       bgColor: 'bg-gradient-to-br from-orange-50 to-orange-100',
       iconColor: 'text-orange-600',
       borderColor: 'border-orange-400',
@@ -35,9 +35,9 @@ export function AboutSection() {
     },
     {
       icon: Rocket,
-      title: 'Lebih dari 30 fitur, satu aplikasi',
+      title: `Lebih dari ${moduleCountLabel.replace('+', '')} fitur, satu aplikasi`,
       description:
-        'Administrasi inti sudah siap pakai; SDGs dan peta wilayah masih berlabel akses awal—daftar fitur di website sama dengan yang ada di aplikasi desa Anda.',
+        'Administrasi inti sudah siap pakai; modul baru seperti APB Desa, Dana Desa, dan SDGs berlabel akses awal—daftar fitur di website sama dengan yang ada di aplikasi desa Anda.',
       bgColor: 'bg-gradient-to-br from-blue-50 to-blue-100',
       iconColor: 'text-blue-600',
       borderColor: 'border-blue-400',
@@ -91,7 +91,7 @@ export function AboutSection() {
 
             <div className="grid grid-cols-2 gap-4 pt-4">
               <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <div className="text-2xl text-[#0d9488] mb-1">30+</div>
+                <div className="text-2xl text-[#0d9488] mb-1">{moduleCountLabel}</div>
                 <div className="text-sm text-gray-600">Bagian fitur aplikasi</div>
               </div>
               <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">

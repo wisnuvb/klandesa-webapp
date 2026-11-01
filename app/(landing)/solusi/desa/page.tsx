@@ -7,7 +7,11 @@ export const metadata: Metadata = getLandingPageMetadata("solusiDesa");
 const points = [
   {
     title: "Operasional harian satu login",
-    body: "Data warga, KK, surat daring, pengumuman, pencatatan bansos, dan keuangan/APBDes dalam satu aplikasi—dengan hak akses berbeda untuk admin, Sekdes, Kades, dan staf.",
+    body: "Data warga, KK, surat daring, pengumuman, dan pencatatan bansos dalam satu aplikasi seluler dan dashboard—dengan hak akses berbeda untuk admin, Sekdes, Kades, dan staf.",
+  },
+  {
+    title: "Dari musyawarah sampai laporan",
+    body: "Musyawarah Desa, RKP Desa dengan tenggat otomatis, APB Desa, SPP, Buku Kas Umum, Dana Desa (termasuk BLT dan Padat Karya Tunai), sampai LPPD/LKPPD—tertulis mengikuti teks peraturan, dengan temuan yang menyebut pasalnya.",
   },
   {
     title: "Program lapangan ada jejaknya",

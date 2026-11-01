@@ -19,33 +19,33 @@ export function ProductShowcaseSection() {
             Gambaran tampilan aplikasi
           </h2>
           <p className="text-lg text-gray-600">
-            Ilustrasi (bukan tangkapan layar asli) alur unduhan Kemendesa, peta wilayah, asisten AI,
-            dan RPJMDes—supaya Anda bisa membayangkan alur kerjanya.
+            Ilustrasi (bukan tangkapan layar asli) temuan kepatuhan Dana Desa, peta wilayah, asisten AI,
+            dan tenggat RKP Desa—supaya Anda bisa membayangkan alur kerjanya.
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
           <article className="rounded-3xl border border-gray-100 bg-linear-to-br from-slate-50 to-white shadow-lg overflow-hidden flex flex-col">
             <header className="flex items-center justify-between border-b border-gray-100 bg-gray-50/90 px-4 py-2.5">
-              <span className="text-[11px] font-medium uppercase text-gray-500">Integrasi Kemendesa</span>
-              <span className="text-[11px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full font-medium">
-                CSV / JSON • catatan riwayat
+              <span className="text-[11px] font-medium uppercase text-gray-600">Dana Desa • temuan kepatuhan</span>
+              <span className="text-[11px] text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full font-medium">
+                dasar pasal tercantum
               </span>
             </header>
-            <div className="p-4 space-y-2 font-mono text-[11px] text-gray-600 flex-1">
-              <div className="flex justify-between rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
-                <span>penduduk_v4.csv</span>
-                <span className="text-emerald-700">disiapkan ✓</span>
-              </div>
-              <div className="flex justify-between rounded-lg bg-white border px-3 py-2">
-                <span>apbdes_map.json</span>
-                <span className="text-gray-400">validasi struktur…</span>
-              </div>
-              <div className="rounded-lg bg-gray-900 text-gray-300 px-3 py-2 leading-relaxed">
-                <span className="text-[#86efac]">catatan ›</span> admin desa menyetujui paket unduhan —
-                waktu dan petugas tercatat
-              </div>
-            </div>
+            <ul className="p-4 space-y-2 text-[12px] text-gray-700 flex-1">
+              <li className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                <span className="font-semibold text-rose-800">Perlu diperbaiki</span>
+                <span className="block">Kegiatan terindikasi larangan belum diberi pengecualian beralasan</span>
+              </li>
+              <li className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <span className="font-semibold text-amber-900">Diperiksa</span>
+                <span className="block">Laporan penetapan fokus belum dicatat tanggalnya</span>
+              </li>
+              <li className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                <span className="font-semibold text-gray-700">Catatan</span>
+                <span className="block">Bukti publikasi baru ada untuk sebagian kanal</span>
+              </li>
+            </ul>
           </article>
 
           <article className="rounded-3xl border border-gray-100 bg-linear-to-br from-white to-teal-50/40 shadow-lg overflow-hidden flex flex-col">
@@ -76,36 +76,44 @@ export function ProductShowcaseSection() {
           <article className="rounded-3xl border border-gray-100 bg-linear-to-br from-indigo-50/60 to-white shadow-lg overflow-hidden flex flex-col">
             <header className="border-b border-gray-100 px-4 py-2 flex items-center gap-2">
               <span className="inline-block h-2 w-2 rounded-full bg-green-400" aria-hidden />
-              <span className="text-[11px] font-medium text-gray-700">Asisten AI konteks desa</span>
+              <span className="text-[11px] font-medium text-gray-700">Laras • asisten AI baca-saja</span>
             </header>
             <div className="p-4 space-y-3 flex-1 text-sm">
               <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-[#0f766e] text-white px-3 py-2 leading-snug shadow">
-                Rangkuman capaian SDG 11 dari data infrastuktur minggu ini?
+                Ringkas permohonan surat yang masih menunggu minggu ini
               </div>
               <div className="mr-auto max-w-[90%] rounded-2xl rounded-tl-sm bg-white border border-gray-100 px-3 py-2 text-gray-800 leading-snug shadow-sm">
-                Tiga RW menunjuk indikator jalan baru; lampirkan foto lokasi untuk dokumentasi belanja APBDes.
+                Saya membaca ringkasan permohonan surat desa Anda (baca-saja), lalu menyebut jenis surat yang paling banyak
+                menunggu dan yang sudah lewat 48 jam.
               </div>
             </div>
           </article>
 
           <article className="rounded-3xl border border-gray-100 bg-white shadow-lg overflow-hidden flex flex-col">
             <header className="border-b bg-gray-50 px-4 py-2 text-[11px] font-semibold text-gray-800">
-              RPJMDes • prioritas terbobot sasaran SDG
+              RKP Desa • tenggat dihitung otomatis
             </header>
-            <div className="p-4 space-y-3 flex-1">
-              {[1, 2, 3].map((rank) => (
-                <div
-                  key={rank}
-                  className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2.5 hover:border-[#0d9488]/30 transition-colors"
+            <ul className="p-4 space-y-2 flex-1">
+              {[
+                ["Musyawarah Desa perencanaan", "30 Juni", "selesai", "bg-emerald-100 text-emerald-900"],
+                ["Informasi pagu indikatif", "31 Juli", "selesai", "bg-emerald-100 text-emerald-900"],
+                ["Perdes RKP Desa ditetapkan", "30 September", "segera", "bg-amber-100 text-amber-900"],
+                ["Daftar usulan ke kabupaten", "31 Desember", "akan datang", "bg-gray-100 text-gray-700"],
+              ].map(([name, date, status, tone]) => (
+                <li
+                  key={name}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-3 py-2.5"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Paket pembangunan {rank}</p>
-                    <p className="text-xs text-gray-500">Bobot sasaran #{3 + rank} • usulan Musdes</p>
+                    <p className="text-sm font-medium text-gray-900">{name}</p>
+                    <p className="text-xs text-gray-500">{date}</p>
                   </div>
-                  <span className="text-[11px] font-bold text-[#0d9488]">#{rank}</span>
-                </div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
+                    {status}
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           </article>
         </div>
 
