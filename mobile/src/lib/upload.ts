@@ -38,7 +38,7 @@ export async function removeProfilePhoto(): Promise<void> {
 }
 
 /** Kecilkan & kompres foto di HP (hemat kuota, target ≤ ±300 KB) lalu unggah lewat presigned URL. Mengembalikan URL publik foto. */
-export async function uploadReportPhoto(uri: string, kind: 'report' | 'social' | 'fee' = 'report'): Promise<string> {
+export async function uploadReportPhoto(uri: string, kind: 'report' | 'social' | 'fee' | 'ukm' = 'report'): Promise<string> {
   const ctx = ImageManipulator.ImageManipulator.manipulate(uri).resize({ width: MAX_PHOTO_WIDTH });
   const image = await ctx.renderAsync();
   const out = await image.saveAsync({ compress: 0.7, format: SaveFormat.JPEG });

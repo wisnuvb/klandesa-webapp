@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Package, Tag } from "lucide-react";
+import { Clock, Package, Tag } from "lucide-react";
 import type { UkmProduct, UkmProductDraft } from "./_types";
 import UkmCategoryModal from "./components/UkmCategoryModal";
 import UkmCategoryTable from "./components/UkmCategoryTable";
@@ -162,14 +162,35 @@ export default function ProdukUKMClient(props: Props) {
                 filterCategory={productsHook.filterCategory}
                 categories={categoriesHook.categoryRows.map((c) => c.name)}
                 onFilterCategoryChange={productsHook.setFilterCategory}
+                filterStatus={productsHook.filterStatus}
+                onFilterStatusChange={productsHook.setFilterStatus}
                 onAddProduct={handleAddProduct}
               />
+
+              {productsHook.pendingCount > 0 && productsHook.filterStatus !== "pending" ? (
+                <div
+                  role="status"
+                  className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <p className="inline-flex items-center gap-2 text-sm text-amber-900">
+                    <Clock className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    {productsHook.pendingCount} produk dari warga menunggu persetujuan Anda.
+                  </p>
+                  <button
+                    onClick={() => productsHook.setFilterStatus("pending")}
+                    className="min-h-10 rounded-lg border border-amber-400 bg-white px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  >
+                    Tinjau sekarang
+                  </button>
+                </div>
+              ) : null}
 
               {productsHook.filteredProducts.length > 0 ? (
                 <UkmProductsGrid
                   products={productsHook.filteredProducts}
                   onEdit={handleEditProduct}
                   onDelete={handleDeleteProduct}
+                  onSetStatus={productsHook.setProductStatus}
                   onPreviewImages={handlePreviewImages}
                 />
               ) : (

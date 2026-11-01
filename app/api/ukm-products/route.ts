@@ -7,6 +7,7 @@ import { auditWeb } from "@/lib/audit/web-audit";
 import { pickSummary } from "@/lib/audit/diff";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { normalizeImageUrls } from "@/app/(app)/ukm/_utils";
+import { resolveUkmOwner } from "@/lib/ukm/owner";
 import {
   parseStockQuantity,
   toUkmProduct,
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
       unit?: unknown;
       stockQuantity?: unknown;
       notes?: unknown;
+      residentId?: unknown;
     };
 
     const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -110,6 +112,11 @@ export async function POST(req: NextRequest) {
         ? new Prisma.Decimal(priceNum)
         : null;
 
+    const owner = await resolveUkmOwner(village.id, body.residentId ?? null);
+    if (!owner.ok) {
+      return NextResponse.json({ error: owner.message }, { status: 400 });
+    }
+
     const created = await prisma.potential.create({
       data: {
         villageId: village.id,
@@ -122,6 +129,7 @@ export async function POST(req: NextRequest) {
         stockQuantity,
         productNotes: notesRaw || null,
         images,
+        residentId: owner.residentId,
         status: "active",
       },
       select: ukmProductSelect,
@@ -129,7 +137,7 @@ export async function POST(req: NextRequest) {
 
     // Deskripsi/catatan/gambar tidak dicatat.
     await auditWeb(req, loaded.ctx, "create", "ukm_products", created.id, {
-      ...pickSummary(created, ["name", "subCategory", "productionUnit", "stockQuantity", "status"]),
+      ...pickSummary(created, ["name", "subCategory", "productionUnit", "stockQuantity", "status", "residentId"]),
       price: created.productionValue ? Number(created.productionValue) : null,
     });
 

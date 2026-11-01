@@ -2,6 +2,7 @@
 
 import { Filter, Plus, Search } from "lucide-react";
 import { SearchSelect } from "@/components/ui/search-select";
+import type { UkmStatusFilter } from "../_types";
 
 type Props = {
   searchQuery: string;
@@ -9,6 +10,8 @@ type Props = {
   filterCategory: string | "ALL";
   categories: string[];
   onFilterCategoryChange: (value: string | "ALL") => void;
+  filterStatus: UkmStatusFilter;
+  onFilterStatusChange: (value: UkmStatusFilter) => void;
   onAddProduct: () => void;
 };
 
@@ -19,6 +22,8 @@ export default function UkmProductsToolbar(props: Props) {
     filterCategory,
     categories,
     onFilterCategoryChange,
+    filterStatus,
+    onFilterStatusChange,
     onAddProduct,
   } = props;
 
@@ -54,6 +59,18 @@ export default function UkmProductsToolbar(props: Props) {
             ))}
           </SearchSelect>
         </div>
+        <SearchSelect
+          aria-label="Filter status produk"
+          value={filterStatus}
+          onChange={(e) => onFilterStatusChange(e.target.value as UkmStatusFilter)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+        >
+          <option value="ALL">Semua Status</option>
+          <option value="active">Tayang</option>
+          <option value="pending">Menunggu persetujuan</option>
+          <option value="inactive">Disembunyikan desa</option>
+          <option value="hidden">Disembunyikan pemilik</option>
+        </SearchSelect>
       </div>
       <button
         onClick={onAddProduct}

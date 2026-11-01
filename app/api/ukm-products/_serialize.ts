@@ -21,6 +21,9 @@ export function toUkmProduct(row: any) {
     notes: row.productNotes ?? null,
     images: normalizeImageUrls(row.images),
     status: row.status,
+    owner: row.resident
+      ? { id: row.resident.id, name: row.resident.name, nikLast4: String(row.resident.nik ?? "").slice(-4) }
+      : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -37,6 +40,8 @@ export const ukmProductSelect = {
   productNotes: true,
   images: true,
   status: true,
+  residentId: true,
+  resident: { select: { id: true, name: true, nik: true } },
   createdAt: true,
   updatedAt: true,
 } as const;

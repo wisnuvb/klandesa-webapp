@@ -491,6 +491,8 @@ model Resident {
   elderlyChecks          ElderlyCheck[]
   meetingAttendances     VillageMeetingAttendee[]
   rkpdesTeamMembers      RkpdesTeamMember[]
+  /// Produk UKM yang ditautkan ke warga ini sebagai pemilik/penjual.
+  ukmProducts            Potential[] @relation("ResidentUkmProducts")
 
   @@unique([villageId, nik])
   @@index([villageId, name])
@@ -1234,8 +1236,13 @@ model Potential {
   /// Catatan tambahan penjual (SKU, supplier, keterangan internal, dll.)
   productNotes  String? @db.Text
 
-  // Status
-  status String @default("active") @db.VarChar(50) // active, inactive, potential
+  /// Pemilik produk UKM (warga). Null = dikelola desa. Hanya dipakai untuk category UMKM/UKM.
+  residentId Int?
+  resident   Resident? @relation("ResidentUkmProducts", fields: [residentId], references: [id], onDelete: SetNull)
+
+  // Status. UKM: active (tayang), pending (kiriman warga menunggu persetujuan), hidden (disembunyikan pemilik),
+  // inactive (disembunyikan desa). Potensi lain: active, inactive, potential.
+  status String @default("active") @db.VarChar(50)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1244,6 +1251,7 @@ model Potential {
 
   @@index([villageId, category])
   @@index([villageId, status])
+  @@index([residentId])
   @@map("potentials")
 }
 

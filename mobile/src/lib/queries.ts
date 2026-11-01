@@ -362,3 +362,70 @@ export type FeedMetrics = {
   reportRate: number; notes: string[];
 };
 export const useFeedMetrics = (days = 14) => useQuery({ queryKey: ['feed-metrics', days], queryFn: () => api<FeedMetrics>(`/staff/social/metrics?days=${days}`) });
+
+// ── Produk desa (UKM) ────────────────────────────────────────────────────
+export type UkmStatus = 'active' | 'pending' | 'hidden' | 'inactive';
+export type UkmListItem = {
+  id: number; name: string; price: number | null; unit: string | null; category: string | null; thumb: string | null;
+  /** Nama ramah privasi, mis. "Siti A." */
+  seller: string; mine: boolean;
+  /** Hanya ada di /ukm/mine. */
+  status?: UkmStatus; statusLabel?: string;
+};
+export type UkmLimits = { maxProducts: number; maxPhotos: number; maxPerDay: number };
+export type UkmCatalogPage = { items: UkmListItem[]; categories: string[]; nextCursor: string | null };
+export type UkmMine = { items: UkmListItem[]; categories: string[]; limits: UkmLimits };
+export type UkmDetail = {
+  id: number; name: string; description: string; price: number | null; unit: string | null; category: string | null; stock: number | null;
+  photos: string[]; seller: string; sellerArea: string | null; mine: boolean; status: UkmStatus; statusLabel: string;
+  statusNote: string | null; canEdit: boolean; canToggleVisible: boolean; updatedAt: string;
+};
+export type UkmInput = { name: string; description: string; price: number | null; unit: string; category: string | null; stock: number | null; photos: string[] };
+
+/** Katalog produk yang tayang di desa; 20 per halaman, lanjut dengan cursor. */
+export function useUkmCatalog(q: string, category: string | null) {
+  return useInfiniteQuery({
+    queryKey: ['ukm-catalog', q, category],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => {
+      const sp: string[] = [];
+      if (q) sp.push(`q=${encodeURIComponent(q)}`);
+      if (category) sp.push(`category=${encodeURIComponent(category)}`);
+      if (pageParam) sp.push(`cursor=${encodeURIComponent(pageParam)}`);
+      return api<UkmCatalogPage>(`/ukm${sp.length ? `?${sp.join('&')}` : ''}`);
+    },
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+export const useMyUkm = () => useQuery({ queryKey: ['ukm-mine'], queryFn: () => api<UkmMine>('/ukm/mine') });
+export const useUkmItem = (id: number) => useQuery({ queryKey: ['ukm-item', id], queryFn: () => api<UkmDetail>(`/ukm/${id}`), enabled: Number.isInteger(id) });
+
+/** Setelah produk berubah, segarkan katalog, daftar "Produk saya", dan detail. */
+function useInvalidateUkm() {
+  const qc = useQueryClient();
+  return () => {
+    for (const k of ['ukm-catalog', 'ukm-mine', 'ukm-item']) void qc.invalidateQueries({ queryKey: [k] });
+  };
+}
+
+/** Buat produk baru (tanpa `id`, jadi "menunggu persetujuan") atau ubah produk sendiri (dengan `id`). */
+export function useSaveUkm() {
+  const refresh = useInvalidateUkm();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: number; input: UkmInput }) =>
+      id === undefined
+        ? post<{ id: number; status: UkmStatus }>('/ukm', input)
+        : api<{ id: number; status: UkmStatus }>(`/ukm/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+    onSuccess: refresh,
+  });
+}
+
+/** Sembunyikan/tampilkan produk sendiri di katalog. */
+export function useToggleUkmVisible() {
+  const refresh = useInvalidateUkm();
+  return useMutation({
+    mutationFn: ({ id, visible }: { id: number; visible: boolean }) =>
+      api<{ id: number; status: UkmStatus }>(`/ukm/${id}`, { method: 'PATCH', body: JSON.stringify({ visible }) }),
+    onSuccess: refresh,
+  });
+}

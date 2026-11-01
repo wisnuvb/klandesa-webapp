@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CHANGE_REASONS, METHODS, PAGU_SOURCES, TEAM_LIMITS } from "../lib/rkpdes/catalog";
 import { parseActivityInput, parseDocumentCreate, parseDocumentPatch, parseIncomingInput, parsePaguInput, parseTeamInput } from "../lib/rkpdes/schema";
+import { alignmentWarnings, compareRkpToApbdes, type RkpActivityLite } from "../lib/rkpdes/alignment";
 import { termInfo } from "../lib/rkpdes/service";
 import { activityWarnings, buildSteps, paguWarnings, teamWarnings, type ActivityLite, type StepInput } from "../lib/rkpdes/steps";
 
@@ -156,5 +157,39 @@ describe("validasi isian RKP Desa", () => {
       assert.ok(!parseActivityInput({ ...base, ...bad }).ok, JSON.stringify(bad));
     }
     assert.ok(Object.keys(METHODS).length === 3);
+  });
+});
+
+describe("keselarasan RKP Desa dan APB Desa", () => {
+  const rk = (id: number, code: string | null, cents: bigint, o: Partial<RkpActivityLite> = {}): RkpActivityLite => ({ id, title: `K${id}`, activityCode: code, fundSource: "DD", budgetCents: cents, cancelled: false, ...o });
+  const ln = (code: string | null, account: string, cents: bigint, fundSource: string | null = "DD") => ({ activityCode: code, accountCode: account, amountCents: cents, fundSource });
+
+  it("menandai selaras, kurang, lebih, belum dianggarkan, dan tidak ada di RKP Desa", () => {
+    const a = compareRkpToApbdes(
+      [rk(1, "2.1.01", 1000n), rk(2, "2.1.02", 500n), rk(3, "3.1.02", 700n), rk(4, "4.1.01", 100n), rk(5, null, 40n), rk(6, "2.1.03", 9999n, { cancelled: true })],
+      [ln("2.1.01", "5.2.1.01", 1000n), ln("2.1.02", "5.2.1.01", 300n), ln("3.1.02", "5.2.1.01", 900n), ln("1.1.01", "5.1.1.01", 50n), ln(null, "4.2.1.01", 5000n)],
+    );
+    const by = Object.fromEntries(a.rows.map((r) => [r.activityCode, r.state]));
+    assert.deepEqual(by, { "1.1.01": "TIDAK_DI_RKP", "2.1.01": "SELARAS", "2.1.02": "KURANG", "3.1.02": "LEBIH", "4.1.01": "BELUM_DIANGGARKAN" });
+    assert.deepEqual(a.uncoded, { count: 1, cents: 40n });
+    assert.equal(a.totals.rkpCents, 2340n, "dibatalkan tak dihitung; tak berkode tetap dihitung");
+    assert.equal(a.totals.apbCents, 2250n, "pendapatan tidak dihitung");
+    assert.equal(a.totals.diffCents, -90n);
+    assert.equal(alignmentWarnings(a).length, 5 - 1);
+  });
+
+  it("kegiatan berkode sama dijumlahkan dan menyimpan judulnya; sumber dana dibandingkan terpisah", () => {
+    const a = compareRkpToApbdes([rk(1, "2.1.01", 600n), rk(2, "2.1.01", 400n, { fundSource: "ADD" })], [ln("2.1.01", "5.2.1.01", 1000n, "DD")]);
+    assert.equal(a.rows.length, 1);
+    assert.equal(a.rows[0].state, "SELARAS");
+    assert.deepEqual(a.rows[0].titles, ["K1", "K2"]);
+    const src = Object.fromEntries(a.sources.map((s) => [s.fundSource, s.diffCents]));
+    assert.deepEqual(src, { ADD: -400n, DD: 400n });
+  });
+
+  it("tanpa data tidak memperingatkan apa pun", () => {
+    const a = compareRkpToApbdes([], []);
+    assert.deepEqual(alignmentWarnings(a), []);
+    assert.equal(a.rows.length, 0);
   });
 });

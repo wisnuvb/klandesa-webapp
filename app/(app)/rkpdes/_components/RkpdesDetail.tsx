@@ -16,11 +16,12 @@ import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import { ActivitiesTab } from "./ActivitiesTab";
+import { AlignmentTab } from "./AlignmentTab";
 import { PaguTab } from "./PaguTab";
 import { TeamTab } from "./TeamTab";
 import type { DetailResponse, Step } from "./types";
 
-type Tab = "tahapan" | "tim" | "pagu" | "kegiatan" | "evaluasi";
+type Tab = "tahapan" | "tim" | "pagu" | "kegiatan" | "apbdes" | "evaluasi";
 
 export function RkpdesDetail({ id }: { id: number }) {
   const router = useRouter();
@@ -107,6 +108,7 @@ export function RkpdesDetail({ id }: { id: number }) {
           <TabsTrigger value="tim" className="min-h-11">Tim penyusun ({d.team.length})</TabsTrigger>
           <TabsTrigger value="pagu" className="min-h-11">Pagu dan program masuk</TabsTrigger>
           <TabsTrigger value="kegiatan" className="min-h-11">Kegiatan ({d.activitySummary.count})</TabsTrigger>
+          <TabsTrigger value="apbdes" className="min-h-11">APB Desa</TabsTrigger>
           <TabsTrigger value="evaluasi" className="min-h-11">Evaluasi dan usulan</TabsTrigger>
         </TabsList>
 
@@ -123,6 +125,9 @@ export function RkpdesDetail({ id }: { id: number }) {
         </TabsContent>
         <TabsContent value="kegiatan" className="space-y-4 pt-4">
           <ActivitiesTab data={data} editable={editable} canDelete={!d.locked && can.delete} reload={reload} />
+        </TabsContent>
+        <TabsContent value="apbdes" className="space-y-6 pt-4">
+          <AlignmentTab documentId={d.id} />
         </TabsContent>
         <TabsContent value="evaluasi" className="space-y-6 pt-4">
           <EvaluationTab data={data} reload={reload} />

@@ -34,6 +34,7 @@ export default async function ProdukUKMPage() {
       productNotes: true,
       images: true,
       status: true,
+      resident: { select: { id: true, name: true, nik: true } },
       createdAt: true,
       updatedAt: true,
     },
@@ -50,6 +51,9 @@ export default async function ProdukUKMPage() {
     notes: p.productNotes ?? null,
     images: normalizeImageUrls(p.images),
     status: p.status,
+    owner: p.resident
+      ? { id: p.resident.id, name: p.resident.name, nikLast4: p.resident.nik.slice(-4) }
+      : null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   }));

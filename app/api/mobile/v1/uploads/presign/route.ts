@@ -9,8 +9,9 @@ import { MOBILE_MEDIA_QUOTA_BYTES, mediaQuotaFullMessage } from "@/lib/mobile/me
 import { releaseMobileMedia, reserveMobileMedia } from "@/lib/mobile/media-usage";
 import { getCitizenResident } from "@/lib/mobile/citizen-data";
 import { presignResidentPhoto } from "@/lib/residents/photo-server";
+import { UKM_PHOTO_FOLDER } from "@/lib/mobile/ukm-logic";
 
-/** Presigned PUT untuk foto laporan warga, postingan Warga, dan foto profil warga (kind "profile", khusus akun warga) (jpeg/png/webp, maks 2,5 MB). Foto sudah dikompres di HP. Perangkat desa hanya boleh untuk postingan Warga dan bukti iuran/kas. */
+/** Presigned PUT untuk foto laporan warga, foto produk UKM (kind "ukm", khusus akun warga), postingan Warga, dan foto profil warga (kind "profile", khusus akun warga) (jpeg/png/webp, maks 2,5 MB). Foto sudah dikompres di HP. Perangkat desa hanya boleh untuk postingan Warga dan bukti iuran/kas. */
 export async function POST(req: NextRequest) {
   const loaded = await requireMobileContext(req, { allow: ["citizen", "staff"] });
   if (!loaded.ok) return loaded.response;
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (!r.ok) return mobileError(r.status === 403 ? "FORBIDDEN" : "INVALID_REQUEST", r.message, r.status, r.reason ? { reason: r.reason } : undefined);
     return NextResponse.json({ uploadUrl: r.uploadUrl, fileUrl: r.fileUrl, uploadHeaders: r.uploadHeaders });
   }
-  const folder = body?.kind === "social" ? "mobile-social" : body?.kind === "fee" ? "mobile-fees" : "mobile-reports";
+  const folder = body?.kind === "social" ? "mobile-social" : body?.kind === "fee" ? "mobile-fees" : body?.kind === "ukm" ? UKM_PHOTO_FOLDER : "mobile-reports";
   const contentType = typeof body?.contentType === "string" ? body.contentType : "";
   const size = Number(body?.fileSize);
   const ext = PHOTO_TYPES[contentType];

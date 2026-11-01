@@ -10,6 +10,7 @@ const emptyDraft: UkmProductDraft = {
   unit: "",
   stockQuantity: null,
   notes: "",
+  owner: null,
 };
 
 export function useProductModal() {
@@ -32,6 +33,7 @@ export function useProductModal() {
             unit: product.unit ?? "",
             stockQuantity: product.stockQuantity ?? null,
             notes: product.notes ?? "",
+            owner: product.owner,
           }
         : emptyDraft
     );

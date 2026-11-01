@@ -1,3 +1,6 @@
+/** Warga pemilik produk. Hanya 4 digit terakhir NIK yang dikirim ke layar admin. */
+export type UkmOwner = { id: number; name: string; nikLast4: string };
+
 export type UkmProduct = {
   id: number;
   name: string;
@@ -12,6 +15,8 @@ export type UkmProduct = {
   /** Catatan tambahan */
   notes: string | null;
   status: string;
+  /** Warga yang ditautkan sebagai pemilik; null = dikelola desa */
+  owner: UkmOwner | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -25,6 +30,7 @@ export type UkmProductDraft = {
   unit: string;
   stockQuantity: number | null;
   notes: string;
+  owner: UkmOwner | null;
 };
 
 export type UkmCategoryRow = {
@@ -34,3 +40,19 @@ export type UkmCategoryRow = {
   createdAt: string | null;
 };
 
+
+export type UkmStatusFilter = "ALL" | "active" | "pending" | "hidden" | "inactive";
+
+type StatusTone = "ok" | "warn" | "muted" | "danger";
+
+/** Status produk di mata admin. Warna selalu dipasangkan dengan teks (bukan satu-satunya penanda). */
+export const UKM_STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
+  active: { label: "Tayang", tone: "ok" },
+  pending: { label: "Menunggu persetujuan", tone: "warn" },
+  hidden: { label: "Disembunyikan pemilik", tone: "muted" },
+  inactive: { label: "Disembunyikan desa", tone: "danger" },
+};
+
+export function ukmStatusMeta(status: string): { label: string; tone: StatusTone } {
+  return UKM_STATUS_META[status.toLowerCase()] ?? { label: status, tone: "muted" };
+}

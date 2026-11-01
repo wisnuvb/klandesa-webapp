@@ -6,6 +6,7 @@ import { auditWeb } from "@/lib/audit/web-audit";
 import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { normalizeImageUrls } from "@/app/(app)/ukm/_utils";
+import { isAdminUkmStatus, notifyUkmOwner, resolveUkmOwner } from "@/lib/ukm/owner";
 import {
   parseStockQuantity,
   toUkmProduct,
@@ -87,6 +88,8 @@ export async function PATCH(
         stockQuantity: true,
         productNotes: true,
         images: true,
+        status: true,
+        residentId: true,
       },
     });
 
@@ -106,6 +109,8 @@ export async function PATCH(
       unit?: unknown;
       stockQuantity?: unknown;
       notes?: unknown;
+      residentId?: unknown;
+      status?: unknown;
     };
 
     const has = (k: keyof typeof body) =>
@@ -176,6 +181,25 @@ export async function PATCH(
       data.productionValue = price;
     }
 
+    if (has("residentId")) {
+      const owner = await resolveUkmOwner(village.id, body.residentId);
+      if (!owner.ok) {
+        return NextResponse.json({ error: owner.message }, { status: 400 });
+      }
+      data.residentId = owner.residentId;
+    }
+
+    // Admin menyetujui (active) atau menyembunyikan (inactive) produk, termasuk kiriman warga yang menunggu.
+    if (has("status")) {
+      if (!isAdminUkmStatus(body.status)) {
+        return NextResponse.json(
+          { error: "Status harus active atau inactive" },
+          { status: 400 },
+        );
+      }
+      data.status = body.status;
+    }
+
     if (Object.keys(data).length === 0) {
       return NextResponse.json(
         { error: "Tidak ada field yang diubah" },
@@ -203,6 +227,12 @@ export async function PATCH(
         { maskedFields: new Set(["description", "productNotes", "images"]) },
       ),
     );
+
+    // Pemilik diberi tahu di app mobile bila admin mengubah status produknya.
+    const ownerId = "residentId" in data ? (data.residentId as number | null) : existing.residentId;
+    if (typeof data.status === "string" && data.status !== existing.status && ownerId != null && isAdminUkmStatus(data.status)) {
+      void notifyUkmOwner(village.id, ownerId, { id, name: updated.name }, data.status);
+    }
 
     return NextResponse.json(toUkmProduct(updated));
   } catch (error) {

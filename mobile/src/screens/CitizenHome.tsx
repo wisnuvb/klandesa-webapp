@@ -97,6 +97,7 @@ export function CitizenHome() {
             <ShortcutTile icon="information-circle-outline" label="Info Desa" onPress={() => router.push('/info-desa')} />
             <ShortcutTile icon="gift-outline" label="Bantuan Saya" onPress={() => router.push('/bantuan')} />
             <ShortcutTile icon="people-outline" label="Keluarga" onPress={() => router.push('/keluarga')} />
+            <ShortcutTile icon="storefront-outline" label="Produk Desa" onPress={() => router.push('/ukm')} />
           </View>
         </>
       ) : null}

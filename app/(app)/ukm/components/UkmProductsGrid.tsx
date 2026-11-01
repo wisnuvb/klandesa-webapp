@@ -1,26 +1,36 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Edit, Eye, Image as ImageIcon, Trash2 } from "lucide-react";
+import { Check, Clock, Edit, Eye, EyeOff, Image as ImageIcon, Trash2, User } from "lucide-react";
 import Image from "next/image";
-import type { UkmProduct } from "../_types";
+import { ukmStatusMeta, type UkmProduct } from "../_types";
 import { firstImage, formatCurrency } from "../_utils";
 
 type Props = {
   products: UkmProduct[];
   onEdit: (product: UkmProduct) => void;
   onDelete: (id: number) => void;
+  onSetStatus: (id: number, status: "active" | "inactive") => void;
   onPreviewImages: (images: string[], index?: number) => void;
 };
 
+const TONE_CLASS = {
+  ok: "bg-green-100 text-green-800",
+  warn: "bg-amber-100 text-amber-900",
+  muted: "bg-gray-200 text-gray-800",
+  danger: "bg-red-100 text-red-800",
+} as const;
+
 export default function UkmProductsGrid(props: Props) {
-  const { products, onEdit, onDelete, onPreviewImages } = props;
+  const { products, onEdit, onDelete, onSetStatus, onPreviewImages } = props;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {products.map((product) => {
         const cover = firstImage(product.images);
         const categoryLabel = product.category?.trim() || "Tanpa Kategori";
+        const status = product.status.toLowerCase();
+        const meta = ukmStatusMeta(status);
 
         return (
           <motion.div
@@ -53,6 +63,18 @@ export default function UkmProductsGrid(props: Props) {
                   <ImageIcon className="w-12 h-12 text-gray-400" />
                 </div>
               )}
+              {status !== "active" && (
+                <span
+                  className={`absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg ${TONE_CLASS[meta.tone]}`}
+                >
+                  {status === "pending" ? (
+                    <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                  ) : (
+                    <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />
+                  )}
+                  {meta.label}
+                </span>
+              )}
               <div className="absolute bottom-2 left-2">
                 <span className="inline-block px-2 py-1 bg-teal-500 text-white text-xs rounded-lg">
                   {categoryLabel}
@@ -67,6 +89,12 @@ export default function UkmProductsGrid(props: Props) {
               <p className="text-sm text-gray-600 mb-3 line-clamp-2 min-h-10">
                 {product.description}
               </p>
+              {product.owner ? (
+                <p className="mb-2 inline-flex items-center gap-1.5 text-xs text-gray-600">
+                  <User className="w-3.5 h-3.5" aria-hidden="true" />
+                  Milik {product.owner.name}
+                </p>
+              ) : null}
               <div className="mb-4">
                 {typeof product.price === "number" && product.price > 0 ? (
                   <span className="text-lg font-bold text-gray-900">
@@ -92,6 +120,39 @@ export default function UkmProductsGrid(props: Props) {
                   {product.notes.trim()}
                 </p>
               ) : null}
+              {status === "pending" ? (
+                <div className="mb-3 flex items-center gap-2">
+                  <button
+                    onClick={() => onSetStatus(product.id, "active")}
+                    className="flex-1 inline-flex min-h-10 items-center justify-center gap-2 px-3 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+                  >
+                    <Check className="w-4 h-4" aria-hidden="true" />
+                    Setujui
+                  </button>
+                  <button
+                    onClick={() => onSetStatus(product.id, "inactive")}
+                    className="flex-1 inline-flex min-h-10 items-center justify-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                  >
+                    Tolak
+                  </button>
+                </div>
+              ) : status === "inactive" ? (
+                <button
+                  onClick={() => onSetStatus(product.id, "active")}
+                  className="mb-3 w-full inline-flex min-h-10 items-center justify-center gap-2 px-3 py-2 border border-teal-600 text-teal-700 text-sm rounded-lg hover:bg-teal-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                >
+                  <Eye className="w-4 h-4" aria-hidden="true" />
+                  Tayangkan
+                </button>
+              ) : status === "active" ? (
+                <button
+                  onClick={() => onSetStatus(product.id, "inactive")}
+                  className="mb-3 w-full inline-flex min-h-10 items-center justify-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                >
+                  <EyeOff className="w-4 h-4" aria-hidden="true" />
+                  Sembunyikan
+                </button>
+              ) : null}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onEdit(product)}
@@ -102,6 +163,7 @@ export default function UkmProductsGrid(props: Props) {
                 </button>
                 <button
                   onClick={() => onDelete(product.id)}
+                  aria-label={`Hapus ${product.name}`}
                   className="px-3 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />

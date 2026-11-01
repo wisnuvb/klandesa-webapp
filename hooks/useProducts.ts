@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
-import type { UkmProduct, UkmProductDraft } from "@/app/(app)/ukm/_types";
+import type { UkmProduct, UkmProductDraft, UkmStatusFilter } from "@/app/(app)/ukm/_types";
 import { isUkmCategoryPlaceholder } from "@/app/(app)/ukm/_utils";
 
 export type { UkmProductDraft };
@@ -13,6 +13,16 @@ export function useProducts(initialProducts: UkmProduct[]) {
   const [products, setProducts] = useState<UkmProduct[]>(initialProducts);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<string | "ALL">("ALL");
+  const [filterStatus, setFilterStatus] = useState<UkmStatusFilter>("ALL");
+
+  // Kiriman warga yang menunggu persetujuan admin (baris pengelola kategori tidak dihitung).
+  const pendingCount = useMemo(
+    () =>
+      products.filter(
+        (p) => p.status.toLowerCase() === "pending" && !isUkmCategoryPlaceholder(p),
+      ).length,
+    [products],
+  );
 
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -28,9 +38,12 @@ export function useProducts(initialProducts: UkmProduct[]) {
       const matchCategory =
         filterCategory === "ALL" || categoryLabel === filterCategory;
 
-      return matchSearch && matchCategory;
+      const matchStatus =
+        filterStatus === "ALL" || product.status.toLowerCase() === filterStatus;
+
+      return matchSearch && matchCategory && matchStatus;
     });
-  }, [filterCategory, products, searchQuery]);
+  }, [filterCategory, filterStatus, products, searchQuery]);
 
   const addProduct = async (draft: UkmProductDraft) => {
     try {
@@ -43,6 +56,8 @@ export function useProducts(initialProducts: UkmProduct[]) {
         unit: draft.unit,
         stockQuantity: draft.stockQuantity,
         notes: draft.notes,
+        // null melepas tautan pemilik; wajib selalu dikirim agar penggantian/pelepasan tersimpan.
+        residentId: draft.owner?.id ?? null,
       };
 
       const res = await fetch("/api/ukm-products", {
@@ -75,6 +90,8 @@ export function useProducts(initialProducts: UkmProduct[]) {
         unit: draft.unit,
         stockQuantity: draft.stockQuantity,
         notes: draft.notes,
+        // null melepas tautan pemilik; wajib selalu dikirim agar penggantian/pelepasan tersimpan.
+        residentId: draft.owner?.id ?? null,
       };
 
       const res = await fetch(`/api/ukm-products/${id}`, {
@@ -95,6 +112,28 @@ export function useProducts(initialProducts: UkmProduct[]) {
       toast.success("Produk berhasil disimpan");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal menyimpan");
+    }
+  };
+
+  /** Admin menyetujui (active) atau menyembunyikan (inactive) produk. Pemilik diberi tahu lewat app mobile. */
+  const setProductStatus = async (id: number, status: "active" | "inactive") => {
+    try {
+      const res = await fetch(`/api/ukm-products/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data?.error || "Request gagal");
+      }
+      const saved = (await res.json()) as UkmProduct;
+      setProducts((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
+      toast.success(
+        status === "active" ? "Produk ditayangkan" : "Produk disembunyikan",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengubah status");
     }
   };
 
@@ -128,8 +167,12 @@ export function useProducts(initialProducts: UkmProduct[]) {
     setSearchQuery,
     filterCategory,
     setFilterCategory,
+    filterStatus,
+    setFilterStatus,
+    pendingCount,
     addProduct,
     editProduct,
+    setProductStatus,
     deleteProduct,
   };
 }

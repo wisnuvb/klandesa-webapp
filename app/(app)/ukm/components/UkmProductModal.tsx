@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { Archive, Plus, X } from "lucide-react";
 import Image from "next/image";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { ResidentPicker } from "@/components/app/ResidentPicker";
+import type { ResidentPick } from "@/lib/kependudukan/mutasi-labels";
 import { DigitalArchivePickerModal } from "@/components/digital-archive/DigitalArchivePickerModal";
 import type { UkmProductDraft } from "../_types";
 import { firstImage } from "../_utils";
@@ -46,6 +48,11 @@ export default function UkmProductModal(props: Props) {
   }, [draft.description, draft.name]);
 
   const cover = firstImage(draft.images);
+
+  // Pemilik tersimpan hanya menyimpan id, nama, dan 4 digit NIK; cukup untuk kartu "warga terpilih".
+  const ownerPick: ResidentPick | null = draft.owner
+    ? { id: draft.owner.id, name: draft.owner.name, nikLast4: draft.owner.nikLast4, kkLast4: null, rt: null, rw: null, status: "aktif" }
+    : null;
 
   return (
     <>
@@ -101,6 +108,24 @@ export default function UkmProductModal(props: Props) {
                     placeholder="Contoh: Kerupuk Udang Premium"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+                  <ResidentPicker
+                    label="Pemilik produk (warga)"
+                    value={ownerPick}
+                    onChange={(r) =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        owner: r ? { id: r.id, name: r.name, nikLast4: r.nikLast4 } : null,
+                      }))
+                    }
+                  />
+                  <p className="text-xs text-gray-500">
+                    Opsional. Warga yang ditautkan bisa melihat dan memperbaiki
+                    produk ini dari aplikasi mobile. Perubahan oleh pemilik pada
+                    produk yang sudah tayang langsung berlaku.
+                  </p>
                 </div>
 
                 <div>

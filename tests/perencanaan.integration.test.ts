@@ -353,4 +353,106 @@ describe("Musyawarah Desa dan RKP Desa (MySQL nyata)", { skip: enabled ? false :
       await prisma.village.deleteMany({ where: { id: { in: [villageId, other.villageId] } } });
     }
   });
+
+  const apbDoc = async (villageId: number, version: number, status: string, lines: { code?: string; account: string; cents: bigint; fund?: string }[]) => {
+    const d = await prisma.apbdesDocument.create({ data: { villageId, year: 2027, version, status } });
+    await prisma.apbdesLine.createMany({ data: lines.map((l) => ({ documentId: d.id, villageId, activityCode: l.code ?? null, accountCode: l.account, description: "x", amountCents: l.cents, fundSource: l.fund ?? null })) });
+    return d.id;
+  };
+
+  it("Keselarasan: membandingkan per kegiatan, memilih dokumen APB Desa, dan tertutup antar desa", async () => {
+    const { villageId } = await villageWithPlan("AL1");
+    const other = await villageWithPlan("AL2");
+    const al = await import("../lib/rkpdes/alignment-service");
+    try {
+      const id = await newDoc(villageId);
+      for (const a of [act(), act({ title: "Posyandu", activityCode: "3.1.02", estimatedBudget: "5000000", fundSource: "ADD" }), act({ title: "Gorong-gorong", activityCode: "2.1.02", estimatedBudget: "7000000" }), act({ title: "Belum berkode", activityCode: null, estimatedBudget: "1000000" })]) {
+        const r = await rk.saveActivity(prisma, { villageId, documentId: id, input: a });
+        assert.ok(r.ok, JSON.stringify(r));
+      }
+      const empty = await al.loadAlignment(prisma, { villageId, documentId: id });
+      assert.ok(empty.ok && empty.data.apbdes === null && empty.data.dpaReady === false && empty.data.rows.length === 3 && empty.data.counts.BELUM_DIANGGARKAN === 3);
+
+      const first = await apbDoc(villageId, 0, "DITETAPKAN", [
+        { code: "2.1.01", account: "5.2.1.01", cents: 10_000_000_000n, fund: "DD" },
+        { code: "3.1.02", account: "5.2.1.01", cents: 300_000_000n, fund: "ADD" },
+        { code: "1.1.01", account: "5.2.1.01", cents: 200_000_000n, fund: "ADD" },
+        { account: "4.2.1.01", cents: 99_000_000_000n },
+      ]);
+      const amend = await apbDoc(villageId, 1, "DRAFT", [{ code: "2.1.01", account: "5.2.1.01", cents: 10_000_000_000n, fund: "DD" }]);
+
+      const r = await al.loadAlignment(prisma, { villageId, documentId: id, apbdesId: first });
+      assert.ok(r.ok, JSON.stringify(r));
+      if (r.ok) {
+        const by = Object.fromEntries(r.data.rows.map((x) => [x.activityCode, x]));
+        assert.equal(by["2.1.01"].state, "SELARAS");
+        assert.equal(by["3.1.02"].state, "KURANG");
+        assert.equal(by["3.1.02"].diff, "-2000000.00");
+        assert.equal(by["2.1.02"].state, "BELUM_DIANGGARKAN");
+        assert.equal(by["1.1.01"].state, "TIDAK_DI_RKP");
+        assert.equal(r.data.uncoded.count, 1);
+        assert.equal(r.data.totals.rkp, "113000000.00", "total RKP memuat kegiatan tak berkode");
+        assert.equal(r.data.totals.apb, "105000000.00", "pendapatan tidak ikut dihitung sebagai belanja");
+        assert.equal(r.data.dpaReady, true);
+        assert.equal(r.data.warnings.length, 4);
+      }
+      // default = dokumen terbaru (perubahan, draf): belum bisa jadi dasar DPA
+      const def = await al.loadAlignment(prisma, { villageId, documentId: id });
+      assert.ok(def.ok && def.data.apbdes?.id === amend && def.data.dpaReady === false && def.data.apbdesOptions[0].id === amend);
+
+      // tertutup antar desa
+      assert.equal((await al.loadAlignment(prisma, { villageId: other.villageId, documentId: id })).ok, false);
+      const foreignApb = await apbDoc(other.villageId, 0, "DITETAPKAN", [{ code: "2.1.01", account: "5.2.1.01", cents: 100n }]);
+      assert.equal((await al.loadAlignment(prisma, { villageId, documentId: id, apbdesId: foreignApb })).ok, false, "dokumen APB Desa desa lain tidak bisa dipilih");
+    } finally {
+      await prisma.village.deleteMany({ where: { id: { in: [villageId, other.villageId] } } });
+    }
+  });
+
+  it("Siapkan DPA dari RKP Desa: hanya kegiatan di APB Desa yang berlaku, tanpa menimpa, aman diulang", async () => {
+    const { villageId } = await villageWithPlan("AL3");
+    const other = await villageWithPlan("AL4");
+    const al = await import("../lib/rkpdes/alignment-service");
+    try {
+      const id = await newDoc(villageId);
+      for (const a of [
+        act(),
+        act({ title: "Posyandu", activityCode: "3.1.02", estimatedBudget: "5000000", fundSource: "ADD", outputName: null, outputVolume: null, outputUnit: null, executorChair: null, executorSecretary: null, executorTreasurer: null }),
+        act({ title: "Pos ronda", activityCode: "5.3.00", location: "RT 3" }),
+        act({ title: "Pos ronda 2", activityCode: "5.3.00" }),
+        act({ title: "Belum di APB", activityCode: "2.1.02" }),
+        act({ title: "Sudah ada DPA", activityCode: "1.1.01" }),
+      ]) assert.ok((await rk.saveActivity(prisma, { villageId, documentId: id, input: a })).ok);
+
+      assert.equal((await al.prefillDpa(prisma, { villageId, documentId: id })).ok, false, "tanpa APB Desa ditetapkan, DPA tidak disiapkan");
+      await apbDoc(villageId, 0, "DITETAPKAN", ["2.1.01", "3.1.02", "5.3.00", "1.1.01"].map((code) => ({ code, account: "5.2.1.01", cents: 100_000n })));
+      await prisma.apbdesActivityPlan.create({ data: { villageId, year: 2027, activityCode: "1.1.01", executorName: "Kaur Umum" } });
+
+      const r = await al.prefillDpa(prisma, { villageId, documentId: id });
+      assert.ok(r.ok, JSON.stringify(r));
+      if (r.ok) {
+        assert.equal(r.data.created, 1);
+        const why = Object.fromEntries(r.data.skipped.map((s) => [s.activityCode, s.reason]));
+        assert.match(why["3.1.02"], /kosong/);
+        assert.match(why["5.3.00"], /2 kegiatan/);
+        assert.match(why["2.1.02"], /Belum ada belanjanya/);
+        assert.match(why["1.1.01"], /tidak ditimpa/);
+      }
+      const plan = await prisma.apbdesActivityPlan.findUniqueOrThrow({ where: { villageId_year_activityCode: { villageId, year: 2027, activityCode: "2.1.01" } } });
+      assert.equal(plan.status, "DRAFT");
+      assert.equal(plan.outputName, "Jalan");
+      assert.equal(plan.outputVolume?.toFixed(2), "250.00");
+      assert.equal(plan.outputUnit, "meter");
+      assert.equal(plan.team, "Ketua: A; Sekretaris: B; Bendahara: C");
+      assert.equal(plan.executorName, null, "pelaksana Kaur/Kasi tidak ada di RKP Desa");
+      assert.equal((await prisma.apbdesActivityPlan.findUniqueOrThrow({ where: { villageId_year_activityCode: { villageId, year: 2027, activityCode: "1.1.01" } } })).executorName, "Kaur Umum");
+
+      const again = await al.prefillDpa(prisma, { villageId, documentId: id });
+      assert.ok(again.ok && again.data.created === 0, "diulang tidak membuat ganda");
+      assert.equal((await al.prefillDpa(prisma, { villageId: other.villageId, documentId: id })).ok, false);
+      assert.equal(await prisma.apbdesActivityPlan.count({ where: { villageId: other.villageId } }), 0);
+    } finally {
+      await prisma.village.deleteMany({ where: { id: { in: [villageId, other.villageId] } } });
+    }
+  });
 });
