@@ -54,3 +54,12 @@ export const LIMITS = { documentsPerVillage: 60, activitiesPerDocument: 500, inc
 
 /** RPJM Desa kini 8 tahun (Permendesa PDT 16/2025 Pasal 1 angka 4 [V]; UU 3/2024 [R]); dokumen lama berjangka 6 tahun. */
 export const RPJMDES_TERM_YEARS = { current: 8, legacy: 6 } as const;
+
+/** Keterangan jangka waktu RPJM Desa terhadap aturan 8 tahun; `termNote` null bila sudah 8 tahun. */
+export function termInfo(periodStart: number, periodEnd: number): { termYears: number; termNote: string | null } {
+  const years = periodEnd - periodStart + 1;
+  let termNote: string | null = null;
+  if (years === RPJMDES_TERM_YEARS.legacy) termNote = "RPJM Desa berjangka 6 tahun (aturan lama). RPJM Desa kini berjangka 8 tahun; sesuaikan bila masa jabatan Kepala Desa sudah 8 tahun.";
+  else if (years !== RPJMDES_TERM_YEARS.current) termNote = `RPJM Desa berjangka ${years} tahun. Jangka waktu yang berlaku sekarang 8 tahun (Permendesa PDT 16/2025 Pasal 1 angka 4).`;
+  return { termYears: years, termNote };
+}

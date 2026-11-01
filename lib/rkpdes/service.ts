@@ -7,8 +7,8 @@ import {
   INCOMING_LEVELS,
   LIMITS,
   PAGU_SOURCES,
-  RPJMDES_TERM_YEARS,
   TEAM_ROLES,
+  termInfo,
   type PaguSource,
 } from "./catalog";
 import {
@@ -22,6 +22,7 @@ import {
 import { activityWarnings, buildSteps, paguWarnings, teamWarnings, type Step } from "./steps";
 
 export type { Result };
+export { termInfo };
 type Db = Prisma.TransactionClient;
 
 const TEAM_HARD_MAX = 20;
@@ -40,14 +41,6 @@ type DocRow = Prisma.RkpdesDocumentGetPayload<{ include: typeof docInclude }>;
 
 const rupiahStr = (d: Prisma.Decimal | null): string | null => (d ? d.toFixed(2) : null);
 const cents = (d: Prisma.Decimal | null): bigint => (d ? (toCents(d.toFixed(2)) ?? 0n) : 0n);
-
-export function termInfo(periodStart: number, periodEnd: number) {
-  const years = periodEnd - periodStart + 1;
-  let note: string | null = null;
-  if (years === RPJMDES_TERM_YEARS.legacy) note = "RPJM Desa berjangka 6 tahun (aturan lama). RPJM Desa kini berjangka 8 tahun; sesuaikan bila masa jabatan Kepala Desa sudah 8 tahun.";
-  else if (years !== RPJMDES_TERM_YEARS.current) note = `RPJM Desa berjangka ${years} tahun. Jangka waktu yang berlaku sekarang 8 tahun (Permendesa PDT 16/2025 Pasal 1 angka 4).`;
-  return { termYears: years, termNote: note };
-}
 
 function stepsOf(d: DocRow, now: Date): Step[] {
   const heldOrFinal = (m: { status: string } | null) => (m && (m.status === "HELD" || m.status === "FINAL") ? m : null);

@@ -635,7 +635,7 @@ function FinalizeDialog({ warnings, onClose, onConfirm, busy }: { warnings: numb
           <DialogDescription>Setelah final, peserta, keputusan, dan isi berita acara terkunci. Hanya Kepala Desa atau admin yang dapat membukanya kembali, dengan alasan yang dicatat.</DialogDescription>
         </DialogHeader>
         {warnings > 0 ? (
-          <p className="flex items-start gap-2 rounded-md border border-amber-600/50 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-50">
+          <p className="flex items-start gap-2 rounded-md border border-amber-600/50 bg-amber-50 p-3 text-sm text-amber-950">
             <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             Masih ada {warnings} catatan keterwakilan peserta. Anda tetap dapat memfinalkan; catatan ini tidak memblokir.
           </p>

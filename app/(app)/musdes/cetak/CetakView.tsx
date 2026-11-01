@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { fmtDate } from "@/components/app/perencanaan/shared";
+import { fmtDate, villageTitle } from "@/components/app/perencanaan/shared";
 import { useApiGet } from "@/hooks/useApiGet";
 import type { DetailResponse } from "../_components/types";
 
@@ -57,7 +57,7 @@ export function CetakView() {
       {data ? (
         <article id="doc-print" className="space-y-5 rounded-lg border bg-white p-8 text-black print:border-0 print:p-0">
           <header className="text-center">
-            <p className="font-semibold uppercase">Pemerintah Desa {data.village.name}</p>
+            <p className="font-semibold uppercase">Pemerintah Desa {villageTitle(data.village.name)}</p>
             <h2 className="text-lg font-bold uppercase">{kind === "hadir" ? "Daftar Hadir" : "Berita Acara"}</h2>
             <p className="font-semibold">{data.meeting.title}</p>
             {kind === "berita-acara" && data.meeting.minutesNo ? <p className="text-sm">Nomor: {data.meeting.minutesNo}</p> : null}

@@ -48,6 +48,8 @@ type PlanRow = {
   periodStart: number;
   periodEnd: number;
   status: string;
+  termYears?: number;
+  termNote?: string | null;
   activityCount: number;
   proposalCount: number;
 };
@@ -107,7 +109,7 @@ export default function RpjmdesPage() {
   const [planForm, setPlanForm] = useState({
     title: "",
     periodStart: String(new Date().getFullYear()),
-    periodEnd: String(new Date().getFullYear() + 5),
+    periodEnd: String(new Date().getFullYear() + 7),
     vision: "",
     mission: "",
   });
@@ -569,6 +571,8 @@ export default function RpjmdesPage() {
                           <TableCell className="font-medium">{p.title}</TableCell>
                           <TableCell>
                             {p.periodStart}–{p.periodEnd}
+                            {p.termYears ? <span className="text-muted-foreground"> ({p.termYears} tahun)</span> : null}
+                            {p.termNote ? <p className="mt-1 max-w-xs text-xs text-amber-800 dark:text-amber-200">{p.termNote}</p> : null}
                           </TableCell>
                           <TableCell>{p.activityCount}</TableCell>
                           <TableCell>{p.proposalCount}</TableCell>

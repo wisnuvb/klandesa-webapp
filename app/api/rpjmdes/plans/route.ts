@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { pickSummary } from "@/lib/audit/diff";
 import { parsePlanInput } from "@/lib/rpjmdes/schemas";
+import { termInfo } from "@/lib/rkpdes/catalog";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -29,6 +30,7 @@ function serializePlan(p: {
     vision: p.vision,
     mission: p.mission,
     status: p.status,
+    ...termInfo(p.periodStart, p.periodEnd),
     activityCount: p._count?.activities ?? 0,
     proposalCount: p._count?.proposals ?? 0,
     createdAt: p.createdAt.toISOString(),

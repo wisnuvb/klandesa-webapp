@@ -18,16 +18,19 @@ export const SELECT_CLASS =
 export const fmtDate = (iso: string | null | undefined): string =>
   iso ? new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }) : "-";
 
+/** Nama desa untuk kop surat: tanpa awalan "Desa" agar tidak menjadi "Pemerintah Desa Desa ...". */
+export const villageTitle = (name: string): string => name.replace(/^\s*desa\s+/i, "").trim() || name;
+
 export const rupiah = (v: string | number | null | undefined): string => (v === null || v === undefined || v === "" ? "-" : `Rp${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(v))}`);
 
 const TONE: Record<string, string> = {
-  done: "border-emerald-600/40 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
+  done: "border-emerald-600/40 bg-emerald-50 text-emerald-900",
   overdue: "border-destructive/50 bg-destructive/10 text-destructive",
-  soon: "border-amber-600/50 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
+  soon: "border-amber-600/50 bg-amber-50 text-amber-900",
   upcoming: "border-border bg-muted text-muted-foreground",
   open: "border-border bg-muted text-muted-foreground",
   neutral: "border-border bg-muted text-foreground",
-  info: "border-sky-600/40 bg-sky-50 text-sky-900 dark:bg-sky-950 dark:text-sky-100",
+  info: "border-sky-600/40 bg-sky-50 text-sky-900",
 };
 
 /** Lencana status: selalu berteks (warna bukan satu-satunya penanda). */
@@ -40,7 +43,7 @@ export const STEP_STATE_LABEL: Record<string, string> = { done: "Selesai", overd
 export function WarningList({ title, items }: { title: string; items: string[] }) {
   if (!items.length) return null;
   return (
-    <div role="status" className="rounded-md border border-amber-600/50 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-50">
+    <div role="status" className="rounded-md border border-amber-600/50 bg-amber-50 p-3 text-sm text-amber-950">
       <p className="flex items-center gap-2 font-medium">
         <AlertTriangle aria-hidden="true" className="size-4" />
         {title}

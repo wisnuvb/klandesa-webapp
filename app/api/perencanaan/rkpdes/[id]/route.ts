@@ -22,6 +22,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     if (!d) return notFound();
     return NextResponse.json({
       ...d,
+      village: { name: ctx.village.name },
       can: permissions(ctx, "perencanaan"),
       terms: { paguSources: PAGU_SOURCES, methods: METHODS, teamRoles: TEAM_ROLES, incomingLevels: INCOMING_LEVELS, teamLimits: TEAM_LIMITS, activityCodes: activityOptions() },
     });

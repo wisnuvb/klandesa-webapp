@@ -20,9 +20,9 @@ Disusun 2026-11-01 setelah audit kelengkapan. Dokumen kerja untuk pemilik dan se
 | 8 | **8 larangan** DD (honor kades/perangkat/BPD, perjalanan dinas luar kab, iuran jamsos aparatur, kantor desa > Rp25 jt, bimtek aparatur, bimtek/studi banding luar kab, utang tahun lalu, bantuan hukum pribadi) (Lampiran II.J [V]). | Peringatan otomatis berbasis kode rekening + kata kunci, dengan opsi "pengecualian + alasan". |
 | 9 | **PKTD:** upah ≥ **50%** biaya kegiatan, dibayar **harian**, batas atas upah di bawah UMP, prioritas pekerja (penganggur, setengah penganggur, perempuan kepala keluarga, keluarga miskin, marginal) (Lampiran II.F [V]). | Lembar HOK + validator. |
 | 10 | **Fokus DD berdasar rekomendasi Indeks Desa** dan dibahas di Musdes RKPDes (Pasal 8 [V]). Modul statistik kita hanya membaca skor IDM luar. | Impor IDM + kartu rekomendasi di halaman perencanaan. |
-| 11 | **Siklus RKPDes** (Permendagri 114/2014 Pasal 31–51 [V]): Musdes ≤ Juni → tim penyusun 7–11 orang (wajib ada perempuan) ≤ Juni → pagu indikatif diterima dari kab ≤ Juli → rancangan RKPDes + daftar usulan + RAB diverifikasi tim verifikasi → berita acara → Musrenbangdes (10 unsur peserta) → Perdes RKPDes → APBDes 31 Des; daftar usulan ke bupati via camat ≤ 31 Des. Perubahan RKPDes hanya karena peristiwa khusus/perubahan kebijakan (Pasal 49–50). | Dasar alur Paket 1. **Catatan:** sumber sekunder menyebut Permendesa 17/2019 (nomor perlu dicek, mungkin Permendesa 21/2020) bisa mengesampingkan sebagian Permendagri 114/2014 untuk RPJMDes → Langkah 0 Paket 1. |
+| 11 | **Siklus RKPDes** (Permendagri 114/2014 Pasal 31–51 [V]): Musdes ≤ Juni → tim penyusun 7–11 orang (wajib ada perempuan) ≤ Juni → pagu indikatif diterima dari kab ≤ Juli → rancangan RKPDes + daftar usulan + RAB diverifikasi tim verifikasi → berita acara → Musrenbangdes (10 unsur peserta) → Perdes RKPDes paling lambat **akhir September** (Pasal 29(4)); APB Desa 31 Des (Pasal 37(3)); daftar usulan ke bupati via camat ≤ 31 Des. Perubahan RKPDes hanya karena peristiwa khusus/perubahan kebijakan (Pasal 49–50). | Dasar alur Paket 1. **Catatan:** sumber sekunder menyebut Permendesa 17/2019 (nomor perlu dicek, mungkin Permendesa 21/2020) bisa mengesampingkan sebagian Permendagri 114/2014 untuk RPJMDes → Langkah 0 Paket 1. |
 
-**Faktor musiman:** hari ini 1 Nov 2026. Desa sedang menyusun **RKPDes 2027 dan APBDes 2027, batas 31 Des 2026**. Paket 1 adalah satu-satunya yang punya tenggat nyata dalam ±8 minggu; Paket 2 bergantung pada Permendesa TA 2027 yang belum terbit.
+**Faktor musiman:** hari ini 1 Nov 2026. Perdes RKPDes 2027 seharusnya sudah ditetapkan akhir September (Pasal 29(4)); desa yang belum selesai sudah terlambat. **APBDes 2027 dan daftar usulan RKPDes jatuh tempo 31 Des 2026.** Paket 1 adalah satu-satunya yang punya tenggat nyata dalam ±8 minggu; Paket 2 bergantung pada Permendesa TA 2027 yang belum terbit.
 
 ---
 
@@ -68,7 +68,7 @@ Ukuran relatif: S ≈ sebagian sesi, M ≈ 1 sesi besar, L ≈ 2–3 sesi, XL �
 
 ## 3. Paket
 
-### P0 — Musdes sebagai primitif bersama  (ukuran M)
+### P0 — Musdes sebagai primitif bersama  (ukuran M) — **DIKODE 2026-11-01**, lihat [PHASE1_PERENCANAAN.md](PHASE1_PERENCANAAN.md)
 **Kenapa:** Musdes dipakai di RPJMDes, RKPDes, Musrenbangdes, BLT, penggantian KPM, perubahan APBDes (Kopdes), pendirian BUMDes, laporan BUMDes, DTSEN (sudah ada sebagian di `dtsen_proposals`). Bangun sekali.
 
 - **Dasar:** Permendagri 114/2014 Pasal 31–32, 46, 48 [V]; Permendesa 16/2025 Pasal 3, 8–9 [V].
@@ -78,7 +78,7 @@ Ukuran relatif: S ≈ sebagian sesi, M ≈ 1 sesi besar, L ≈ 2–3 sesi, XL �
 - **Integrasi:** `legal_documents` (Perdes/SK), `residents`, `village_institutions` (BPD sebagai penyelenggara).
 - **Tes:** unit (aturan kehadiran), integrasi (finalisasi atomik, penguncian), asap browser.
 
-### P1 — Perencanaan Desa v2 + DPPA  (ukuran L; **R1**)
+### P1 — Perencanaan Desa v2 + DPPA  (ukuran L; **R1**) — **INTI DIKODE 2026-11-01** (siklus RKP Desa, tim, pagu, kegiatan, cetak, kunci setelah Perdes); **belum**: tahapan RPJM Desa, tautan ke APB Desa, DPPA, monev, impor IDM. Lihat [PHASE1_PERENCANAAN.md](PHASE1_PERENCANAAN.md)
 **Celah saat ini:** `RpjmdesPlan` periode bebas, `RkpdesActivity` datar (judul/tahun/lokasi/anggaran/SDGs), tanpa tim penyusun, pagu indikatif, berita acara, pelaksana kegiatan, tautan ke APBDes, monev; `CommunityProposal.votesCount` selalu 0.
 
 **Langkah 0:** (a) tetapkan peraturan yang berlaku untuk RPJMDes 8 tahun: UU 3/2024 Pasal 79(2) [R], Permendagri 114/2014 vs Permendesa 21/2020 atau 17/2019 [R] — baca teks; (b) baca format lampiran Permendagri 114/2014 (format RKPDes, daftar usulan, pagu indikatif).
