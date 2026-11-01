@@ -12,9 +12,9 @@ export async function POST(req: NextRequest) {
     if (!guard.ok) return guard.response;
     const { ctx } = guard;
     const body = (await req.json().catch(() => null)) as { year?: unknown; activityCode?: unknown } | null;
-    const r = await advancePlan(prisma, { villageId: ctx.village.id, year: yearOf(body?.year, 0), activityCode: String(body?.activityCode ?? ""), action: "approve" });
+    const r = await advancePlan(prisma, { villageId: ctx.village.id, year: yearOf(body?.year, 0), activityCode: String(body?.activityCode ?? ""), action: "approve", userId: ctx.userId });
     if (!r.ok) return failResponse(r);
-    await auditWeb(req, ctx, "update", "apbdes_activity_plans", `${body?.year}-${body?.activityCode}`, { action: "approve" });
-    return NextResponse.json({ success: true, status: r.data.status });
+    await auditWeb(req, ctx, "update", "apbdes_activity_plans", `${body?.year}-${body?.activityCode}`, { action: "approve", revision: r.data.revision });
+    return NextResponse.json({ success: true, status: r.data.status, revision: r.data.revision });
   });
 }

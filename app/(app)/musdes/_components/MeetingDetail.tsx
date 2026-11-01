@@ -270,7 +270,7 @@ function AttendeeAdd({ meetingId, onAdded, onBulk, onAllPresent, busy }: { meeti
     }
   }
   return (
-    <form onSubmit={add} className="space-y-3 rounded-lg border p-4" noValidate>
+    <form onSubmit={add} className="min-w-0 space-y-3 rounded-lg border p-4" noValidate>
       <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ name: "Nama", unsur: "Unsur", gender: "Jenis kelamin" }} />
       <ResidentPicker onPick={pick} disabled={saving} />
       <div className="grid gap-3 sm:grid-cols-[2fr_2fr_1fr]">
@@ -406,7 +406,7 @@ function BulkDialog({ meetingId, onClose, onDone }: { meetingId: number; onClose
           <DialogTitle>Tambah banyak peserta</DialogTitle>
           <DialogDescription>Satu nama per baris, maksimal 100 nama, semuanya dengan unsur yang sama. Jenis kelamin dapat dilengkapi kemudian.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={go} className="space-y-4" noValidate>
+        <form onSubmit={go} className="min-w-0 space-y-4" noValidate>
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ unsur: "Unsur" }} />
           <div className="space-y-1.5">
             <Label htmlFor="bulk-names">Daftar nama *</Label>
@@ -516,7 +516,7 @@ function DecisionPanel({ meetingId, decisions, editable, onChanged }: { meetingI
         <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Belum ada keputusan tercatat.</p>
       )}
       {editable ? (
-        <form onSubmit={add} className="space-y-2" noValidate>
+        <form onSubmit={add} className="min-w-0 space-y-2" noValidate>
           <Label htmlFor="dec-new">Tambah keputusan</Label>
           <Textarea id="dec-new" rows={2} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} placeholder="Contoh: Menyepakati rancangan RKP Desa tahun 2027" />
           <Button type="submit" className="min-h-11" disabled={busy || !text.trim()}>
@@ -556,7 +556,7 @@ function MinutesPanel({ meeting, editable, onSaved, onFinalize }: { meeting: Det
     );
   }
   return (
-    <form onSubmit={save} className="space-y-3" noValidate>
+    <form onSubmit={save} className="min-w-0 space-y-3" noValidate>
       <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ minutesNo: "Nomor", minutesText: "Isi berita acara", heldOn: "Tanggal pelaksanaan" }} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
@@ -605,7 +605,7 @@ function HeldDialog({ url, defaultDate, onClose, onDone }: { url: string; defaul
           <DialogTitle>Tandai musyawarah terlaksana</DialogTitle>
           <DialogDescription>Setelah ini Anda dapat menandai peserta yang hadir, mencatat keputusan, dan menyusun berita acara.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={go} className="space-y-4" noValidate>
+        <form onSubmit={go} className="min-w-0 space-y-4" noValidate>
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ heldOn: "Tanggal pelaksanaan" }} />
           <div className="space-y-1.5">
             <Label htmlFor="held-date">Tanggal pelaksanaan</Label>

@@ -29,6 +29,11 @@ export const KINDS = {
     basis: "Permendesa PDT 16/2025 Lampiran II.A.2.d",
     organizer: "Badan Permusyawaratan Desa",
   },
+  MUSDES_BUMDES: {
+    label: "Musyawarah Desa tentang BUM Desa (penyertaan modal, bagi hasil, laporan)",
+    basis: "PP 11/2021 Pasal 17, 41 ayat 4, dan 59 ayat 2",
+    organizer: "Badan Permusyawaratan Desa",
+  },
   MUSDES_LAINNYA: {
     label: "Musyawarah Desa lainnya",
     basis: "Hal strategis Desa menurut UU 6/2014 tentang Desa",
@@ -37,7 +42,7 @@ export const KINDS = {
 } as const;
 export type MeetingKind = keyof typeof KINDS;
 export const KIND_KEYS = Object.keys(KINDS) as MeetingKind[];
-export const isKind = (v: unknown): v is MeetingKind => typeof v === "string" && v in KINDS;
+export const isKind = (v: unknown): v is MeetingKind => typeof v === "string" && Object.hasOwn(KINDS, v);
 
 export const STATUS = {
   PLANNED: "Dijadwalkan",
@@ -66,7 +71,7 @@ export const UNSUR = {
 } as const;
 export type Unsur = keyof typeof UNSUR;
 export const UNSUR_KEYS = Object.keys(UNSUR) as Unsur[];
-export const isUnsur = (v: unknown): v is Unsur => typeof v === "string" && v in UNSUR;
+export const isUnsur = (v: unknown): v is Unsur => typeof v === "string" && Object.hasOwn(UNSUR, v);
 
 /** Sepuluh unsur masyarakat yang disebut Pasal 46 ayat 3 untuk musyawarah perencanaan pembangunan Desa. */
 export const MUSRENBANG_UNSUR: readonly Unsur[] = [

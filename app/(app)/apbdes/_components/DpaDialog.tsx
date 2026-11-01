@@ -12,7 +12,7 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { ActivityPlanView } from "@/lib/apbdes/dpa";
 import { PLAN_STATUS } from "@/lib/apbdes/catalog";
 import { MoneyInput } from "./MoneyInput";
-import { MONTHS, money, type Overview } from "./shared";
+import { ConfirmRequest, MONTHS, dateId, money, type Overview } from "./shared";
 import { SearchSelect } from "@/components/ui/search-select";
 
 const RKK_LABELS: Record<string, string> = { executorName: "Pelaksana", location: "Lokasi", outputName: "Nama output", outputVolume: "Volume", outputUnit: "Satuan", target: "Sasaran", team: "Tim", startMonth: "Bulan mulai", endMonth: "Bulan selesai" };
@@ -36,6 +36,7 @@ export function DpaDialog({ o, plan, onClose, onChanged }: { o: Overview; plan: 
   });
   const rkk = useFormSubmit();
   const flow = useFormSubmit();
+  const [confirmDppa, setConfirmDppa] = useState(false);
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
 
   async function act(url: string, action?: string) {
@@ -48,7 +49,7 @@ export function DpaDialog({ o, plan, onClose, onChanged }: { o: Overview; plan: 
       <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
-            DPA {plan.activityCode} {plan.name}
+            {plan.label} {plan.activityCode} {plan.name}
           </DialogTitle>
           <DialogDescription>
             Status: {PLAN_STATUS[plan.status]}. Anggaran {money(plan.budget)}. Disusun Kaur/Kasi pelaksana, diverifikasi Sekretaris Desa, disetujui Kepala Desa (Pasal 45-46).
@@ -56,9 +57,15 @@ export function DpaDialog({ o, plan, onClose, onChanged }: { o: Overview; plan: 
         </DialogHeader>
 
         <FormErrorSummary innerRef={flow.summaryRef} errors={{}} general={flow.general} labels={{}} />
-        {plan.needsRevision ? <p role="alert" className="rounded-md border border-amber-500 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">Anggaran kegiatan berubah sejak DPA disetujui; rencana penarikan tidak lagi sama dengan APB Desa. Perlu DPPA (Pasal 47).</p> : null}
+        {plan.needsRevision ? (
+          <p role="alert" className="rounded-md border border-amber-500 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            Anggaran kegiatan berubah sejak {plan.label} disetujui; rencana penarikan tidak lagi sama dengan APB Desa. Susun DPPA (Pasal 47): buka kembali, sesuaikan rencana penarikan, verifikasi, lalu setujui. SPP yang sudah ada tetap utuh, tetapi SPP baru tertahan selama DPPA disusun.
+          </p>
+        ) : null}
+        {plan.revising ? <p role="status" className="rounded-md border border-sky-500 bg-sky-50 p-3 text-sm text-sky-900 dark:bg-sky-950 dark:text-sky-100">{plan.label} sedang disusun. Rencana penarikan harus sama dengan anggaran baru dan tidak boleh lebih kecil dari yang sudah terpakai sampai bulan berjalan.</p> : null}
+        {plan.needsRevision || plan.revising ? <BudgetChanges plan={plan} /> : null}
 
-        <section aria-labelledby="rkk-h" className="space-y-3">
+        <section aria-labelledby="rkk-h" className="min-w-0 space-y-3">
           <h3 id="rkk-h" className="font-semibold">Rencana Kerja Kegiatan</h3>
           <form
             noValidate
@@ -108,7 +115,7 @@ export function DpaDialog({ o, plan, onClose, onChanged }: { o: Overview; plan: 
           </form>
         </section>
 
-        <section aria-labelledby="rak-h" className="space-y-3">
+        <section aria-labelledby="rak-h" className="min-w-0 space-y-3">
           <h3 id="rak-h" className="font-semibold">Rencana penarikan per bulan (RAK)</h3>
           <p className="text-sm text-muted-foreground">Jumlah 12 bulan tiap rekening harus sama dengan anggarannya sebelum DPA dapat diverifikasi.</p>
           {plan.accounts.map((a) => <CashRow key={a.accountCode} o={o} plan={plan} account={a} editable={editable} onSaved={onChanged} />)}
@@ -116,16 +123,91 @@ export function DpaDialog({ o, plan, onClose, onChanged }: { o: Overview; plan: 
 
         <RabSection o={o} plan={plan} editable={editable} onChanged={onChanged} />
 
+        <HistorySection plan={plan} />
+
         <DialogFooter className="flex-wrap gap-2 sm:gap-2">
           <Button asChild variant="outline" className="min-h-11"><Link href={`/apbdes/cetak?kind=rka&year=${o.year}&activity=${plan.activityCode}`}>Cetak RKA</Link></Button>
           <Button asChild variant="outline" className="min-h-11"><Link href={`/apbdes/cetak?kind=rab&year=${o.year}&activity=${plan.activityCode}`}>Cetak RAB</Link></Button>
           {plan.status === "DRAFT" && o.verifier ? <Button type="button" className="min-h-11" disabled={flow.busy} onClick={() => act("/api/apbdes/dpa/aksi", "verify")}>Verifikasi (Sekretaris Desa)</Button> : null}
           {plan.status === "DIVERIFIKASI" && o.can.approve ? <Button type="button" className="min-h-11" disabled={flow.busy} onClick={() => act("/api/apbdes/dpa/persetujuan")}>Setujui (Kepala Desa)</Button> : null}
-          {plan.status !== "DRAFT" && o.verifier ? <Button type="button" variant="ghost" className="min-h-11" disabled={flow.busy} onClick={() => act("/api/apbdes/dpa/aksi", "reopen")}>Buka kembali ke draf</Button> : null}
+          {plan.needsRevision && o.verifier ? <Button type="button" className="min-h-11" disabled={flow.busy} onClick={() => setConfirmDppa(true)}>Susun DPPA</Button> : null}
+          {plan.status !== "DRAFT" && !plan.needsRevision && !plan.hasSpp && o.verifier ? <Button type="button" variant="ghost" className="min-h-11" disabled={flow.busy} onClick={() => act("/api/apbdes/dpa/aksi", "reopen")}>Buka kembali ke draf</Button> : null}
           <Button type="button" variant="ghost" className="min-h-11" onClick={onClose}>Tutup</Button>
         </DialogFooter>
       </DialogContent>
+      {confirmDppa ? (
+        <ConfirmRequest
+          title={`Susun DPPA ${plan.activityCode}?`}
+          text={`${plan.label} dibuka kembali sebagai DPPA ke-${plan.revision + 1}. Rencana penarikan yang lama tetap tersimpan sebagai riwayat. Selama DPPA disusun, SPP baru untuk kegiatan ini tidak bisa diajukan; SPP yang sudah berjalan tidak terpengaruh.`}
+          button="Susun DPPA"
+          url="/api/apbdes/dpa/aksi"
+          method="POST"
+          body={{ year: o.year, activityCode: plan.activityCode, action: "reopen" }}
+          onClose={() => setConfirmDppa(false)}
+          onDone={() => { setConfirmDppa(false); onChanged(); }}
+        />
+      ) : null}
     </Dialog>
+  );
+}
+
+/** Selisih anggaran terhadap DPA/DPPA terakhir yang disetujui, dengan pemakaian (realisasi + SPP berjalan) per rekening. */
+function BudgetChanges({ plan }: { plan: ActivityPlanView }) {
+  return (
+    <section aria-labelledby="chg-h" className="min-w-0 space-y-2">
+      <h3 id="chg-h" className="font-semibold">Perubahan anggaran</h3>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-left text-sm">
+          <caption className="sr-only">Perubahan anggaran {plan.name} terhadap {plan.history.length ? "DPA/DPPA terakhir" : "DPA sebelumnya"}</caption>
+          <thead className="border-b text-muted-foreground">
+            <tr>
+              <th scope="col" className="p-2 font-medium">Rekening</th>
+              <th scope="col" className="p-2 text-right font-medium">Sebelumnya</th>
+              <th scope="col" className="p-2 text-right font-medium">Sekarang</th>
+              <th scope="col" className="p-2 text-right font-medium">Terpakai</th>
+            </tr>
+          </thead>
+          <tbody>
+            {plan.accounts.map((a) => {
+              const used = Number(a.realized ?? 0) + Number(a.open ?? 0);
+              const diff = a.previousBudget === null || a.previousBudget === undefined ? null : Number(a.budget) - Number(a.previousBudget);
+              return (
+                <tr key={a.accountCode} className="border-b last:border-0">
+                  <td className="p-2 break-words">{a.accountCode} {a.accountName}</td>
+                  <td className="whitespace-nowrap p-2 text-right tabular-nums">{a.previousBudget ? money(a.previousBudget) : "baru"}</td>
+                  <td className="whitespace-nowrap p-2 text-right tabular-nums">
+                    {money(a.budget)}
+                    {diff !== null && diff !== 0 ? <span className={`block text-xs ${diff > 0 ? "text-emerald-800 dark:text-emerald-300" : "text-amber-800 dark:text-amber-300"}`}>{diff > 0 ? "naik " : "turun "}{money(Math.abs(diff))}</span> : null}
+                  </td>
+                  <td className={`whitespace-nowrap p-2 text-right tabular-nums ${used > Number(a.budget) ? "text-destructive" : ""}`}>
+                    {money(used)}
+                    {used > Number(a.budget) ? <span className="block text-xs">melebihi anggaran</span> : null}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground">Terpakai = belanja yang sudah dicatat dikurangi pengembalian panjar, ditambah SPP yang masih berjalan.</p>
+    </section>
+  );
+}
+
+/** Riwayat DPA/DPPA yang pernah disetujui Kepala Desa. */
+function HistorySection({ plan }: { plan: ActivityPlanView }) {
+  if (plan.history.length === 0) return null;
+  return (
+    <section aria-labelledby="his-h" className="min-w-0 space-y-2">
+      <h3 id="his-h" className="font-semibold">Riwayat persetujuan</h3>
+      <ul className="space-y-1.5 text-sm">
+        {[...plan.history].reverse().map((h) => (
+          <li key={h.revision} className="rounded-md border p-2">
+            <span className="font-medium">{h.label}</span> · disetujui {dateId(h.approvedAt.slice(0, 10))} · berdasar {h.baseLabel} · anggaran {money(h.budget)}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -144,7 +226,10 @@ function CashRow({ o, plan, account, editable, onSaved }: { o: Overview; plan: A
       }}
     >
       <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ months: "Rencana" }} />
-      <p className="text-sm font-medium">{account.accountCode} {account.accountName} <span className="font-normal text-muted-foreground">· anggaran {money(account.budget)}</span></p>
+      <p className="text-sm font-medium">
+        {account.accountCode} {account.accountName} <span className="font-normal text-muted-foreground">· anggaran {money(account.budget)}</span>
+        {plan.revision > 0 && account.realized !== undefined ? <span className="block font-normal text-muted-foreground">Terpakai {money(Number(account.realized) + Number(account.open ?? 0))} (realisasi + SPP berjalan)</span> : null}
+      </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
         {MONTHS.map((m, i) => (
           <div key={m} className="space-y-1">
@@ -169,7 +254,7 @@ function RabSection({ o, plan, editable, onChanged }: { o: Overview; plan: Activ
   const del = useFormSubmit();
   const labels = { description: "Uraian", volume: "Volume", unit: "Satuan", unitPrice: "Harga satuan", accountCode: "Rekening" };
   return (
-    <section aria-labelledby="rab-h" className="space-y-3">
+    <section aria-labelledby="rab-h" className="min-w-0 space-y-3">
       <h3 id="rab-h" className="font-semibold">Rencana Anggaran Biaya</h3>
       <FormErrorSummary innerRef={del.summaryRef} errors={{}} general={del.general} labels={{}} />
       {plan.costItems.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada baris RAB.</p> : (

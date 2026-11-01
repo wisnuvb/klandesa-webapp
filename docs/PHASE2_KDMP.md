@@ -30,7 +30,7 @@ SQL aditif `PHASE2_KDMP_MIGRATION.sql` (4 tabel `kdmp_*` + 5 batasan CHECK: juml
 - Tidak ada impor dari sistem pusat (Simkopdes/OM-SPAN); semua dicatat manual.
 - Perbandingan "angsuran vs progres fisik" bergantung pada nilai pekerjaan yang diisi operator; ambang 20 poin dan 60 hari adalah kebijakan aplikasi, bukan angka dari aturan.
 - Anggaran KDMP dihitung dari kegiatan APB Desa yang ditandai fokus KDMP di halaman Dana Desa; kegiatan yang belum ditandai tidak terhitung.
-- Tidak mengubah APB Desa/DPPA: perubahan anggarannya tetap dibuat di modul APB Desa (DPPA berversi masih dalam daftar "belum").
+- Tidak mengubah APB Desa/DPPA: perubahan anggarannya tetap dibuat di modul APB Desa (DPPA berversi kini ada: [PHASE2_DPPA.md](PHASE2_DPPA.md); kegiatan KDMP yang anggarannya naik lewat Perubahan APB Desa disusun ulang di sana).
 
 ## Pengujian
 `tests/kdmp.test.ts` (18: perhitungan, validasi, izin rute) dan `tests/kdmp.integration.test.ts` (10 tes MySQL, termasuk penolakan CHECK oleh DB, termasuk uji dua-tiga angsuran serentak; tanpa `FOR UPDATE` tes itu gagal 3 dari 3). Browser sungguhan (Chrome): pagu tampil, penyaluran memicu peringatan "baru Rp80 juta dianggarkan", gerai + progres 20% + angsuran 50 juta memicu peringatan mendahului progres, angsuran berlebih ditolak dengan pesan di dalam dialog, riwayat progres; 390px tanpa gulir horizontal di semua tab.

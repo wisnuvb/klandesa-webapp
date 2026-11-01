@@ -61,6 +61,9 @@ export default function AppLayout() {
         <Stack.Screen name="ukm/index" options={{ title: 'Produk desa' }} />
         <Stack.Screen name="ukm/[id]" options={{ title: 'Produk' }} />
         <Stack.Screen name="ukm/form" options={{ title: 'Jual produk' }} />
+        <Stack.Screen name="ukm/pesanan/index" options={{ title: 'Pesanan produk' }} />
+        <Stack.Screen name="ukm/pesanan/baru" options={{ title: 'Pesan produk' }} />
+        <Stack.Screen name="ukm/pesanan/[id]" options={{ title: 'Pesanan' }} />
         <Stack.Screen name="kas-rt" options={{ title: 'Kas RT' }} />
         <Stack.Screen name="rt/surat/[id]" options={{ title: 'Pengantar RT' }} />
         <Stack.Screen name="hapus-akun" options={{ title: 'Hapus akun' }} />

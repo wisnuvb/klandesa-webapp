@@ -202,7 +202,7 @@ export async function createRequestInTx(tx: Db, args: { villageId: number; userI
     const open = pending.filter((x) => x.accountCode === acc).reduce((a, x) => a + x.amountCents, 0n);
     if (realized + open + amount > pagu) return invalid({ errors: [`Rekening ${acc}: permintaan Rp${fromCents(amount)} melebihi sisa anggaran Rp${fromCents(pagu - realized - open)} (termasuk SPP yang masih berjalan).`], fieldErrors: { lines: `Melebihi sisa anggaran pada ${acc}` } });
     const cap = await plannedThrough(tx, args.villageId, args.year, v.activityCode, acc, month);
-    if (realized + open + amount > cap) return invalid({ errors: [`Rekening ${acc}: melebihi rencana penarikan (RAK) sampai bulan ${month}, yaitu Rp${fromCents(cap)}. Ubah rencana penarikan lewat DPA bila memang perlu.`], fieldErrors: { lines: `Melebihi rencana penarikan pada ${acc}` } });
+    if (realized + open + amount > cap) return invalid({ errors: [`Rekening ${acc}: melebihi rencana penarikan (RAK) sampai bulan ${month}, yaitu Rp${fromCents(cap)}. ${plan.baseVersion < doc.version ? "Anggaran sudah diubah lewat Perubahan APB Desa: susun DPPA dulu di tab Pelaksanaan." : "Ubah rencana penarikan lewat DPA bila memang perlu."}`], fieldErrors: { lines: `Melebihi rencana penarikan pada ${acc}` } });
   }
   const last = await tx.apbdesPayRequest.findFirst({ where: { villageId: args.villageId, year: args.year }, orderBy: { number: "desc" }, select: { number: true } });
   const number = (last?.number ?? 0) + 1;

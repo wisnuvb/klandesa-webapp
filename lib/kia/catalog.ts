@@ -20,7 +20,7 @@ export const ENDED_STATUSES = ["BERSALIN", "KEGUGURAN"] as const;
 
 export const PROVIDERS = { BIDAN: "Bidan", DOKTER: "Dokter", LAINNYA: "Tenaga kesehatan lain" } as const;
 export type Provider = keyof typeof PROVIDERS;
-export const isProvider = (v: unknown): v is Provider => typeof v === "string" && v in PROVIDERS;
+export const isProvider = (v: unknown): v is Provider => typeof v === "string" && Object.hasOwn(PROVIDERS, v);
 
 /** Enam tanda bahaya kehamilan menurut Buku KIA. */
 export const DANGER_SIGNS = {
@@ -32,7 +32,7 @@ export const DANGER_SIGNS = {
   KETUBAN_PECAH: "Air ketuban keluar sebelum waktunya",
 } as const;
 export type DangerSign = keyof typeof DANGER_SIGNS;
-export const isDangerSign = (v: unknown): v is DangerSign => typeof v === "string" && v in DANGER_SIGNS;
+export const isDangerSign = (v: unknown): v is DangerSign => typeof v === "string" && Object.hasOwn(DANGER_SIGNS, v);
 
 export const LIMITS = {
   pregnanciesPerVillage: 20000,

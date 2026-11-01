@@ -11,6 +11,7 @@ import { FocusTab } from "./FocusTab";
 import { ProhibitionsTab } from "./ProhibitionsTab";
 import { PublicationTab } from "./PublicationTab";
 import { ReportsTab } from "./ReportsTab";
+import { DestanaCard } from "@/components/app/bencana/DestanaCard";
 import { SummaryTab } from "./SummaryTab";
 import type { Resp } from "./types";
 
@@ -93,6 +94,7 @@ export function DanaDesaView() {
             </TabsList>
             <TabsContent value="ringkasan" className="space-y-6 pt-4">
               <SummaryTab data={data} year={year} reload={reload} />
+              <DestanaCard />
             </TabsContent>
             <TabsContent value="fokus" className="space-y-4 pt-4">
               <FocusTab data={data} year={year} reload={reload} />

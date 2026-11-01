@@ -405,7 +405,7 @@ function EvaluationTab({ data, reload }: { data: DetailResponse; reload: () => v
   const proposed = d.activities.filter((a) => a.proposeToRegency);
   return (
     <>
-      <form onSubmit={save} className="space-y-3" noValidate>
+      <form onSubmit={save} className="min-w-0 space-y-3" noValidate>
         <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ evaluationText: "Evaluasi" }} />
         <div className="space-y-1.5">
           <Label htmlFor="ev-text">Evaluasi pelaksanaan RKP Desa tahun sebelumnya</Label>

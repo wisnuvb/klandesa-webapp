@@ -19,7 +19,7 @@ export const ENTRY_TYPES = {
 export type EntryType = keyof typeof ENTRY_TYPES;
 /** Tipe di buku kas termasuk yang dibuat sistem: pengembalian sisa panjar (lewat modul panjar, bukan formulir umum). */
 export type LedgerEntryType = EntryType | "PANJAR_KEMBALI";
-export const isEntryType = (v: unknown): v is EntryType => typeof v === "string" && v in ENTRY_TYPES;
+export const isEntryType = (v: unknown): v is EntryType => typeof v === "string" && Object.hasOwn(ENTRY_TYPES, v);
 
 export const CHANNELS = { TUNAI: "Kas tunai", BANK: "Rekening kas desa (bank)" } as const;
 export type Channel = keyof typeof CHANNELS;
@@ -36,7 +36,7 @@ export const FUND_SOURCES = {
   LAIN: "Lain-lain",
 } as const;
 export type FundSource = keyof typeof FUND_SOURCES;
-export const isFundSource = (v: unknown): v is FundSource => typeof v === "string" && v in FUND_SOURCES;
+export const isFundSource = (v: unknown): v is FundSource => typeof v === "string" && Object.hasOwn(FUND_SOURCES, v);
 
 /** Jenis pajak yang lazim dipotong bendahara. Tarif tidak ditanam: petugas mengisi jumlahnya sesuai ketentuan perpajakan yang berlaku. */
 export const TAX_KINDS = ["PPN", "PPh 21", "PPh 22", "PPh 23", "Pajak lainnya"] as const;

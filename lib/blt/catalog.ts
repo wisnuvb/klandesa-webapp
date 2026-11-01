@@ -19,7 +19,7 @@ export const SOURCES = {
   DESA: "Kriteria cadangan yang ditetapkan Kepala Desa",
 } as const;
 export type Source = keyof typeof SOURCES;
-export const isSource = (v: unknown): v is Source => typeof v === "string" && v in SOURCES;
+export const isSource = (v: unknown): v is Source => typeof v === "string" && Object.hasOwn(SOURCES, v);
 
 export const PROGRAM_STATUS = { DRAFT: "Draf", DITETAPKAN: "Ditetapkan (SK Kepala Desa terbit)", SELESAI: "Selesai" } as const;
 export type ProgramStatus = keyof typeof PROGRAM_STATUS;
@@ -29,7 +29,7 @@ export type BeneficiaryStatus = keyof typeof BENEFICIARY_STATUS;
 
 export const METHODS = { TUNAI: "Tunai", NONTUNAI: "Nontunai (transfer)" } as const;
 export type Method = keyof typeof METHODS;
-export const isMethod = (v: unknown): v is Method => typeof v === "string" && v in METHODS;
+export const isMethod = (v: unknown): v is Method => typeof v === "string" && Object.hasOwn(METHODS, v);
 
 export const LIMITS = { beneficiariesPerProgram: 3000, paymentsPerBeneficiary: 12, residentSearch: 20 } as const;
 

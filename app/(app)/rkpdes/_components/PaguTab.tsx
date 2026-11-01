@@ -115,7 +115,7 @@ export function PaguTab({ data, editable, reload }: { data: DetailResponse; edit
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Belum ada pagu tercatat.</p>
         )}
         {editable ? (
-          <form onSubmit={savePagu} className="space-y-3 rounded-lg border p-4" noValidate>
+          <form onSubmit={savePagu} className="min-w-0 space-y-3 rounded-lg border p-4" noValidate>
             <FormErrorSummary innerRef={pagu.summaryRef} errors={pagu.errors} general={pagu.general} labels={{ source: "Sumber", amount: "Jumlah" }} />
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
@@ -177,7 +177,7 @@ export function PaguTab({ data, editable, reload }: { data: DetailResponse; edit
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Belum ada program masuk Desa tercatat.</p>
         )}
         {editable ? (
-          <form onSubmit={addProgram} className="space-y-3 rounded-lg border p-4" noValidate>
+          <form onSubmit={addProgram} className="min-w-0 space-y-3 rounded-lg border p-4" noValidate>
             <FormErrorSummary innerRef={prog.summaryRef} errors={prog.errors} general={prog.general} labels={{ level: "Tingkat", name: "Nama program", amount: "Jumlah" }} />
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">

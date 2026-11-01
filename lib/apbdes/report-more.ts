@@ -27,7 +27,7 @@ const head = (ctx: ReportContext, extra: string[] = []): string[] => [`Pemerinta
 const SHORT = MONTHS.map((m) => m.slice(0, 3));
 const num = (c: string | null): string => (c === null ? "" : new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(Number(c)));
 
-const activityHead = (a: ActivityPlanView): string => `${a.activityCode} ${a.name}`;
+const activityHead = (a: ActivityPlanView): string => `${a.activityCode} ${a.name}${a.revision > 0 ? ` (${a.label})` : ""}`;
 
 export function rkaTable(ctx: ReportContext, a: ActivityPlanView, fundByAccount: Map<string, string>): ReportTable {
   const rows: ReportTableRow[] = a.accounts.map((x) => ({ cells: [`${a.activityCode} ${x.accountCode}`, x.accountName, fmt(cents(x.budget)), fundByAccount.get(x.accountCode) ?? "", ...x.months.map((m) => blank(cents(m))), fmt(cents(x.planned))] }));
@@ -80,7 +80,7 @@ export function rakTable(ctx: ReportContext, activities: ActivityPlanView[]): Re
   const rows: ReportTableRow[] = [];
   const totals = Array.from({ length: 12 }, () => 0n);
   for (const a of approved) {
-    rows.push({ cells: [a.activityCode, a.name, ...Array(13).fill("")], bold: true });
+    rows.push({ cells: [a.activityCode, a.revision > 0 ? `${a.name} (${a.label})` : a.name, ...Array(13).fill("")], bold: true });
     for (const x of a.accounts) {
       rows.push({ cells: [x.accountCode, x.accountName, ...x.months.map((m) => blank(cents(m))), fmt(cents(x.planned))], indent: 1 });
       x.months.forEach((m, i) => (totals[i]! += cents(m)));

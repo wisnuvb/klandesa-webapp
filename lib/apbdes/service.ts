@@ -165,38 +165,56 @@ async function draftDocument(db: Db, villageId: number, id: number) {
   return { doc: d } as const;
 }
 
+/**
+ * Menjalankan perubahan atas dokumen DRAFT di bawah kunci tahun, supaya status draf tidak bisa berubah (penetapan) di antara pemeriksaan
+ * dan penulisan, dan penetapan tidak melihat baris yang setengah berubah.
+ */
+async function withDraft<T>(db: PrismaClient, villageId: number, documentId: number, fn: (tx: Db) => Promise<Result<T>>): Promise<Result<T>> {
+  const probe = await db.apbdesDocument.findFirst({ where: { id: documentId, villageId }, select: { year: true } });
+  if (!probe) return fail(404, "Dokumen tidak ditemukan.");
+  await ensureYear(db, villageId, probe.year);
+  return db
+    .$transaction(async (tx) => {
+      await lockYear(tx, villageId, probe.year);
+      const g = await draftDocument(tx, villageId, documentId);
+      if (g.err) return g.err;
+      return fn(tx);
+    })
+    .catch(rollbackToResult);
+}
+
 export async function addLine(db: PrismaClient, args: { villageId: number; documentId: number; input: unknown }): Promise<Result<LineView>> {
   const p = parseLineInput(args.input);
   if (!p.ok) return invalid(p);
-  const g = await draftDocument(db, args.villageId, args.documentId);
-  if (g.err) return g.err;
-  if ((await db.apbdesLine.count({ where: { documentId: args.documentId } })) >= LIMITS.linesPerDocument) return fail(409, `Satu dokumen maksimal ${LIMITS.linesPerDocument} baris anggaran.`);
-  const l = await db.apbdesLine.create({ data: { documentId: args.documentId, villageId: args.villageId, ...p.value } });
-  return ok(lineView(l));
+  return withDraft(db, args.villageId, args.documentId, async (tx) => {
+    if ((await tx.apbdesLine.count({ where: { documentId: args.documentId } })) >= LIMITS.linesPerDocument) return fail(409, `Satu dokumen maksimal ${LIMITS.linesPerDocument} baris anggaran.`);
+    const l = await tx.apbdesLine.create({ data: { documentId: args.documentId, villageId: args.villageId, ...p.value } });
+    return ok(lineView(l));
+  });
 }
 
 export async function updateLine(db: PrismaClient, args: { villageId: number; documentId: number; lineId: number; input: unknown }): Promise<Result<LineView>> {
   const p = parseLineInput(args.input);
   if (!p.ok) return invalid(p);
-  const g = await draftDocument(db, args.villageId, args.documentId);
-  if (g.err) return g.err;
-  const res = await db.apbdesLine.updateMany({ where: { id: args.lineId, documentId: args.documentId }, data: p.value });
-  if (res.count === 0) return fail(404, "Baris anggaran tidak ditemukan.");
-  return ok(lineView(await db.apbdesLine.findUniqueOrThrow({ where: { id: args.lineId } })));
+  return withDraft(db, args.villageId, args.documentId, async (tx) => {
+    const res = await tx.apbdesLine.updateMany({ where: { id: args.lineId, documentId: args.documentId }, data: p.value });
+    if (res.count === 0) return fail(404, "Baris anggaran tidak ditemukan.");
+    return ok(lineView(await tx.apbdesLine.findUniqueOrThrow({ where: { id: args.lineId } })));
+  });
 }
 
 export async function deleteLine(db: PrismaClient, args: { villageId: number; documentId: number; lineId: number }): Promise<Result<{ id: number }>> {
-  const g = await draftDocument(db, args.villageId, args.documentId);
-  if (g.err) return g.err;
-  const res = await db.apbdesLine.deleteMany({ where: { id: args.lineId, documentId: args.documentId } });
-  return res.count === 0 ? fail(404, "Baris anggaran tidak ditemukan.") : ok({ id: args.lineId });
+  return withDraft(db, args.villageId, args.documentId, async (tx) => {
+    const res = await tx.apbdesLine.deleteMany({ where: { id: args.lineId, documentId: args.documentId } });
+    return res.count === 0 ? fail(404, "Baris anggaran tidak ditemukan.") : ok({ id: args.lineId });
+  });
 }
 
 export async function deleteDocument(db: PrismaClient, args: { villageId: number; documentId: number }): Promise<Result<{ id: number }>> {
-  const g = await draftDocument(db, args.villageId, args.documentId);
-  if (g.err) return g.err;
-  await db.apbdesDocument.delete({ where: { id: args.documentId } });
-  return ok({ id: args.documentId });
+  return withDraft(db, args.villageId, args.documentId, async (tx) => {
+    await tx.apbdesDocument.delete({ where: { id: args.documentId } });
+    return ok({ id: args.documentId });
+  });
 }
 
 /** Menetapkan dokumen setelah Perdes disahkan. Ketidakseimbangan anggaran hanya diperingatkan: Perdes tetap yang berlaku. */
@@ -213,7 +231,12 @@ export async function adoptDocument(db: PrismaClient, args: { villageId: number;
   else if (date.getTime() > (args.now ?? new Date()).getTime() + 86_400_000) fe.regulationDate = "Tanggal penetapan tidak boleh di masa depan";
   if (Object.keys(fe).length) return { ok: false, status: 400, errors: Object.values(fe), fieldErrors: fe };
 
+  const probe = await db.apbdesDocument.findFirst({ where: { id: args.documentId, villageId: args.villageId }, select: { year: true } });
+  if (!probe) return fail(404, "Dokumen tidak ditemukan.");
+  await ensureYear(db, args.villageId, probe.year);
   return db.$transaction(async (tx) => {
+    // Diserialisasi dengan SPP, DPA, dan penyimpanan RAK: penetapan tak boleh menyela transaksi yang memeriksa anggaran lama.
+    await lockYear(tx, args.villageId, probe.year);
     const g = await draftDocument(tx, args.villageId, args.documentId);
     if (g.err) return g.err;
     const d = g.doc;
@@ -276,11 +299,13 @@ export interface EntryView {
   taxKind: string | null;
   bankFee: boolean;
   locked: boolean;
-  /** Berasal dari SPP atau panjar: tidak diubah/dihapus lewat formulir umum */
+  /** Berasal dari SPP, panjar, arus BUM Desa, atau penerimaan sewa tanah kas: tidak diubah/dihapus lewat formulir umum */
   linked: boolean;
+  /** Keterangan singkat pengelola catatan tertaut (null untuk SPP/panjar dan catatan bebas) */
+  linkedNote: string | null;
 }
 
-export const entryView = (e: LedgerEntry, closed: Set<number>): EntryView => ({
+export const entryView = (e: LedgerEntry, closed: Set<number>, notes?: Map<number, string>): EntryView => ({
   id: e.id,
   entryDate: e.entryDate,
   voucherNo: e.voucherNo,
@@ -295,7 +320,8 @@ export const entryView = (e: LedgerEntry, closed: Set<number>): EntryView => ({
   taxKind: e.taxKind,
   bankFee: e.bankFee,
   locked: closed.has(monthOf(e.entryDate)),
-  linked: Boolean(e.requestId) || Boolean(e.panjarId),
+  linked: Boolean(e.requestId) || Boolean(e.panjarId) || (notes?.has(e.id) ?? false),
+  linkedNote: notes?.get(e.id) ?? null,
 });
 
 export async function closedMonths(db: Db, villageId: number, year: number): Promise<Set<number>> {
@@ -347,6 +373,29 @@ const LATER_CLOSED_MSG = (closed: Set<number>, month: number): string | null => 
 };
 
 const LINKED_MSG = "Catatan ini dibuat dari SPP atau panjar. Ubahnya lewat SPP atau panjar yang bersangkutan.";
+const BUMDES_LINKED_MSG = "Catatan ini dibuat dari penyertaan modal atau bagi hasil BUM Desa. Ubah atau batalkan lewat menu BUMDes, tab Dana Desa.";
+const LAND_LINKED_MSG = "Catatan ini adalah penerimaan sewa tanah kas. Batalkan penerimaan dari menu Aset Desa (Pemanfaatan).";
+
+/** Catatan yang menjadi sisi APB Desa dari arus BUM Desa aktif tidak diubah/dihapus dari formulir umum. */
+async function bumdesLinked(tx: Db, entryId: number): Promise<boolean> {
+  return (await tx.bumdesVillageFlow.count({ where: { apbdesEntryId: entryId, status: "AKTIF" } })) > 0;
+}
+
+/**
+ * Catatan BKU yang dikelola modul lain: arus BUM Desa aktif dan penerimaan sewa tanah kas (land_charges.entryId). Mengembalikan pesan penolakan
+ * (kunci: id catatan) untuk dipakai daftar BKU (penanda) dan ubah/hapus lewat menu APB Desa (409). Hanya membaca tabel modul itu.
+ */
+export async function linkedEntryMessages(db: Db, villageId: number, entryIds: number[]): Promise<Map<number, { note: string; message: string }>> {
+  const out = new Map<number, { note: string; message: string }>();
+  if (!entryIds.length) return out;
+  const [flows, charges] = await Promise.all([
+    db.bumdesVillageFlow.findMany({ where: { apbdesEntryId: { in: entryIds }, status: "AKTIF", bumdes: { villageId } }, select: { apbdesEntryId: true } }),
+    db.landCharge.findMany({ where: { villageId, entryId: { in: entryIds } }, select: { entryId: true } }),
+  ]);
+  for (const f of flows) if (f.apbdesEntryId !== null) out.set(f.apbdesEntryId, { note: "dikelola dari menu BUMDes", message: BUMDES_LINKED_MSG });
+  for (const c of charges) if (c.entryId !== null) out.set(c.entryId, { note: "dikelola dari menu Aset Desa (Pemanfaatan)", message: LAND_LINKED_MSG });
+  return out;
+}
 
 const LOCKED_MSG = (month: number) => `Buku kas bulan ke-${month} sudah ditutup. Minta pembukaan kembali bila ada koreksi.`;
 
@@ -394,10 +443,11 @@ export async function addEntry(db: PrismaClient, args: { villageId: number; user
 /**
  * Menghapus satu catatan di dalam transaksi pemanggil (kunci tahun sudah dipegang).
  */
-export async function deleteEntryInTx(tx: Db, args: { villageId: number; entryId: number }): Promise<Result<{ id: number; year: number }>> {
+export async function deleteEntryInTx(tx: Db, args: { villageId: number; entryId: number; /** hanya dipakai pembatalan arus BUM Desa itu sendiri */ viaBumdes?: boolean }): Promise<Result<{ id: number; year: number }>> {
   const cur = await tx.apbdesEntry.findFirst({ where: { id: args.entryId, villageId: args.villageId } });
   if (!cur) return fail(404, "Catatan tidak ditemukan.");
   if (cur.requestId !== null || cur.panjarId !== null) return fail(409, LINKED_MSG);
+  if (!args.viaBumdes && (await bumdesLinked(tx, cur.id))) return fail(409, BUMDES_LINKED_MSG);
   const month = cur.entryDate.getUTCMonth() + 1;
   const closedSet = await closedMonths(tx, args.villageId, cur.year);
   if (closedSet.has(month)) return fail(409, LOCKED_MSG(month));
@@ -415,6 +465,9 @@ export async function deleteEntry(db: PrismaClient, args: { villageId: number; e
   if (!e) return fail(404, "Catatan tidak ditemukan.");
   return db.$transaction(async (tx) => {
     await lockYear(tx, args.villageId, e.year);
+    // Pintu menu APB Desa: catatan yang dikelola modul lain ditolak (sewa tanah kas membatalkan lewat deleteEntryInTx sendiri).
+    const lk = (await linkedEntryMessages(tx, args.villageId, [args.entryId])).get(args.entryId);
+    if (lk) return fail(409, lk.message);
     const r = await deleteEntryInTx(tx, { villageId: args.villageId, entryId: args.entryId });
     return r.ok ? ok({ id: r.data.id }) : r;
   }).catch(rollbackToResult);
@@ -436,6 +489,8 @@ export async function updateEntry(db: PrismaClient, args: { villageId: number; e
     const oldMonth = cur.entryDate.getUTCMonth() + 1;
     const newMonth = p.value.entryDate.getUTCMonth() + 1;
     if (cur.requestId !== null || cur.panjarId !== null) return fail(409, LINKED_MSG);
+    const lk = (await linkedEntryMessages(tx, args.villageId, [cur.id])).get(cur.id);
+    if (lk) return fail(409, lk.message);
     if (closed.has(oldMonth)) return fail(409, LOCKED_MSG(oldMonth));
     if (closed.has(newMonth)) return fail(409, LOCKED_MSG(newMonth));
     const laterUpd = LATER_CLOSED_MSG(closed, Math.min(oldMonth, newMonth));

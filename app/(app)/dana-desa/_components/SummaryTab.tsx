@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { PengaduanCard } from "./PengaduanCard";
 import { useState } from "react";
 import type { TabProps } from "./types";
 
@@ -170,6 +171,8 @@ export function SummaryTab({ data, year, reload }: TabProps) {
           </section>
         </>
       ) : null}
+
+      <PengaduanCard />
     </>
   );
 }

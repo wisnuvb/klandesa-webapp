@@ -138,9 +138,16 @@ export default function ProdukDetail() {
     );
   }
 
-  const footer = d.canEdit ? (
+  const canOrder = !d.mine && d.status === 'active' && d.stock !== 0;
+  const footer = !d.canEdit && canOrder ? (
+    <View style={{ gap: spacing.sm }}>
+      <Button label="Pesan produk ini" icon="bag-add-outline" onPress={() => router.push({ pathname: '/ukm/pesanan/baru', params: { productId: String(d.id), name: d.name, unit: d.unit ?? '', stock: d.stock === null ? '' : String(d.stock) } })} />
+      <Button label="Pesanan saya" icon="receipt-outline" variant="secondary" onPress={() => router.push('/ukm/pesanan')} />
+    </View>
+  ) : d.canEdit ? (
     <View style={{ gap: spacing.sm }}>
       <Button label="Ubah produk" icon="create-outline" onPress={() => router.push({ pathname: '/ukm/form', params: { id: String(d.id) } })} />
+      <Button label="Pesanan masuk" icon="receipt-outline" variant="secondary" onPress={() => router.push('/ukm/pesanan')} />
       {d.canToggleVisible ? (
         <Button label={hide ? 'Sembunyikan dari katalog' : 'Tampilkan di katalog'} icon={hide ? 'eye-off-outline' : 'eye-outline'} variant="secondary" loading={toggle.isPending} onPress={confirmToggle} />
       ) : null}

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { toJSONSafe } from "@/utils/json";
 import {
   isVillageBumdesElevated,
-  requireBumdesManageResponse,
+  requireBumdesManageForRole,
 } from "@/lib/bumdes/access";
 import { loadBumdesApiContext, sumTransactions } from "@/lib/bumdes/api-context";
 import { parseOptionalString, parseRequiredString } from "@/lib/bumdes/schemas";
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   if (!loaded.ok) return loaded.response;
 
   if ("needsBootstrap" in loaded && loaded.needsBootstrap) {
-    const villageRole = loaded.ctx.session.user?.role;
+    const villageRole = loaded.ctx.role;
     if (!isVillageBumdesElevated(villageRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const loaded = await loadBumdesApiContext(req);
   if (!loaded.ok) return loaded.response;
 
-  const manageErr = requireBumdesManageResponse(loaded.ctx.session);
+  const manageErr = requireBumdesManageForRole(loaded.ctx.role);
   if (manageErr) return manageErr;
 
   const { village } = loaded.ctx;
@@ -90,7 +90,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "BUMDes belum dibuat" }, { status: 404 });
   }
 
-  const manageErr = requireBumdesManageResponse(loaded.ctx.session);
+  const manageErr = requireBumdesManageForRole(loaded.ctx.role);
   if (manageErr) return manageErr;
 
   const body = await req.json().catch(() => ({}));

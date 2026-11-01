@@ -2,6 +2,7 @@ import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
 import type { Bumdes } from "@prisma/client";
 import { requireVillagePermissionResponse } from "@/lib/access-policy";
+import { normalizeVillageRole, roleCan } from "@/lib/permissions";
 
 export function isVillageBumdesElevated(villageRole?: string | null): boolean {
   const r = String(villageRole ?? "").toLowerCase();
@@ -36,6 +37,20 @@ export function requireBumdesManageResponse(
 ): NextResponse | null {
   if (canManageBumdes(session?.user?.role)) return null;
   return requireVillagePermissionResponse(session, "bumdes", "create");
+}
+
+/**
+ * Varian berbasis peran dari DATABASE (ctx.dbUser.role), bukan klaim JWT sesi: admin yang diturunkan kehilangan akses seketika,
+ * bukan menunggu token kedaluwarsa.
+ */
+export function requireBumdesReadForRole(role: string | null | undefined): NextResponse | null {
+  if (!roleCan("bumdes", "read", normalizeVillageRole(role)) || !canReadBumdesModule(role ?? undefined)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return null;
+}
+
+export function requireBumdesManageForRole(role: string | null | undefined): NextResponse | null {
+  if (canManageBumdes(role ?? undefined)) return null;
+  return roleCan("bumdes", "create", normalizeVillageRole(role)) ? null : NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
 export async function fetchBumdesForVillage(villageId: number): Promise<Bumdes | null> {

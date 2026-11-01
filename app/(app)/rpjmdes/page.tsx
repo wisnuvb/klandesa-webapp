@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ClipboardList,
   Loader2,
@@ -375,6 +376,12 @@ export default function RpjmdesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">RPJMDes</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Perencanaan pembangunan desa, usulan Musdes, dan prioritas berbasis skor SDGs.
+          </p>
+          <p className="text-sm mt-2">
+            <Link href="/rpjm" className="underline underline-offset-2">
+              Tahapan RPJM Desa
+            </Link>
+            : tim penyusun, pengkajian, rancangan per bidang dan tahun, Musdes, dan Perdes (isi dikunci setelah ditetapkan).
           </p>
         </div>
 

@@ -14,11 +14,13 @@ import {
   canManageBumdes,
   fetchBumdesForVillage,
   isVillageBumdesElevated,
-  requireBumdesManageResponse,
-  requireBumdesReadResponse,
+  requireBumdesManageForRole,
+  requireBumdesReadForRole,
 } from "@/lib/bumdes/access";
 
 export type BumdesApiContext = {
+  /** Peran dari database (bukan JWT) */
+  role: string;
   session: Session;
   userId: number;
   village: Village;
@@ -27,6 +29,7 @@ export type BumdesApiContext = {
 };
 
 export type BumdesBootstrapContext = {
+  role: string;
   session: Session;
   userId: number;
   village: Village;
@@ -45,9 +48,10 @@ export async function loadBumdesApiContext(
   const loaded = await requireVillageApiContext(req);
   if (!loaded.ok) return loaded;
 
-  const { session, userId, village } = loaded.ctx as VillageApiContext;
+  const { session, userId, village, dbUser } = loaded.ctx as VillageApiContext;
+  const villageRole = dbUser.role;
 
-  const readErr = requireBumdesReadResponse(session);
+  const readErr = requireBumdesReadForRole(villageRole);
   if (readErr) return { ok: false, response: readErr };
 
   if (!isVillageSubscriptionActive(village)) {
@@ -55,7 +59,6 @@ export async function loadBumdesApiContext(
   }
 
   const bumdes = await fetchBumdesForVillage(village.id);
-  const villageRole = session.user?.role;
   const canManage = canManageBumdes(villageRole);
 
   if (!bumdes) {
@@ -64,30 +67,53 @@ export async function loadBumdesApiContext(
     }
     return {
       ok: true,
-      ctx: { session, userId, village, bumdes: null, canManage },
+      ctx: { role: villageRole, session, userId, village, bumdes: null, canManage },
       needsBootstrap: true,
     };
   }
 
   return {
     ok: true,
-    ctx: { session, userId, village, bumdes, canManage },
+    ctx: { role: villageRole, session, userId, village, bumdes, canManage },
   };
 }
 
-export function requireBumdesManage(ctx: { session: Session }): NextResponse | null {
-  return requireBumdesManageResponse(ctx.session);
+export function requireBumdesManage(ctx: { role: string }): NextResponse | null {
+  return requireBumdesManageForRole(ctx.role);
+}
+
+export type BumdesScope =
+  | { ok: true; ctx: VillageApiContext; bumdes: Bumdes; canManage: boolean }
+  | { ok: false; response: NextResponse };
+
+/**
+ * Lingkup BUMDes dari konteks desa yang SUDAH lolos requireVillageApiContext (dipanggil eksplisit di tiap rute):
+ * izin baca modul, langganan aktif, BUMDes milik desa sesi (bukan dari body/query), dan izin kelola bila `write`.
+ */
+export async function bumdesScope(ctx: VillageApiContext, opts: { write?: boolean } = {}): Promise<BumdesScope> {
+  const role = ctx.dbUser.role;
+  const readErr = requireBumdesReadForRole(role);
+  if (readErr) return { ok: false, response: readErr };
+  if (!isVillageSubscriptionActive(ctx.village)) return { ok: false, response: subscriptionBlockedResponse(ctx.village) };
+  const canManage = canManageBumdes(role);
+  if (opts.write) {
+    const denied = requireBumdesManageForRole(role);
+    if (denied) return { ok: false, response: denied };
+  }
+  const bumdes = await fetchBumdesForVillage(ctx.village.id);
+  if (!bumdes) return { ok: false, response: NextResponse.json({ error: "BUMDes belum dibuat" }, { status: 404 }) };
+  return { ok: true, ctx, bumdes, canManage };
 }
 
 async function sumTransactions(bumdesId: number) {
   const { prisma } = await import("@/lib/prisma");
   const [inc, exp, units] = await Promise.all([
     prisma.bumdesTransaction.aggregate({
-      where: { bumdesId, direction: "income" },
+      where: { bumdesId, direction: "income", status: "AKTIF" },
       _sum: { amount: true },
     }),
     prisma.bumdesTransaction.aggregate({
-      where: { bumdesId, direction: "expense" },
+      where: { bumdesId, direction: "expense", status: "AKTIF" },
       _sum: { amount: true },
     }),
     prisma.bumdesUnit.count({ where: { bumdesId, status: "active" } }),

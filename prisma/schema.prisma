@@ -143,6 +143,7 @@ model Village {
   apbdesEntries      ApbdesEntry[]
   apbdesMonthCloses  ApbdesMonthClose[]
   apbdesActivityPlans ApbdesActivityPlan[]
+  apbdesPlanVersions  ApbdesActivityPlanVersion[]
   apbdesCashPlans    ApbdesCashPlan[]
   apbdesCostItems    ApbdesCostItem[]
   apbdesPayRequests  ApbdesPayRequest[]
@@ -162,6 +163,41 @@ model Village {
   bltPrograms        BltProgram[]
   pktdActivities     PktdActivity[]
   kdmpDisbursements  KdmpDisbursement[]
+  rpjmTeamMembers    RpjmTeamMember[]
+  rpjmPrograms       RpjmProgram[]
+  rpjmEvents         RpjmEvent[]
+  // >>> back-relations:rpjm (sisipkan tepat di atas baris ini)
+  // >>> back-relations:bumdes (sisipkan tepat di atas baris ini)
+  landParcels        LandParcel[]
+  landAgreements     LandAgreement[]
+  landCharges        LandCharge[]
+  landAgreementDocs  LandAgreementDoc[]
+  ukmOrderRequests   UkmOrderRequest[]
+  // >>> back-relations:aset (sisipkan tepat di atas baris ini)
+  incidentEvents     IncidentEvent[]
+  drmHazards         DrmHazard[]
+  drmResources       DrmResource[]
+  drmVolunteers      DrmVolunteer[]
+  drmPlans           DrmPlan[]
+  drmAlerts          DrmAlert[]
+  drmReadinessItems  DrmReadinessItem[]
+  drmAssessments     DrmAssessment[]
+  // >>> back-relations:bencana (sisipkan tepat di atas baris ini)
+  complianceRecords  ComplianceReportRecord[]
+  // >>> back-relations:kalender (sisipkan tepat di atas baris ini)
+  procurementSetting  ProcurementSetting?
+  procurementPackages ProcurementPackage[]
+  villageAgreements   VillageAgreement[]
+  idmScores           IdmScore[]
+  idmIndicators       IdmIndicator[]
+  // >>> back-relations:pengadaan (sisipkan tepat di atas baris ini)
+  securityMembers     SecurityMember[]
+  securityEquipment   SecurityEquipment[]
+  securityRondaGroups SecurityRondaGroup[]
+  securityMediations  SecurityMediation[]
+  securityRiskAreas   SecurityRiskArea[]
+  securityContacts    SecurityContact[]
+  // >>> back-relations:keamanan (sisipkan tepat di atas baris ini)
   kdmpFacilities     KdmpFacility[]
   kdmpInstallments   KdmpInstallment[]
   publishedTemplates AppTemplate[]
@@ -1148,6 +1184,13 @@ model Bumdes {
   units        BumdesUnit[]
   transactions BumdesTransaction[]
   assets       BumdesAsset[]
+  journals     BumdesJournal[]
+  periodCloses BumdesPeriodClose[]
+  periodLogs   BumdesPeriodLog[]
+  legalProfile BumdesLegalProfile?
+  officers     BumdesOfficer[]
+  villageFlows BumdesVillageFlow[]
+  resolutions  BumdesMusdesResolution[]
 
   @@map("bumdes")
 }
@@ -1166,6 +1209,7 @@ model BumdesUnit {
   updatedAt DateTime @updatedAt
 
   transactions BumdesTransaction[]
+  journals     BumdesJournal[]
 
   @@index([bumdesId, status])
   @@map("bumdes_units")
@@ -1184,14 +1228,28 @@ model BumdesTransaction {
   category    String   @db.VarChar(100)
   description String?  @db.Text
 
+  /// Akun lawan jurnal (4.x untuk income; 5-7.x untuk expense) dan akun kas (1.1.01.xx). Kosong pada data lama yang belum dijurnal.
+  accountCode     String? @db.VarChar(10)
+  cashAccountCode String? @db.VarChar(10)
+  /// AKTIF | DIBATALKAN (koreksi bukan hapus; riwayat di bumdes_transaction_revisions)
+  status          String  @default("AKTIF") @db.VarChar(12)
+  revision        Int     @default(0)
+  voidedAt        DateTime?
+  voidedById      Int?
+  voidReason      String? @db.VarChar(300)
+
   createdBy   Int
   createdUser User @relation("BumdesTransactionCreatedBy", fields: [createdBy], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  revisions BumdesTransactionRevision[]
+  journals  BumdesJournal[]
+
   @@index([bumdesId, entryDate(sort: Desc)])
   @@index([unitId, entryDate(sort: Desc)])
+  @@index([bumdesId, status])
   @@map("bumdes_transactions")
 }
 
@@ -1262,6 +1320,7 @@ model Potential {
   updatedAt DateTime @updatedAt
 
   farmPlots FarmPlot[]
+  ukmOrders UkmOrderRequest[]
 
   @@index([villageId, category])
   @@index([villageId, status])
@@ -2377,6 +2436,42 @@ model RpjmdesPlan {
   proposals  MusdesProposal[]
   rkpdesDocuments RkpdesDocument[]
 
+  /// Tahapan penyusunan RPJM Desa (Permendagri 114/2014 Pasal 7-28; UU 3/2024 Pasal 79; PP 16/2026 Pasal 143-148).
+  /// Semua kolom di bawah nullable/berdefault: RPJM Desa lama tetap utuh dan tidak terkunci.
+  /// Pelantikan Kepala Desa (dasar tenggat penetapan 3 bulan, PP 16/2026 Pasal 145 ayat 4).
+  headInauguratedOn DateTime? @db.Date
+  /// Arah kebijakan pembangunan Desa (Pasal 6 ayat 1 dan Pasal 21 ayat 1 huruf b).
+  policyDirection   String?   @db.Text
+  teamFormedAt      DateTime? @db.Date
+  teamDecreeRef     String?   @db.VarChar(150)
+  /// Pengkajian keadaan Desa: tanggal dan nomor berita acara, ringkasan hasil (Pasal 12-19).
+  reviewDoneAt      DateTime? @db.Date
+  reviewMinutesRef  String?   @db.VarChar(150)
+  reviewSummary     String?   @db.Text
+  musdesMeetingId   Int?
+  musdesMeeting     VillageMeeting? @relation("RpjmMusdes", fields: [musdesMeetingId], references: [id], onDelete: SetNull)
+  draftReadyAt      DateTime? @db.Date
+  draftMinutesRef   String?   @db.VarChar(150)
+  draftApprovedAt   DateTime? @db.Date
+  draftApprovedById Int?
+  /// Musyawarah yang membahas dan menyepakati rancangan (Pasal 25-26; PP 16/2026 Pasal 144 ayat 3).
+  draftMeetingId    Int?
+  draftMeeting      VillageMeeting? @relation("RpjmDraftMeeting", fields: [draftMeetingId], references: [id], onDelete: SetNull)
+  /// Peraturan Desa tentang RPJM Desa; terisi = isi terkunci.
+  legalDocumentId   Int?
+  legalDocument     LegalDocument? @relation(fields: [legalDocumentId], references: [id], onDelete: SetNull)
+  /// Perdes sudah ada sebelum desa memakai aplikasi: gerbang tahapan dilewati dan itu dicatat.
+  enactedBeforeApp  Boolean   @default(false)
+  /// Rencana Jangka Menengah SDGs Desa pada aplikasi SID (Permendesa PDT 13/2025 Pasal 126 ayat 4).
+  sdgsPlanRecordedAt DateTime? @db.Date
+  sdgsPlanNote       String?   @db.VarChar(300)
+  reopenCount       Int       @default(0)
+
+  rpjmTeam     RpjmTeamMember[]
+  rpjmPrograms RpjmProgram[]
+  rpjmEvents   RpjmEvent[]
+
+  @@unique([legalDocumentId])
   @@index([villageId, status])
   @@map("rpjmdes_plans")
 }
@@ -2413,6 +2508,9 @@ model RkpdesActivity {
   executorHasWoman  Boolean?
   rabVerifiedAt     DateTime? @db.Date
   proposeToRegency  Boolean  @default(false)
+  /// Program RPJM Desa asal kegiatan ini (opsional, tidak dipaksakan).
+  rpjmProgramId     Int?
+  rpjmProgram       RpjmProgram? @relation(fields: [rpjmProgramId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2420,6 +2518,7 @@ model RkpdesActivity {
   mergedFrom MusdesProposal?
 
   @@index([documentId])
+  @@index([rpjmProgramId])
   @@index([planId, year])
   @@index([planId, status])
   @@map("rkpdes_activities")
@@ -3766,6 +3865,9 @@ model InventoryItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  landParcel     LandParcel?
+  landAgreements LandAgreement[]
+
   @@index([villageId, status, category])
   @@index([mapAssetId])
   @@map("inventory_items")
@@ -3796,6 +3898,7 @@ model LegalDocument {
   updatedAt   DateTime @updatedAt
 
   rkpdesDocuments RkpdesDocument[]
+  rpjmPlans       RpjmdesPlan[]
 
   @@unique([villageId, type, year, number])
   @@index([villageId, status, year])
@@ -4426,11 +4529,43 @@ model ApbdesActivityPlan {
   verifiedAt DateTime?
   approvedAt DateTime?
 
+  /// 0 = DPA awal, 1 dst = DPPA ke-n (naik saat dibuka kembali setelah Perubahan APB Desa ditetapkan).
+  revision    Int @default(0)
+  /// Versi APB Desa (0 = APB Desa, 1 dst = perubahan) yang menjadi dasar persetujuan terakhir.
+  baseVersion Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([villageId, year, activityCode])
   @@map("apbdes_activity_plans")
+}
+
+/// Riwayat DPA/DPPA yang pernah disetujui Kepala Desa: salinan beku rencana kerja, RAK, dan anggaran saat itu.
+model ApbdesActivityPlanVersion {
+  id           Int     @id @default(autoincrement())
+  villageId    Int
+  village      Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year         Int
+  activityCode String  @db.VarChar(12)
+  revision     Int
+  baseVersion  Int
+  budgetCents  BigInt
+  executorName String? @db.VarChar(150)
+  /// [{ accountCode, budget: "1000.00", months: ["0.00", ...12] }]
+  rak          Json
+  /// Rencana kerja saat disetujui: { location, outputName, outputVolume, outputUnit, target, team, startMonth, endMonth }
+  work         Json
+  /// Baris RAB saat disetujui: [{ accountCode, description, volume, unit, unitPrice, amount }]
+  rab          Json
+  verifiedAt   DateTime?
+  approvedAt   DateTime
+  approvedById Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([villageId, year, activityCode, revision])
+  @@map("apbdes_activity_plan_versions")
 }
 
 /// Rencana penarikan anggaran per bulan (RAK) per kegiatan dan rekening.
@@ -4645,6 +4780,8 @@ model VillageMeeting {
   decisions  VillageMeetingDecision[]
   asMusdes   RkpdesDocument[] @relation("RkpdesMusdes")
   asMusrenbang RkpdesDocument[] @relation("RkpdesMusrenbang")
+  asRpjmMusdes RpjmdesPlan[] @relation("RpjmMusdes")
+  asRpjmDraft  RpjmdesPlan[] @relation("RpjmDraftMeeting")
 
   @@index([villageId, kind, scheduledOn])
   @@index([villageId, planYear])
@@ -5153,3 +5290,1554 @@ model KdmpInstallment {
   @@index([sppId])
   @@map("kdmp_installments")
 }
+
+/// Anggota tim penyusun RPJM Desa (Permendagri 114/2014 Pasal 8; Permendesa PDTT 21/2020 Pasal 27).
+model RpjmTeamMember {
+  id         Int         @id @default(autoincrement())
+  villageId  Int
+  village    Village     @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  planId     Int
+  plan       RpjmdesPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// Rujukan ke warga (tanpa kunci asing: nama disalin; hanya dipakai mencegah ganda).
+  residentId Int?
+
+  name     String  @db.VarChar(150)
+  /// PEMBINA | KETUA | SEKRETARIS | ANGGOTA
+  role     String  @db.VarChar(12)
+  position String? @db.VarChar(100)
+  gender   String? @db.VarChar(1)
+
+  createdAt DateTime @default(now())
+
+  @@index([planId])
+  @@index([villageId])
+  @@map("rpjm_team_members")
+}
+
+/// Program/kegiatan RPJM Desa per bidang per tahun dengan anggaran indikatif (Permendagri 114/2014 Pasal 6; PP 16/2026 Pasal 145).
+model RpjmProgram {
+  id        Int         @id @default(autoincrement())
+  villageId Int
+  village   Village     @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  planId    Int
+  plan      RpjmdesPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  /// 1 pemerintahan | 2 pelaksanaan pembangunan | 3 pembinaan kemasyarakatan | 4 pemberdayaan masyarakat
+  fieldCode    String   @db.VarChar(1)
+  year         Int
+  title        String   @db.VarChar(255)
+  description  String?  @db.Text
+  /// Kode kegiatan Permendagri 20/2018 (bidang pada kode harus sama dengan fieldCode)
+  activityCode String?  @db.VarChar(12)
+  location     String?  @db.VarChar(255)
+  outputVolume Decimal? @db.Decimal(14, 2)
+  outputUnit   String?  @db.VarChar(30)
+  /// Sasaran/manfaat
+  benefit      String?  @db.VarChar(300)
+  budgetCents  BigInt?
+  fundSource   String?  @db.VarChar(10)
+  method       String?  @db.VarChar(14)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rkpActivities RkpdesActivity[]
+
+  @@index([planId, year])
+  @@index([planId, fieldCode])
+  @@index([villageId])
+  @@map("rpjm_programs")
+}
+
+/// Jejak peristiwa penting RPJM Desa (pembukaan kunci untuk perubahan, Pasal 28 / PP 16/2026 Pasal 148).
+model RpjmEvent {
+  id        Int         @id @default(autoincrement())
+  villageId Int
+  village   Village     @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  planId    Int
+  plan      RpjmdesPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  /// REOPEN
+  kind        String   @db.VarChar(12)
+  /// PERISTIWA_KHUSUS | KEBIJAKAN
+  reason      String?  @db.VarChar(20)
+  note        String   @db.VarChar(300)
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([planId])
+  @@map("rpjm_events")
+}
+
+// >>> models:rpjm (sisipkan model tepat di atas baris ini)
+
+// ============================================
+// BUMDes inti (Paket 3): jurnal berpasangan, penutupan periode, legalitas, hubungan APB Desa. Awalan tabel: bumdes_
+// ============================================
+
+/// Riwayat perubahan dan pembatalan transaksi kas BUMDes (koreksi bukan hapus). Tidak pernah diubah atau dihapus setelah dibuat.
+model BumdesTransactionRevision {
+  id            Int               @id @default(autoincrement())
+  transactionId Int
+  transaction   BumdesTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  /// Nomor revisi sesudah tindakan ini (1, 2, ...)
+  revision Int
+  /// UBAH | BATAL
+  action   String @db.VarChar(8)
+  reason   String @db.VarChar(300)
+  /// Isi transaksi sebelum dan sesudah tindakan (tanggal, arah, jumlah, kategori, uraian, unit, akun).
+  before   Json
+  after    Json?
+
+  byUserId  Int?
+  createdAt DateTime @default(now())
+
+  @@unique([transactionId, revision])
+  @@map("bumdes_transaction_revisions")
+}
+
+/// Jurnal berpasangan: jumlah debit selalu sama dengan jumlah kredit. unitId kosong = Kantor Pusat (Kepmendes 136/2022 Bab V).
+model BumdesJournal {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+  unitId   Int?
+  unit     BumdesUnit? @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  entryDate DateTime @db.Date
+  /// Penomoran bukti: No. urut/bulan/kode unit/tahun (Kepmendes 136/2022). seq berurutan per tahun per BUMDes.
+  year      Int
+  seq       Int
+  voucherNo String   @db.VarChar(60)
+  description String @db.VarChar(300)
+  /// Nomor bukti dari luar (kuitansi, nota); bebas
+  reference String? @db.VarChar(100)
+  /// MANUAL | KAS | MODAL | BAGI_HASIL
+  source    String   @default("MANUAL") @db.VarChar(12)
+  transactionId Int?
+  transaction   BumdesTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  /// Jurnal asal yang digantikan oleh jurnal ini (koreksi)
+  correctsId Int?
+
+  /// AKTIF | DIBATALKAN
+  status     String    @default("AKTIF") @db.VarChar(12)
+  voidedAt   DateTime?
+  voidedById Int?
+  voidReason String?   @db.VarChar(300)
+
+  /// Jumlah sisi debit dan kredit (dipaksa sama oleh server dan CHECK database)
+  totalDebitCents  BigInt
+  totalCreditCents BigInt
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  lines BumdesJournalLine[]
+  flows BumdesVillageFlow[]
+
+  @@unique([bumdesId, year, seq])
+  @@index([bumdesId, entryDate, id])
+  @@index([bumdesId, unitId, entryDate])
+  @@index([transactionId])
+  @@map("bumdes_journals")
+}
+
+model BumdesJournalLine {
+  id        Int           @id @default(autoincrement())
+  journalId Int
+  journal   BumdesJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  lineNo    Int
+
+  /// Kode akun menurut bagan akun Kepmendes 136/2022 (lib/bumdes/catalog.ts)
+  accountCode String  @db.VarChar(10)
+  debitCents  BigInt  @default(0)
+  creditCents BigInt  @default(0)
+  memo        String? @db.VarChar(200)
+
+  @@unique([journalId, lineNo])
+  @@index([accountCode])
+  @@map("bumdes_journal_lines")
+}
+
+/// Penutupan periode pembukuan per semester (1 = Jan-Jun, 2 = Jul-Des). Baris ada = periode tertutup.
+model BumdesPeriodClose {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+  year     Int
+  half     Int
+
+  closedAt   DateTime @default(now())
+  closedById Int?
+  /// Angka konsolidasi saat ditutup (sen): laba (rugi) periode dan total aset akhir periode
+  profitCents BigInt
+  assetCents  BigInt
+
+  @@unique([bumdesId, year, half])
+  @@map("bumdes_period_closes")
+}
+
+/// Catatan penutupan dan pembukaan kembali periode (tidak pernah dihapus).
+model BumdesPeriodLog {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+  year     Int
+  half     Int
+  /// TUTUP | BUKA
+  action   String  @db.VarChar(8)
+  reason   String? @db.VarChar(300)
+  byUserId Int?
+  createdAt DateTime @default(now())
+
+  @@index([bumdesId, year, half])
+  @@map("bumdes_period_logs")
+}
+
+/// Data legalitas dan pendaftaran BUM Desa (PP 11/2021 Pasal 7-9, 11; Permendesa PDTT 3/2021 Pasal 2-10). Satu baris per BUMDes.
+model BumdesLegalProfile {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int    @unique
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+
+  /// BELUM_DAFTAR | PROSES | BADAN_HUKUM (badan hukum = sertifikat pendaftaran elektronik terbit, PP 11/2021 Pasal 8)
+  legalStatus String @default("BELUM_DAFTAR") @db.VarChar(14)
+  /// Musyawarah Desa pendirian (VillageMeeting, tanpa FK; diperiksa oleh servis)
+  establishMeetingId Int?
+  establishedOn      DateTime? @db.Date
+  /// Peraturan Desa pendirian (memuat Anggaran Dasar)
+  perdesNumber String?   @db.VarChar(100)
+  perdesDate   DateTime? @db.Date
+  /// Peraturan Kepala Desa tentang Anggaran Rumah Tangga
+  artNumber    String?   @db.VarChar(100)
+  artDate      DateTime? @db.Date
+  /// Pendaftaran nama (Permendesa PDTT 3/2021 Pasal 2-7) dan sertifikat badan hukum
+  nameApprovalNo   String?   @db.VarChar(100)
+  nameApprovalDate DateTime? @db.Date
+  certificateNo    String?   @db.VarChar(100)
+  certificateDate  DateTime? @db.Date
+  nib   String? @db.VarChar(13)
+  npwp  String? @db.VarChar(16)
+  /// Bidang/jenis usaha dan modal awal (Permendesa PDTT 3/2021 Pasal 9 ayat 2)
+  businessFields String? @db.VarChar(500)
+  initialCapitalCents BigInt?
+  /// Hasil pemeringkatan Kementerian terakhir (A-D), dicatat apa adanya (Permendesa PDTT 3/2021 Pasal 22)
+  rankingYear  Int?
+  rankingLevel String? @db.VarChar(1)
+  note         String? @db.VarChar(500)
+
+  updatedById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("bumdes_legal_profiles")
+}
+
+/// Pengurus dan organ BUM Desa (PP 11/2021 Pasal 15: penasihat, pelaksana operasional, pengawas; Pasal 17: sekretaris dan bendahara).
+model BumdesOfficer {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+
+  /// PENASIHAT | PELAKSANA_OPERASIONAL | SEKRETARIS | BENDAHARA | PENGAWAS | KEPALA_UNIT
+  role      String    @db.VarChar(24)
+  name      String    @db.VarChar(150)
+  skNumber  String?   @db.VarChar(100)
+  skDate    DateTime? @db.Date
+  startOn   DateTime? @db.Date
+  endOn     DateTime? @db.Date
+  note      String?   @db.VarChar(300)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bumdesId, role])
+  @@map("bumdes_officers")
+}
+
+/// Arus antara BUM Desa dan APB Desa: penyertaan modal Desa (pengeluaran pembiayaan 6.2.2.01) dan bagi hasil usaha (pendapatan 4.1.1.01).
+/// Catatan APB Desa dibuat HANYA lewat fungsi Buku Kas Umum yang ada (createEntryInTx); apbdesEntryId menunjuk catatan itu.
+model BumdesVillageFlow {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+
+  /// PENYERTAAN_MODAL | BAGI_HASIL
+  kind        String   @db.VarChar(16)
+  /// Tahun buku asal laba (BAGI_HASIL); kosong untuk penyertaan modal
+  fiscalYear  Int?
+  flowDate    DateTime @db.Date
+  amountCents BigInt
+  /// Keputusan Musyawarah Desa yang menjadi dasar (plafon jumlah kumulatif); musdesMeetingId diturunkan dari keputusan ini
+  resolutionId    Int
+  resolution      BumdesMusdesResolution @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
+  /// Musyawarah Desa yang memutuskan (berita acara final, jenis MUSDES_BUMDES; PP 11/2021 Pasal 41 ayat 4, Pasal 17 huruf l, m, p, Pasal 59 ayat 2)
+  musdesMeetingId Int
+  /// Akun kas BUMDes tempat dana diterima/keluar (1.1.01.xx)
+  cashAccountCode String @db.VarChar(10)
+  /// Catatan Buku Kas Umum APB Desa dan jurnal BUMDes yang dihasilkan
+  apbdesYear    Int
+  apbdesEntryId Int?
+  journalId     Int?
+  journal       BumdesJournal? @relation(fields: [journalId], references: [id], onDelete: SetNull)
+  reference String? @db.VarChar(150)
+  note      String? @db.VarChar(300)
+
+  /// AKTIF | DIBATALKAN
+  status     String    @default("AKTIF") @db.VarChar(12)
+  voidedAt   DateTime?
+  voidedById Int?
+  voidReason String?   @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([bumdesId, kind, flowDate])
+  @@index([apbdesEntryId])
+  @@index([resolutionId])
+  @@map("bumdes_village_flows")
+}
+
+/// Keputusan Musyawarah Desa tentang jumlah penyertaan modal atau bagi hasil: plafon kumulatif arus yang boleh dicatat.
+/// Wajib tertaut ke Musyawarah Desa berberita acara final (jenis MUSDES_BUMDES) dan ke salah satu keputusannya (village_meeting_decisions, tanpa FK).
+model BumdesMusdesResolution {
+  id       Int    @id @default(autoincrement())
+  bumdesId Int
+  bumdes   Bumdes @relation(fields: [bumdesId], references: [id], onDelete: Cascade)
+
+  /// PENYERTAAN_MODAL | BAGI_HASIL
+  kind            String @db.VarChar(16)
+  musdesMeetingId Int
+  decisionId      Int
+  /// Tahun buku asal laba (BAGI_HASIL); kosong untuk penyertaan modal
+  fiscalYear      Int?
+  /// Jumlah yang diputuskan Musyawarah Desa (plafon)
+  amountCents     BigInt
+  note            String? @db.VarChar(300)
+
+  /// AKTIF | DIBATALKAN
+  status     String    @default("AKTIF") @db.VarChar(12)
+  voidedAt   DateTime?
+  voidedById Int?
+  voidReason String?   @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  flows BumdesVillageFlow[]
+
+  @@index([bumdesId, kind])
+  @@index([musdesMeetingId])
+  @@map("bumdes_musdes_resolutions")
+}
+
+// >>> models:bumdes (sisipkan model tepat di atas baris ini)
+
+/// Atribut tanah untuk satu barang buku inventaris golongan tanah (1 barang = paling banyak 1 baris). Bukti hak ditulis apa adanya;
+/// istilah jenis bukti hak belum diverifikasi ke teks resmi (lihat docs/PHASE3_ASET.md).
+model LandParcel {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  itemId    Int     @unique
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  /// Luas tercatat (m2)
+  areaSqm       Decimal  @db.Decimal(14, 2)
+  address       String?  @db.VarChar(255)
+  boundaryNorth String?  @db.VarChar(200)
+  boundaryEast  String?  @db.VarChar(200)
+  boundarySouth String?  @db.VarChar(200)
+  boundaryWest  String?  @db.VarChar(200)
+
+  /// SHM | SHP | HPL | SHGB | LETTER_C | GIRIK | LAINNYA | BELUM_ADA
+  rightKind     String   @db.VarChar(12)
+  rightNumber   String?  @db.VarChar(80)
+  rightHolder   String?  @db.VarChar(150)
+  rightIssuedOn DateTime? @db.Date
+  persilNo      String?  @db.VarChar(40)
+  letterCNo     String?  @db.VarChar(40)
+
+  /// TIDAK_DIMANFAATKAN | DIGUNAKAN_PEMDES | DIKELOLA_DESA | BENGKOK | DISEWAKAN | KERJA_SAMA | BGS_BSG | SENGKETA
+  usage     String  @default("TIDAK_DIMANFAATKAN") @db.VarChar(20)
+  usageNote String? @db.VarChar(300)
+  notes     String? @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, usage])
+  @@map("land_parcels")
+}
+
+/// Perjanjian pemanfaatan aset desa (Permendagri 1/2016 Pasal 11-18): sewa, kerja sama pemanfaatan, bangun guna serah / bangun serah guna.
+model LandAgreement {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  itemId    Int
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  /// SEWA | KERJASAMA | BGS_BSG
+  kind   String @db.VarChar(10)
+  /// DRAF | AKTIF | SELESAI | BATAL
+  status String @default("DRAF") @db.VarChar(8)
+
+  agreementNo   String?  @db.VarChar(100)
+  signedOn      DateTime? @db.Date
+  lesseeName    String   @db.VarChar(150)
+  /// PERORANGAN | BADAN
+  lesseeKind    String   @db.VarChar(10)
+  lesseeAddress String?  @db.VarChar(255)
+  lesseeContact String?  @db.VarChar(40)
+
+  purpose        String?  @db.VarChar(200)
+  objectNote     String?  @db.VarChar(300)
+  /// Luas yang disewakan (m2); kosong = seluruh objek
+  leasedAreaSqm  Decimal? @db.Decimal(14, 2)
+
+  startOn DateTime @db.Date
+  endOn   DateTime @db.Date
+  /// BULAN | TAHUN | SEKALI
+  periodUnit  String @db.VarChar(6)
+  /// Per periode (SEKALI: jumlah total), sen
+  amountCents BigInt
+  /// Rekening pendapatan 4.1.2.x untuk Buku Kas Umum
+  accountCode String @db.VarChar(14)
+
+  tenantDuties          String   @db.VarChar(500)
+  forceMajeureIncluded  Boolean  @default(false)
+  otherTerms            String?  @db.VarChar(1000)
+
+  /// Pasal 11 ayat 3: pemanfaatan ditetapkan dalam Peraturan Desa
+  perdesNo   String?   @db.VarChar(100)
+  perdesDate DateTime? @db.Date
+  /// Pasal 17: izin tertulis Bupati/Wali Kota untuk kerja sama pemanfaatan dan bangun guna serah / serah guna
+  regencyPermitNo   String?   @db.VarChar(100)
+  regencyPermitDate DateTime? @db.Date
+  /// Pasal 30: penilaian oleh Penilai Pemerintah/Publik untuk pemanfaatan tanah dan/atau bangunan
+  appraisalRef String? @db.VarChar(150)
+
+  activatedAt   DateTime?
+  activatedById Int?
+  endedOn       DateTime? @db.Date
+  endedReason   String?   @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  charges LandCharge[]
+  docs    LandAgreementDoc[]
+
+  @@index([villageId, status, endOn])
+  @@index([itemId, status])
+  @@map("land_agreements")
+}
+
+/// Jadwal tagihan satu perjanjian; satu baris = satu periode. Penerimaan bertaut ke catatan Buku Kas Umum lewat entryId
+/// (tanpa kunci asing: tabel buku kas milik modul APB Desa; hilangnya catatan terdeteksi oleh kueri).
+model LandCharge {
+  id          Int           @id @default(autoincrement())
+  villageId   Int
+  village     Village       @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  agreementId Int
+  agreement   LandAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  seq         Int
+  dueOn       DateTime @db.Date
+  amountCents BigInt
+  /// BELUM | DITERIMA | BATAL
+  status      String   @default("BELUM") @db.VarChar(8)
+
+  receivedOn  DateTime? @db.Date
+  /// TUNAI | BANK
+  channel     String?   @db.VarChar(5)
+  voucherNo   String?   @db.VarChar(60)
+  entryId     Int?      @unique
+  receivedById Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agreementId, seq])
+  @@index([villageId, status, dueOn])
+  @@map("land_charges")
+}
+
+/// Lampiran perjanjian: tautan ke dokumen di Arsip Digital (berkasnya tidak disalin).
+model LandAgreementDoc {
+  id          Int           @id @default(autoincrement())
+  villageId   Int
+  village     Village       @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  agreementId Int
+  agreement   LandAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  /// PERJANJIAN | PERDES | IZIN_BUPATI | PENILAIAN | BUKTI_HAK | LAINNYA
+  kind      String   @db.VarChar(12)
+  /// digital_archives.id (tanpa kunci asing; modul Arsip Digital)
+  archiveId BigInt
+  label     String   @db.VarChar(150)
+  createdById Int?
+  createdAt DateTime @default(now())
+
+  @@unique([agreementId, archiveId])
+  @@map("land_agreement_docs")
+}
+
+/// Pesanan sederhana produk UKM desa: diminta pembeli, dikonfirmasi/diselesaikan/dibatalkan penjual atau admin. Tanpa pembayaran online.
+model UkmOrderRequest {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  productId Int?
+  product   Potential? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  /// Salinan saat dipesan (produk bisa diubah/dihapus kemudian)
+  productName    String  @db.VarChar(255)
+  unitPriceCents BigInt?
+  unit           String? @db.VarChar(50)
+  quantity       Int
+  /// Pembeli (warga). Tanpa kunci asing; nama dibaca dari tabel warga saat ditampilkan.
+  buyerResidentId  Int
+  /// Pemilik produk saat dipesan; null = produk dikelola desa (ditangani admin)
+  sellerResidentId Int?
+  buyerNote  String? @db.VarChar(300)
+  sellerNote String? @db.VarChar(300)
+
+  /// DIMINTA | DIKONFIRMASI | SELESAI | DIBATALKAN
+  status    String  @default("DIMINTA") @db.VarChar(12)
+  /// "<produk>:<pembeli>" selama pesanan masih terbuka (DIMINTA/DIKONFIRMASI), null sesudahnya: satu pesanan terbuka per pembeli per produk.
+  activeKey String? @unique @db.VarChar(40)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events UkmOrderEvent[]
+
+  @@index([villageId, status, createdAt])
+  @@index([villageId, sellerResidentId, status])
+  @@index([villageId, buyerResidentId, createdAt])
+  @@index([productId])
+  @@map("ukm_order_requests")
+}
+
+model UkmOrderEvent {
+  id        Int             @id @default(autoincrement())
+  villageId Int
+  orderId   Int
+  order     UkmOrderRequest @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  fromStatus String?  @db.VarChar(12)
+  toStatus   String   @db.VarChar(12)
+  /// PEMBELI | PENJUAL | ADMIN
+  actorKind  String   @db.VarChar(8)
+  note       String?  @db.VarChar(300)
+  createdAt  DateTime @default(now())
+
+  @@index([orderId, createdAt])
+  @@map("ukm_order_events")
+}
+
+// >>> models:aset (sisipkan model tepat di atas baris ini)
+
+/// Kejadian (primitif bersama P4 Bencana dan P5 Keamanan). `domain` memisahkan dua dunia: BENCANA | KEAMANAN.
+/// Jenis kejadian ada di katalog per domain (lib/incident/catalog.ts). Dampak berupa angka kasar (bukan daftar nama korban).
+model IncidentEvent {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// BENCANA | KEAMANAN
+  domain      String   @db.VarChar(12)
+  kind        String   @db.VarChar(40)
+  title       String   @db.VarChar(200)
+  description String?  @db.VarChar(2000)
+  occurredAt  DateTime
+  /// LOW | MEDIUM | HIGH | CRITICAL
+  severity    String   @default("MEDIUM") @db.VarChar(10)
+  /// OPEN | RESPONDING | RESOLVED | CLOSED | CANCELLED (gerbang di lib/incident/calc.ts)
+  status      String   @default("OPEN") @db.VarChar(12)
+
+  locationText String? @db.VarChar(255)
+  rt           String? @db.VarChar(10)
+  rw           String? @db.VarChar(10)
+  hamlet       String? @db.VarChar(100)
+  lat          Float?
+  lng          Float?
+
+  deathCount         Int?
+  missingCount       Int?
+  injuredCount       Int?
+  displacedCount     Int?
+  affectedHouseholds Int?
+  damagedHouses      Int?
+  lossCents          BigInt?
+  impactNote         String? @db.VarChar(1000)
+
+  /// Pelaporan ke supra-desa (BPBD/kecamatan/Polsek/Koramil dst.)
+  supraReportedAt DateTime?
+  supraReportedTo String?   @db.VarChar(150)
+  supraReference  String?   @db.VarChar(150)
+
+  resolutionNote String?   @db.VarChar(1000)
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  responses  IncidentResponse[]
+  logistics  IncidentLogistic[]
+  statusLogs IncidentStatusLog[]
+
+  @@index([villageId, domain, status, occurredAt])
+  @@index([villageId, domain, occurredAt])
+  @@map("incident_events")
+}
+
+/// Log tindakan/respons satu kejadian (tambah-saja; koreksi = hapus oleh yang berwenang selama kejadian belum ditutup).
+model IncidentResponse {
+  id        Int           @id @default(autoincrement())
+  villageId Int
+  eventId   Int
+  event     IncidentEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  loggedAt    DateTime
+  kind        String   @db.VarChar(30)
+  description String   @db.VarChar(1000)
+  /// Pelaksana/tim (teks bebas)
+  actor       String?  @db.VarChar(150)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([eventId, loggedAt])
+  @@index([villageId])
+  @@map("incident_responses")
+}
+
+/// Distribusi bantuan/logistik. Penerima = KK (householdId, tanpa FK; nama kepala KK disalin sebagai bukti LPJ) atau
+/// penerima non-KK (posko, fasilitas). Tidak memuat NIK. Bukan buku kas: pengeluaran uang tetap lewat SPP/Buku Kas.
+model IncidentLogistic {
+  id        Int           @id @default(autoincrement())
+  villageId Int
+  eventId   Int
+  event     IncidentEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  householdId   Int?
+  recipientName String  @db.VarChar(150)
+  rt            String? @db.VarChar(10)
+  rw            String? @db.VarChar(10)
+
+  item     String  @db.VarChar(100)
+  /// item huruf kecil tanpa spasi berlebih; bagian dari kunci unik anti-ganda
+  itemKey  String  @db.VarChar(100)
+  quantity Int
+  unit     String  @db.VarChar(30)
+  valueCents BigInt?
+  /// Kode sumber dana dari katalog (lib/incident/catalog.ts)
+  fundingSource String  @db.VarChar(24)
+  distributedOn DateTime @db.Date
+  reference     String?  @db.VarChar(150)
+  note          String?  @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([eventId, householdId, itemKey, distributedOn], map: "incident_logi_dup_uq")
+  @@index([eventId, distributedOn])
+  @@index([villageId, householdId])
+  @@map("incident_logistics")
+}
+
+/// Riwayat perpindahan status kejadian (siapa, kapan, alasan).
+model IncidentStatusLog {
+  id        Int           @id @default(autoincrement())
+  villageId Int
+  eventId   Int
+  event     IncidentEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  fromStatus String?  @db.VarChar(12)
+  toStatus   String   @db.VarChar(12)
+  note       String?  @db.VarChar(500)
+  byUserId   Int?
+  at         DateTime @default(now())
+
+  @@index([eventId, at])
+  @@map("incident_status_logs")
+}
+
+/// Ancaman per wilayah. `disasterPointId` menunjuk titik rawan lama (disaster_points) bila diimpor; tanpa FK agar tabel lama tak tersentuh.
+model DrmHazard {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  hazardType String  @db.VarChar(30)
+  name       String  @db.VarChar(200)
+  /// LOW | MEDIUM | HIGH | EXTREME (penilaian setempat, bukan kelas resmi)
+  riskLevel  String  @default("MEDIUM") @db.VarChar(10)
+  rt         String? @db.VarChar(10)
+  rw         String? @db.VarChar(10)
+  hamlet     String? @db.VarChar(100)
+  lat        Float?
+  lng        Float?
+  exposedHouseholds Int?
+  description String?  @db.VarChar(1000)
+  lastReviewedOn DateTime? @db.Date
+  disasterPointId Int?
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([villageId, disasterPointId], map: "drm_haz_dp_uq")
+  @@index([villageId, riskLevel])
+  @@map("drm_hazards")
+}
+
+/// Sumber daya kesiapsiagaan: shelter, titik kumpul, jalur evakuasi, peralatan, stok logistik, sirine/EWS, dst.
+model DrmResource {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  kind         String  @db.VarChar(20)
+  name         String  @db.VarChar(200)
+  locationText String? @db.VarChar(255)
+  rt           String? @db.VarChar(10)
+  rw           String? @db.VarChar(10)
+  lat          Float?
+  lng          Float?
+  /// Kapasitas orang (shelter/titik kumpul) dan jumlah barang (peralatan/stok)
+  capacity     Int?
+  quantity     Int?
+  unit         String? @db.VarChar(30)
+  /// BAIK | PERLU_PERBAIKAN | RUSAK | BELUM_DIPERIKSA
+  condition    String  @default("BELUM_DIPERIKSA") @db.VarChar(16)
+  lastCheckedOn DateTime? @db.Date
+  custodian    String? @db.VarChar(150)
+  note         String? @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, kind])
+  @@map("drm_resources")
+}
+
+/// Relawan/tim siaga: rujukan ke warga (residentId, tanpa FK; nama dibaca dari residents saat tampil, tanpa NIK).
+model DrmVolunteer {
+  id         Int     @id @default(autoincrement())
+  villageId  Int
+  village    Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  residentId Int
+
+  team     String?   @db.VarChar(100)
+  role     String?   @db.VarChar(60)
+  skill    String?   @db.VarChar(100)
+  /// ACTIVE | INACTIVE
+  status   String    @default("ACTIVE") @db.VarChar(10)
+  joinedOn DateTime? @db.Date
+  skRef    String?   @db.VarChar(150)
+  note     String?   @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([villageId, residentId], map: "drm_vol_res_uq")
+  @@index([villageId, status])
+  @@map("drm_volunteers")
+}
+
+/// Dokumen rencana (RPB, kontinjensi, evakuasi, SOP peringatan). Lampiran = rujukan ke Produk Hukum dan/atau Arsip Digital yang ada.
+model DrmPlan {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  kind   String @db.VarChar(20)
+  title  String @db.VarChar(200)
+  year   Int?
+  /// DRAF | DITETAPKAN | DIARSIPKAN
+  status String @default("DRAF") @db.VarChar(12)
+  note   String? @db.VarChar(500)
+  legalDocumentId Int?
+  archiveId       BigInt?
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, kind])
+  @@map("drm_plans")
+}
+
+/// Log siaran peringatan dini ke warga (lewat kotak masuk + push mobile yang sudah ada).
+model DrmAlert {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// INFORMASI | WASPADA | SIAGA | AWAS (istilah aplikasi, bukan status resmi BMKG/PVMBG)
+  level      String  @db.VarChar(12)
+  hazardType String? @db.VarChar(30)
+  title      String  @db.VarChar(120)
+  message    String  @db.VarChar(500)
+  /// ALL | AREA
+  targetKind String  @db.VarChar(6)
+  /// [{ "rt": "01"|null, "rw": "02" }] bila AREA
+  targets    Json?
+  eventId    Int?
+  /// Jumlah akun warga yang menerima di kotak masuk, dan jumlah perangkat yang dituju push
+  recipientAccounts Int @default(0)
+  deviceCount       Int @default(0)
+  /// SENDING | SENT | FAILED
+  status     String  @default("SENDING") @db.VarChar(8)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([villageId, createdAt])
+  @@map("drm_alerts")
+}
+
+/// Isian kesiapan Destana per desa. CATALOG = butir dari katalog [V] (Peraturan BNPB 7/2025 Pasal 8 ayat 1); CUSTOM = butir buatan desa (belum diverifikasi).
+model DrmReadinessItem {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// CATALOG | CUSTOM
+  source String  @db.VarChar(8)
+  code   String? @db.VarChar(40)
+  label  String? @db.VarChar(200)
+  /// BELUM | SEDANG | SELESAI
+  status String  @default("BELUM") @db.VarChar(8)
+  note   String? @db.VarChar(500)
+
+  updatedById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([villageId, code], map: "drm_ready_code_uq")
+  @@index([villageId, source])
+  @@map("drm_readiness_items")
+}
+
+/// Penilaian Ketangguhan (mandiri) dan evaluasi program Destana yang sudah dilakukan desa; tingkat ketangguhan dicatat sesuai hasil penilaian resmi, tidak dihitung aplikasi.
+model DrmAssessment {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// PENILAIAN | EVALUASI
+  kind        String   @db.VarChar(10)
+  doneOn      DateTime @db.Date
+  /// UTAMA | MADYA | PRATAMA | BELUM_DITETAPKAN (hanya untuk PENILAIAN)
+  level       String?  @db.VarChar(16)
+  referenceNo String?  @db.VarChar(150)
+  note        String?  @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([villageId, kind, doneOn])
+  @@map("drm_assessments")
+}
+
+// >>> models:bencana (sisipkan model tepat di atas baris ini)
+
+// ============================================
+// Kalender kepatuhan laporan desa (docs/PHASE3_KALENDER.md, Paket 3 P7)
+// ============================================
+
+/// Katalog tenggat laporan wajib yang dapat disunting sebagai DATA. Katalog bawaan ada di kode (lib/kepatuhan/catalog.ts);
+/// baris di sini menimpanya: scope GLOBAL (semua desa, dikelola admin platform) atau REGENCY (satu kabupaten, dikelola
+/// akun regional kabupaten). Satu baris berlaku sejak `fromYear` sampai ada baris dengan fromYear lebih baru.
+model ComplianceCatalogEntry {
+  id          Int    @id @default(autoincrement())
+  /// GLOBAL | REGENCY
+  scope       String @db.VarChar(8)
+  /// Kunci kabupaten/provinsi (teks wilayah desa, huruf kecil, spasi dirapikan); "" untuk GLOBAL.
+  regencyKey  String @default("") @db.VarChar(120)
+  provinceKey String @default("") @db.VarChar(120)
+  /// Kunci butir bawaan, atau KAB-xxx untuk butir tambahan kabupaten.
+  itemKey     String @db.VarChar(40)
+  fromYear    Int
+  /// true: butir ini dimatikan untuk cakupan tersebut sejak fromYear.
+  disabled    Boolean @default(false)
+  title       String? @db.VarChar(200)
+  recipient   String? @db.VarChar(200)
+  /// FIXED | AFTER_EVENT | NONE (kosong bila disabled)
+  ruleKind    String? @db.VarChar(12)
+  /// FIXED: tahun tenggat relatif tahun anggaran (-1, 0, 1)
+  yearOffset  Int?
+  month       Int?
+  day         Int?
+  /// AFTER_EVENT: RKPDES_ENACTED | APBDES_ENACTED, ditambah `amount` satuan `unit` (MONTH | WORKDAY)
+  event       String? @db.VarChar(20)
+  amount      Int?
+  unit        String? @db.VarChar(8)
+  /// V = dibaca dari teks resmi, R = belum diverifikasi, K = ketetapan kabupaten
+  verification String @default("K") @db.VarChar(1)
+  basis       String? @db.VarChar(300)
+  note        String? @db.VarChar(500)
+  /// Penyunting: akun regional (REGENCY) atau teks pengenal admin platform (GLOBAL).
+  updatedByRegionalId Int?
+  updatedByLabel      String? @db.VarChar(120)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scope, regencyKey, provinceKey, itemKey, fromYear], map: "compliance_catalog_unique")
+  @@index([regencyKey, provinceKey])
+  @@map("compliance_catalog_entries")
+}
+
+/// Catatan pengiriman laporan wajib per desa, tahun anggaran, dan butir. Tanpa baris = belum. Status otomatis dari data
+/// sistem (APB Desa, laporan kepala desa, Dana Desa) tidak disimpan di sini; baris ini untuk yang dikirim di luar sistem.
+model ComplianceReportRecord {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+  itemKey   String  @db.VarChar(40)
+  /// DRAF | TERKIRIM
+  status    String  @db.VarChar(8)
+  sentOn    DateTime? @db.Date
+  /// Nomor surat pengantar / tanda terima.
+  referenceNo String? @db.VarChar(150)
+  note      String? @db.VarChar(500)
+  /// Berkas bukti di Arsip Digital (tanpa FK; diperiksa milik desa yang sama saat disimpan).
+  archiveId BigInt?
+  updatedById Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([villageId, year, itemKey], map: "compliance_record_unique")
+  @@index([villageId, year])
+  @@map("compliance_report_records")
+}
+
+// >>> models:kalender (sisipkan model tepat di atas baris ini)
+
+/// Ambang nilai metode pengadaan milik desa. Ambang ditetapkan Perbup kabupaten/kota (Peraturan LKPP 12/2019): diisi desa, tidak ditanam.
+model ProcurementSetting {
+  id        Int     @id @default(autoincrement())
+  villageId Int     @unique
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  directLimitCents BigInt?
+  offerLimitCents  BigInt?
+  /// Dasar ambang, mis. nomor Perbup.
+  basisNote        String? @db.VarChar(300)
+  updatedAt        DateTime @updatedAt
+
+  @@map("procurement_settings")
+}
+
+/// Satu paket pengadaan barang/jasa atas satu kegiatan APB Desa. Uang dalam sen.
+model ProcurementPackage {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+  number    Int
+
+  activityCode String  @db.VarChar(12)
+  accountCode  String? @db.VarChar(14)
+  title        String  @db.VarChar(200)
+  scope        String? @db.VarChar(1000)
+  location     String? @db.VarChar(200)
+  /// SWAKELOLA | PENYEDIA
+  mode         String  @db.VarChar(10)
+  /// PEMBELIAN_LANGSUNG | PERMINTAAN_PENAWARAN | LELANG (hanya untuk PENYEDIA)
+  method       String? @db.VarChar(22)
+  /// HPS (penyedia) atau RAB pengadaan (swakelola)
+  hpsCents     BigInt
+
+  executorName  String? @db.VarChar(150)
+  executorTitle String? @db.VarChar(100)
+  plannedStartOn DateTime? @db.Date
+  plannedEndOn   DateTime? @db.Date
+  tpkDecreeNumber String?   @db.VarChar(100)
+  tpkDecreeDate   DateTime? @db.Date
+  planAnnouncedOn   DateTime? @db.Date
+  resultAnnouncedOn DateTime? @db.Date
+  /// Alasan hanya satu penyedia diminta penawaran (Lampiran I Peraturan LKPP 12/2019, Bab III.B.2.b.2 angka 10).
+  singleProviderReason String? @db.VarChar(300)
+
+  /// PERSIAPAN | PEMILIHAN | PELAKSANAAN | SELESAI | BATAL
+  status String @default("PERSIAPAN") @db.VarChar(12)
+  cancelReason String? @db.VarChar(300)
+
+  negotiationNumber String?   @db.VarChar(100)
+  negotiationDate   DateTime? @db.Date
+  negotiationNote   String?   @db.VarChar(500)
+
+  contractNumber  String?   @db.VarChar(100)
+  contractDate    DateTime? @db.Date
+  contractCents   BigInt?
+  contractStartOn DateTime? @db.Date
+  contractEndOn   DateTime? @db.Date
+
+  bastNumber       String?   @db.VarChar(100)
+  bastDate         DateTime? @db.Date
+  bastHandedBy     String?   @db.VarChar(150)
+  bastReceivedBy   String?   @db.VarChar(150)
+  bastNote         String?   @db.VarChar(500)
+  handoverToHeadOn DateTime? @db.Date
+  progressPct      Int       @default(0)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team   ProcurementTeamMember[]
+  offers ProcurementOffer[]
+
+  @@unique([villageId, year, number])
+  @@index([villageId, year, status])
+  @@index([villageId, year, activityCode])
+  @@map("procurement_packages")
+}
+
+/// Anggota Tim Pelaksana Kegiatan (TPK).
+model ProcurementTeamMember {
+  id        Int                @id @default(autoincrement())
+  packageId Int
+  package   ProcurementPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  villageId Int
+  name      String             @db.VarChar(150)
+  /// KETUA | SEKRETARIS | ANGGOTA
+  role      String             @db.VarChar(10)
+  /// PERANGKAT | LEMBAGA | MASYARAKAT (Peraturan LKPP 12/2019 Pasal 11 ayat 1)
+  element   String             @db.VarChar(12)
+  position  String?            @db.VarChar(100)
+  createdAt DateTime           @default(now())
+
+  @@index([packageId])
+  @@index([villageId])
+  @@map("procurement_team_members")
+}
+
+/// Penawaran penyedia untuk satu paket.
+model ProcurementOffer {
+  id        Int                @id @default(autoincrement())
+  packageId Int
+  package   ProcurementPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  villageId Int
+  providerName    String       @db.VarChar(150)
+  providerAddress String?      @db.VarChar(200)
+  offeredOn       DateTime     @db.Date
+  priceCents      BigInt
+  /// Lulus persyaratan administrasi/teknis dan harga.
+  passed          Boolean      @default(false)
+  evaluationNote  String?      @db.VarChar(300)
+  /// Harga setelah negosiasi (bila ada)
+  negotiatedCents BigInt?
+  isWinner        Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+
+  @@index([packageId])
+  @@index([villageId])
+  @@map("procurement_offers")
+}
+
+/// Kerja sama antar-desa atau dengan pihak ketiga (Permendagri 96/2017).
+model VillageAgreement {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+
+  /// ANTAR_DESA | PIHAK_KETIGA
+  kind      String @db.VarChar(12)
+  /// DESA | PIHAK_KETIGA (hanya untuk kerja sama dengan pihak ketiga)
+  initiative String? @db.VarChar(12)
+  title     String @db.VarChar(200)
+  /// PEMERINTAHAN | PEMBANGUNAN | PEMBINAAN | PEMBERDAYAAN (Pasal 9 ayat 1)
+  field     String @db.VarChar(12)
+
+  /// Muatan minimal Peraturan Bersama/Perjanjian Bersama (Pasal 6)
+  scope      String? @db.VarChar(2000)
+  procedures String? @db.VarChar(2000)
+  rights     String? @db.VarChar(2000)
+  funding    String? @db.VarChar(1000)
+  amendment  String? @db.VarChar(1000)
+  dispute    String? @db.VarChar(1000)
+  termStartOn DateTime? @db.Date
+  termEndOn   DateTime? @db.Date
+
+  /// PERSIAPAN | PENAWARAN | PENYUSUNAN | DITANDATANGANI | PELAKSANAAN | SELESAI | BATAL
+  status String @default("PERSIAPAN") @db.VarChar(14)
+
+  /// Musyawarah Desa pembahasan bidang/potensi (Pasal 13 ayat 2, 14 ayat 2); tanpa kunci asing: dicek saat disimpan.
+  prepMusdesId    Int?
+  inPlanConfirmed Boolean @default(false)
+  offerSentOn     DateTime? @db.Date
+  /// Musyawarah Desa setelah penawaran diterima (Pasal 13 ayat 3, 14 ayat 3, 15)
+  offerMusdesId   Int?
+  /// SEPAKAT | TIDAK
+  offerDecision   String? @db.VarChar(8)
+  offerReplyOn    DateTime? @db.Date
+  /// Rancangan dikonsultasikan ke bupati/wali kota melalui camat (Pasal 13 ayat 4, 14 ayat 4)
+  consultedOn     DateTime? @db.Date
+  /// Menyangkut tata ruang, pungutan, atau organisasi (Pasal 13 ayat 4 huruf c): wajib dikonsultasikan
+  consultRequired Boolean   @default(false)
+  agreedOn        DateTime? @db.Date
+  signedOn        DateTime? @db.Date
+  signedNumber    String?   @db.VarChar(100)
+  witnessName     String?   @db.VarChar(150)
+  reportedOn          DateTime? @db.Date
+  reportedToCamatOn   DateTime? @db.Date
+  /// Alasan berakhir: salah satu dari Pasal 17 (kode di katalog)
+  endReason String?   @db.VarChar(24)
+  endNote   String?   @db.VarChar(300)
+  endedOn   DateTime? @db.Date
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parties VillageAgreementParty[]
+  budget  VillageAgreementBudgetItem[]
+
+  @@index([villageId, status])
+  @@index([villageId, year])
+  @@map("village_agreements")
+}
+
+model VillageAgreementParty {
+  id          Int              @id @default(autoincrement())
+  agreementId Int
+  agreement   VillageAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  villageId   Int
+  /// SELF (desa ini) | DESA (desa lain) | PIHAK_KETIGA
+  kind        String           @db.VarChar(12)
+  name        String           @db.VarChar(200)
+  representativeName  String?  @db.VarChar(150)
+  representativeTitle String?  @db.VarChar(100)
+  createdAt   DateTime         @default(now())
+
+  budget VillageAgreementBudgetItem[]
+
+  @@index([agreementId])
+  @@index([villageId])
+  @@map("village_agreements_parties")
+}
+
+/// Baris RAB bersama; satu pihak menanggung tiap baris.
+model VillageAgreementBudgetItem {
+  id          Int              @id @default(autoincrement())
+  agreementId Int
+  agreement   VillageAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  villageId   Int
+  description String           @db.VarChar(300)
+  amountCents BigInt
+  bearerId    Int?
+  bearer      VillageAgreementParty? @relation(fields: [bearerId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+
+  @@index([agreementId])
+  @@index([villageId])
+  @@map("village_agreements_budget_items")
+}
+
+/// Skor Indeks Desa Membangun (IDM) per desa per tahun, dari berkas yang diimpor. Angka disimpan apa adanya (skala tergantung sumber).
+model IdmScore {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+  iks       Decimal? @db.Decimal(14, 4)
+  ike       Decimal? @db.Decimal(14, 4)
+  ikl       Decimal? @db.Decimal(14, 4)
+  idm       Decimal? @db.Decimal(14, 4)
+  status    String?  @db.VarChar(40)
+  sourceName String? @db.VarChar(200)
+  importedById Int?
+  importedAt DateTime @default(now())
+
+  @@unique([villageId, year])
+  @@map("idm_scores")
+}
+
+/// Skor per indikator IDM (opsional; dari berkas rumusan satu baris per indikator).
+model IdmIndicator {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+  /// IKS | IKE | IKL | LAIN
+  dimension String  @db.VarChar(4)
+  code      String? @db.VarChar(30)
+  name      String  @db.VarChar(300)
+  score     Decimal @db.Decimal(14, 4)
+  maxScore  Decimal? @db.Decimal(14, 4)
+  note      String? @db.VarChar(500)
+  suggestion String? @db.VarChar(1000)
+  sortOrder Int     @default(0)
+
+  @@index([villageId, year, dimension])
+  @@map("idm_indicators")
+}
+
+// >>> models:pengadaan (sisipkan model tepat di atas baris ini)
+
+/// ---------------------------------------------------------------------------------------------------------------------
+/// P5 Keamanan & ketertiban (resource izin `keamanan`). Kejadian keamanan memakai primitif `incident_events` (domain KEAMANAN);
+/// tabel `security_*` yang merujuk kejadian memakai eventId TANPA FK Prisma (agar model incident_* tak berubah) dan dijaga di
+/// servis (domain + villageId, kunci baris kejadian). TIDAK ADA tabel/kolom identitas korban kekerasan perempuan/anak: hanya rujukan layanan.
+/// ---------------------------------------------------------------------------------------------------------------------
+
+/// Anggota Satlinmas: rujukan ke warga (residentId, tanpa FK; nama dibaca dari residents, tanpa NIK). Dasar: Permendagri 26/2020 Pasal 13-17, 25.
+model SecurityMember {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  residentId Int
+  /// KEPALA_SATLINMAS | KEPALA_PELAKSANA | KOMANDAN_REGU | ANGGOTA (Pasal 13 ayat 1)
+  role       String  @default("ANGGOTA") @db.VarChar(20)
+  /// Jenis regu (Pasal 19) bila ada
+  squadKind  String? @db.VarChar(20)
+  squadName  String? @db.VarChar(100)
+  /// ACTIVE | ENDED
+  status     String  @default("ACTIVE") @db.VarChar(10)
+  /// SK pengangkatan Kepala Desa (Pasal 16 ayat 2) dan pengukuhan bupati/wali kota (Pasal 17)
+  decreeNumber  String?   @db.VarChar(100)
+  decreeDate    DateTime? @db.Date
+  inauguratedOn DateTime? @db.Date
+  cardNumber    String?   @db.VarChar(60)
+  joinedOn      DateTime? @db.Date
+  /// Keputusan perpanjangan masa keanggotaan 60 menjadi 65 tahun (Pasal 25 ayat 3-4)
+  extensionDecree String? @db.VarChar(100)
+  endedOn     DateTime? @db.Date
+  endReason   String?   @db.VarChar(24)
+  endDecree   String?   @db.VarChar(100)
+  note        String?   @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([villageId, residentId], map: "security_mem_res_uq")
+  @@index([villageId, status])
+  @@map("security_members")
+}
+
+/// Perlengkapan Satlinmas/pos ronda. `inventoryItemId` menaut ke inventaris desa (opsional; tanpa FK, diperiksa sedesa di servis).
+model SecurityEquipment {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  category   String  @db.VarChar(20)
+  name       String  @db.VarChar(200)
+  quantity   Int     @default(1)
+  /// BAIK | PERLU_PERBAIKAN | RUSAK | BELUM_DIPERIKSA
+  condition  String  @default("BELUM_DIPERIKSA") @db.VarChar(16)
+  location   String? @db.VarChar(200)
+  custodian  String? @db.VarChar(150)
+  inventoryItemId Int?
+  lastCheckedOn   DateTime? @db.Date
+  note       String? @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, category])
+  @@map("security_equipment")
+}
+
+/// Regu ronda/siskamling per RT/RW (Perpol 4/2020 Pasal 35-41: Satkamling dibentuk warga; pos memuat daftar dan jadwal penugasan).
+model SecurityRondaGroup {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name      String  @db.VarChar(120)
+  rt        String? @db.VarChar(10)
+  rw        String? @db.VarChar(10)
+  hamlet    String? @db.VarChar(100)
+  postName  String? @db.VarChar(120)
+  /// "HH:MM"; selesai lebih kecil dari mulai = melewati tengah malam
+  startTime String  @default("22:00") @db.VarChar(5)
+  endTime   String  @default("04:00") @db.VarChar(5)
+  /// Jumlah petugas per malam
+  perShift  Int     @default(2)
+  active    Boolean @default(true)
+  note      String? @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  people  SecurityRondaPerson[]
+  shifts  SecurityRondaShift[]
+  swaps   SecurityRondaSwap[]
+  logs    SecurityRondaLog[]
+
+  @@unique([villageId, name], map: "security_grp_name_uq")
+  @@index([villageId, active])
+  @@map("security_ronda_groups")
+}
+
+/// Peserta regu ronda: warga (residentId, tanpa FK). Nama dibaca dari residents.
+model SecurityRondaPerson {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  groupId   Int
+  group     SecurityRondaGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  residentId Int
+  active     Boolean   @default(true)
+  joinedOn   DateTime? @db.Date
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([groupId, residentId], map: "security_rp_uq")
+  @@index([villageId, residentId])
+  @@map("security_ronda_people")
+}
+
+/// Satu baris = satu orang bertugas pada satu malam (tanggal mulai jaga). Kehadiran dicatat pada baris yang sama.
+model SecurityRondaShift {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  groupId   Int
+  group     SecurityRondaGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  shiftDate  DateTime @db.Date
+  residentId Int
+  /// PENDING | PRESENT | LATE | ABSENT | EXCUSED
+  attendance String   @default("PENDING") @db.VarChar(10)
+  markedAt   DateTime?
+  markedById Int?
+  attendanceNote String? @db.VarChar(200)
+  /// GENERATED | MANUAL | SWAP
+  source     String   @default("MANUAL") @db.VarChar(10)
+  /// Bila baris ini hasil tukar/pengganti: warga yang semula bertugas (jejak)
+  replacedResidentId Int?
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  swaps SecurityRondaSwap[]
+
+  @@unique([groupId, shiftDate, residentId], map: "security_shift_uq")
+  @@index([villageId, shiftDate])
+  @@index([groupId, shiftDate])
+  @@index([villageId, residentId, shiftDate])
+  @@map("security_ronda_shifts")
+}
+
+/// Permintaan tukar/ganti giliran. Berlaku hanya setelah diputuskan (APPROVED) oleh petugas desa; pihak kedua harus tercatat setuju.
+model SecurityRondaSwap {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  groupId   Int
+  group     SecurityRondaGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  shiftId   Int
+  shift     SecurityRondaShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  /// Pemegang giliran pemohon saat permintaan dibuat; persetujuan ditolak bila giliran sudah dipegang orang lain (permintaan basi)
+  requesterResidentId   Int
+  /// Warga yang menerima giliran pemohon (dan memberikan gilirannya sendiri bila counterpartShiftId diisi)
+  counterpartResidentId Int
+  /// Giliran milik pihak kedua yang ditukar (kosong = hanya menggantikan)
+  counterpartShiftId    Int?
+  counterpartAgreed     Boolean @default(false)
+  reason     String? @db.VarChar(300)
+  /// PENDING | APPROVED | REJECTED | CANCELLED
+  status     String  @default("PENDING") @db.VarChar(10)
+  decidedAt  DateTime?
+  decidedById Int?
+  decisionNote String? @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([groupId, status])
+  @@index([shiftId])
+  @@map("security_ronda_swaps")
+}
+
+/// Buku catatan ronda (Perpol 4/2020 Pasal 41 ayat 1 huruf e): situasi aman (NIHIL) atau temuan. Temuan dapat dieskalasi ke kejadian (eventId).
+model SecurityRondaLog {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  groupId   Int
+  group     SecurityRondaGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  shiftDate   DateTime @db.Date
+  loggedAt    DateTime
+  /// NIHIL | TEMUAN
+  kind        String   @db.VarChar(8)
+  description String   @db.VarChar(1000)
+  reporter    String?  @db.VarChar(150)
+  /// Kejadian keamanan hasil eskalasi (tanpa FK; diperiksa domain + desa di servis)
+  eventId     Int?
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([groupId, shiftDate])
+  @@index([villageId, loggedAt])
+  @@map("security_ronda_logs")
+}
+
+/// Berita acara mediasi atas satu kejadian keamanan. Memuat pihak (nama saja: tanpa NIK/alamat/telepon), hasil, dan tindak lanjut.
+model SecurityMediation {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  eventId   Int
+
+  scheduledAt DateTime
+  place       String   @db.VarChar(200)
+  mediator    String   @db.VarChar(150)
+  /// SCHEDULED | COMPLETED | CANCELLED
+  status      String   @default("SCHEDULED") @db.VarChar(10)
+  /// SEPAKAT | SEPAKAT_SEBAGIAN | TIDAK_SEPAKAT | DITUNDA | DIRUJUK (hanya bila COMPLETED)
+  outcome     String?  @db.VarChar(16)
+  agreement   String?  @db.VarChar(2000)
+  referredTo  String?  @db.VarChar(200)
+  documentRef String?  @db.VarChar(150)
+  note        String?  @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parties   SecurityMediationParty[]
+  followups SecurityFollowup[]
+
+  @@index([villageId, eventId])
+  @@index([villageId, scheduledAt])
+  @@map("security_mediations")
+}
+
+/// Pihak dalam mediasi. Sengaja tanpa NIK, alamat, telepon, atau uraian identitas korban.
+model SecurityMediationParty {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  mediationId Int
+  mediation SecurityMediation @relation(fields: [mediationId], references: [id], onDelete: Cascade)
+
+  /// PIHAK_A | PIHAK_B | SAKSI | PENDAMPING
+  side       String  @db.VarChar(10)
+  name       String  @db.VarChar(150)
+  residentId Int?
+  /// Anak (< 18 tahun) menurut tanggal lahir warga saat dicatat: nama selalu disamarkan tanpa izin rinci dan ada pengingat pendampingan
+  isMinor    Boolean @default(false)
+  attended   Boolean @default(false)
+  /// Menyetujui hasil; null = belum/tidak berlaku
+  agrees     Boolean?
+  note       String? @db.VarChar(300)
+
+  @@index([mediationId])
+  @@index([villageId, residentId])
+  @@map("security_mediation_parties")
+}
+
+/// Tindak lanjut berbatas waktu atas kejadian/mediasi.
+model SecurityFollowup {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  eventId   Int
+  mediationId Int?
+  mediation SecurityMediation? @relation(fields: [mediationId], references: [id], onDelete: SetNull)
+
+  description String   @db.VarChar(500)
+  dueOn       DateTime? @db.Date
+  assignee    String?  @db.VarChar(150)
+  /// OPEN | DONE
+  status      String   @default("OPEN") @db.VarChar(8)
+  doneAt      DateTime?
+  doneNote    String?  @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([villageId, eventId])
+  @@index([villageId, status, dueOn])
+  @@map("security_followups")
+}
+
+/// Tautan baca-saja kejadian keamanan ke Pengaduan warga (citizen_reports). Tidak menyalin isi pengaduan.
+model SecurityReportLink {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  eventId   Int
+  citizenReportId BigInt
+
+  linkedById Int?
+  createdAt  DateTime @default(now())
+
+  @@unique([eventId, citizenReportId], map: "security_rl_uq")
+  @@index([villageId, citizenReportId])
+  @@map("security_report_links")
+}
+
+/// Daftar wilayah rawan sederhana (penilaian setempat, bukan klasifikasi resmi).
+model SecurityRiskArea {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  name   String  @db.VarChar(200)
+  kind   String  @db.VarChar(24)
+  /// LOW | MEDIUM | HIGH
+  level  String  @default("MEDIUM") @db.VarChar(8)
+  rt     String? @db.VarChar(10)
+  rw     String? @db.VarChar(10)
+  hamlet String? @db.VarChar(100)
+  lat    Float?
+  lng    Float?
+  note   String? @db.VarChar(500)
+  lastReviewedOn DateTime? @db.Date
+  active Boolean @default(true)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, level])
+  @@map("security_risk_areas")
+}
+
+/// Direktori kontak layanan/aparat desa ini (Polsek, Babinkamtibmas, UPTD PPA, puskesmas, damkar). Disunting desa; bukan data kasus.
+model SecurityContact {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  kind    String  @db.VarChar(20)
+  name    String  @db.VarChar(150)
+  phone   String  @db.VarChar(40)
+  address String? @db.VarChar(255)
+  hours   String? @db.VarChar(100)
+  note    String? @db.VarChar(300)
+  checkedOn DateTime? @db.Date
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([villageId, kind])
+  @@map("security_contacts")
+}
+
+// >>> models:keamanan (sisipkan model tepat di atas baris ini)

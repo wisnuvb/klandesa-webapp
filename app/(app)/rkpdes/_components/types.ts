@@ -1,5 +1,6 @@
 import type { ActivityView, DocumentView } from "@/lib/rkpdes/service";
 import type { Step } from "@/lib/rkpdes/steps";
+import type { ProgramOption } from "@/lib/rpjm/service";
 
 export type { ActivityView, DocumentView, Step };
 export type Can = Record<"read" | "create" | "update" | "delete" | "export" | "approve", boolean>;
@@ -26,6 +27,8 @@ export interface DetailResponse {
   options: {
     meetings: { id: number; kind: string; title: string; status: string; heldOn: string | null }[];
     perdes: { id: number; number: string; year: number; title: string; enactedAt: string | null }[];
+    /** Program RPJM Desa tahun dokumen ini; opsional dipakai saat menyusun kegiatan. */
+    rpjmPrograms: ProgramOption[];
   };
   can: Can;
   village: { name: string };

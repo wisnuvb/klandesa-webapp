@@ -95,7 +95,7 @@ export function ReasonDialog({
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
-        <form onSubmit={go} className="space-y-4" noValidate>
+        <form onSubmit={go} className="min-w-0 space-y-4" noValidate>
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{}} />
           <div className="space-y-1.5">
             <Label htmlFor="reason-text">{label} *</Label>

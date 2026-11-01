@@ -3,7 +3,7 @@ import { auditWeb } from "@/lib/audit/web-audit";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
 import { monthOf, balancesOf, sortEntries } from "@/lib/apbdes/ledger";
-import { addEntry, entryView, loadEntries, monthStatuses } from "@/lib/apbdes/service";
+import { addEntry, entryView, linkedEntryMessages, loadEntries, monthStatuses } from "@/lib/apbdes/service";
 import { fromCents } from "@/lib/coop/loan-math";
 import { failResponse, attempt, permissions, yearOf } from "@/lib/apbdes/http";
 
@@ -19,12 +19,13 @@ export async function GET(req: NextRequest) {
     const all = await loadEntries(prisma, ctx.village.id, year);
     const closed = new Set((await monthStatuses(prisma, ctx.village.id, year)).filter((s) => s.state !== "BUKA").map((s) => s.month));
     const inRange = sortEntries(all).filter((e) => month === undefined || monthOf(e.entryDate) === month);
+    const notes = new Map([...(await linkedEntryMessages(prisma, ctx.village.id, inRange.map((e) => e.id)))].map(([id, v]) => [id, v.note]));
     const before = month === undefined ? null : balancesOf(all.filter((e) => monthOf(e.entryDate) < month));
     const upTo = balancesOf(all.filter((e) => month === undefined || monthOf(e.entryDate) <= month));
     return NextResponse.json({
       year,
       month: month ?? null,
-      entries: inRange.map((e) => entryView(e, closed)),
+      entries: inRange.map((e) => entryView(e, closed, notes)),
       opening: before ? { tunai: fromCents(before.tunai), bank: fromCents(before.bank) } : { tunai: "0.00", bank: "0.00" },
       closing: { tunai: fromCents(upTo.tunai), bank: fromCents(upTo.bank), pajak: fromCents(upTo.pajak) },
       can: permissions(ctx),

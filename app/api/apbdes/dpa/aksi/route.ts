@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { attempt, failResponse, forbidden, permissions, yearOf } from "@/lib/apbdes/http";
 import { advancePlan } from "@/lib/apbdes/dpa";
 
-/** Verifikasi Sekretaris Desa (verify) atau buka kembali ke draf (reopen): { year, activityCode, action }. Persetujuan lewat /dpa/persetujuan. */
+/** Verifikasi Sekretaris Desa (verify) atau buka kembali ke draf (reopen; menjadi DPPA bila anggaran berubah lewat Perubahan APB Desa): { year, activityCode, action }. Persetujuan lewat /dpa/persetujuan. */
 export async function POST(req: NextRequest) {
   return attempt("POST /api/apbdes/dpa/aksi", "Gagal memproses DPA", async () => {
     const guard = await requireVillageApiContext(req);
@@ -16,9 +16,9 @@ export async function POST(req: NextRequest) {
     const action = body?.action;
     if (action !== "verify" && action !== "reopen") return NextResponse.json({ error: "Aksi tidak dikenal" }, { status: 400 });
     if (!permissions(ctx).update || normalizeVillageRole(ctx.dbUser.role) === "staff") return forbidden("Verifikasi DPA dilakukan Sekretaris Desa");
-    const r = await advancePlan(prisma, { villageId: ctx.village.id, year: yearOf(body?.year, 0), activityCode: String(body?.activityCode ?? ""), action });
+    const r = await advancePlan(prisma, { villageId: ctx.village.id, year: yearOf(body?.year, 0), activityCode: String(body?.activityCode ?? ""), action, userId: ctx.userId });
     if (!r.ok) return failResponse(r);
-    await auditWeb(req, ctx, "update", "apbdes_activity_plans", `${body?.year}-${body?.activityCode}`, { action });
-    return NextResponse.json({ success: true, status: r.data.status });
+    await auditWeb(req, ctx, "update", "apbdes_activity_plans", `${body?.year}-${body?.activityCode}`, { action, revision: r.data.revision });
+    return NextResponse.json({ success: true, status: r.data.status, revision: r.data.revision });
   });
 }

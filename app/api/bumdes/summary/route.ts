@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     }),
     prisma.bumdesTransaction.groupBy({
       by: ["unitId", "direction"],
-      where: { bumdesId },
+      where: { bumdesId, status: "AKTIF" },
       _sum: { amount: true },
     }),
   ]);

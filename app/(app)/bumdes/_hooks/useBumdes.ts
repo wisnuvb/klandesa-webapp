@@ -16,6 +16,7 @@ export function useBumdes() {
   const [units, setUnits] = useState<BumdesUnitRow[]>([]);
   const [transactions, setTransactions] = useState<BumdesTransactionRow[]>([]);
   const [detail, setDetail] = useState<BumdesSummaryDetail | null>(null);
+  const [legacyUnjournaled, setLegacyUnjournaled] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
   const loadProfile = useCallback(async () => {
@@ -40,6 +41,7 @@ export function useBumdes() {
     if (!res.ok) return;
     const json = await res.json();
     setTransactions(Array.isArray(json.data) ? json.data : []);
+    setLegacyUnjournaled(typeof json.legacyUnjournaled === "number" ? json.legacyUnjournaled : 0);
   }, []);
 
   const loadDetail = useCallback(async () => {
@@ -114,6 +116,7 @@ export function useBumdes() {
     summary,
     units,
     transactions,
+    legacyUnjournaled,
     detail,
     searchQuery,
     setSearchQuery,

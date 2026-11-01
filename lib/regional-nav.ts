@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
+  ClipboardCheck,
   Gauge,
   LayoutDashboard,
   Mail,
@@ -59,6 +60,12 @@ export const REGIONAL_NAV: RegionalNavItem[] = [
     label: "Akuntabilitas",
     icon: Gauge,
     description: "Kecepatan layanan per desa",
+  },
+  {
+    href: "/wilayah/kepatuhan",
+    label: "Kepatuhan laporan",
+    icon: ClipboardCheck,
+    description: "Tenggat laporan wajib per desa",
   },
   {
     href: "/wilayah/peta",

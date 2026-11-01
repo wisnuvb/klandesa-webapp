@@ -37,7 +37,7 @@ Tab **APB Desa** pada dokumen RKP Desa (`/rkpdes/[id]`, API `GET /api/perencanaa
 
 **Siapkan DPA dari RKP Desa** (`POST` rute yang sama; butuh izin ubah `perencanaan` dan `apbdes`): menyalin lokasi, keluaran, volume+satuan, dan tim pelaksana kegiatan RKP Desa menjadi draf Rencana Kerja Kegiatan. Hanya untuk APB Desa yang **sudah ditetapkan**, hanya kegiatan yang punya belanja di dalamnya, **tidak menimpa** DPA yang sudah ada, dan aman diulang (`skipDuplicates` di bawah kunci tahun). Kode kembar di RKP Desa dilewati (isi manual). Pelaksana (Kaur/Kasi) dan bulan pelaksanaan tidak ada di RKP Desa, jadi tetap diisi operator. Alasan setiap kegiatan yang dilewati ditampilkan. Tautan RKP Desa ↔ APB Desa memakai kunci alami (tahun + kode kegiatan), bukan kolom baru; asal tercatat di log audit.
 
-Sengaja belum: **DPPA sebagai dokumen berversi** (saat ini penanda "perlu DPPA" pada DPA yang anggarannya berubah sudah ada; pergeseran antar objek belum), dan penerbitan baris APB Desa dari RKP Desa (baris butuh kode rekening objek yang tidak ada di RKP Desa).
+Sengaja belum: pergeseran antar objek (DPPA berversi sudah ada, lihat [PHASE2_DPPA.md](PHASE2_DPPA.md)), dan penerbitan baris APB Desa dari RKP Desa (baris butuh kode rekening objek yang tidak ada di RKP Desa).
 
 ## Data (SQL aditif, `docs/PHASE1_PERENCANAAN_MIGRATION.sql`)
 
@@ -62,7 +62,7 @@ Resource baru `perencanaan`: admin penuh + approve; Kepala Desa baca/ekspor/appr
 ## Belum dikerjakan (jujur)
 
 - **Tahapan RPJM Desa** (Pasal 8–28: pengkajian keadaan desa, Musdes, rancangan, Perdes) belum dimodelkan; hanya keterangan jangka waktu. Perlu baca Permendesa 21/2020 dulu.
-- **DPPA berversi / pergeseran anggaran** (pemeriksaan selisih dan DPA awal sudah ada, lihat atas), **monev kemajuan fisik** (log progres + foto), **impor Indeks Desa** (rekomendasi fokus), **usulan warga ke Musrenbangdes** (menggantikan `votesCount` yang mati).
+- **pergeseran anggaran antar objek** (DPPA berversi sudah ada: [PHASE2_DPPA.md](PHASE2_DPPA.md)), **monev kemajuan fisik** (log progres + foto), **impor Indeks Desa** (rekomendasi fokus), **usulan warga ke Musrenbangdes** (menggantikan `votesCount` yang mati).
 - Salin kegiatan dari RKP Desa awal ke dokumen perubahan; peringatan pagu memakai sumber dana kegiatan (perbandingan dengan APB Desa ada di tab APB Desa).
 - Format resmi lampiran Permendagri 114/2014 (rancangan RKP Desa, daftar usulan) belum dibandingkan dengan cetakan di sini; cetakan mengikuti isi Pasal 41 dan 43, bukan tata letak lampiran. Perlu contoh dari kabupaten.
 - Layar baru belum dicoba operator desa; uji browser dilakukan lewat skrip.

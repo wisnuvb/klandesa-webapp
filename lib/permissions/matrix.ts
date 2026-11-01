@@ -256,6 +256,24 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: "crud",
     staff: "read",
   },
+  bencana: {
+    // Kejadian bencana, kesiapsiagaan, dan peringatan dini (primitif kejadian di lib/incident). "export" = baca rinci
+    // (nama penerima bantuan per KK, kontak relawan); tanpa itu data tersamar. "approve" = menutup/membuka kembali kejadian dan
+    // mengirim siaran peringatan dini ke warga (rute /api/bencana/peringatan/kirim). Staf tidak menghapus catatan.
+    admin: ["read", "create", "update", "delete", "export", "approve"],
+    village_head: ["read", "export", "approve"],
+    secretary: ["read", "create", "update", "delete", "export", "approve"],
+    staff: ["read", "create", "update"],
+  },
+  keamanan: {
+    // Satlinmas, ronda, kejadian keamanan, dan mediasi (primitif kejadian di lib/incident, domain KEAMANAN). Data pihak berperkara sensitif:
+    // "export" = baca rinci (nama pihak mediasi tanpa penyamaran, telepon anggota); tanpa itu nama tersamar. "approve" = menutup/membuka
+    // kembali kejadian. Mencatat, mengubah, memutuskan tukar giliran, dan mencatat kehadiran ronda = update/create. Staf tidak menghapus.
+    admin: ["read", "create", "update", "delete", "export", "approve"],
+    village_head: ["read", "export", "approve"],
+    secretary: ["read", "create", "update", "delete", "export", "approve"],
+    staff: ["read", "create", "update"],
+  },
 };
 
 function resolveActions(

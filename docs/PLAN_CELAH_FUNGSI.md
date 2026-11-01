@@ -78,7 +78,7 @@ Ukuran relatif: S ≈ sebagian sesi, M ≈ 1 sesi besar, L ≈ 2–3 sesi, XL �
 - **Integrasi:** `legal_documents` (Perdes/SK), `residents`, `village_institutions` (BPD sebagai penyelenggara).
 - **Tes:** unit (aturan kehadiran), integrasi (finalisasi atomik, penguncian), asap browser.
 
-### P1 — Perencanaan Desa v2 + DPPA  (ukuran L; **R1**) — **INTI DIKODE 2026-11-01** (siklus RKP Desa, tim, pagu, kegiatan, cetak, kunci setelah Perdes); **belum**: tahapan RPJM Desa, tautan ke APB Desa, DPPA, monev, impor IDM. Lihat [PHASE1_PERENCANAAN.md](PHASE1_PERENCANAAN.md)
+### P1 — Perencanaan Desa v2 + DPPA  (ukuran L; **R1**) — **INTI DIKODE 2026-11-01** (siklus RKP Desa, tim, pagu, kegiatan, cetak, kunci setelah Perdes); **DPPA berversi DIKODE 2026-11-01** (lihat [PHASE2_DPPA.md](PHASE2_DPPA.md)); **belum**: tahapan RPJM Desa, tautan ke APB Desa, monev, impor IDM. Lihat [PHASE1_PERENCANAAN.md](PHASE1_PERENCANAAN.md)
 **Celah saat ini:** `RpjmdesPlan` periode bebas, `RkpdesActivity` datar (judul/tahun/lokasi/anggaran/SDGs), tanpa tim penyusun, pagu indikatif, berita acara, pelaksana kegiatan, tautan ke APBDes, monev; `CommunityProposal.votesCount` selalu 0.
 
 **Langkah 0:** (a) tetapkan peraturan yang berlaku untuk RPJMDes 8 tahun: UU 3/2024 Pasal 79(2) [R], Permendagri 114/2014 vs Permendesa 21/2020 atau 17/2019 [R] — baca teks; (b) baca format lampiran Permendagri 114/2014 (format RKPDes, daftar usulan, pagu indikatif).
@@ -93,7 +93,7 @@ Ukuran relatif: S ≈ sebagian sesi, M ≈ 1 sesi besar, L ≈ 2–3 sesi, XL �
 7. **Tautan ke APBDes:** kolom nullable `rkpdesActivityId` pada `apbdes_activity_plans`; "Terbitkan ke APBDes" menyalin kegiatan disetujui menjadi baris/rencana dengan jejak asal. Cek selisih rencana vs anggaran.
 8. **Monev:** `activity_progress_logs` (tanggal, % fisik, catatan, foto, titik) → alimentasi `realizedVolume` dan layar publik "Pantau pembangunan" (Pasal 59 sosialisasi [V]).
 9. **Usulan warga:** hubungkan `CommunityProposal` ke Musdes/Musrenbangdes (dukungan nyata, menggantikan `votesCount` mati).
-10. **DPPA / perubahan APBDes:** dokumen perubahan DPA, pergeseran antar objek, tautan ke RKPDes perubahan (Pasal 50(4) [V]); prasyarat KDMP.
+10. **DPPA / perubahan APBDes:** dokumen perubahan DPA, pergeseran antar objek, tautan ke RKPDes perubahan (Pasal 50(4) [V]); prasyarat KDMP. **STATUS: DPPA berversi dikode** (riwayat beku, revisi, pemeriksaan terhadap realisasi; lihat PHASE2_DPPA.md); pergeseran antar objek lewat Perkades dan tautan ke RKPDes perubahan belum.
 11. **Kartu rekomendasi Indeks Desa** (Permendesa 16/2025 Pasal 8(2) [V]): impor CSV IDM per desa dari sumber publik; tampilkan indikator terlemah sebagai saran fokus.
 
 **Keluaran:** cetak SK tim, berita acara Musdes/Musrenbangdes, rancangan RKPDes, daftar usulan, lampiran Perdes RKPDes (draf).

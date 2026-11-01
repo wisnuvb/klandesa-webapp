@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Clock, Package, Tag } from "lucide-react";
+import Link from "next/link";
+import { Clock, Package, ShoppingBag, Tag } from "lucide-react";
 import type { UkmProduct, UkmProductDraft } from "./_types";
 import UkmCategoryModal from "./components/UkmCategoryModal";
 import UkmCategoryTable from "./components/UkmCategoryTable";
@@ -123,6 +124,15 @@ export default function ProdukUKMClient(props: Props) {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Link
+          href="/ukm/pesanan"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50"
+        >
+          <ShoppingBag aria-hidden="true" className="size-4" />
+          Pesanan produk
+        </Link>
+      </div>
       <UkmStatsCards {...stats} />
 
       <motion.div

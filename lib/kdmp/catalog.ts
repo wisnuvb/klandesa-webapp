@@ -11,7 +11,7 @@ export const KINDS = {
   LAINNYA: "Lainnya",
 } as const;
 export type Kind = keyof typeof KINDS;
-export const isKind = (v: unknown): v is Kind => typeof v === "string" && v in KINDS;
+export const isKind = (v: unknown): v is Kind => typeof v === "string" && Object.hasOwn(KINDS, v);
 
 export const STATUS = {
   RENCANA: "Belum dibangun",

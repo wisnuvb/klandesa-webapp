@@ -20,6 +20,7 @@ import {
   parseTeamInput,
 } from "./schema";
 import { activityWarnings, buildSteps, paguWarnings, teamWarnings, type Step } from "./steps";
+import { programOptionsForYear } from "@/lib/rpjm/service";
 
 export type { Result };
 export { termInfo };
@@ -35,7 +36,7 @@ const docInclude = {
   team: { orderBy: { id: "asc" as const } },
   pagu: { orderBy: { source: "asc" as const } },
   incoming: { orderBy: { id: "asc" as const } },
-  activities: { orderBy: { id: "asc" as const } },
+  activities: { orderBy: { id: "asc" as const }, include: { rpjmProgram: { select: { id: true, title: true } } } },
 } satisfies Prisma.RkpdesDocumentInclude;
 type DocRow = Prisma.RkpdesDocumentGetPayload<{ include: typeof docInclude }>;
 
@@ -85,6 +86,8 @@ function serializeActivity(a: DocRow["activities"][number]) {
     rabVerifiedAt: isoDay(a.rabVerifiedAt),
     proposeToRegency: a.proposeToRegency,
     status: a.status,
+    rpjmProgramId: a.rpjmProgramId,
+    rpjmProgramTitle: a.rpjmProgram?.title ?? null,
   };
   return { ...view, warnings: activityWarnings(view) };
 }
@@ -184,7 +187,7 @@ export async function listDocuments(db: Db, villageId: number, now: Date) {
 export async function getDocument(db: Db, villageId: number, id: number, now: Date) {
   const d = await db.rkpdesDocument.findFirst({ where: { id, villageId }, include: docInclude });
   if (!d) return null;
-  const [meetings, perdes] = await Promise.all([
+  const [meetings, perdes, rpjmPrograms] = await Promise.all([
     db.villageMeeting.findMany({
       where: { villageId, kind: { in: ["MUSDES_PERENCANAAN", "MUSRENBANGDES", "MUSDES_PERUBAHAN"] }, status: { in: ["HELD", "FINAL"] }, OR: [{ planYear: d.year }, { planYear: null }] },
       orderBy: { scheduledOn: "desc" },
@@ -192,10 +195,13 @@ export async function getDocument(db: Db, villageId: number, id: number, now: Da
       select: { id: true, kind: true, title: true, status: true, heldOn: true },
     }),
     db.legalDocument.findMany({ where: { villageId, type: "PERDES", status: "BERLAKU" }, orderBy: { enactedAt: "desc" }, take: 50, select: { id: true, number: true, year: true, title: true, enactedAt: true } }),
+    d.planId !== null ? programOptionsForYear(db, villageId, d.planId, d.year) : Promise.resolve([]),
   ]);
   return {
     document: serializeDocument(d, now),
     options: {
+      /** Program RPJM Desa tahun dokumen ini, untuk dipilih (tidak wajib) saat menyusun kegiatan. */
+      rpjmPrograms,
       meetings: meetings.map((m) => ({ id: m.id, kind: m.kind, title: m.title, status: m.status, heldOn: isoDay(m.heldOn) })),
       perdes: perdes.map((p) => ({ id: p.id, number: p.number, year: p.year, title: p.title, enactedAt: isoDay(p.enactedAt) })),
     },
@@ -231,7 +237,11 @@ export async function patchDocument(db: PrismaClient, args: { villageId: number;
   const p = parseDocumentPatch(args.input);
   if (!p.ok) return invalid(p);
   const patch = p.value;
+  const legalId = typeof patch.legalDocumentId === "number" ? patch.legalDocumentId : null;
   return db.$transaction(async (tx) => {
+    // Kunci baris Perdes (pernyataan pertama; urutan sama dengan RPJM Desa: Perdes dahulu, lalu dokumen) agar Perdes yang sama
+    // tidak bisa dipakai RKP Desa dan RPJM Desa sekaligus lewat balapan.
+    if (legalId !== null) await tx.$queryRaw`SELECT id FROM legal_documents WHERE id = ${legalId} AND villageId = ${args.villageId} FOR UPDATE`;
     const d = await lockDoc(tx, args.villageId, args.id);
     if (!d) return NOT_FOUND();
     if (d.legalDocumentId !== null) {
@@ -252,6 +262,8 @@ export async function patchDocument(db: PrismaClient, args: { villageId: number;
       if (!l || l.type !== "PERDES" || l.status !== "BERLAKU") return fail(400, "Pilih Peraturan Desa yang berlaku milik desa ini.");
       const used = await tx.rkpdesDocument.findFirst({ where: { legalDocumentId: l.id, NOT: { id: d.id } }, select: { id: true } });
       if (used) return fail(409, "Peraturan Desa ini sudah dipakai oleh dokumen RKP Desa lain.");
+      const usedByRpjm = await tx.rpjmdesPlan.findFirst({ where: { legalDocumentId: l.id }, select: { id: true } });
+      if (usedByRpjm) return fail(409, "Peraturan Desa ini sudah dipakai oleh dokumen RPJM Desa.");
     }
     await tx.rkpdesDocument.update({ where: { id: d.id }, data: patch });
     return { ok: true as const, data: { id: d.id } };
@@ -402,14 +414,23 @@ export async function saveActivity(db: PrismaClient, args: { villageId: number; 
       rabVerifiedAt: p.value.rabVerifiedAt,
       proposeToRegency: p.value.proposeToRegency,
     };
+    let rpjmLink: { rpjmProgramId: number | null } | Record<string, never> = {};
+    if (p.value.rpjmProgramId !== undefined) {
+      if (p.value.rpjmProgramId !== null) {
+        if (d.planId === null) return invalid({ errors: ["Dokumen ini belum terhubung ke RPJM Desa."], fieldErrors: { rpjmProgramId: "Dokumen ini belum terhubung ke RPJM Desa." } });
+        const prog = await tx.rpjmProgram.findFirst({ where: { id: p.value.rpjmProgramId, villageId: args.villageId, planId: d.planId }, select: { id: true } });
+        if (!prog) return invalid({ errors: ["Program RPJM Desa tidak ditemukan pada RPJM Desa dokumen ini."], fieldErrors: { rpjmProgramId: "Program RPJM Desa tidak ditemukan pada RPJM Desa dokumen ini." } });
+      }
+      rpjmLink = { rpjmProgramId: p.value.rpjmProgramId };
+    }
     if (args.activityId !== undefined) {
-      const r = await tx.rkpdesActivity.updateMany({ where: { id: args.activityId, documentId: d.id }, data });
+      const r = await tx.rkpdesActivity.updateMany({ where: { id: args.activityId, documentId: d.id }, data: { ...data, ...rpjmLink } });
       if (r.count === 0) return fail(404, "Kegiatan tidak ditemukan.");
       return { ok: true as const, data: { id: args.activityId } };
     }
     if (d.planId === null) return fail(409, `Belum ada dokumen RPJM Desa yang mencakup tahun ${d.year}. Buat RPJM Desa di menu RPJM Desa lebih dahulu, lalu buat ulang dokumen RKP Desa ini.`);
     if (d.activities.length >= LIMITS.activitiesPerDocument) return fail(409, `Maksimal ${LIMITS.activitiesPerDocument} kegiatan per dokumen.`);
-    const row = await tx.rkpdesActivity.create({ data: { ...data, planId: d.planId, documentId: d.id, year: d.year, source: "internal", status: "planned", sdgGoalIds: [] } });
+    const row = await tx.rkpdesActivity.create({ data: { ...data, ...rpjmLink, planId: d.planId, documentId: d.id, year: d.year, source: "internal", status: "planned", sdgGoalIds: [] } });
     return { ok: true as const, data: { id: row.id } };
   });
 }

@@ -72,7 +72,7 @@ export function MeetingFormDialog({ meeting, onClose, onSaved }: { meeting: Meet
           <DialogTitle>{editing ? "Ubah musyawarah" : "Jadwalkan musyawarah"}</DialogTitle>
           <DialogDescription>Tanda * wajib diisi. Peserta dan berita acara diisi setelah musyawarah dijadwalkan.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={go} className="space-y-4" noValidate>
+        <form onSubmit={go} className="min-w-0 space-y-4" noValidate>
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={LABELS} />
           <div className="space-y-1.5">
             <Label htmlFor="md-kind">Jenis musyawarah *</Label>

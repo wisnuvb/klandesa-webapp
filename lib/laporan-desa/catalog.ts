@@ -10,7 +10,7 @@ export const KINDS = {
   LPPD_JABATAN: "LPPD Akhir Masa Jabatan",
 } as const;
 export type ReportKind = keyof typeof KINDS;
-export const isReportKind = (v: unknown): v is ReportKind => typeof v === "string" && v in KINDS;
+export const isReportKind = (v: unknown): v is ReportKind => typeof v === "string" && Object.hasOwn(KINDS, v);
 
 export const KIND_INFO: Record<ReportKind, { to: string; basis: string }> = {
   LPPD_TAHUN: { to: "Bupati/Wali Kota melalui camat", basis: "Pasal 3: tertulis, paling lambat 3 bulan setelah berakhirnya tahun anggaran (31 Maret). Digunakan sebagai bahan evaluasi." },

@@ -90,7 +90,7 @@ export function TeamTab({ data, editable, reload }: { data: DetailResponse; edit
       )}
 
       {editable ? (
-        <form onSubmit={add} className="space-y-3 rounded-lg border p-4" noValidate>
+        <form onSubmit={add} className="min-w-0 space-y-3 rounded-lg border p-4" noValidate>
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ name: "Nama", role: "Peran", gender: "Jenis kelamin", position: "Jabatan" }} />
           <ResidentPicker onPick={pick} disabled={busy} />
           <div className="grid gap-3 sm:grid-cols-2">

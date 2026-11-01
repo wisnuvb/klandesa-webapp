@@ -197,6 +197,8 @@ export interface ActivityInput {
   executorHasWoman: boolean | null;
   rabVerifiedAt: Date | null;
   proposeToRegency: boolean;
+  /** Program RPJM Desa asal (opsional). undefined = tidak diubah; null = lepas tautan. */
+  rpjmProgramId?: number | null;
 }
 
 export function parseActivityInput(body: unknown): Parsed<ActivityInput> {
@@ -254,6 +256,15 @@ export function parseActivityInput(body: unknown): Parsed<ActivityInput> {
     if (!rabVerifiedAt) fe.rabVerifiedAt = "Tanggal verifikasi tidak valid.";
   }
 
+  let rpjmProgramId: number | null | undefined;
+  if (has(body, "rpjmProgramId")) {
+    if (blank(body.rpjmProgramId)) rpjmProgramId = null;
+    else {
+      rpjmProgramId = posInt(body.rpjmProgramId);
+      if (rpjmProgramId === null) fe.rpjmProgramId = "Program RPJM Desa tidak valid.";
+    }
+  }
+
   if (Object.keys(fe).length) return { ok: false, errors: Object.values(fe), fieldErrors: fe };
   return {
     ok: true,
@@ -275,6 +286,7 @@ export function parseActivityInput(body: unknown): Parsed<ActivityInput> {
       executorHasWoman,
       rabVerifiedAt,
       proposeToRegency: body.proposeToRegency === true,
+      ...(rpjmProgramId !== undefined ? { rpjmProgramId } : {}),
     },
   };
 }

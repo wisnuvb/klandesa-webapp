@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfirmDelete } from "@/components/app/ConfirmDelete";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { Pill, SELECT_CLASS, WarningList, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
@@ -17,16 +18,7 @@ import type { ActivityView, DetailResponse } from "./types";
 export function ActivitiesTab({ data, editable, canDelete, reload }: { data: DetailResponse; editable: boolean; canDelete: boolean; reload: () => void }) {
   const d = data.document;
   const [editing, setEditing] = useState<ActivityView | "new" | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const s = d.activitySummary;
-
-  async function remove(a: ActivityView) {
-    setErr(null);
-    const res = await fetch(`/api/perencanaan/rkpdes/${d.id}/kegiatan/${a.id}`, { method: "DELETE" }).catch(() => null);
-    if (res?.ok) return reload();
-    const j = await res?.json().catch(() => null);
-    setErr(typeof j?.error === "string" ? j.error : "Gagal menghapus.");
-  }
 
   return (
     <>
@@ -59,7 +51,6 @@ export function ActivitiesTab({ data, editable, canDelete, reload }: { data: Det
         ) : null}
       </div>
       <WarningList title="Anggaran melebihi pagu" items={d.paguWarnings} />
-      {err ? <p role="alert" className="text-sm text-destructive">{err}</p> : null}
 
       {d.activities.length === 0 ? (
         <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">Belum ada kegiatan. Tambahkan kegiatan hasil Musyawarah Desa dan pencermatan RPJM Desa.</p>
@@ -73,6 +64,7 @@ export function ActivitiesTab({ data, editable, canDelete, reload }: { data: Det
                   <p className="text-sm text-muted-foreground">
                     {a.activityCode ? `${a.activityCode} ${a.activityName ?? ""}` : "Kode kegiatan belum dipilih"}
                   </p>
+                  {a.rpjmProgramTitle ? <p className="break-words text-sm text-muted-foreground">Program RPJM Desa: {a.rpjmProgramTitle}</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
                   {a.warnings.length === 0 ? (
@@ -87,6 +79,7 @@ export function ActivitiesTab({ data, editable, canDelete, reload }: { data: Det
                     </Pill>
                   )}
                   {a.proposeToRegency ? <Pill tone="info">Usulan ke kabupaten</Pill> : null}
+                  {a.rpjmProgramTitle ? <Pill tone="neutral">Dari program RPJM Desa</Pill> : null}
                 </div>
               </div>
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -126,10 +119,14 @@ export function ActivitiesTab({ data, editable, canDelete, reload }: { data: Det
                     </Button>
                   ) : null}
                   {canDelete ? (
-                    <Button type="button" variant="outline" className="min-h-11 text-destructive" onClick={() => remove(a)}>
-                      <Trash2 aria-hidden="true" />
-                      Hapus
-                    </Button>
+                    <ConfirmDelete
+                      label={`Hapus kegiatan ${a.title}`}
+                      buttonText="Hapus"
+                      title="Hapus kegiatan ini?"
+                      description={`Kegiatan "${a.title}" akan dihapus dari RKP Desa ini. Program RPJM Desa asalnya (bila ada) tidak ikut terhapus. Tindakan ini tidak dapat dibatalkan.`}
+                      url={`/api/perencanaan/rkpdes/${d.id}/kegiatan/${a.id}`}
+                      onDone={reload}
+                    />
                   ) : null}
                 </div>
               ) : null}
@@ -161,6 +158,7 @@ interface Form {
   executorHasWoman: boolean;
   rabVerifiedAt: string;
   proposeToRegency: boolean;
+  rpjmProgramId: string;
 }
 
 const LABELS: Record<string, string> = {
@@ -179,6 +177,7 @@ const LABELS: Record<string, string> = {
   executorTreasurer: "Bendahara pelaksana",
   executorMembers: "Anggota pelaksana",
   rabVerifiedAt: "Tanggal verifikasi RAB",
+  rpjmProgramId: "Program RPJM Desa",
 };
 
 function ActivityDialog({ data, activity, onClose, onSaved }: { data: DetailResponse; activity: ActivityView | null; onClose: () => void; onSaved: () => void }) {
@@ -201,6 +200,7 @@ function ActivityDialog({ data, activity, onClose, onSaved }: { data: DetailResp
     executorHasWoman: activity?.executorHasWoman === true,
     rabVerifiedAt: activity?.rabVerifiedAt ?? "",
     proposeToRegency: activity?.proposeToRegency ?? false,
+    rpjmProgramId: activity?.rpjmProgramId ? String(activity.rpjmProgramId) : "",
   });
   const { busy, errors, general, summaryRef, submit } = useFormSubmit();
   const set = (p: Partial<Form>) => setF((x) => ({ ...x, ...p }));
@@ -208,8 +208,24 @@ function ActivityDialog({ data, activity, onClose, onSaved }: { data: DetailResp
 
   async function go(e: React.FormEvent) {
     e.preventDefault();
-    const r = await submit(editing ? `${base}/${activity!.id}` : base, editing ? "PATCH" : "POST", f);
+    const r = await submit(editing ? `${base}/${activity!.id}` : base, editing ? "PATCH" : "POST", { ...f, rpjmProgramId: f.rpjmProgramId ? Number(f.rpjmProgramId) : null });
     if (r) onSaved();
+  }
+  const programs = data.options.rpjmPrograms;
+  function pickProgram(id: string) {
+    const x = programs.find((q) => String(q.id) === id);
+    if (!x || editing) return set({ rpjmProgramId: id });
+    set({
+      rpjmProgramId: id,
+      title: f.title || x.title,
+      activityCode: x.activityCode ?? f.activityCode,
+      location: x.location ?? f.location,
+      estimatedBudget: x.budget ? x.budget.replace(/\.00$/, "") : f.estimatedBudget,
+      fundSource: x.fundSource ?? f.fundSource,
+      method: x.method ?? f.method,
+      outputVolume: x.outputVolume ? x.outputVolume.replace(/\.00$/, "") : f.outputVolume,
+      outputUnit: x.outputUnit ?? f.outputUnit,
+    });
   }
   const err = (k: string) => errors[k];
   const common = (k: keyof Form) => ({ id: `ac-${k}`, "aria-invalid": err(k) ? true : undefined, "aria-describedby": err(k) ? `ac-${k}-err` : undefined });
@@ -229,11 +245,29 @@ function ActivityDialog({ data, activity, onClose, onSaved }: { data: DetailResp
           <DialogTitle>{editing ? "Ubah kegiatan" : "Tambah kegiatan"}</DialogTitle>
           <DialogDescription>Isian mengikuti Permendagri 114/2014 Pasal 40–42. Kolom yang belum lengkap tetap bisa disimpan dan muncul sebagai catatan.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={go} className="space-y-5" noValidate>
+        <form onSubmit={go} className="min-w-0 space-y-5" noValidate>
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={LABELS} />
 
-          <fieldset className="space-y-3">
+          <fieldset className="min-w-0 space-y-3">
             <legend className="text-sm font-semibold">Kegiatan</legend>
+            {data.document.plan ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="ac-rpjmProgramId">Ambil dari program RPJM Desa (opsional)</Label>
+                <SearchSelect {...common("rpjmProgramId")} className={SELECT_CLASS} value={f.rpjmProgramId} onChange={(e) => pickProgram(e.target.value)}>
+                  <option value="">{programs.length ? "Tidak dari RPJM Desa / pilih program…" : `Belum ada program RPJM Desa tahun ${data.document.year}`}</option>
+                  {programs.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.fieldCode}. {x.title}
+                      {x.used > 0 ? ` (sudah dipakai ${x.used}×)` : ""}
+                    </option>
+                  ))}
+                </SearchSelect>
+                <p className="text-sm text-muted-foreground">
+                  {editing ? "Mengganti pilihan hanya mengubah tautan; isian di bawah tidak ditimpa." : "Memilih program mengisi nama, kode, lokasi, anggaran, sumber dana, cara, dan volume; semuanya tetap bisa diubah. Boleh dikosongkan untuk kegiatan di luar RPJM Desa."}
+                </p>
+                {errNode("rpjmProgramId")}
+              </div>
+            ) : null}
             {text("title", "Nama kegiatan *", 255, "Contoh: Rabat jalan Dusun Krajan")}
             <div className="space-y-1.5">
               <Label htmlFor="ac-activityCode">Bidang/kegiatan (Permendagri 20/2018)</Label>
@@ -286,7 +320,7 @@ function ActivityDialog({ data, activity, onClose, onSaved }: { data: DetailResp
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3">
+          <fieldset className="min-w-0 space-y-3">
             <legend className="text-sm font-semibold">Keluaran</legend>
             <div className="grid gap-3 sm:grid-cols-3">
               {text("outputName", "Keluaran", 200, "Contoh: Jalan rabat beton")}
@@ -299,7 +333,7 @@ function ActivityDialog({ data, activity, onClose, onSaved }: { data: DetailResp
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3">
+          <fieldset className="min-w-0 space-y-3">
             <legend className="text-sm font-semibold">Pelaksana kegiatan (Pasal 40)</legend>
             <div className="grid gap-3 sm:grid-cols-3">
               {text("executorChair", "Ketua", 150)}
@@ -313,7 +347,7 @@ function ActivityDialog({ data, activity, onClose, onSaved }: { data: DetailResp
             </label>
           </fieldset>
 
-          <fieldset className="space-y-3">
+          <fieldset className="min-w-0 space-y-3">
             <legend className="text-sm font-semibold">Verifikasi dan usulan</legend>
             <div className="space-y-1.5 sm:max-w-xs">
               <Label htmlFor="ac-rabVerifiedAt">Tanggal rencana kegiatan dan RAB diverifikasi (Pasal 42)</Label>

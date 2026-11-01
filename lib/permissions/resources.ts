@@ -38,6 +38,8 @@ export const PERMISSION_RESOURCES = [
   "apbdes",
   "perencanaan",
   "blt",
+  "bencana",
+  "keamanan",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];

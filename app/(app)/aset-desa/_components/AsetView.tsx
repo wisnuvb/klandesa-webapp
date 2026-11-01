@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, BookOpen, Boxes, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, BookOpen, Boxes, Landmark, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useApiGet } from "@/hooks/useApiGet";
@@ -50,6 +50,12 @@ export function AsetView() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="min-h-11">
+            <Link href="/aset-desa/pemanfaatan">
+              <Landmark aria-hidden="true" />
+              Tanah kas &amp; sewa
+            </Link>
+          </Button>
           <Button asChild variant="outline" className="min-h-11">
             <Link href="/aset-desa/cetak">
               <BookOpen aria-hidden="true" />

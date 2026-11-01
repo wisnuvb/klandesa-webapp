@@ -16,7 +16,7 @@ export const PAGU_SOURCES = {
 } as const;
 export type PaguSource = keyof typeof PAGU_SOURCES;
 export const PAGU_KEYS = Object.keys(PAGU_SOURCES) as PaguSource[];
-export const isPaguSource = (v: unknown): v is PaguSource => typeof v === "string" && v in PAGU_SOURCES;
+export const isPaguSource = (v: unknown): v is PaguSource => typeof v === "string" && Object.hasOwn(PAGU_SOURCES, v);
 
 /** Cara pelaksanaan kegiatan skala lokal Desa (Pasal 52 ayat 3). */
 export const METHODS = {
@@ -25,7 +25,7 @@ export const METHODS = {
   PIHAK_KETIGA: "Kerja sama dengan pihak ketiga",
 } as const;
 export type Method = keyof typeof METHODS;
-export const isMethod = (v: unknown): v is Method => typeof v === "string" && v in METHODS;
+export const isMethod = (v: unknown): v is Method => typeof v === "string" && Object.hasOwn(METHODS, v);
 
 /** Peran dalam tim penyusun RKP Desa (Pasal 33 ayat 2). */
 export const TEAM_ROLES = {
@@ -35,12 +35,12 @@ export const TEAM_ROLES = {
   ANGGOTA: "Anggota",
 } as const;
 export type TeamRole = keyof typeof TEAM_ROLES;
-export const isTeamRole = (v: unknown): v is TeamRole => typeof v === "string" && v in TEAM_ROLES;
+export const isTeamRole = (v: unknown): v is TeamRole => typeof v === "string" && Object.hasOwn(TEAM_ROLES, v);
 export const TEAM_LIMITS = { min: 7, max: 11 } as const;
 
 export const INCOMING_LEVELS = { PUSAT: "Pemerintah (pusat)", PROVINSI: "Pemerintah daerah provinsi", KABUPATEN: "Pemerintah daerah kabupaten/kota" } as const;
 export type IncomingLevel = keyof typeof INCOMING_LEVELS;
-export const isIncomingLevel = (v: unknown): v is IncomingLevel => typeof v === "string" && v in INCOMING_LEVELS;
+export const isIncomingLevel = (v: unknown): v is IncomingLevel => typeof v === "string" && Object.hasOwn(INCOMING_LEVELS, v);
 
 /** Alasan RKP Desa perubahan (Pasal 49 ayat 1). */
 export const CHANGE_REASONS = {
@@ -48,7 +48,7 @@ export const CHANGE_REASONS = {
   KEBIJAKAN: "Perubahan mendasar atas kebijakan Pemerintah, pemerintah daerah provinsi, atau kabupaten/kota",
 } as const;
 export type ChangeReason = keyof typeof CHANGE_REASONS;
-export const isChangeReason = (v: unknown): v is ChangeReason => typeof v === "string" && v in CHANGE_REASONS;
+export const isChangeReason = (v: unknown): v is ChangeReason => typeof v === "string" && Object.hasOwn(CHANGE_REASONS, v);
 
 export const LIMITS = { documentsPerVillage: 60, activitiesPerDocument: 500, incomingPerDocument: 200, evaluation: 20000, revisions: 5 } as const;
 

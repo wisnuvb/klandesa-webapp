@@ -50,6 +50,11 @@ export type BumdesTransactionRow = {
   category: string;
   description: string | null;
   createdAt: string;
+  status: "AKTIF" | "DIBATALKAN";
+  revision: number;
+  accountCode: string | null;
+  cashAccountCode: string | null;
+  voidReason: string | null;
   unit?: { id: number; name: string; category: string | null };
   createdUser?: { id: number; name: string } | null;
 };

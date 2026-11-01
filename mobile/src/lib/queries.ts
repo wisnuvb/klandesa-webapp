@@ -437,3 +437,52 @@ export function useToggleUkmVisible() {
     onSuccess: refresh,
   });
 }
+
+// ── Pesanan produk desa (UKM) ────────────────────────────────────────────
+export type UkmOrder = {
+  id: number; productId: number | null; productName: string; unit: string | null; unitPrice: string | null; estimatedTotal: string | null;
+  quantity: number; status: import('./ukm-order-logic').UkmOrderStatus; statusLabel: string; buyerNote: string | null; sellerNote: string | null;
+  createdAt: string; updatedAt: string;
+  buyer: { name: string; area: string | null }; seller: { name: string; managedByVillage: boolean };
+  actions: import('./ukm-order-logic').UkmOrderAction[];
+  /** Hanya untuk pembeli, dan hanya bila penjual mengizinkan kontak dan produk masih tayang. */
+  whatsappUrl: string | null;
+};
+export type UkmOrderPage = { peran: 'beli' | 'jual'; items: UkmOrder[]; nextCursor: number | null; pendingForMe: number };
+export type UkmOrderDetail = { order: UkmOrder; role: 'PEMBELI' | 'PENJUAL'; events: { toLabel: string; actorKind: string; note: string | null; at: string }[] };
+
+/** Pesanan saya (peran "beli") atau pesanan masuk ke produk saya ("jual"); 20 per halaman. */
+export function useUkmOrders(peran: 'beli' | 'jual') {
+  return useInfiniteQuery({
+    queryKey: ['ukm-orders', peran],
+    initialPageParam: null as number | null,
+    queryFn: ({ pageParam }) => api<UkmOrderPage>(`/ukm/pesanan?peran=${peran}${pageParam ? `&cursor=${pageParam}` : ''}`),
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+export const useUkmOrder = (id: number) => useQuery({ queryKey: ['ukm-order', id], queryFn: () => api<UkmOrderDetail>(`/ukm/pesanan/${id}`), enabled: Number.isInteger(id) });
+
+function useInvalidateUkmOrders() {
+  const qc = useQueryClient();
+  return () => {
+    for (const k of ['ukm-orders', 'ukm-order']) void qc.invalidateQueries({ queryKey: [k] });
+  };
+}
+
+/** Pesan produk yang tayang. Jawaban memuat tautan WhatsApp bila penjual mengizinkan kontak. */
+export function usePlaceUkmOrder() {
+  const refresh = useInvalidateUkmOrders();
+  return useMutation({
+    mutationFn: ({ productId, quantity, note }: { productId: number; quantity: number; note: string | null }) => post<{ order: UkmOrder }>(`/ukm/${productId}/pesan`, { quantity, note }),
+    onSuccess: refresh,
+  });
+}
+
+export function useActUkmOrder() {
+  const refresh = useInvalidateUkmOrders();
+  return useMutation({
+    mutationFn: ({ id, action, note }: { id: number; action: import('./ukm-order-logic').UkmOrderAction; note: string | null }) =>
+      api<{ order: UkmOrder }>(`/ukm/pesanan/${id}`, { method: 'PATCH', body: JSON.stringify({ action, note }) }),
+    onSuccess: refresh,
+  });
+}

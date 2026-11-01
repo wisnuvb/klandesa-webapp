@@ -1,5 +1,5 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { fail, invalid, isoDay, parseIsoDate, type Result } from "@/lib/form-input";
+import { fail, invalid, isoDay, type Result } from "@/lib/form-input";
 import { fromCents } from "@/lib/coop/loan-math";
 import { kegiatanName } from "@/lib/apbdes/catalog";
 import { rulesFor } from "@/lib/dana-desa/rules";

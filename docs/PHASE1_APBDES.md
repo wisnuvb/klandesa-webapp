@@ -47,7 +47,7 @@ Catatan: catatan buku kas yang berasal dari SPP atau panjar tidak bisa diubah at
 
 ## Belum dikerjakan (jujur)
 - **Ekspor ke Siskeudes**: templat impor resminya tidak publik. Menunggu contoh berkas dari desa.
-- Buku Kas Pembantu Kegiatan (K.1) dan K.2 (swadaya), laporan perkembangan pelaksanaan kegiatan (L), DPPA dan DPAL (hanya diperingatkan "perlu DPPA"; belum ada dokumennya), kuitansi (R), rencana arus kas masuk bulanan pada RAK.
+- Buku Kas Pembantu Kegiatan (K.1) dan K.2 (swadaya), laporan perkembangan pelaksanaan kegiatan (L), DPAL (DPPA berversi sudah ada: [PHASE2_DPPA.md](PHASE2_DPPA.md)), kuitansi (R), rencana arus kas masuk bulanan pada RAK.
 - Rencana Kerja Kegiatan: rincian sasaran per jenis kelamin dan A-RTM (Lampiran H.2) belum dicatat; "bentuk lain" pada sumber dana T.3 belum.
 - CaLK bagian 19 (catatan lain) diisi manual; saldo awal potongan pajak tidak dibawa dari tahun sebelumnya.
 - Pergeseran antar objek lewat Peraturan Kepala Desa (Pasal 41) belum ada alurnya.

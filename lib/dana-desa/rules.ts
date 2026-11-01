@@ -21,7 +21,7 @@ export const FOCUS = {
 } as const;
 export type FocusKey = keyof typeof FOCUS;
 export const FOCUS_KEYS = Object.keys(FOCUS) as FocusKey[];
-export const isFocusKey = (v: unknown): v is FocusKey => typeof v === "string" && v in FOCUS;
+export const isFocusKey = (v: unknown): v is FocusKey => typeof v === "string" && Object.hasOwn(FOCUS, v);
 
 /** Saran penandaan dari kode kegiatan (hanya saran; operator yang memutuskan). */
 export function suggestFocus(activityCode: string): FocusKey | null {
@@ -45,7 +45,7 @@ export const PUBLICATION_CHANNELS = {
   LAINNYA: "Media lainnya sesuai kondisi Desa",
 } as const;
 export type PublicationChannel = keyof typeof PUBLICATION_CHANNELS;
-export const isPublicationChannel = (v: unknown): v is PublicationChannel => typeof v === "string" && v in PUBLICATION_CHANNELS;
+export const isPublicationChannel = (v: unknown): v is PublicationChannel => typeof v === "string" && Object.hasOwn(PUBLICATION_CHANNELS, v);
 
 /** Larangan penggunaan Dana Desa (Permendesa 16/2025 Lampiran II.J), nomor sesuai urutan di lampiran. */
 export const PROHIBITIONS = [

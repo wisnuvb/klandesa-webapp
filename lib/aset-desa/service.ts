@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { isCategory, isStrategic, LIMITS } from "./catalog";
 import { parseDisposalInput, parseItemInput } from "./schema";
 
@@ -138,10 +138,21 @@ export async function updateItem(db: Db, args: { villageId: number; id: number; 
 }
 
 /** Hapus dari buku inventaris (Pasal 21-23): barisnya tetap tersimpan sebagai riwayat dengan nomor SK. */
-export async function disposeItem(db: Db, args: { villageId: number; id: number; input: unknown; now?: Date }): Promise<Result<ItemView>> {
+export async function disposeItem(db: Db | PrismaClient, args: { villageId: number; id: number; input: unknown; now?: Date }): Promise<Result<ItemView>> {
+  // Dengan klien penuh, jalankan di dalam transaksi yang mengunci baris barang lebih dulu (pernyataan pertama), supaya perjanjian
+  // pemanfaatan yang sedang diberlakukan bersamaan (lib/aset-desa/land-service.ts) tidak lolos dari pemeriksaan di bawah.
+  if ("$transaction" in db) return db.$transaction((tx) => disposeLocked(tx, args));
+  return disposeLocked(db, args);
+}
+
+async function disposeLocked(db: Db, args: { villageId: number; id: number; input: unknown; now?: Date }): Promise<Result<ItemView>> {
+  await db.$queryRaw`SELECT id FROM inventory_items WHERE id = ${args.id} AND villageId = ${args.villageId} FOR UPDATE`;
   const current = await db.inventoryItem.findFirst({ where: { id: args.id, villageId: args.villageId }, select: { category: true, status: true, acquiredYear: true } });
   if (!current) return fail(404, "Barang tidak ditemukan.");
   if (current.status !== "ACTIVE") return fail(409, "Barang ini sudah dihapus dari buku inventaris.");
+  if ((await db.landAgreement.count({ where: { itemId: args.id, villageId: args.villageId, status: "AKTIF" } })) > 0) {
+    return fail(409, "Barang ini masih punya perjanjian pemanfaatan yang berlaku. Akhiri atau batalkan perjanjiannya lebih dulu.");
+  }
   const p = parseDisposalInput(args.input, current.category, args.now);
   if (!p.ok) return { ok: false, status: 400, errors: p.errors, fieldErrors: p.fieldErrors };
   if (p.value.disposedAt.getUTCFullYear() < current.acquiredYear) {

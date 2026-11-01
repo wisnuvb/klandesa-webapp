@@ -37,3 +37,28 @@ describe("izin rute Perencanaan: Kepala Desa menyetujui, bukan hanya membaca", (
     }
   });
 });
+
+import { normalizeApiPath, resolveApiPermission as resolveEncoded } from "../lib/permissions/api-route-map";
+
+it("alamat ter-encode atau berbelit tidak melewati aturan khusus (approve tetap approve)", () => {
+  const normal = resolveEncoded("/api/kerja-sama/12/penandatanganan", "POST");
+  assert.equal(normal?.action, "approve");
+  for (const p of ["/api/kerja-sama/%31%32/penandatanganan", "/api/kerja-sama//12/penandatanganan", "/api/kerja-sama/12/penandatanganan/"]) {
+    assert.deepEqual(resolveEncoded(p, "POST"), normal, p);
+  }
+  assert.equal(normalizeApiPath("/api/%E0%A4%A"), "/api/%E0%A4%A", "encoding rusak dibiarkan");
+});
+
+it("garis miring ter-encode tidak bisa memindahkan alamat keluar dari awalan yang dijaga (tidak jadi 'dikecualikan')", () => {
+  // Kepala Desa tak punya delete pada residents; handler lama memakai parseInt("5/../../public/x") = 5.
+  const direct = resolveEncoded("/api/residents/5", "DELETE");
+  assert.equal(direct?.action, "delete");
+  for (const p of ["/api/residents/5%2F..%2F..%2Fpublic%2Fx", "/api/residents/5%2f..%2f..%2fauth%2fx", "/api/residents/5%5C..%5Cadmin", "/api/residents/5%2F%2e%2e%2Fadmin"]) {
+    const r = resolveEncoded(p, "DELETE");
+    assert.notEqual(r, null, p);
+    assert.equal(r?.resource, "residents", p);
+    assert.equal(r?.action, "delete", p);
+  }
+  assert.equal(normalizeApiPath("/api/x/%2e%2e/b"), "/api/x/../b", "'..' tidak pernah diselesaikan");
+  assert.equal(normalizeApiPath("/api/a%2Fb"), "/api/a%2Fb", "garis miring hasil dekode tetap satu segmen");
+});

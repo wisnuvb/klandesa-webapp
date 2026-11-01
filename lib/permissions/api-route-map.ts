@@ -21,13 +21,37 @@ type RouteRule = {
  */
 const PATTERN_RULES: { pattern: RegExp; resource: PermissionResource; action: PermissionAction }[] = [
   { pattern: /^\/api\/perencanaan\/rkpdes\/\d+\/persetujuan$/, resource: "perencanaan", action: "approve" },
+  // RPJM Desa: persetujuan rancangan dan pembukaan kunci untuk perubahan = approve (Kepala Desa/admin).
+  { pattern: /^\/api\/perencanaan\/rpjm\/\d+\/(persetujuan|buka-kunci)$/, resource: "perencanaan", action: "approve" },
   // Aksi musyawarah: update untuk operator, approve untuk membuka kembali berita acara final; keduanya dicek di dalam rute.
   { pattern: /^\/api\/musdes\/\d+\/aksi$/, resource: "perencanaan", action: "read" },
   // BLT Desa: penetapan, penyelesaian, dan pembukaan kembali = approve; cetak SK/tanda terima (memuat NIK) = export.
+  // Penandatanganan kerja sama desa (Kepala Desa menandatangani): approve.
+  { pattern: /^\/api\/kerja-sama\/\d+\/penandatanganan$/, resource: "perencanaan", action: "approve" },
+  // Pengadaan: menetapkan penyedia terpilih = approve (Kepala Desa/admin); pindah tahap memakai gerbang "read" lalu dicek di dalam rute
+  // (update untuk operator, approve untuk memulai pelaksanaan).
+  { pattern: /^\/api\/pengadaan\/penawaran\/\d+\/pemenang$/, resource: "apbdes", action: "approve" },
+  { pattern: /^\/api\/pengadaan\/\d+\/status$/, resource: "apbdes", action: "read" },
   { pattern: /^\/api\/blt\/\d+\/status$/, resource: "blt", action: "approve" },
   { pattern: /^\/api\/blt\/\d+\/cetak$/, resource: "blt", action: "export" },
   // Mengganti atau mengakhiri penerima setelah SK = setara menghapus: tidak untuk operator.
   { pattern: /^\/api\/blt\/\d+\/penerima\/\d+\/ganti$/, resource: "blt", action: "delete" },
+  // Penerimaan sewa/kontribusi aset menulis ke Buku Kas Umum: izin APB Desa (catat = create, batalkan = delete).
+  { pattern: /^\/api\/aset-desa\/pemanfaatan\/tagihan\/\d+\/terima$/, resource: "apbdes", action: "create" },
+  { pattern: /^\/api\/aset-desa\/pemanfaatan\/tagihan\/\d+\/batal-terima$/, resource: "apbdes", action: "delete" },
+  // Bencana: gerbang kasar pindah status = "read"; aksi sebenarnya (update untuk operator, approve untuk menutup/membuka kembali) dicek
+  // di dalam servis (lib/incident/service.ts transition) berdasar status saat ini. Siaran peringatan dini = approve.
+  { pattern: /^\/api\/bencana\/kejadian\/\d+\/status$/, resource: "bencana", action: "read" },
+  { pattern: /^\/api\/bencana\/peringatan\/kirim$/, resource: "bencana", action: "approve" },
+  // Keamanan: aksi berstatus (POST) yang bukan "mencatat baru" dihitung update: pindah status kejadian (menutup dicek "approve" di servis),
+  // catat kehadiran ronda, putuskan tukar giliran, selesai/batal mediasi, selesaikan tindak lanjut, akhiri/aktifkan anggota Satlinmas.
+  // Pindah status kejadian: gerbang kasar "read" karena izin sebenarnya dicek di dalam servis menurut peran DB (menutup/membuka kembali = approve, selebihnya update). Kepala Desa tidak punya update, jadi "update" di sini akan menutup jalannya.
+  { pattern: /^\/api\/keamanan\/kejadian\/\d+\/status$/, resource: "keamanan", action: "read" },
+  { pattern: /^\/api\/keamanan\/jadwal\/\d+\/kehadiran$/, resource: "keamanan", action: "update" },
+  { pattern: /^\/api\/keamanan\/tukar\/\d+$/, resource: "keamanan", action: "update" },
+  { pattern: /^\/api\/keamanan\/mediasi\/\d+\/(selesai|batal)$/, resource: "keamanan", action: "update" },
+  { pattern: /^\/api\/keamanan\/tindak-lanjut\/\d+\/selesai$/, resource: "keamanan", action: "update" },
+  { pattern: /^\/api\/keamanan\/anggota\/\d+\/(akhiri|aktifkan)$/, resource: "keamanan", action: "update" },
 ];
 
 /** Prefix match — urutan dari spesifik ke umum. */
@@ -89,6 +113,10 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/dana-desa", resource: "apbdes" },
   { prefix: "/api/pktd", resource: "apbdes" },
   { prefix: "/api/kdmp", resource: "apbdes" },
+  { prefix: "/api/pengadaan", resource: "apbdes" },
+  { prefix: "/api/kerja-sama", resource: "perencanaan" },
+  { prefix: "/api/idm", resource: "perencanaan" },
+  { prefix: "/api/kepatuhan", resource: "apbdes" },
   { prefix: "/api/aset-desa/buku", resource: "aset_desa", suffixActions: { "": "export" } },
   { prefix: "/api/aset-desa", resource: "aset_desa" },
   { prefix: "/api/tata-kelola/produk-hukum", resource: "produk_hukum" },
@@ -99,6 +127,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/blt", resource: "blt" },
   { prefix: "/api/perencanaan", resource: "perencanaan" },
   { prefix: "/api/polls", resource: "polls" },
+  { prefix: "/api/bencana", resource: "bencana" },
+  { prefix: "/api/keamanan", resource: "keamanan" },
   { prefix: "/api/integrations/export", resource: "integrations", suffixActions: { "": "export" } },
   { prefix: "/api/integrations", resource: "integrations" },
   { prefix: "/api/gis", resource: "gis" },
@@ -154,10 +184,33 @@ export function httpMethodToAction(method: string): PermissionAction {
   }
 }
 
+/**
+ * `req.nextUrl.pathname` tetap ter-encode ("/api/kerja-sama/%31%32/penandatanganan") sedangkan Next mendekode `params`.
+ * Tanpa normalisasi, pola khusus (`\d+`) tak cocok dan permintaan jatuh ke aturan awalan yang lebih longgar.
+ * Dekode PER SEGMEN, dan jangan pernah membiarkan hasil dekode memecah segmen atau menyelesaikan "..":
+ * "/api/residents/5%2F..%2F..%2Fpublic%2Fx" harus tetap berada di bawah "/api/residents" (handler lama memakai parseInt dan membaca id 5),
+ * jika tidak aturan dikecualikan "/api/public" akan melewati pemeriksaan izin. Garis miring hasil dekode tetap dalam satu segmen.
+ */
+export function normalizeApiPath(pathname: string): string {
+  const out: string[] = [];
+  for (const raw of pathname.split("/")) {
+    if (raw === "") continue;
+    let seg = raw;
+    try {
+      seg = decodeURIComponent(raw);
+    } catch {
+      // Pengodean rusak: biarkan apa adanya.
+    }
+    out.push(seg.replace(/[\\/]/g, "%2F"));
+  }
+  return "/" + out.join("/");
+}
+
 export function resolveApiPermission(
-  pathname: string,
+  rawPathname: string,
   method: string,
 ): { resource: PermissionResource; action: PermissionAction } | null {
+  const pathname = normalizeApiPath(rawPathname);
   for (const excluded of RBAC_EXCLUDED_PREFIXES) {
     if (pathname.startsWith(excluded)) return null;
   }

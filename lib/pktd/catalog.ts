@@ -14,7 +14,7 @@ export const PRIORITIES = {
   LAINNYA: { label: "Lainnya", priority: false },
 } as const;
 export type Priority = keyof typeof PRIORITIES;
-export const isPriority = (v: unknown): v is Priority => typeof v === "string" && v in PRIORITIES;
+export const isPriority = (v: unknown): v is Priority => typeof v === "string" && Object.hasOwn(PRIORITIES, v);
 
 /** Jenis pekerjaan; semuanya dihitung sebagai upah (Lampiran II.F.5.b). */
 export const TASKS = {
@@ -24,7 +24,7 @@ export const TASKS = {
   LAINNYA: "Lainnya",
 } as const;
 export type Task = keyof typeof TASKS;
-export const isTask = (v: unknown): v is Task => typeof v === "string" && v in TASKS;
+export const isTask = (v: unknown): v is Task => typeof v === "string" && Object.hasOwn(TASKS, v);
 
 export const STATUS = { AKTIF: "Berjalan", SELESAI: "Selesai" } as const;
 export type ActivityStatus = keyof typeof STATUS;

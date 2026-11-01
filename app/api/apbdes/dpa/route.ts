@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     if (!guard.ok) return guard.response;
     const { ctx } = guard;
     const year = yearOf(req.nextUrl.searchParams.get("year"));
-    return NextResponse.json({ year, ...(await planOverview(prisma, ctx.village.id, year)), can: permissions(ctx) });
+    return NextResponse.json({ year, ...(await planOverview(prisma, ctx.village.id, year, { detail: true })), can: permissions(ctx) });
   });
 }
 

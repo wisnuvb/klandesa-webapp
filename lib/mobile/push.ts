@@ -84,3 +84,37 @@ export async function broadcastPushToVillageCitizens(villageId: number, msg: Pus
     return 0;
   }
 }
+
+/**
+ * Kirim push ke sekumpulan akun warga tertentu (mis. siaran peringatan dini per RT/RW). Memakai Expo Push Service yang sama,
+ * dipecah 100 token per permintaan. Tidak melempar; mengembalikan jumlah perangkat yang dituju.
+ */
+export async function pushToCitizenAccounts(villageId: number, accountIds: number[], msg: PushMessage): Promise<number> {
+  let sent = 0;
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json" };
+    if (process.env.EXPO_ACCESS_TOKEN) headers.Authorization = `Bearer ${process.env.EXPO_ACCESS_TOKEN}`;
+    for (let a = 0; a < accountIds.length; a += 1000) {
+      const tokens = await prisma.deviceToken.findMany({
+        where: { accountType: "citizen", villageId, accountId: { in: accountIds.slice(a, a + 1000) }, disabledAt: null },
+        select: { id: true, expoToken: true },
+        take: 5000,
+      });
+      sent += tokens.length;
+      for (let i = 0; i < tokens.length; i += 100) {
+        const chunk = tokens.slice(i, i + 100);
+        const res = await fetch(EXPO_PUSH_URL, {
+          method: "POST", headers, signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify(chunk.map((t) => ({ to: t.expoToken, title: msg.title, body: msg.body ?? undefined, sound: "default", channelId: "default", data: msg.deepLink ? { deepLink: msg.deepLink } : undefined }))),
+        }).catch(() => null);
+        if (!res?.ok) continue;
+        const json = (await res.json().catch(() => null)) as { data?: Array<{ status: string; details?: { error?: string } }> } | null;
+        const dead = (json?.data ?? []).map((t, k) => (t.status === "error" && t.details?.error === "DeviceNotRegistered" ? chunk[k]!.id : null)).filter((v): v is bigint => v !== null);
+        if (dead.length) await prisma.deviceToken.updateMany({ where: { id: { in: dead } }, data: { disabledAt: new Date() } });
+      }
+    }
+  } catch (e) {
+    console.error("pushToCitizenAccounts failed:", e);
+  }
+  return sent;
+}

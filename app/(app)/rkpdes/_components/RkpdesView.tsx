@@ -163,7 +163,7 @@ function CreateDialog({ reasons, onClose, onCreated }: { reasons: Record<string,
           <DialogTitle>Buat RKP Desa</DialogTitle>
           <DialogDescription>RKP Desa tahun berikutnya disusun pada tahun berjalan. RKP Desa perubahan hanya dibuat setelah yang awal ditetapkan dengan Peraturan Desa.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={go} className="space-y-4" noValidate>
+        <form onSubmit={go} className="min-w-0 space-y-4" noValidate>
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ year: "Tahun", changeReason: "Alasan perubahan" }} />
           <div className="space-y-1.5">
             <Label htmlFor="rk-year">Tahun RKP Desa *</Label>
