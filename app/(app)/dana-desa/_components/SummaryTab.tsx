@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangle, CircleAlert, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -49,7 +50,11 @@ export function SummaryTab({ data, year, reload }: TabProps) {
           Pagu Dana Desa {year}
         </h2>
         <p className="text-sm text-muted-foreground">
-          Isi dari keputusan pagu yang berlaku untuk Desa Anda. Pagu reguler menjadi dasar batas operasional Pemerintah Desa ({data.rules.operationalCapPct}%); dukungan KDMP dihitung terpisah (sekitar {data.rules.kdmpSharePct.toLocaleString("id-ID")}% dari pagu Dana Desa semula, sebelum penyesuaian antar-Desa).
+          Isi dari keputusan pagu yang berlaku untuk Desa Anda. Pagu reguler menjadi dasar batas operasional Pemerintah Desa ({data.rules.operationalCapPct}%); dukungan KDMP dihitung terpisah (sekitar {data.rules.kdmpSharePct.toLocaleString("id-ID")}% dari pagu Dana Desa semula, sebelum penyesuaian antar-Desa). Penyaluran, angsuran, dan progres gerai KDMP dipantau di{" "}
+          <Link href="/kdmp" className="underline underline-offset-4">
+            Dukungan KDMP
+          </Link>
+          .
         </p>
         {data.can.update ? (
           <form onSubmit={save} className="space-y-3 rounded-lg border p-4" noValidate>

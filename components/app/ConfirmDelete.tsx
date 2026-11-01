@@ -6,7 +6,7 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import { Button } from "@/components/ui/button";
 
 /** Tombol hapus dengan konfirmasi; galat dari server (mis. 409) ditampilkan di dalam dialog. */
-export function ConfirmDelete({ label, title, description, url, onDone, text = "Hapus" }: { label: string; title: string; description: string; url: string; onDone: () => void; text?: string }) {
+export function ConfirmDelete({ label, title, description, url, onDone, text = "Hapus", buttonText }: { label: string; title: string; description: string; url: string; onDone: () => void; text?: string; buttonText?: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -26,9 +26,15 @@ export function ConfirmDelete({ label, title, description, url, onDone, text = "
 
   return (
     <>
-      <Button type="button" variant="ghost" size="icon" className="size-11" aria-label={label} onClick={() => { setErr(null); setOpen(true); }}>
-        <Trash2 aria-hidden="true" />
-      </Button>
+      {buttonText ? (
+        <Button type="button" variant="outline" className="min-h-11" aria-label={label} onClick={() => { setErr(null); setOpen(true); }}>
+          {buttonText}
+        </Button>
+      ) : (
+        <Button type="button" variant="ghost" size="icon" className="size-11" aria-label={label} onClick={() => { setErr(null); setOpen(true); }}>
+          <Trash2 aria-hidden="true" />
+        </Button>
+      )}
       <AlertDialog open={open} onOpenChange={(o) => (!busy ? setOpen(o) : undefined)}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -10,7 +10,7 @@ import { fromCents, type Cents } from "@/lib/coop/loan-math";
 import { LIMITS, accountKind, activityOptions, isKegiatanCode, kegiatanName, accountName } from "./catalog";
 import { checkLedger, monthOf, type LedgerEntry } from "./ledger";
 import { budgetBalance, type BudgetLine } from "./reports";
-import { parseEntryInput, parseLineInput, parseSettingsInput } from "./schema";
+import { parseEntryInput, parseLineInput, parseSettingsInput, type EntryInput } from "./schema";
 
 type Db = Prisma.TransactionClient;
 export type Ok<T> = { ok: true; data: T };
@@ -276,11 +276,13 @@ export interface EntryView {
   taxKind: string | null;
   bankFee: boolean;
   locked: boolean;
-  /** Berasal dari SPP atau panjar: tidak diubah/dihapus lewat formulir umum */
+  /** Berasal dari SPP, panjar, atau pembayaran modul lain: tidak diubah/dihapus lewat formulir umum */
   linked: boolean;
+  /** Berasal dari pembayaran BLT, upah PKTD, atau angsuran KDMP (diubah lewat modul itu) */
+  fromPayout: boolean;
 }
 
-export const entryView = (e: LedgerEntry, closed: Set<number>): EntryView => ({
+export const entryView = (e: LedgerEntry, closed: Set<number>, payoutIds: Set<number> = new Set()): EntryView => ({
   id: e.id,
   entryDate: e.entryDate,
   voucherNo: e.voucherNo,
@@ -295,7 +297,8 @@ export const entryView = (e: LedgerEntry, closed: Set<number>): EntryView => ({
   taxKind: e.taxKind,
   bankFee: e.bankFee,
   locked: closed.has(monthOf(e.entryDate)),
-  linked: Boolean(e.requestId) || Boolean(e.panjarId),
+  linked: Boolean(e.requestId) || Boolean(e.panjarId) || payoutIds.has(e.id),
+  fromPayout: payoutIds.has(e.id),
 });
 
 export async function closedMonths(db: Db, villageId: number, year: number): Promise<Set<number>> {
@@ -350,6 +353,34 @@ const LINKED_MSG = "Catatan ini dibuat dari SPP atau panjar. Ubahnya lewat SPP a
 
 const LOCKED_MSG = (month: number) => `Buku kas bulan ke-${month} sudah ditutup. Minta pembukaan kembali bila ada koreksi.`;
 
+/**
+ * Membuat catatan Buku Kas Umum di dalam transaksi pemanggil. Pemanggil WAJIB sudah memegang kunci tahun (lockYear) sebelum
+ * pembacaan apa pun. Melempar Rollback bila ada pemeriksaan yang gagal (buku kas ditutup, melebihi anggaran, saldo minus).
+ */
+export async function createEntryInTx(tx: Db, args: { villageId: number; userId: number | null; year: number; value: EntryInput }): Promise<Result<{ id: number }>> {
+  const { villageId, userId, year, value } = args;
+  const month = value.entryDate.getUTCMonth() + 1;
+  const closed = await closedMonths(tx, villageId, year);
+  if (closed.has(month)) return fail(409, LOCKED_MSG(month));
+  const later = LATER_CLOSED_MSG(closed, month);
+  if (later) return fail(409, later);
+  const existing = await loadEntries(tx, villageId, year);
+  if (existing.length >= LIMITS.entriesPerYear) return fail(409, `Satu tahun anggaran maksimal ${LIMITS.entriesPerYear} catatan.`);
+
+  let budget: Map<string, Cents> | null = null;
+  if (value.type === "PENGELUARAN") {
+    const doc = await activeDocument(tx, villageId, year);
+    if (!doc) return bad(409, "accountCode", "APB Desa tahun ini belum ditetapkan, sehingga belanja belum dapat dicatat.");
+    budget = budgetMap(doc.lines);
+    const key = `${value.activityCode ?? ""}|${value.accountCode}`;
+    if (!budget.has(key)) return bad(409, "accountCode", "Rekening dan kegiatan ini tidak ada di APB Desa yang berlaku. Tambahkan lewat Perubahan APB Desa.");
+  }
+  const row = await tx.apbdesEntry.create({ data: { villageId, year, createdById: userId, ...value } });
+  const err = checkAll([...existing, toLedger(row)], budget, `${value.activityCode ?? ""}|${value.accountCode}`);
+  if (err) throw new Rollback(err);
+  return ok({ id: row.id });
+}
+
 export async function addEntry(db: PrismaClient, args: { villageId: number; userId: number | null; input: unknown; now?: Date }): Promise<Result<{ id: number }>> {
   const now = args.now ?? new Date();
   const p = parseEntryInput(args.input, now);
@@ -359,27 +390,50 @@ export async function addEntry(db: PrismaClient, args: { villageId: number; user
   await ensureYear(db, args.villageId, year);
   return db.$transaction(async (tx) => {
     await lockYear(tx, args.villageId, year);
-    const month = p.value.entryDate.getUTCMonth() + 1;
-    const closed = await closedMonths(tx, args.villageId, year);
-    if (closed.has(month)) return fail(409, LOCKED_MSG(month));
-    const later = LATER_CLOSED_MSG(closed, month);
-    if (later) return fail(409, later);
-    const existing = await loadEntries(tx, args.villageId, year);
-    if (existing.length >= LIMITS.entriesPerYear) return fail(409, `Satu tahun anggaran maksimal ${LIMITS.entriesPerYear} catatan.`);
-
-    let budget: Map<string, Cents> | null = null;
-    if (p.value.type === "PENGELUARAN") {
-      const doc = await activeDocument(tx, args.villageId, year);
-      if (!doc) return bad(409, "accountCode", "APB Desa tahun ini belum ditetapkan, sehingga belanja belum dapat dicatat.");
-      budget = budgetMap(doc.lines);
-      const key = `${p.value.activityCode ?? ""}|${p.value.accountCode}`;
-      if (!budget.has(key)) return bad(409, "accountCode", "Rekening dan kegiatan ini tidak ada di APB Desa yang berlaku. Tambahkan lewat Perubahan APB Desa.");
-    }
-    const row = await tx.apbdesEntry.create({ data: { villageId: args.villageId, year, createdById: args.userId, ...p.value } });
-    const err = checkAll([...existing, toLedger(row)], budget, `${p.value.activityCode ?? ""}|${p.value.accountCode}`);
-    if (err) throw new Rollback(err);
-    return ok({ id: row.id });
+    return createEntryInTx(tx, { villageId: args.villageId, userId: args.userId, year, value: p.value });
   }).catch(rollbackToResult);
+}
+
+/** Apakah catatan ini dibuat dari pembayaran BLT, upah PKTD, atau angsuran KDMP (dikelola lewat modul itu). */
+export async function isPayoutLinked(tx: Db, entryId: number): Promise<boolean> {
+  const [a, b, c] = await Promise.all([
+    tx.bltPayment.count({ where: { bkuEntryId: entryId } }),
+    tx.pktdWorkDay.count({ where: { bkuEntryId: entryId } }),
+    tx.kdmpInstallment.count({ where: { bkuEntryId: entryId } }),
+  ]);
+  return a + b + c > 0;
+}
+/** Id catatan buku kas satu tahun yang berasal dari pembayaran modul lain. */
+export async function payoutLinkedIds(db: Db, villageId: number, year: number): Promise<Set<number>> {
+  const where = { bkuEntryId: { not: null }, villageId } as const;
+  const [a, b, c] = await Promise.all([
+    db.bltPayment.findMany({ where: { ...where, bkuEntry: { year } }, select: { bkuEntryId: true }, distinct: ["bkuEntryId"] }),
+    db.pktdWorkDay.findMany({ where: { ...where, bkuEntry: { year } }, select: { bkuEntryId: true }, distinct: ["bkuEntryId"] }),
+    db.kdmpInstallment.findMany({ where: { ...where, bkuEntry: { year } }, select: { bkuEntryId: true }, distinct: ["bkuEntryId"] }),
+  ]);
+  return new Set([...a, ...b, ...c].flatMap((r) => (r.bkuEntryId ? [r.bkuEntryId] : [])));
+}
+const PAYOUT_LINKED_MSG = "Catatan ini berasal dari pembayaran BLT, upah PKTD, atau angsuran KDMP. Ubah atau batalkan lewat modul yang bersangkutan.";
+
+/**
+ * Menghapus satu catatan di dalam transaksi pemanggil (kunci tahun sudah dipegang). `viaPayout`: dipanggil dari modul pembayaran
+ * yang membuat catatan itu, jadi catatan bertaut pembayaran boleh dihapus (tautannya dilepas oleh FK SET NULL / pemanggil).
+ */
+export async function deleteEntryInTx(tx: Db, args: { villageId: number; entryId: number; viaPayout?: boolean }): Promise<Result<{ id: number; year: number }>> {
+  const cur = await tx.apbdesEntry.findFirst({ where: { id: args.entryId, villageId: args.villageId } });
+  if (!cur) return fail(404, "Catatan tidak ditemukan.");
+  if (cur.requestId !== null || cur.panjarId !== null) return fail(409, LINKED_MSG);
+  if (!args.viaPayout && (await isPayoutLinked(tx, cur.id))) return fail(409, PAYOUT_LINKED_MSG);
+  const month = cur.entryDate.getUTCMonth() + 1;
+  const closedSet = await closedMonths(tx, args.villageId, cur.year);
+  if (closedSet.has(month)) return fail(409, LOCKED_MSG(month));
+  const laterDel = LATER_CLOSED_MSG(closedSet, month);
+  if (laterDel) return fail(409, laterDel);
+  await tx.apbdesEntry.delete({ where: { id: cur.id } });
+  const rest = await loadEntries(tx, args.villageId, cur.year);
+  const err = checkLedger(rest);
+  if (err) throw new Rollback(`Catatan ini tidak dapat dihapus karena catatan sesudahnya bergantung padanya. ${err}`);
+  return ok({ id: cur.id, year: cur.year });
 }
 
 export async function deleteEntry(db: PrismaClient, args: { villageId: number; entryId: number }): Promise<Result<{ id: number }>> {
@@ -387,19 +441,8 @@ export async function deleteEntry(db: PrismaClient, args: { villageId: number; e
   if (!e) return fail(404, "Catatan tidak ditemukan.");
   return db.$transaction(async (tx) => {
     await lockYear(tx, args.villageId, e.year);
-    const cur = await tx.apbdesEntry.findFirst({ where: { id: args.entryId, villageId: args.villageId } });
-    if (!cur) return fail(404, "Catatan tidak ditemukan.");
-    if (cur.requestId !== null || cur.panjarId !== null) return fail(409, LINKED_MSG);
-    const month = cur.entryDate.getUTCMonth() + 1;
-    const closedSet = await closedMonths(tx, args.villageId, cur.year);
-    if (closedSet.has(month)) return fail(409, LOCKED_MSG(month));
-    const laterDel = LATER_CLOSED_MSG(closedSet, month);
-    if (laterDel) return fail(409, laterDel);
-    await tx.apbdesEntry.delete({ where: { id: cur.id } });
-    const rest = await loadEntries(tx, args.villageId, cur.year);
-    const err = checkLedger(rest);
-    if (err) throw new Rollback(`Catatan ini tidak dapat dihapus karena catatan sesudahnya bergantung padanya. ${err}`);
-    return ok({ id: cur.id });
+    const r = await deleteEntryInTx(tx, { villageId: args.villageId, entryId: args.entryId });
+    return r.ok ? ok({ id: r.data.id }) : r;
   }).catch(rollbackToResult);
 }
 
@@ -419,6 +462,7 @@ export async function updateEntry(db: PrismaClient, args: { villageId: number; e
     const oldMonth = cur.entryDate.getUTCMonth() + 1;
     const newMonth = p.value.entryDate.getUTCMonth() + 1;
     if (cur.requestId !== null || cur.panjarId !== null) return fail(409, LINKED_MSG);
+    if (await isPayoutLinked(tx, cur.id)) return fail(409, PAYOUT_LINKED_MSG);
     if (closed.has(oldMonth)) return fail(409, LOCKED_MSG(oldMonth));
     if (closed.has(newMonth)) return fail(409, LOCKED_MSG(newMonth));
     const laterUpd = LATER_CLOSED_MSG(closed, Math.min(oldMonth, newMonth));

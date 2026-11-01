@@ -14,7 +14,7 @@ import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import { Bar } from "./Bar";
-import { ConfirmDelete } from "./ConfirmDelete";
+import { ConfirmDelete } from "@/components/app/ConfirmDelete";
 import type { Facility, TabProps } from "./types";
 
 const TONE: Record<string, string> = { RENCANA: "neutral", PEMBANGUNAN: "info", SELESAI: "soon", BEROPERASI: "done" };

@@ -100,7 +100,7 @@ Ukuran relatif: S ≈ sebagian sesi, M ≈ 1 sesi besar, L ≈ 2–3 sesi, XL �
 **Tes:** unit (tenggat, validasi 7–11, 8 tahun), integrasi (penerbitan ke APBDes atomik, tak ganda), asap browser alur penuh pada Bedahan.
 **Risiko/[?]:** format resmi lampiran dapat berbeda per kabupaten; desa mungkin sudah memakai Siskeudes/OpenSID untuk RKPDes → fitur impor/ekspor mungkin diminta; minta contoh dari Karanganyar.
 
-### P2 — Dana Desa (TA 2026, mesin berversi untuk 2027+)  (ukuran L–XL; **R2**) — **P2.a–d DIKODE 2026-11-01** (lihat [PHASE2_DANADESA.md](PHASE2_DANADESA.md)); **P2.e BLT DIKODE** ([PHASE2_BLT.md](PHASE2_BLT.md)); **P2.f PKTD DIKODE** ([PHASE2_PKTD.md](PHASE2_PKTD.md)); **P2.g progres KDMP DIKODE** ([PHASE2_KDMP.md](PHASE2_KDMP.md))
+### P2 — Dana Desa (TA 2026, mesin berversi untuk 2027+)  (ukuran L–XL; **R2**) — **P2.a–d DIKODE 2026-11-01** (lihat [PHASE2_DANADESA.md](PHASE2_DANADESA.md)); **P2.e BLT DIKODE** ([PHASE2_BLT.md](PHASE2_BLT.md)); **P2.f PKTD DIKODE** ([PHASE2_PKTD.md](PHASE2_PKTD.md)); **P2.g progres KDMP DIKODE** ([PHASE2_KDMP.md](PHASE2_KDMP.md)); **tautan pembayaran → BKU DIKODE** ([PHASE2_BKU_LINK.md](PHASE2_BKU_LINK.md))
 **Langkah 0:** unduh dan baca PMK 7/2026 [V sebagian: Pasal 15, 20–33 sudah dibaca; **Lampiran (tabel referensi keluaran) belum**], Permendesa 16/2025 [V penuh]; konfirmasi dengan Dinas PMD Karanganyar: Perbup juknis DD 2026, batas upah PKTD, format tabel referensi OM-SPAN TKD.
 
 Sub-paket (masing-masing dapat dirilis sendiri):

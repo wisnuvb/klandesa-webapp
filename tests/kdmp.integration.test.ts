@@ -132,6 +132,17 @@ describe("KDMP (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABASE_URL 
     assert.ok(del.ok && del.data.contract === "5000000.00" && del.data.progressRecords === 1);
   });
 
+  it("pagar DB: baris yang melanggar CHECK ditolak MySQL meski melewati aplikasi", async () => {
+    const f = await fac(vA, { name: "Uji CHECK", contract: "1000" });
+    const bad = (fn: () => Promise<unknown>) => assert.rejects(fn, /check constraint|CHECK/i);
+    await bad(() => prisma.kdmpDisbursement.create({ data: { villageId: vA, year: 2026, receivedOn: new Date("2026-10-01"), amountCents: 0n } }));
+    await bad(() => prisma.kdmpInstallment.create({ data: { villageId: vA, year: 2026, paidOn: new Date("2026-10-01"), amountCents: -5n, payee: "x" } }));
+    await bad(() => prisma.kdmpFacility.update({ where: { id: f }, data: { progressPct: 101 } }));
+    await bad(() => prisma.kdmpFacility.update({ where: { id: f }, data: { contractCents: 0n } }));
+    await bad(() => prisma.kdmpFacilityProgress.create({ data: { facilityId: f, villageId: vA, recordedOn: new Date("2026-10-01"), progressPct: -1 } }));
+    assert.ok((await kd.deleteFacility(prisma, { villageId: vA, id: f })).ok);
+  });
+
   it("tanggal di masa depan ditolak; gerai berangsuran tidak bisa dihapus", async () => {
     const r = await recv(vA, "1", { receivedOn: "2026-11-09" });
     assert.ok(!r.ok && r.status === 400);

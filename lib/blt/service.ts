@@ -1,7 +1,9 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { fail, invalid, isoDay, type Result } from "@/lib/form-input";
+import { fail, invalid, isoDay, parseIsoDate, type Result } from "@/lib/form-input";
 import { fromCents } from "@/lib/coop/loan-math";
 import { rulesFor } from "@/lib/dana-desa/rules";
+import { Rollback } from "@/lib/apbdes/service";
+import { auditOf, entryBrief, parsePayoutChoice, postPayoutEntry, removePayoutEntry, runPayoutTx } from "@/lib/apbdes/payout";
 import { BENEFICIARY_STATUS, CRITERIA, LIMITS, PROGRAM_STATUS, parseCriteria, type CriterionNo } from "./catalog";
 import { parseBeneficiary, parsePayment, parseProgramCreate, parseProgramPatch, parseReplace, type BeneficiaryInput } from "./schema";
 
@@ -92,7 +94,9 @@ export interface ProgramView {
   note: string | null;
   cap: { monthlyMax: string; monthsAtOnce: number; basisYear: number; exact: boolean };
   beneficiaries: BeneficiaryView[];
-  payments: { id: number; beneficiaryId: number; beneficiaryName: string; monthFrom: number; monthTo: number; amount: string; method: string; paidOn: string; receivedBy: string | null; note: string | null }[];
+  payments: { id: number; beneficiaryId: number; beneficiaryName: string; monthFrom: number; monthTo: number; amount: string; method: string; paidOn: string; receivedBy: string | null; note: string | null; bkuEntryId: number | null }[];
+  /** Pembayaran dikelompokkan per tanggal bayar dan catatan Buku Kas Umum (entryId kosong = belum dicatat) */
+  payouts: { paidOn: string; entryId: number | null; voucherNo: string | null; payments: number; total: string; method: "TUNAI" | "NONTUNAI" | "CAMPUR" }[];
   summary: { active: number; ended: number; needAmount: string; paidAmount: string; remainingAmount: string };
   warnings: string[];
   meetings: { id: number; kind: string; title: string; status: string; heldOn: string | null }[];
@@ -162,6 +166,17 @@ export async function getProgram(db: Db, villageId: number, id: number): Promise
   });
 
   const paid = p.payments.reduce((s, x) => s + x.amountCents, 0n);
+  const groups = new Map<string, { paidOn: string; entryId: number | null; payments: number; total: bigint; methods: Set<string> }>();
+  for (const x of p.payments) {
+    const key = `${isoDay(x.paidOn)}|${x.bkuEntryId ?? ""}`;
+    const g = groups.get(key) ?? { paidOn: isoDay(x.paidOn)!, entryId: x.bkuEntryId, payments: 0, total: 0n, methods: new Set<string>() };
+    g.payments += 1;
+    g.total += x.amountCents;
+    g.methods.add(x.method);
+    groups.set(key, g);
+  }
+  const brief = await entryBrief(db, villageId, [...groups.values()].flatMap((g) => (g.entryId ? [g.entryId] : [])));
+  const payouts = [...groups.values()].map((g) => ({ paidOn: g.paidOn, entryId: g.entryId, voucherNo: g.entryId ? (brief.get(g.entryId)?.voucherNo ?? null) : null, payments: g.payments, total: fromCents(g.total), method: (g.methods.size > 1 ? "CAMPUR" : g.methods.has("NONTUNAI") ? "NONTUNAI" : "TUNAI") as "TUNAI" | "NONTUNAI" | "CAMPUR" }));
   const { rules, exact } = rulesFor(p.year);
   const warnings: string[] = [];
   if (p.status === "DRAFT" && !p.musdesMeetingId) warnings.push("Hubungkan Musyawarah Desa penetapan penerima BLT (jenis “Musyawarah Desa penetapan penerima BLT Desa”). Penerima harus diputuskan dalam Musyawarah Desa.");
@@ -184,7 +199,8 @@ export async function getProgram(db: Db, villageId: number, id: number): Promise
     note: p.note,
     cap: { monthlyMax: fromCents(rules.bltMaxMonthlyCents), monthsAtOnce: rules.bltMaxMonthsAtOnce, basisYear: rules.year, exact },
     beneficiaries,
-    payments: p.payments.map((x) => ({ id: x.id, beneficiaryId: x.beneficiaryId, beneficiaryName: nameOf.get(x.beneficiaryId) ?? "-", monthFrom: x.monthFrom, monthTo: x.monthTo, amount: fromCents(x.amountCents), method: x.method, paidOn: isoDay(x.paidOn)!, receivedBy: x.receivedBy, note: x.note })),
+    payments: p.payments.map((x) => ({ id: x.id, beneficiaryId: x.beneficiaryId, beneficiaryName: nameOf.get(x.beneficiaryId) ?? "-", monthFrom: x.monthFrom, monthTo: x.monthTo, amount: fromCents(x.amountCents), method: x.method, paidOn: isoDay(x.paidOn)!, receivedBy: x.receivedBy, note: x.note, bkuEntryId: x.bkuEntryId })),
+    payouts,
     summary: { active, ended, needAmount: fromCents(need), paidAmount: fromCents(paid), remainingAmount: fromCents(need > paid ? need - paid : 0n) },
     warnings,
     meetings: meetings.map((m) => ({ id: m.id, kind: m.kind, title: m.title, status: m.status, heldOn: isoDay(m.heldOn) })),
@@ -396,6 +412,7 @@ export async function voidPayment(db: PrismaClient, args: { villageId: number; p
       if (cur.status === "SELESAI") return fail(409, "Program sudah selesai; buka kembali untuk mengoreksi pembayaran.");
       const pay = await tx.bltPayment.findFirst({ where: { id: args.id, programId: cur.id } });
       if (!pay) return fail(404, "Pembayaran tidak ditemukan.");
+      if (pay.bkuEntryId !== null) return fail(409, "Pembayaran ini sudah dicatat di Buku Kas Umum. Batalkan pencatatan Buku Kas Umum tanggal itu lebih dulu.");
       await tx.bltPayment.delete({ where: { id: pay.id } });
       return ok({ id: pay.id, beneficiaryId: pay.beneficiaryId, amount: fromCents(pay.amountCents) });
     })
@@ -474,5 +491,59 @@ export async function printData(db: Db, args: { villageId: number; id: number; i
     rows,
     byJobGroup: tally("jobGroup").map(([jobGroup, count]) => ({ jobGroup, count })),
     byCategory: tally("category").map(([category, count]) => ({ category, count })),
+  });
+}
+
+// ---- Tautan ke Buku Kas Umum
+
+const lockRow = (villageId: number, id: number) => async (tx: Prisma.TransactionClient) => {
+  await tx.$queryRaw`SELECT id FROM blt_programs WHERE id = ${id} AND villageId = ${villageId} FOR UPDATE`;
+};
+
+/** Mencatat pembayaran BLT satu tanggal bayar ke Buku Kas Umum sebagai satu pengeluaran. Body: paidOn, kegiatan, rekening, kas, nomor bukti. */
+export async function postPaymentsToBku(db: PrismaClient, args: { villageId: number; programId: number; userId: number | null; input: unknown; now?: Date }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; payments: number; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
+  const p = parsePayoutChoice(args.input);
+  if (!p.ok) return invalid(p);
+  const paidOn = parseIsoDate((args.input as Record<string, unknown>).paidOn);
+  if (!paidOn) return invalid({ errors: ["Tanggal bayar tidak valid."], fieldErrors: { paidOn: "Pilih tanggal bayar." } });
+  const head = await db.bltProgram.findFirst({ where: { id: args.programId, villageId: args.villageId }, select: { id: true } });
+  if (!head) return fail(404, "Program BLT tidak ditemukan.");
+  // Cek kasar di luar transaksi: tidak membuat baris tahun APB Desa bila tak ada pembayaran yang bisa dicatat pada tanggal itu.
+  if (!(await db.bltPayment.count({ where: { programId: head.id, paidOn, bkuEntryId: null } }))) return fail(404, "Tidak ada pembayaran pada tanggal itu yang belum dicatat di Buku Kas Umum.");
+  return runPayoutTx(db, {
+    villageId: args.villageId,
+    year: paidOn.getUTCFullYear(),
+    lockModule: lockRow(args.villageId, args.programId),
+    fn: async (tx) => {
+      const prog = await tx.bltProgram.findFirst({ where: { id: args.programId, villageId: args.villageId }, select: { id: true, title: true } });
+      if (!prog) return fail(404, "Program BLT tidak ditemukan.");
+      const agg = await tx.bltPayment.aggregate({ where: { programId: prog.id, paidOn, bkuEntryId: null }, _sum: { amountCents: true }, _count: { _all: true } });
+      const n = agg._count._all;
+      if (!n) return fail(404, "Tidak ada pembayaran pada tanggal itu yang belum dicatat di Buku Kas Umum.");
+      const total = agg._sum.amountCents ?? 0n;
+      const r = await postPayoutEntry(tx, { villageId: args.villageId, userId: args.userId, year: paidOn.getUTCFullYear(), entryDate: paidOn, choice: p.value, description: `BLT Dana Desa ${prog.title}: ${n} penerima dibayar ${paidOn.toISOString().slice(0, 10)}`, amountCents: total, now: args.now });
+      if (!r.ok) return r;
+      const upd = await tx.bltPayment.updateMany({ where: { programId: prog.id, paidOn, bkuEntryId: null }, data: { bkuEntryId: r.data.id } });
+      if (upd.count !== n) throw new Rollback("Data pembayaran berubah saat dicatat. Coba lagi.");
+      return ok({ entryId: r.data.id, voucherNo: r.data.voucherNo, amount: fromCents(total), payments: n, ...auditOf(p.value, paidOn) });
+    },
+  });
+}
+
+/** Membatalkan satu pencatatan Buku Kas Umum atas pembayaran BLT (menghapus catatan kas; pembayaran kembali berstatus belum dicatat). */
+export async function unpostPaymentsFromBku(db: PrismaClient, args: { villageId: number; programId: number; entryId: number }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; payments: number; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
+  const entry = await db.apbdesEntry.findFirst({ where: { id: args.entryId, villageId: args.villageId, bltPayments: { some: { programId: args.programId } } }, select: { year: true, voucherNo: true, amountCents: true, activityCode: true, accountCode: true, channel: true, entryDate: true } });
+  if (!entry) return fail(404, "Catatan Buku Kas Umum untuk program ini tidak ditemukan.");
+  return runPayoutTx(db, {
+    villageId: args.villageId,
+    year: entry.year,
+    lockModule: lockRow(args.villageId, args.programId),
+    fn: async (tx) => {
+      const n = await tx.bltPayment.count({ where: { programId: args.programId, bkuEntryId: args.entryId } });
+      if (!n) return fail(404, "Catatan Buku Kas Umum untuk program ini tidak ditemukan.");
+      const r = await removePayoutEntry(tx, args.villageId, args.entryId);
+      if (!r.ok) return r;
+      return ok({ entryId: args.entryId, voucherNo: entry.voucherNo, amount: fromCents(entry.amountCents), payments: n, activityCode: entry.activityCode, accountCode: entry.accountCode, channel: entry.channel, paidOn: entry.entryDate.toISOString().slice(0, 10) });
+    },
   });
 }

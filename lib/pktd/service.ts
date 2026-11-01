@@ -1,8 +1,10 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { fail, invalid, isoDay, type Result } from "@/lib/form-input";
+import { fail, invalid, isoDay, parseIsoDate, type Result } from "@/lib/form-input";
 import { fromCents } from "@/lib/coop/loan-math";
 import { kegiatanName } from "@/lib/apbdes/catalog";
 import { rulesFor } from "@/lib/dana-desa/rules";
+import { Rollback } from "@/lib/apbdes/service";
+import { auditOf, entryBrief, parsePayoutChoice, postPayoutEntry, removePayoutEntry, runPayoutTx } from "@/lib/apbdes/payout";
 import { LIMITS, PRIORITIES, STATUS, TASKS } from "./catalog";
 import { activityWarnings, shareBps, wageProblem } from "./calc";
 import { parseActivityCreate, parseActivityPatch, parseDays, parsePay, parseWorker } from "./schema";
@@ -90,6 +92,14 @@ export interface DayGroup {
   total: string;
   unpaid: number;
 }
+/** Upah yang sudah dibayar, dikelompokkan per tanggal bayar dan catatan Buku Kas Umum (kosong = belum dicatat). */
+export interface PayoutGroup {
+  paidOn: string;
+  entryId: number | null;
+  voucherNo: string | null;
+  days: number;
+  total: string;
+}
 export interface ActivityView {
   id: number;
   year: number;
@@ -115,6 +125,7 @@ export interface ActivityView {
   apbdesBudget: string | null;
   workers: WorkerView[];
   dayGroups: DayGroup[];
+  payouts: PayoutGroup[];
   stats: { workers: number; women: number; priorityWorkers: number; workDays: number };
   warnings: { level: "ERROR" | "WARN" | "INFO"; message: string }[];
   terms: { priorities: { key: string; label: string }[]; tasks: Record<string, string> };
@@ -125,7 +136,7 @@ export async function getActivity(db: Db, villageId: number, id: number): Promis
   if (!a) return fail(404, "Kegiatan PKTD tidak ditemukan.");
   const { rules } = rulesFor(a.year);
   // Agregasi di SQL: jumlah baris hari kerja bisa besar (pekerja × tanggal).
-  const [perWorker, perWorkerUnpaid, perDate, perDateUnpaid, totals, paidTotals, unpaidCount] = await Promise.all([
+  const [perWorker, perWorkerUnpaid, perDate, perDateUnpaid, totals, paidTotals, unpaidCount, perPayout] = await Promise.all([
     db.pktdWorkDay.groupBy({ by: ["workerId"], where: { activityId: a.id }, _count: { _all: true }, _sum: { wageCents: true } }),
     db.pktdWorkDay.groupBy({ by: ["workerId"], where: { activityId: a.id, paidOn: null }, _count: { _all: true } }),
     db.pktdWorkDay.groupBy({ by: ["workDate"], where: { activityId: a.id }, _count: { _all: true }, _sum: { wageCents: true }, orderBy: { workDate: "desc" }, take: 90 }),
@@ -133,7 +144,9 @@ export async function getActivity(db: Db, villageId: number, id: number): Promis
     db.pktdWorkDay.aggregate({ where: { activityId: a.id }, _sum: { wageCents: true }, _count: { _all: true } }),
     db.pktdWorkDay.aggregate({ where: { activityId: a.id, paidOn: { not: null } }, _sum: { wageCents: true } }),
     db.pktdWorkDay.count({ where: { activityId: a.id, paidOn: null } }),
+    db.pktdWorkDay.groupBy({ by: ["paidOn", "bkuEntryId"], where: { activityId: a.id, paidOn: { not: null } }, _count: { _all: true }, _sum: { wageCents: true }, orderBy: { paidOn: "desc" }, take: 120 }),
   ]);
+  const brief = await entryBrief(db, villageId, perPayout.flatMap((g) => (g.bkuEntryId ? [g.bkuEntryId] : [])));
   const recorded = totals._sum.wageCents ?? 0n;
   const paid = paidTotals._sum.wageCents ?? 0n;
   const unpaidDays = unpaidCount;
@@ -176,6 +189,7 @@ export async function getActivity(db: Db, villageId: number, id: number): Promis
     apbdesBudget,
     workers,
     dayGroups: perDate.map((g) => ({ date: iso(g.workDate), count: g._count._all, total: fromCents(g._sum.wageCents ?? 0n), unpaid: perDateUnpaid.find((x) => iso(x.workDate) === iso(g.workDate))?._count._all ?? 0 })),
+    payouts: perPayout.map((g) => ({ paidOn: iso(g.paidOn!), entryId: g.bkuEntryId, voucherNo: g.bkuEntryId ? (brief.get(g.bkuEntryId)?.voucherNo ?? null) : null, days: g._count._all, total: fromCents(g._sum.wageCents ?? 0n) })),
     stats: { workers: workers.length, women: a.workers.filter((w) => w.gender === "P").length, priorityWorkers: workers.filter((w) => w.isPriority).length, workDays: totals._count._all },
     warnings,
     terms: { priorities: (Object.keys(PRIORITIES) as (keyof typeof PRIORITIES)[]).map((key) => ({ key, label: PRIORITIES[key].label })), tasks: { ...TASKS } },
@@ -335,8 +349,9 @@ export async function deleteWorkDays(db: PrismaClient, args: { villageId: number
       const cur = await lockActivity(tx, args.villageId, args.activityId);
       if (!cur) return fail(404, "Kegiatan PKTD tidak ditemukan.");
       if (cur.status === "SELESAI") return fail(409, "Kegiatan sudah selesai; buka kembali untuk mengoreksi.");
-      const rows = await tx.pktdWorkDay.findMany({ where: { activityId: cur.id, workDate: args.date }, select: { wageCents: true, paidOn: true } });
+      const rows = await tx.pktdWorkDay.findMany({ where: { activityId: cur.id, workDate: args.date }, select: { wageCents: true, paidOn: true, bkuEntryId: true } });
       if (!rows.length) return fail(404, "Tidak ada catatan pada tanggal itu.");
+      if (rows.some((r) => r.bkuEntryId !== null)) return fail(409, "Upah pada tanggal itu sudah dicatat di Buku Kas Umum. Batalkan pencatatan Buku Kas Umum lebih dulu.");
       const paid = rows.filter((r) => r.paidOn).length;
       if (paid && !args.allowPaid) return fail(403, "Ada upah yang sudah dibayarkan pada tanggal itu. Catatan pembayaran hanya dapat dihapus oleh admin.");
       await tx.pktdWorkDay.deleteMany({ where: { activityId: cur.id, workDate: args.date } });
@@ -433,5 +448,59 @@ export async function printData(db: Db, args: { villageId: number; id: number; f
     recorded: fromCents(recorded),
     shareBps: shareBps(recorded, a.costCents),
     minPct: rules.pktdWageMinPct,
+  });
+}
+
+// ---- Tautan ke Buku Kas Umum
+
+const lockRow = (villageId: number, id: number) => async (tx: Prisma.TransactionClient) => {
+  await tx.$queryRaw`SELECT id FROM pktd_activities WHERE id = ${id} AND villageId = ${villageId} FOR UPDATE`;
+};
+
+/** Mencatat upah yang dibayar pada satu tanggal ke Buku Kas Umum sebagai satu pengeluaran. Body: paidOn, kegiatan, rekening, kas, nomor bukti. */
+export async function postWagesToBku(db: PrismaClient, args: { villageId: number; activityId: number; userId: number | null; input: unknown; now?: Date }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; days: number; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
+  const p = parsePayoutChoice(args.input);
+  if (!p.ok) return invalid(p);
+  const paidOn = parseIsoDate((args.input as Record<string, unknown>).paidOn);
+  if (!paidOn) return invalid({ errors: ["Tanggal bayar tidak valid."], fieldErrors: { paidOn: "Pilih tanggal bayar." } });
+  const head = await db.pktdActivity.findFirst({ where: { id: args.activityId, villageId: args.villageId }, select: { id: true } });
+  if (!head) return fail(404, "Kegiatan PKTD tidak ditemukan.");
+  // Cek kasar di luar transaksi: tidak membuat baris tahun APB Desa bila tak ada upah yang bisa dicatat pada tanggal itu.
+  if (!(await db.pktdWorkDay.count({ where: { activityId: head.id, paidOn, bkuEntryId: null } }))) return fail(404, "Tidak ada upah yang sudah dibayar pada tanggal itu dan belum dicatat di Buku Kas Umum.");
+  return runPayoutTx(db, {
+    villageId: args.villageId,
+    year: paidOn.getUTCFullYear(),
+    lockModule: lockRow(args.villageId, args.activityId),
+    fn: async (tx) => {
+      const act = await tx.pktdActivity.findFirst({ where: { id: args.activityId, villageId: args.villageId }, select: { id: true, title: true } });
+      if (!act) return fail(404, "Kegiatan PKTD tidak ditemukan.");
+      const agg = await tx.pktdWorkDay.aggregate({ where: { activityId: act.id, paidOn, bkuEntryId: null }, _sum: { wageCents: true }, _count: { _all: true } });
+      const days = agg._count._all;
+      if (!days) return fail(404, "Tidak ada upah yang sudah dibayar pada tanggal itu dan belum dicatat di Buku Kas Umum.");
+      const total = agg._sum.wageCents ?? 0n;
+      const r = await postPayoutEntry(tx, { villageId: args.villageId, userId: args.userId, year: paidOn.getUTCFullYear(), entryDate: paidOn, choice: p.value, description: `Upah PKTD ${act.title}: ${days} hari kerja dibayar ${iso(paidOn)}`, amountCents: total, now: args.now });
+      if (!r.ok) return r;
+      const upd = await tx.pktdWorkDay.updateMany({ where: { activityId: act.id, paidOn, bkuEntryId: null }, data: { bkuEntryId: r.data.id } });
+      if (upd.count !== days) throw new Rollback("Data upah berubah saat dicatat. Coba lagi.");
+      return ok({ entryId: r.data.id, voucherNo: r.data.voucherNo, amount: fromCents(total), days, ...auditOf(p.value, paidOn) });
+    },
+  });
+}
+
+/** Membatalkan satu pencatatan Buku Kas Umum atas upah (menghapus catatan kas; upah kembali berstatus belum dicatat). */
+export async function unpostWagesFromBku(db: PrismaClient, args: { villageId: number; activityId: number; entryId: number }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; days: number; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
+  const entry = await db.apbdesEntry.findFirst({ where: { id: args.entryId, villageId: args.villageId, pktdWorkDays: { some: { activityId: args.activityId } } }, select: { year: true, voucherNo: true, amountCents: true, activityCode: true, accountCode: true, channel: true, entryDate: true } });
+  if (!entry) return fail(404, "Catatan Buku Kas Umum untuk kegiatan ini tidak ditemukan.");
+  return runPayoutTx(db, {
+    villageId: args.villageId,
+    year: entry.year,
+    lockModule: lockRow(args.villageId, args.activityId),
+    fn: async (tx) => {
+      const days = await tx.pktdWorkDay.count({ where: { activityId: args.activityId, bkuEntryId: args.entryId } });
+      if (!days) return fail(404, "Catatan Buku Kas Umum untuk kegiatan ini tidak ditemukan.");
+      const r = await removePayoutEntry(tx, args.villageId, args.entryId);
+      if (!r.ok) return r;
+      return ok({ entryId: args.entryId, voucherNo: entry.voucherNo, amount: fromCents(entry.amountCents), days, activityCode: entry.activityCode, accountCode: entry.accountCode, channel: entry.channel, paidOn: entry.entryDate.toISOString().slice(0, 10) });
+    },
   });
 }

@@ -31,7 +31,7 @@ export function PktdView() {
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Padat Karya Tunai Desa</h1>

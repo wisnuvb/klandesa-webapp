@@ -11,7 +11,7 @@ import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { fmtDate, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
-import { ConfirmDelete } from "./ConfirmDelete";
+import { ConfirmDelete } from "@/components/app/ConfirmDelete";
 import type { TabProps } from "./types";
 
 export function DisbursementsTab({ data, reload }: TabProps) {

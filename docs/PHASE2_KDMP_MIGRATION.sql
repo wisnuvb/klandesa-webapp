@@ -86,3 +86,11 @@ ALTER TABLE `kdmp_installments` ADD CONSTRAINT `kdmp_installments_villageId_fkey
 -- AddForeignKey
 ALTER TABLE `kdmp_installments` ADD CONSTRAINT `kdmp_installments_facilityId_fkey` FOREIGN KEY (`facilityId`) REFERENCES `kdmp_facilities`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
+
+-- Pertahanan berlapis (aplikasi sudah memvalidasi): jumlah positif, progres 0-100, nilai pekerjaan positif.
+-- MySQL >= 8.0.16 / MariaDB >= 10.2 menegakkannya; versi lebih lama menerima sintaks ini dan mengabaikannya.
+ALTER TABLE `kdmp_disbursements` ADD CONSTRAINT `kdmp_disbursements_amount_chk` CHECK (`amountCents` > 0);
+ALTER TABLE `kdmp_installments` ADD CONSTRAINT `kdmp_installments_amount_chk` CHECK (`amountCents` > 0);
+ALTER TABLE `kdmp_facilities` ADD CONSTRAINT `kdmp_facilities_progress_chk` CHECK (`progressPct` BETWEEN 0 AND 100);
+ALTER TABLE `kdmp_facilities` ADD CONSTRAINT `kdmp_facilities_contract_chk` CHECK (`contractCents` IS NULL OR `contractCents` > 0);
+ALTER TABLE `kdmp_facility_progress` ADD CONSTRAINT `kdmp_facility_progress_pct_chk` CHECK (`progressPct` BETWEEN 0 AND 100);

@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/search-select";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
-import { SELECT_CLASS, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
+import { ConfirmDelete } from "@/components/app/ConfirmDelete";
+import { PostToBkuDialog } from "@/components/app/apbdes/PostToBkuDialog";
+import { Pill, SELECT_CLASS, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import type { TabProps } from "./types";
@@ -18,6 +20,7 @@ type B = TabProps["data"]["program"]["beneficiaries"][number];
 export function PaymentsTab({ data, reload }: TabProps) {
   const p = data.program;
   const [paying, setPaying] = useState<B | null>(null);
+  const [posting, setPosting] = useState<TabProps["data"]["program"]["payouts"][number] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const active = p.beneficiaries.filter((b) => b.status === "AKTIF");
   const canPay = p.status === "DITETAPKAN" && data.can.create;
@@ -113,7 +116,7 @@ export function PaymentsTab({ data, reload }: TabProps) {
                     <td className="px-3 py-2">{x.receivedBy ?? "-"}</td>
                     {data.can.delete ? (
                       <td className="px-3 py-1 text-right">
-                        {p.status !== "SELESAI" ? (
+                        {p.status !== "SELESAI" && !x.bkuEntryId ? (
                           <Button type="button" variant="ghost" size="icon" className="size-11" aria-label={`Batalkan pembayaran ${x.beneficiaryName} bulan ${x.monthFrom}${x.monthTo !== x.monthFrom ? `–${x.monthTo}` : ""}`} onClick={() => void_(x.id)}>
                             <Trash2 aria-hidden="true" />
                           </Button>
@@ -129,6 +132,55 @@ export function PaymentsTab({ data, reload }: TabProps) {
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Belum ada pembayaran tercatat.</p>
         )}
       </section>
+
+      {p.payouts.length ? (
+        <section aria-labelledby="bk-h" className="space-y-3">
+          <div>
+            <h2 id="bk-h" className="text-lg font-semibold">
+              Pencatatan ke Buku Kas Umum
+            </h2>
+            <p className="text-sm text-muted-foreground">Pembayaran satu tanggal dicatat sebagai satu pengeluaran pada Buku Kas Umum, agar laporan keuangan desa lengkap. Pembayaran yang sudah tercatat tidak dapat dibatalkan sebelum pencatatannya dibatalkan.</p>
+          </div>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full min-w-[34rem] text-sm">
+              <caption className="sr-only">Pembayaran BLT per tanggal bayar dan status pencatatan Buku Kas Umum</caption>
+              <thead className="bg-muted text-left">
+                <tr>
+                  <th scope="col" className="px-3 py-2">Tanggal bayar</th>
+                  <th scope="col" className="px-3 py-2 text-right">Penerima</th>
+                  <th scope="col" className="px-3 py-2 text-right">Jumlah</th>
+                  <th scope="col" className="px-3 py-2">Buku Kas Umum</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {p.payouts.map((g) => (
+                  <tr key={`${g.paidOn}-${g.entryId ?? "x"}`}>
+                    <td className="whitespace-nowrap px-3 py-2">{fmtDate(g.paidOn)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{g.payments}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{rupiah(g.total)}</td>
+                    <td className="px-3 py-1">
+                      {g.entryId ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Pill tone="done">Tercatat · {g.voucherNo ?? "-"}</Pill>
+                          {data.can.delete ? <ConfirmDelete buttonText="Batalkan" label={`Batalkan pencatatan Buku Kas Umum pembayaran ${fmtDate(g.paidOn)}`} title="Batalkan pencatatan Buku Kas Umum?" description={`Catatan pengeluaran ${rupiah(g.total)} (bukti ${g.voucherNo ?? "-"}) akan dihapus dari Buku Kas Umum; pembayaran tanggal ${fmtDate(g.paidOn)} kembali berstatus belum dicatat.`} text="Batalkan pencatatan" url={`/api/blt/${p.id}/bku?entry=${g.entryId}`} onDone={reload} /> : null}
+                        </div>
+                      ) : data.can.create ? (
+                        <Button type="button" variant="outline" className="min-h-11" onClick={() => setPosting(g)}>
+                          Catat ke BKU
+                        </Button>
+                      ) : (
+                        <Pill tone="soon">Belum dicatat</Pill>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {posting ? <PostToBkuDialog year={Number(posting.paidOn.slice(0, 4))} title="Catat pembayaran BLT ke Buku Kas Umum" summary={`${posting.payments} penerima dibayar ${fmtDate(posting.paidOn)} · ${p.title}.`} amount={posting.total} url={`/api/blt/${p.id}/bku`} extraBody={{ paidOn: posting.paidOn }} defaultChannel={posting.method === "NONTUNAI" ? "BANK" : "TUNAI"} defaultVoucher={`BLT-${posting.paidOn}${p.payouts.filter((x) => x.paidOn === posting.paidOn && x.entryId).length ? `-${p.payouts.filter((x) => x.paidOn === posting.paidOn && x.entryId).length + 1}` : ""}`} onClose={() => setPosting(null)} onDone={() => { setPosting(null); reload(); }} /> : null}
 
       {paying ? (
         <PayDialog

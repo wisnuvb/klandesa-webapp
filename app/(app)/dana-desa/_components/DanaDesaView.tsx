@@ -29,7 +29,7 @@ export function DanaDesaView() {
   const years = [thisYear - 2, thisYear - 1, thisYear, thisYear + 1];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Dana Desa</h1>
         <p className="text-muted-foreground">Memeriksa penggunaan Dana Desa terhadap APB Desa: fokus penggunaan, batas operasional, larangan, publikasi, dan kesiapan laporan penyaluran.</p>

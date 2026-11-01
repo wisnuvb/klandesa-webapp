@@ -23,7 +23,7 @@ Yang **tidak** ditemukan di teks yang dibaca: rincian mekanisme angsuran (pihak 
 - Gerai yang sudah punya angsuran tidak dapat dihapus.
 
 ## Data dan izin
-SQL aditif `PHASE2_KDMP_MIGRATION.sql` (4 tabel `kdmp_*`) + rollback; dilatih apply–rollback–apply di scratch dan diterapkan ke DB lokal. **Produksi belum.** Izin memakai resource `apbdes`: operator dan sekretaris mencatat; Kepala Desa hanya membaca. Menghapus catatan penyaluran dan angsuran (catatan uang) hanya admin (izin delete **dan** approve), dengan audit memuat jumlah dan penerima. Kunci per desa-tahun memakai baris `dd_year_settings` (dibuat kosong bila belum ada; halaman Dana Desa menganggap baris kosong sama dengan belum diisi).
+SQL aditif `PHASE2_KDMP_MIGRATION.sql` (4 tabel `kdmp_*` + 5 batasan CHECK: jumlah > 0, progres 0–100, nilai pekerjaan > 0; MySQL ≥ 8.0.16 menegakkan, versi lama mengabaikan dengan aman) + rollback; dilatih apply–rollback–apply di scratch dan diterapkan ke DB lokal. **Produksi belum.** Izin memakai resource `apbdes`: operator dan sekretaris mencatat; Kepala Desa hanya membaca. Menghapus catatan penyaluran dan angsuran (catatan uang) hanya admin (izin delete **dan** approve), dengan audit memuat jumlah dan penerima. Kunci per desa-tahun memakai baris `dd_year_settings` (dibuat kosong bila belum ada; halaman Dana Desa menganggap baris kosong sama dengan belum diisi).
 
 ## Batas yang jujur
 - Angsuran belum otomatis menjadi catatan Buku Kas Umum/SPP, dan belum ada unggah bukti (foto/PDF perjanjian atau kuitansi).
@@ -33,4 +33,10 @@ SQL aditif `PHASE2_KDMP_MIGRATION.sql` (4 tabel `kdmp_*`) + rollback; dilatih ap
 - Tidak mengubah APB Desa/DPPA: perubahan anggarannya tetap dibuat di modul APB Desa (DPPA berversi masih dalam daftar "belum").
 
 ## Pengujian
-`tests/kdmp.test.ts` (16: perhitungan, validasi, izin rute) dan `tests/kdmp.integration.test.ts` (8 tes MySQL, termasuk uji dua-tiga angsuran serentak; tanpa `FOR UPDATE` tes itu gagal 3 dari 3). Browser sungguhan (Chrome): pagu tampil, penyaluran memicu peringatan "baru Rp80 juta dianggarkan", gerai + progres 20% + angsuran 50 juta memicu peringatan mendahului progres, angsuran berlebih ditolak dengan pesan di dalam dialog, riwayat progres; 390px tanpa gulir horizontal di semua tab.
+`tests/kdmp.test.ts` (18: perhitungan, validasi, izin rute) dan `tests/kdmp.integration.test.ts` (10 tes MySQL, termasuk penolakan CHECK oleh DB, termasuk uji dua-tiga angsuran serentak; tanpa `FOR UPDATE` tes itu gagal 3 dari 3). Browser sungguhan (Chrome): pagu tampil, penyaluran memicu peringatan "baru Rp80 juta dianggarkan", gerai + progres 20% + angsuran 50 juta memicu peringatan mendahului progres, angsuran berlebih ditolak dengan pesan di dalam dialog, riwayat progres; 390px tanpa gulir horizontal di semua tab.
+
+## Tinjauan keamanan (agen terpisah) dan perbaikan
+Tanpa temuan Tinggi/Sedang. Sudah diperbaiki: audit memuat nilai sebelum/sesudah, penerima, nomor bukti, dan nilai/jumlah riwayat saat gerai dihapus (id catatan progres dipakai sebagai id entitas); penghapusan catatan uang memeriksa izin hapus **dan** setujui secara eksplisit dengan tes yang mengunci "hanya admin"; nilai pekerjaan tidak dapat dikosongkan bila sudah ada angsuran; tanggal wajar (tahun ≥ 2000, penyaluran/angsuran dalam tahun anggaran ±1); kunci desa-tahun menolak bila barisnya tidak ada; koersi angka ketat (`"1e3"`, `"0x10"`, array, boolean ditolak); CHECK di DB.
+
+## Uji browser kedua (Chrome sungguhan)
+Tautan dari Dana Desa; tanggal di luar tahun anggaran ditolak dengan pesan; ubah nama/nilai; beroperasi ditolak sebelum 100%; progres turun ditolak; 100% → Selesai dibangun → beroperasi; hapus progres 100% saat beroperasi ditolak di dalam dialog; hapus angsuran dan penyaluran dengan dialog konfirmasi (admin); 390px tanpa gulir horizontal. Temuan UX: tombol melayang "Tanya Laras" menutupi aksi pada baris tabel paling bawah di desktop; halaman Dana Desa, BLT, PKTD, dan KDMP kini diberi ruang kosong di bawah (komponen Laras sendiri milik AppShell, tidak diubah).

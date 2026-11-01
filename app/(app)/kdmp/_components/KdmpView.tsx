@@ -29,7 +29,7 @@ export function KdmpView() {
   const { data, loading, error, reload } = useApiGet<Resp>(`/api/kdmp?year=${year}`);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Dukungan KDMP</h1>
         <p className="max-w-3xl text-muted-foreground">Memantau dana dukungan Koperasi Desa Merah Putih: penyaluran yang diterima, angsuran pembangunan gerai dan gudang, kemajuan fisiknya, dan kesesuaiannya dengan APB Desa.</p>

@@ -57,7 +57,7 @@ export function PktdDetail({ id }: { id: number }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <Button asChild variant="ghost" className="min-h-11">
         <Link href="/pktd">
           <ArrowLeft aria-hidden="true" />

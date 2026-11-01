@@ -5,6 +5,7 @@ import { accountKind } from "@/lib/apbdes/catalog";
 import { rulesFor } from "@/lib/dana-desa/rules";
 import type { Finding } from "@/lib/dana-desa/compliance";
 import { STEPS } from "@/lib/coop/formation";
+import { auditOf, entryBrief, parsePayoutChoice, postPayoutEntry, removePayoutEntry, runPayoutTx } from "@/lib/apbdes/payout";
 import { KINDS, LIMITS, STATUS } from "./catalog";
 import { facilityStatus, kdmpFindings, shareBps, type FacilityFacts } from "./calc";
 import { parseDisbursement, parseFacilityCreate, parseFacilityPatch, parseInstallment, parseProgress } from "./schema";
@@ -44,7 +45,7 @@ export interface Overview {
   apbdes: { id: number; version: number; label: string; status: string } | null;
   cooperative: { name: string; stepsDone: number; stepsTotal: number; nextStep: string | null } | null;
   disbursements: { id: number; receivedOn: string; amount: string; reference: string | null; note: string | null }[];
-  installments: { id: number; paidOn: string; amount: string; payee: string; reference: string | null; note: string | null; facilityId: number | null; facilityName: string | null }[];
+  installments: { id: number; paidOn: string; amount: string; payee: string; reference: string | null; note: string | null; facilityId: number | null; facilityName: string | null; bkuEntryId: number | null; bkuVoucher: string | null }[];
   facilities: { id: number; kind: string; kindLabel: string; name: string; location: string | null; contract: string | null; paid: string; paidBps: number | null; progressPct: number; progressOn: string | null; operatingOn: string | null; status: string; statusLabel: string; note: string | null }[];
   findings: Finding[];
   kinds: Record<string, string>;
@@ -88,6 +89,7 @@ export async function getOverview(db: Db, args: { villageId: number; year: numbe
   const findings = kdmpFindings({ ruleShareBps: rules.kdmpShareBps, kdmpPaguCents: setting?.kdmpCents ?? null, regularPaguCents: setting?.regularCents ?? null, receivedCents, paidCents, budgetedCents, facilities: facts, unassignedPaidCents: unassigned, today: args.today });
 
   const names = new Map(facs.map((f) => [f.id, f.name]));
+  const brief = await entryBrief(db, villageId, inst.flatMap((i) => (i.bkuEntryId ? [i.bkuEntryId] : [])));
   const kdmp = setting?.kdmpCents ?? null;
   const reg = setting?.regularCents ?? null;
   const steps = coop?.formation ? STEPS.filter((s) => s.done(coop.formation!)) : [];
@@ -101,7 +103,7 @@ export async function getOverview(db: Db, args: { villageId: number; year: numbe
     apbdes: doc ? { id: doc.id, version: doc.version, label: docLabel(doc.version), status: doc.status } : null,
     cooperative: coop ? { name: coop.name, stepsDone: steps.length, stepsTotal: STEPS.length, nextStep: next } : null,
     disbursements: disb.map((d) => ({ id: d.id, receivedOn: iso(d.receivedOn), amount: fromCents(d.amountCents), reference: d.reference, note: d.note })),
-    installments: inst.map((i) => ({ id: i.id, paidOn: iso(i.paidOn), amount: fromCents(i.amountCents), payee: i.payee, reference: i.reference, note: i.note, facilityId: i.facilityId, facilityName: i.facilityId ? (names.get(i.facilityId) ?? null) : null })),
+    installments: inst.map((i) => ({ id: i.id, paidOn: iso(i.paidOn), amount: fromCents(i.amountCents), payee: i.payee, reference: i.reference, note: i.note, facilityId: i.facilityId, facilityName: i.facilityId ? (names.get(i.facilityId) ?? null) : null, bkuEntryId: i.bkuEntryId, bkuVoucher: i.bkuEntryId ? (brief.get(i.bkuEntryId)?.voucherNo ?? null) : null })),
     facilities: facs.map((f) => {
       const p = paidBy.get(f.id) ?? 0n;
       const st = facilityStatus(f.progressPct, isoDay(f.operatingOn));
@@ -183,7 +185,9 @@ export async function addInstallment(db: PrismaClient, args: { villageId: number
 export async function removeInstallment(db: PrismaClient, args: { villageId: number; id: number }): Promise<Result<{ year: number; amount: string; payee: string; reference: string | null }>> {
   const row = await db.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId } });
   if (!row) return fail(404, "Catatan angsuran tidak ditemukan.");
-  const r = await db.kdmpInstallment.deleteMany({ where: { id: row.id, villageId: args.villageId } });
+  if (row.bkuEntryId !== null) return fail(409, "Angsuran ini sudah dicatat di Buku Kas Umum. Batalkan pencatatan Buku Kas Umum lebih dulu.");
+  // bkuEntryId IS NULL dalam penghapusan: bila tertaut tepat setelah pembacaan di atas, penghapusan tidak terjadi.
+  const r = await db.kdmpInstallment.deleteMany({ where: { id: row.id, villageId: args.villageId, bkuEntryId: null } });
   return r.count ? ok({ year: row.year, amount: fromCents(row.amountCents), payee: row.payee, reference: row.reference }) : fail(404, "Catatan angsuran tidak ditemukan.");
 }
 
@@ -225,7 +229,7 @@ export async function patchFacility(db: PrismaClient, args: { villageId: number;
         if (v.contractCents !== null && paid > v.contractCents) return stop(`Nilai pekerjaan tidak boleh di bawah angsuran yang sudah dibayar (${rp(paid)}).`);
       }
       if (v.operatingOn) {
-        if (cur.progressPct < 100) return invalid({ errors: ["Baru dapat ditandai beroperasi setelah progres fisik 100%."], fieldErrors: { operatingOn: "Progres fisik belum 100%" } });
+        if (cur.progressPct < 100) return invalid({ errors: ["Baru dapat ditandai beroperasi setelah progres fisik 100%."], fieldErrors: { operatingOn: "Progres fisik masih di bawah 100%, belum dapat ditandai beroperasi." } });
         if (iso(v.operatingOn) > tomorrowOf(args.now ?? new Date())) return invalid({ errors: ["Tanggal beroperasi tidak boleh di masa depan."], fieldErrors: { operatingOn: "Tidak boleh di masa depan" } });
       }
       const before = { kind: cur.kind, name: cur.name, contract: cur.contractCents === null ? null : fromCents(cur.contractCents), operatingOn: isoDay(cur.operatingOn) };
@@ -317,4 +321,54 @@ export async function removeProgress(db: PrismaClient, args: { villageId: number
       return ok({ progressPct: await syncProgress(tx, cur.id), removed: { recordedOn: iso(row.recordedOn), progressPct: row.progressPct } });
     })
     .catch(asResult);
+}
+
+// ---- Tautan ke Buku Kas Umum
+
+const lockInstallment = (villageId: number, id: number) => async (tx: Prisma.TransactionClient) => {
+  await tx.$queryRaw`SELECT id FROM kdmp_installments WHERE id = ${id} AND villageId = ${villageId} FOR UPDATE`;
+};
+
+/** Mencatat satu angsuran ke Buku Kas Umum sebagai pengeluaran pada tanggal bayar. Body: kegiatan, rekening, kas, nomor bukti. */
+export async function postInstallmentToBku(db: PrismaClient, args: { villageId: number; userId: number | null; id: number; input: unknown; now?: Date }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
+  const p = parsePayoutChoice(args.input);
+  if (!p.ok) return invalid(p);
+  const head = await db.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId }, select: { paidOn: true } });
+  if (!head) return fail(404, "Catatan angsuran tidak ditemukan.");
+  return runPayoutTx(db, {
+    villageId: args.villageId,
+    year: head.paidOn.getUTCFullYear(),
+    lockModule: lockInstallment(args.villageId, args.id),
+    fn: async (tx) => {
+      const row = await tx.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId }, include: { facility: { select: { name: true } } } });
+      if (!row) return fail(404, "Catatan angsuran tidak ditemukan.");
+      if (row.bkuEntryId !== null) return fail(409, "Angsuran ini sudah dicatat di Buku Kas Umum.");
+      const desc = `Angsuran dukungan KDMP kepada ${row.payee}${row.facility ? ` (${row.facility.name})` : ""}${row.reference ? `, ${row.reference}` : ""}`;
+      const r = await postPayoutEntry(tx, { villageId: args.villageId, userId: args.userId, year: row.paidOn.getUTCFullYear(), entryDate: row.paidOn, choice: p.value, description: desc, amountCents: row.amountCents, now: args.now });
+      if (!r.ok) return r;
+      await tx.kdmpInstallment.update({ where: { id: row.id }, data: { bkuEntryId: r.data.id } });
+      return ok({ entryId: r.data.id, voucherNo: r.data.voucherNo, amount: fromCents(row.amountCents), ...auditOf(p.value, row.paidOn) });
+    },
+  });
+}
+
+/** Membatalkan pencatatan Buku Kas Umum suatu angsuran (menghapus catatan kas yang dibuat darinya). */
+export async function unpostInstallmentFromBku(db: PrismaClient, args: { villageId: number; id: number }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
+  const head = await db.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId }, select: { bkuEntryId: true, bkuEntry: { select: { year: true } } } });
+  if (!head) return fail(404, "Catatan angsuran tidak ditemukan.");
+  if (head.bkuEntryId === null || !head.bkuEntry) return fail(409, "Angsuran ini belum dicatat di Buku Kas Umum.");
+  return runPayoutTx(db, {
+    villageId: args.villageId,
+    year: head.bkuEntry.year,
+    lockModule: lockInstallment(args.villageId, args.id),
+    fn: async (tx) => {
+      const row = await tx.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId }, include: { bkuEntry: { select: { voucherNo: true, activityCode: true, accountCode: true, channel: true, entryDate: true } } } });
+      if (!row) return fail(404, "Catatan angsuran tidak ditemukan.");
+      if (row.bkuEntryId === null) return fail(409, "Angsuran ini belum dicatat di Buku Kas Umum.");
+      const entryId = row.bkuEntryId;
+      const r = await removePayoutEntry(tx, args.villageId, entryId);
+      if (!r.ok) return r;
+      return ok({ entryId, voucherNo: row.bkuEntry?.voucherNo ?? "", amount: fromCents(row.amountCents), activityCode: row.bkuEntry?.activityCode ?? null, accountCode: row.bkuEntry?.accountCode ?? null, channel: row.bkuEntry?.channel ?? "", paidOn: row.bkuEntry?.entryDate.toISOString().slice(0, 10) ?? "" });
+    },
+  });
 }
