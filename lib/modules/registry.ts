@@ -215,6 +215,36 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     sortOrder: 353,
   },
 
+  {
+    id: "blt",
+    label: "BLT Desa",
+    path: "/blt",
+    permission: "blt",
+    sdgGoals: [1, 10],
+    status: "beta",
+    sortOrder: 354,
+  },
+
+  {
+    id: "pktd",
+    label: "Padat Karya Tunai Desa",
+    path: "/pktd",
+    permission: "apbdes",
+    sdgGoals: [1, 8],
+    status: "beta",
+    sortOrder: 355,
+  },
+
+  {
+    id: "kdmp",
+    label: "Dukungan KDMP",
+    path: "/kdmp",
+    permission: "apbdes",
+    sdgGoals: [8, 17],
+    status: "beta",
+    sortOrder: 356,
+  },
+
   // --- Operasional: Portal warga ---
   {
     id: "pengumuman-desa",

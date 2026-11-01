@@ -241,6 +241,14 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: "crud_export",
     staff: ["read", "create", "update", "export"],
   },
+  blt: {
+    // Data penerima BLT Desa: sensitif. Kepala Desa menetapkan (approve) dan boleh mencetak; sekretaris mengelola;
+    // operator mendata dan membayar tetapi tidak menghapus. Penetapan/penutupan memakai approve lewat pola rute.
+    admin: ["read", "create", "update", "delete", "export", "approve"],
+    village_head: ["read", "export", "approve"],
+    secretary: "crud_export",
+    staff: ["read", "create", "update"],
+  },
   polls: {
     // Menerbitkan/menutup polling memakai "update" (dicek dalam rute karena POST).
     admin: "crud",

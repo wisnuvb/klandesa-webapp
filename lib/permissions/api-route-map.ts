@@ -14,6 +14,22 @@ type RouteRule = {
   suffixActions?: Record<string, PermissionAction>;
 };
 
+/**
+ * Rute dengan id di tengah jalur (mis. /api/x/12/persetujuan) tidak bisa dipetakan lewat awalan, jadi dicocokkan dengan pola.
+ * Dipakai bila aksi yang berlaku bukan turunan metode HTTP: persetujuan = "approve" (Kepala Desa tidak punya "create"),
+ * atau rute yang memeriksa izin per aksi di dalam rute (gerbang kasar = "read"). Dicek lebih dulu daripada awalan.
+ */
+const PATTERN_RULES: { pattern: RegExp; resource: PermissionResource; action: PermissionAction }[] = [
+  { pattern: /^\/api\/perencanaan\/rkpdes\/\d+\/persetujuan$/, resource: "perencanaan", action: "approve" },
+  // Aksi musyawarah: update untuk operator, approve untuk membuka kembali berita acara final; keduanya dicek di dalam rute.
+  { pattern: /^\/api\/musdes\/\d+\/aksi$/, resource: "perencanaan", action: "read" },
+  // BLT Desa: penetapan, penyelesaian, dan pembukaan kembali = approve; cetak SK/tanda terima (memuat NIK) = export.
+  { pattern: /^\/api\/blt\/\d+\/status$/, resource: "blt", action: "approve" },
+  { pattern: /^\/api\/blt\/\d+\/cetak$/, resource: "blt", action: "export" },
+  // Mengganti atau mengakhiri penerima setelah SK = setara menghapus: tidak untuk operator.
+  { pattern: /^\/api\/blt\/\d+\/penerima\/\d+\/ganti$/, resource: "blt", action: "delete" },
+];
+
 /** Prefix match — urutan dari spesifik ke umum. */
 const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/residents/export", resource: "residents", suffixActions: { "": "export" } },
@@ -71,6 +87,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/apbdes", resource: "apbdes" },
   { prefix: "/api/dana-desa/pengecualian", resource: "apbdes", suffixActions: { "": "approve" } },
   { prefix: "/api/dana-desa", resource: "apbdes" },
+  { prefix: "/api/pktd", resource: "apbdes" },
+  { prefix: "/api/kdmp", resource: "apbdes" },
   { prefix: "/api/aset-desa/buku", resource: "aset_desa", suffixActions: { "": "export" } },
   { prefix: "/api/aset-desa", resource: "aset_desa" },
   { prefix: "/api/tata-kelola/produk-hukum", resource: "produk_hukum" },
@@ -78,6 +96,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/tata-kelola/lembaga", resource: "lembaga_desa" },
   { prefix: "/api/dtsen", resource: "dtsen_usulan" },
   { prefix: "/api/musdes", resource: "perencanaan" },
+  { prefix: "/api/blt", resource: "blt" },
   { prefix: "/api/perencanaan", resource: "perencanaan" },
   { prefix: "/api/polls", resource: "polls" },
   { prefix: "/api/integrations/export", resource: "integrations", suffixActions: { "": "export" } },
@@ -141,6 +160,10 @@ export function resolveApiPermission(
 ): { resource: PermissionResource; action: PermissionAction } | null {
   for (const excluded of RBAC_EXCLUDED_PREFIXES) {
     if (pathname.startsWith(excluded)) return null;
+  }
+
+  for (const rule of PATTERN_RULES) {
+    if (rule.pattern.test(pathname)) return { resource: rule.resource, action: rule.action };
   }
 
   for (const rule of ROUTE_RULES) {

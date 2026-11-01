@@ -6,6 +6,7 @@ import { isRegionalAccount } from "@/lib/regional-session";
 import { isPartnerAccount, hasPartnerPortalAccess } from "@/lib/partner-session";
 import { isPlatformAccount } from "@/lib/platform-session";
 import { getAppBuildId } from "@/lib/build-id";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { AppLayoutClient } from "./AppLayoutClient";
 import type { Metadata } from "next";
 
@@ -27,7 +28,7 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-export default async function AppLayout({ children }: AppLayoutProps) {
+async function AppLayoutContent({ children }: AppLayoutProps) {
   const headersList = await headers();
   const pathname = headersList.get(INVOKE_PATHNAME_HEADER) || "/";
   const isAuthRoute = pathname.startsWith("/auth");
@@ -70,4 +71,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   }
 
   return <AppLayoutClient buildId={buildId}>{children}</AppLayoutClient>;
+}
+
+/** Google Analytics hanya dimuat di grup rute (app), bukan di landing/website/kiosk. */
+export default async function AppLayout({ children }: AppLayoutProps) {
+  return (
+    <>
+      <AppLayoutContent>{children}</AppLayoutContent>
+      <GoogleAnalytics />
+    </>
+  );
 }

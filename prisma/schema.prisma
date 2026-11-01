@@ -159,6 +159,11 @@ model Village {
   ddFocusTags        DdFocusTag[]
   ddRuleExceptions   DdRuleException[]
   ddPublications     DdPublication[]
+  bltPrograms        BltProgram[]
+  pktdActivities     PktdActivity[]
+  kdmpDisbursements  KdmpDisbursement[]
+  kdmpFacilities     KdmpFacility[]
+  kdmpInstallments   KdmpInstallment[]
   publishedTemplates AppTemplate[]
   customTables      CustomTable[]
   customRecords     CustomRecord[]
@@ -495,6 +500,8 @@ model Resident {
   elderlyChecks          ElderlyCheck[]
   meetingAttendances     VillageMeetingAttendee[]
   rkpdesTeamMembers      RkpdesTeamMember[]
+  bltBeneficiaries       BltBeneficiary[]
+  pktdWorkers            PktdWorker[]
   /// Produk UKM yang ditautkan ke warga ini sebagai pemilik/penjual.
   ukmProducts            Potential[] @relation("ResidentUkmProducts")
 
@@ -4633,6 +4640,7 @@ model VillageMeeting {
   @@index([villageId, kind, scheduledOn])
   @@index([villageId, planYear])
   @@map("village_meetings")
+  bltPrograms BltProgram[] @relation("BltMusdes")
 }
 
 model VillageMeetingAttendee {
@@ -4848,4 +4856,279 @@ model DdPublication {
 
   @@index([villageId, year])
   @@map("dd_publications")
+}
+
+/// Program BLT Desa satu tahun (Permendesa PDT 16/2025 Pasal 3 dan Lampiran II.A). Uang dalam sen.
+model BltProgram {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+  title     String  @db.VarChar(200)
+
+  /// Nilai per bulan per keluarga (maks. sesuai katalog aturan tahun itu) dan jumlah bulan program.
+  monthlyCents BigInt
+  totalMonths  Int
+  /// DRAFT | DITETAPKAN | SELESAI
+  status       String @default("DRAFT") @db.VarChar(12)
+
+  /// Musdes penetapan penerima (jenis MUSDES_BLT) dan Keputusan Kepala Desa.
+  musdesMeetingId Int?
+  musdesMeeting   VillageMeeting? @relation("BltMusdes", fields: [musdesMeetingId], references: [id], onDelete: SetNull)
+  decreeNumber    String?   @db.VarChar(100)
+  decreeDate      DateTime? @db.Date
+  /// Keputusan dilaporkan kepada bupati/wali kota melalui camat.
+  reportedToRegencyOn DateTime? @db.Date
+  note            String?   @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  beneficiaries BltBeneficiary[]
+  payments      BltPayment[]
+
+  @@unique([villageId, year])
+  @@map("blt_programs")
+}
+
+/// Keluarga penerima manfaat (KPM), diwakili satu warga. NIK tidak disalin: dibaca dari data warga saat dicetak.
+model BltBeneficiary {
+  id         Int        @id @default(autoincrement())
+  programId  Int
+  program    BltProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  villageId  Int
+  residentId Int?
+  resident   Resident?  @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  name       String  @db.VarChar(255)
+  kk         String? @db.VarChar(16)
+  /// PEMERINTAH (data Pemerintah sebagai acuan) | DESA (kriteria cadangan Kepala Desa)
+  source     String  @db.VarChar(10)
+  /// Nomor kriteria cadangan yang berlaku (1-5), dipisah koma.
+  criteria   String? @db.VarChar(20)
+  /// Kategori KPM hasil Musdes dan rincian kelompok pekerjaan (isi minimal Keputusan Kepala Desa).
+  category   String  @db.VarChar(100)
+  jobGroup   String  @db.VarChar(100)
+  /// Bulan program pertama yang boleh dibayarkan (>1 bagi pengganti).
+  startMonth Int     @default(1)
+
+  /// AKTIF | DIGANTI | BERAKHIR
+  status       String  @default("AKTIF") @db.VarChar(10)
+  endedReason  String? @db.VarChar(300)
+  endedMeetingId Int?
+  replacesId   Int?
+  /// Nomor keputusan perubahan bila ini pengganti.
+  decreeRef    String? @db.VarChar(150)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments BltPayment[]
+
+  @@index([programId, status])
+  @@index([villageId, residentId])
+  @@map("blt_beneficiaries")
+}
+
+/// Satu pembayaran: bulan program `monthFrom` sampai `monthTo` (maks. 3 bulan sekaligus).
+model BltPayment {
+  id            Int            @id @default(autoincrement())
+  programId     Int
+  program       BltProgram     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  villageId     Int
+  beneficiaryId Int
+  beneficiary   BltBeneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+
+  monthFrom   Int
+  monthTo     Int
+  amountCents BigInt
+  /// TUNAI | NONTUNAI
+  method      String   @db.VarChar(8)
+  paidOn      DateTime @db.Date
+  /// Penerima yang menandatangani (bila diwakilkan, tulis nama dan hubungan).
+  receivedBy  String?  @db.VarChar(150)
+  note        String?  @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([beneficiaryId])
+  @@index([programId, villageId])
+  @@map("blt_payments")
+}
+
+/// Kegiatan Padat Karya Tunai Desa (Permendesa PDT 16/2025 Lampiran II.F). Uang dalam sen.
+model PktdActivity {
+  id           Int     @id @default(autoincrement())
+  villageId    Int
+  village      Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year         Int
+  /// Kode kegiatan APB Desa (opsional, untuk membandingkan dengan anggaran).
+  activityCode String? @db.VarChar(12)
+  title        String  @db.VarChar(200)
+  location     String? @db.VarChar(200)
+  startDate    DateTime? @db.Date
+  endDate      DateTime? @db.Date
+
+  /// Total biaya kegiatan (RAB) dan bagian upah dalam RAB; upah minimal 50% dari biaya.
+  costCents        BigInt
+  plannedWageCents BigInt   @default(0)
+  /// Batas bawah dan atas upah harian hasil kesepakatan Musyawarah Desa (batas atas di bawah UMP), atau Peraturan Bupati.
+  wageMinCents     BigInt?
+  wageMaxCents     BigInt?
+  wageBasis        String?  @db.VarChar(200)
+  /// AKTIF | SELESAI
+  status           String   @default("AKTIF") @db.VarChar(8)
+  note             String?  @db.VarChar(500)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workers PktdWorker[]
+  days    PktdWorkDay[]
+
+  @@index([villageId, year])
+  @@map("pktd_activities")
+}
+
+model PktdWorker {
+  id         Int          @id @default(autoincrement())
+  activityId Int
+  activity   PktdActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  villageId  Int
+  residentId Int?
+  resident   Resident?    @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  name     String  @db.VarChar(255)
+  /// L | P
+  gender   String? @db.VarChar(1)
+  /// PENGANGGUR | SETENGAH_PENGANGGUR | PEREMPUAN_KK | KELUARGA_MISKIN | MARGINAL | DISABILITAS | LAINNYA
+  priority String  @db.VarChar(20)
+
+  createdAt DateTime @default(now())
+
+  days PktdWorkDay[]
+
+  @@unique([activityId, residentId], map: "pktd_workers_activity_resident")
+  @@index([villageId])
+  @@map("pktd_workers")
+}
+
+/// Satu hari kerja satu pekerja. Upah dibayar setiap hari: `paidOn` kosong berarti belum dibayar.
+model PktdWorkDay {
+  id         Int          @id @default(autoincrement())
+  activityId Int
+  activity   PktdActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  villageId  Int
+  workerId   Int
+  worker     PktdWorker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  workDate  DateTime  @db.Date
+  /// ANGKUT_MATERIAL | PENYIAPAN_LOKASI | PELAKSANAAN | LAINNYA (semuanya masuk perhitungan upah, Lampiran II.F.5.b)
+  task      String    @db.VarChar(16)
+  wageCents BigInt
+  paidOn    DateTime? @db.Date
+  note      String?   @db.VarChar(200)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([workerId, workDate], map: "pktd_work_days_worker_date")
+  @@index([activityId, workDate])
+  @@map("pktd_work_days")
+}
+
+/// Dukungan KDMP (Paket 2): penyaluran dana KDMP yang diterima desa per tahun. Pagu KDMP ada di DdYearSetting.kdmpCents.
+/// Rujukan: PMK 7/2026 Pasal 15 ayat 3, 20 ayat 3, 22 ayat 4; Permendesa PDT 16/2025 Pasal 2 ayat 2.
+model KdmpDisbursement {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+
+  receivedOn  DateTime @db.Date
+  amountCents BigInt
+  /// Nomor keputusan/nota penyaluran sebagai bukti.
+  reference   String?  @db.VarChar(150)
+  note        String?  @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([villageId, year])
+  @@map("kdmp_disbursements")
+}
+
+/// Gerai, pergudangan, atau kelengkapan KDMP yang pembangunannya diangsur dari dana KDMP.
+model KdmpFacility {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+
+  /// GERAI | GUDANG | KELENGKAPAN | LAINNYA
+  kind        String    @db.VarChar(12)
+  name        String    @db.VarChar(200)
+  location    String?   @db.VarChar(200)
+  /// Nilai pekerjaan/kewajiban total yang diangsur; batas atas jumlah angsuran.
+  contractCents BigInt?
+  /// Progres fisik terakhir (0-100) dan tanggal pencatatannya; diperbarui bersama baris riwayat.
+  progressPct Int       @default(0)
+  progressOn  DateTime? @db.Date
+  /// Tanggal mulai beroperasi (opsional, diisi operator).
+  operatingOn DateTime? @db.Date
+  note        String?   @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  progress     KdmpFacilityProgress[]
+  installments KdmpInstallment[]
+
+  @@index([villageId, year])
+  @@map("kdmp_facilities")
+}
+
+model KdmpFacilityProgress {
+  id         Int          @id @default(autoincrement())
+  facilityId Int
+  facility   KdmpFacility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  villageId  Int
+
+  recordedOn  DateTime @db.Date
+  progressPct Int
+  note        String?  @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([facilityId, recordedOn])
+  @@map("kdmp_facility_progress")
+}
+
+/// Angsuran yang dibayarkan dari dana KDMP; opsional terkait satu gerai/gudang.
+model KdmpInstallment {
+  id         Int           @id @default(autoincrement())
+  villageId  Int
+  village    Village       @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year       Int
+  facilityId Int?
+  facility   KdmpFacility? @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+
+  paidOn      DateTime @db.Date
+  amountCents BigInt
+  payee       String   @db.VarChar(150)
+  /// Nomor perjanjian/kuitansi sebagai bukti.
+  reference   String?  @db.VarChar(150)
+  note        String?  @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([villageId, year])
+  @@index([facilityId])
+  @@map("kdmp_installments")
 }
