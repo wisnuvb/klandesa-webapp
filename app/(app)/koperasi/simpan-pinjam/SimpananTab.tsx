@@ -11,6 +11,7 @@ import { FieldError, FormErrorSummary, fieldA11y } from "@/components/app/FormEr
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { day, rupiah, SELECT_CLASS, type MemberBalance, type SavingsResponse } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export function SimpananTab() {
   const [page, setPage] = useState(1);
@@ -109,26 +110,26 @@ function SavingDialog({ members, kinds, member, onClose, onSaved }: { members: M
         <form onSubmit={async (e) => { e.preventDefault(); if (await submit("/api/coop/savings", "POST", { ...f, memberId: Number(f.memberId) || undefined, amount: f.amount })) onSaved(); }} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label htmlFor="sv-member">Anggota *</Label>
-            <select {...fieldA11y("sv-member", errors.memberId)} className={SELECT_CLASS} value={f.memberId} onChange={(e) => set({ memberId: e.target.value })}>
+            <SearchSelect {...fieldA11y("sv-member", errors.memberId)} className={SELECT_CLASS} value={f.memberId} onChange={(e) => set({ memberId: e.target.value })}>
               <option value="">Pilih anggota…</option>
               {members.map((m) => <option key={m.id} value={m.id}>{m.name}{m.active ? "" : " (tidak aktif)"}</option>)}
-            </select>
+            </SearchSelect>
             <FieldError id="sv-member" message={errors.memberId} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="sv-kind">Jenis simpanan *</Label>
-              <select {...fieldA11y("sv-kind", errors.kind)} className={SELECT_CLASS} value={f.kind} onChange={(e) => set({ kind: e.target.value })}>
+              <SearchSelect {...fieldA11y("sv-kind", errors.kind)} className={SELECT_CLASS} value={f.kind} onChange={(e) => set({ kind: e.target.value })}>
                 {Object.entries(kinds).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
+              </SearchSelect>
               <FieldError id="sv-kind" message={errors.kind} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sv-direction">Transaksi *</Label>
-              <select {...fieldA11y("sv-direction", errors.direction)} className={SELECT_CLASS} value={f.direction} onChange={(e) => set({ direction: e.target.value })}>
+              <SearchSelect {...fieldA11y("sv-direction", errors.direction)} className={SELECT_CLASS} value={f.direction} onChange={(e) => set({ direction: e.target.value })}>
                 <option value="SETOR">Setoran</option>
                 <option value="TARIK">Penarikan</option>
-              </select>
+              </SearchSelect>
               <FieldError id="sv-direction" message={errors.direction} />
             </div>
           </div>

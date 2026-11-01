@@ -8,6 +8,7 @@ import { useApiGet } from "@/hooks/useApiGet";
 import { DIRECTION_LABEL, NATURE_LABEL, type Direction, type Nature } from "@/lib/tata-kelola/catalog";
 import type { RegisterView as Row } from "@/lib/tata-kelola/register";
 import { MailFormDialog } from "./MailFormDialog";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface ListResponse {
   items: Row[];
@@ -80,10 +81,10 @@ export function RegisterView() {
         </form>
         <div className="w-full sm:w-36">
           <label htmlFor="sr-tahun" className="sr-only">Tahun</label>
-          <select id="sr-tahun" className={SELECT_CLASS} value={year} onChange={(e) => { setYear(e.target.value); setPage(1); }}>
+          <SearchSelect id="sr-tahun" className={SELECT_CLASS} value={year} onChange={(e) => { setYear(e.target.value); setPage(1); }}>
             <option value="">Semua tahun</option>
             {Array.from({ length: 15 }, (_, k) => thisYear - k).map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          </SearchSelect>
         </div>
       </section>
 

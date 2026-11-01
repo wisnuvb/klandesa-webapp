@@ -4,7 +4,6 @@ import { motion } from "motion/react";
 import { useSession } from "next-auth/react";
 import {
   Check,
-  ChevronDown,
   ChevronRight,
   Copy,
   Eye,
@@ -42,6 +41,7 @@ import {
   getFileIcon,
   getQuotaTextColor,
 } from "../_utils/fileUtils";
+import { SearchSelect } from "@/components/ui/search-select";
 
 function folderDisplayPath(file: FileItem): string {
   if (file.kind === "folderDb" && file.folderPath) {
@@ -482,12 +482,12 @@ export function FileManager(props: Props) {
             <div className="flex gap-2">
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
+                <SearchSelect
                   value={filterType}
                   onChange={(e) =>
                     setFilterType(e.target.value as FileType | "ALL")
                   }
-                  className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none bg-white text-sm"
+                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none bg-white text-sm"
                 >
                   <option value="ALL">Semua Tipe</option>
                   <option value="IMAGE">Gambar</option>
@@ -495,22 +495,20 @@ export function FileManager(props: Props) {
                   <option value="PDF">PDF</option>
                   <option value="EXCEL">Excel</option>
                   <option value="ARCHIVE">Arsip</option>
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                </SearchSelect>
               </div>
               <div className="relative">
-                <select
+                <SearchSelect
                   value={sortBy}
                   onChange={(e) =>
                     setSortBy(e.target.value as "name" | "date" | "size")
                   }
-                  className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none bg-white text-sm"
+                  className="pl-3 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none bg-white text-sm"
                 >
                   <option value="name">Nama</option>
                   <option value="date">Tanggal</option>
                   <option value="size">Ukuran</option>
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                </SearchSelect>
               </div>
             </div>
           </div>

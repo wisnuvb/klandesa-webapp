@@ -13,12 +13,12 @@ import {
   Eye,
   X,
   Send,
-  ChevronDown,
   Pin,
   Lock,
   Globe,
 } from "lucide-react";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type ThreadCategory =
   | "UMUM"
@@ -417,12 +417,12 @@ export function ForumDiskusi() {
               />
             </div>
             <div className="relative">
-              <select
+              <SearchSelect
                 value={filterCategory}
                 onChange={(e) =>
                   setFilterCategory(e.target.value as ThreadCategory | "ALL")
                 }
-                className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-4 pr-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
                 <option value="ALL">Semua Kategori</option>
                 <option value="UMUM">Umum</option>
@@ -431,8 +431,7 @@ export function ForumDiskusi() {
                 <option value="PENDIDIKAN">Pendidikan</option>
                 <option value="KEAMANAN">Keamanan</option>
                 <option value="EKONOMI">Ekonomi</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+              </SearchSelect>
             </div>
           </div>
           <button
@@ -569,7 +568,7 @@ export function ForumDiskusi() {
                   <label className="mb-2 block text-sm font-medium text-gray-700">
                     Kategori *
                   </label>
-                  <select
+                  <SearchSelect
                     value={formData.category}
                     onChange={(e) =>
                       setFormData({
@@ -585,7 +584,7 @@ export function ForumDiskusi() {
                     <option value="PENDIDIKAN">Pendidikan</option>
                     <option value="KEAMANAN">Keamanan</option>
                     <option value="EKONOMI">Ekonomi</option>
-                  </select>
+                  </SearchSelect>
                 </div>
 
                 <div>

@@ -153,6 +153,8 @@ model Village {
   pregnancies        Pregnancy[]
   pregnancyVisits    PregnancyVisit[]
   elderlyChecks      ElderlyCheck[]
+  villageMeetings    VillageMeeting[]
+  rkpdesDocuments    RkpdesDocument[]
   publishedTemplates AppTemplate[]
   customTables      CustomTable[]
   customRecords     CustomRecord[]
@@ -487,6 +489,8 @@ model Resident {
   immunizations          ImmunizationRecord[]
   pregnancies            Pregnancy[]
   elderlyChecks          ElderlyCheck[]
+  meetingAttendances     VillageMeetingAttendee[]
+  rkpdesTeamMembers      RkpdesTeamMember[]
 
   @@unique([villageId, nik])
   @@index([villageId, name])
@@ -2349,6 +2353,7 @@ model RpjmdesPlan {
 
   activities RkpdesActivity[]
   proposals  MusdesProposal[]
+  rkpdesDocuments RkpdesDocument[]
 
   @@index([villageId, status])
   @@map("rpjmdes_plans")
@@ -2369,11 +2374,30 @@ model RkpdesActivity {
   status           String   @default("planned") @db.VarChar(50) // planned, ongoing, completed, cancelled
   source           String   @default("internal") @db.VarChar(50) // internal, musdes_proposal
 
+  /// Siklus RKPDes (Permendagri 114/2014 Pasal 40-42): semua kolom di bawah nullable agar data lama tetap berlaku.
+  documentId        Int?
+  document          RkpdesDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  activityCode      String?  @db.VarChar(12)
+  fundSource        String?  @db.VarChar(10)
+  /// SWAKELOLA | KERJASAMA_DESA | PIHAK_KETIGA
+  method            String?  @db.VarChar(14)
+  outputName        String?  @db.VarChar(200)
+  outputVolume      Decimal? @db.Decimal(14, 2)
+  outputUnit        String?  @db.VarChar(30)
+  executorChair     String?  @db.VarChar(150)
+  executorSecretary String?  @db.VarChar(150)
+  executorTreasurer String?  @db.VarChar(150)
+  executorMembers   String?  @db.VarChar(500)
+  executorHasWoman  Boolean?
+  rabVerifiedAt     DateTime? @db.Date
+  proposeToRegency  Boolean  @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   mergedFrom MusdesProposal?
 
+  @@index([documentId])
   @@index([planId, year])
   @@index([planId, status])
   @@map("rkpdes_activities")
@@ -3749,6 +3773,8 @@ model LegalDocument {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  rkpdesDocuments RkpdesDocument[]
+
   @@unique([villageId, type, year, number])
   @@index([villageId, status, year])
   @@map("legal_documents")
@@ -4550,4 +4576,180 @@ model VillageReport {
 
   @@unique([villageId, kind, year])
   @@map("village_reports")
+}
+
+// ============================================
+// Musyawarah Desa + siklus RKPDes (docs/PLAN_CELAH_FUNGSI.md, Paket 0 dan 1)
+// ============================================
+
+model VillageMeeting {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// MUSDES_PERENCANAAN | MUSRENBANGDES | MUSDES_PERUBAHAN | MUSDES_BLT | MUSDES_BLT_KHUSUS | MUSDES_LAINNYA
+  kind        String  @db.VarChar(20)
+  title       String  @db.VarChar(200)
+  topic       String? @db.VarChar(300)
+  /// Tahun rencana yang dibahas (mis. RKPDes 2027); null bila tak terkait tahun.
+  planYear    Int?
+  scheduledOn DateTime @db.Date
+  startTime   String?  @db.VarChar(5)
+  location    String?  @db.VarChar(200)
+  agenda      String?  @db.Text
+  /// PLANNED | HELD | FINAL | CANCELLED
+  status      String   @default("PLANNED") @db.VarChar(10)
+  heldOn      DateTime? @db.Date
+  minutesNo   String?  @db.VarChar(100)
+  minutesText String?  @db.Text
+  finalizedAt   DateTime?
+  finalizedById Int?
+  cancelReason  String?  @db.VarChar(300)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attendees  VillageMeetingAttendee[]
+  decisions  VillageMeetingDecision[]
+  asMusdes   RkpdesDocument[] @relation("RkpdesMusdes")
+  asMusrenbang RkpdesDocument[] @relation("RkpdesMusrenbang")
+
+  @@index([villageId, kind, scheduledOn])
+  @@index([villageId, planYear])
+  @@map("village_meetings")
+}
+
+model VillageMeetingAttendee {
+  id        Int            @id @default(autoincrement())
+  meetingId Int
+  meeting   VillageMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  residentId Int?
+  resident   Resident?     @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  name    String  @db.VarChar(150)
+  /// Unsur peserta (Permendagri 114/2014 Pasal 46 ayat 3 dan Permendesa 16/2025 Pasal 9).
+  unsur   String  @db.VarChar(20)
+  gender  String? @db.VarChar(1)
+  present Boolean @default(false)
+  note    String? @db.VarChar(200)
+
+  createdAt DateTime @default(now())
+
+  @@index([meetingId])
+  @@map("village_meeting_attendees")
+}
+
+model VillageMeetingDecision {
+  id        Int            @id @default(autoincrement())
+  meetingId Int
+  meeting   VillageMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  seq     Int
+  text    String  @db.VarChar(1000)
+  refType String? @db.VarChar(30)
+  refId   Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([meetingId, seq])
+  @@map("village_meeting_decisions")
+}
+
+model RkpdesDocument {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// Tahun RKP Desa (mis. 2027, disusun pada 2026).
+  year         Int
+  /// 0 = RKP Desa awal; 1, 2, ... = perubahan (Pasal 49-50).
+  revision     Int     @default(0)
+  /// PERISTIWA_KHUSUS | KEBIJAKAN (hanya untuk revision > 0)
+  changeReason String? @db.VarChar(20)
+  planId       Int?
+  plan         RpjmdesPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  musdesMeetingId     Int?
+  musdesMeeting       VillageMeeting? @relation("RkpdesMusdes", fields: [musdesMeetingId], references: [id], onDelete: SetNull)
+  musrenbangMeetingId Int?
+  musrenbangMeeting   VillageMeeting? @relation("RkpdesMusrenbang", fields: [musrenbangMeetingId], references: [id], onDelete: SetNull)
+
+  teamFormedAt  DateTime? @db.Date
+  teamDecreeRef String?   @db.VarChar(150)
+  paguReceivedAt DateTime? @db.Date
+  /// Evaluasi pelaksanaan RKP Desa tahun sebelumnya (Pasal 41 ayat 1 huruf a).
+  evaluationText String? @db.Text
+  draftReadyAt   DateTime? @db.Date
+  draftMinutesRef String?  @db.VarChar(150)
+  draftApprovedAt DateTime? @db.Date
+  draftApprovedById Int?
+  legalDocumentId Int?
+  legalDocument   LegalDocument? @relation(fields: [legalDocumentId], references: [id], onDelete: SetNull)
+  usulanSubmittedAt DateTime? @db.Date
+  usulanRef         String?   @db.VarChar(150)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team       RkpdesTeamMember[]
+  pagu       RkpdesPaguIndicative[]
+  incoming   RkpdesIncomingProgram[]
+  activities RkpdesActivity[]
+
+  @@unique([villageId, year, revision])
+  @@map("rkpdes_documents")
+}
+
+model RkpdesTeamMember {
+  id         Int            @id @default(autoincrement())
+  documentId Int
+  document   RkpdesDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  residentId Int?
+  resident   Resident?      @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  name     String  @db.VarChar(150)
+  /// PEMBINA | KETUA | SEKRETARIS | ANGGOTA (Pasal 33 ayat 2)
+  role     String  @db.VarChar(12)
+  position String? @db.VarChar(100)
+  gender   String? @db.VarChar(1)
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
+  @@map("rkpdes_team_members")
+}
+
+model RkpdesPaguIndicative {
+  id         Int            @id @default(autoincrement())
+  documentId Int
+  document   RkpdesDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  /// DD | ADD | BHPRD | BKP | BKK | PADES | SWADAYA | PIHAK_KETIGA | LAIN
+  source      String @db.VarChar(12)
+  amountCents BigInt
+  note        String? @db.VarChar(200)
+
+  @@unique([documentId, source])
+  @@map("rkpdes_pagu_indicative")
+}
+
+model RkpdesIncomingProgram {
+  id         Int            @id @default(autoincrement())
+  documentId Int
+  document   RkpdesDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  /// PUSAT | PROVINSI | KABUPATEN (Pasal 36 ayat 2)
+  level       String  @db.VarChar(10)
+  agency      String? @db.VarChar(150)
+  name        String  @db.VarChar(200)
+  location    String? @db.VarChar(200)
+  amountCents BigInt?
+  note        String? @db.VarChar(300)
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
+  @@map("rkpdes_incoming_programs")
 }

@@ -11,6 +11,7 @@ import { FieldError, FormErrorSummary, fieldA11y } from "@/components/app/FormEr
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { NATURE_LABEL, NATURES, type Direction } from "@/lib/tata-kelola/catalog";
 import type { RegisterView } from "@/lib/tata-kelola/register";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -58,13 +59,13 @@ export function MailFormDialog({ direction, item, onClose, onSaved }: { directio
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sr-nature">Sifat</Label>
-              <select {...fieldA11y("sr-nature", errors.nature)} className={SELECT_CLASS} value={f.nature} onChange={(e) => set({ nature: e.target.value })}>
+              <SearchSelect {...fieldA11y("sr-nature", errors.nature)} className={SELECT_CLASS} value={f.nature} onChange={(e) => set({ nature: e.target.value })}>
                 {NATURES.map((n) => (
                   <option key={n} value={n}>
                     {NATURE_LABEL[n]}
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
               <FieldError id="sr-nature" message={errors.nature} />
             </div>
           </div>

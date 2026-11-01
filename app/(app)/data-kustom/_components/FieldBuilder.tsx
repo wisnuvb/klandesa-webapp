@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FIELD_TYPE_LABEL, FIELD_TYPES, PII_CLASSES, PII_LABEL, type FieldType, type PiiClass } from "@/lib/custom-data/schema";
 import { newFieldForm, type FieldForm } from "@/lib/custom-data/ui-model";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -29,13 +30,13 @@ export function FieldBuilder({ fields, onChange, maxFields, idPrefix }: { fields
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor={`${id}-type`}>Jenis isian</Label>
-                <select id={`${id}-type`} className={SELECT_CLASS} value={f.type} onChange={(e) => set(f.uid, { type: e.target.value as FieldType })}>
+                <SearchSelect id={`${id}-type`} className={SELECT_CLASS} value={f.type} onChange={(e) => set(f.uid, { type: e.target.value as FieldType })}>
                   {FIELD_TYPES.map((t) => (
                     <option key={t} value={t}>
                       {FIELD_TYPE_LABEL[t]}
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
               </div>
             </div>
 
@@ -64,13 +65,13 @@ export function FieldBuilder({ fields, onChange, maxFields, idPrefix }: { fields
 
             <div className="space-y-1.5">
               <Label htmlFor={`${id}-pii`}>Jenis data</Label>
-              <select id={`${id}-pii`} className={SELECT_CLASS} value={f.piiClass} onChange={(e) => set(f.uid, { piiClass: e.target.value as PiiClass })}>
+              <SearchSelect id={`${id}-pii`} className={SELECT_CLASS} value={f.piiClass} onChange={(e) => set(f.uid, { piiClass: e.target.value as PiiClass })}>
                 {PII_CLASSES.map((c) => (
                   <option key={c} value={c}>
                     {PII_LABEL[c].label}
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
               <p className="text-sm text-muted-foreground">{PII_LABEL[f.piiClass].hint}</p>
             </div>
 

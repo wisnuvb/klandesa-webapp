@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type BlogPostRow = {
   id: string;
@@ -109,7 +110,7 @@ export default function AdminBlogPage() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Cari judul / slug…"
             />
-            <select
+            <SearchSelect
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -119,7 +120,7 @@ export default function AdminBlogPage() {
               <option value="review">review</option>
               <option value="published">published</option>
               <option value="archived">archived</option>
-            </select>
+            </SearchSelect>
             <Button
               variant="outline"
               onClick={() => {

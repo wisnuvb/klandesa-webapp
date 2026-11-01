@@ -9,6 +9,7 @@ import { acquiredLabel, categoryLabel, conditionLabel } from "@/lib/aset-desa/bo
 import { DISPOSAL_REASON_LABEL, type DisposalReason } from "@/lib/aset-desa/catalog";
 import type { ItemView } from "@/lib/aset-desa/service";
 import { SELECT_CLASS } from "../_components/types";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface Book {
   year: number;
@@ -42,13 +43,13 @@ export function CetakView() {
             <label htmlFor="buku-tahun" className="mb-1.5 block text-sm font-medium">
               Tahun
             </label>
-            <select id="buku-tahun" className={SELECT_CLASS} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+            <SearchSelect id="buku-tahun" className={SELECT_CLASS} value={year} onChange={(e) => setYear(Number(e.target.value))}>
               {Array.from({ length: 12 }, (_, k) => thisYear - k).map((y) => (
                 <option key={y} value={y}>
                   {y}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
           <Button type="button" className="min-h-11" disabled={!data || data.items.length === 0} onClick={() => window.print()}>
             <Printer aria-hidden="true" />

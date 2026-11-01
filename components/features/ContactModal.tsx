@@ -17,6 +17,7 @@ import { KlandesaLogo } from "./KlandesaLogo";
 import { getStoredReferralCode } from "@/lib/referrals/client";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface ContactModalProps {
   onClose: () => void;
@@ -361,7 +362,7 @@ export function ContactModal({ onClose }: ContactModalProps) {
                       >
                         Subjek <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <SearchSelect
                         id="subject"
                         value={formData.subject}
                         onChange={(e) =>
@@ -378,7 +379,7 @@ export function ContactModal({ onClose }: ContactModalProps) {
                         <option value="teknis">Bantuan Teknis</option>
                         <option value="kerjasama">Kerjasama</option>
                         <option value="lainnya">Lainnya</option>
-                      </select>
+                      </SearchSelect>
                     </div>
 
                     {/* Message */}

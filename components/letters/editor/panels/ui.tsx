@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/components/ui/utils";
 import { clampNum } from "./helpers";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export const controlClass =
   "block w-full min-h-11 rounded-md border border-input bg-input-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive";
@@ -240,7 +241,7 @@ export function SelectField<V extends string | number>({
   return (
     <div className={className}>
       <label htmlFor={id} className={labelClass}>{label}</label>
-      <select
+      <SearchSelect
         id={id}
         value={String(value)}
         disabled={disabled}
@@ -256,7 +257,7 @@ export function SelectField<V extends string | number>({
         {options.map((o) => (
           <option key={String(o.value)} value={String(o.value)} disabled={o.disabled}>{o.label}</option>
         ))}
-      </select>
+      </SearchSelect>
       {hint && <p id={hintId} className={hintClass}>{hint}</p>}
       <FieldError id={errId}>{error}</FieldError>
     </div>

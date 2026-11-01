@@ -6,6 +6,7 @@ import {
   formatIdr,
   type DesaPackageTier,
 } from "@/lib/billing/catalog";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type TierCardProps = {
   tier: DesaPackageTier;
@@ -49,7 +50,7 @@ export function TierCard({
             </div>
             <label className="flex items-center gap-2 text-sm">
               Perpanjang
-              <select
+              <SearchSelect
                 className="rounded-md border bg-background px-2 py-1"
                 value={months}
                 onChange={(e) => setMonths(Number(e.target.value))}
@@ -58,7 +59,7 @@ export function TierCard({
                 {RENEWAL_MONTHS.map((m) => (
                   <option key={m} value={m}>{m} bulan</option>
                 ))}
-              </select>
+              </SearchSelect>
             </label>
             <div className="text-sm font-medium text-green-600">Total: {formatIdr(monthly * months)}</div>
           </>

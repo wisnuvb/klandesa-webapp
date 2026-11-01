@@ -12,6 +12,7 @@ import { SUB_BIDANG } from "@/lib/apbdes/codes";
 import type { LineView } from "@/lib/apbdes/service";
 import { MoneyInput } from "./MoneyInput";
 import { SELECT_CLASS, type Overview } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type Kind = "PENDAPATAN" | "BELANJA" | "PEMBIAYAAN";
 const KIND_LABEL: Record<Kind, string> = { PENDAPATAN: "Pendapatan", BELANJA: "Belanja", PEMBIAYAAN: "Pembiayaan" };
@@ -64,7 +65,7 @@ export function LineDialog({ documentId, line, terms, onClose, onSaved }: { docu
           {kind === "BELANJA" ? (
             <div className="space-y-1.5">
               <Label htmlFor="ln-activity">Kegiatan *</Label>
-              <select {...fieldA11y("ln-activity", errors.activityCode)} className={SELECT_CLASS} value={f.activityCode} onChange={(e) => set({ activityCode: e.target.value })}>
+              <SearchSelect {...fieldA11y("ln-activity", errors.activityCode)} className={SELECT_CLASS} value={f.activityCode} onChange={(e) => set({ activityCode: e.target.value })}>
                 <option value="">Pilih kegiatan…</option>
                 {SUB_BIDANG.map((s) => (
                   <optgroup key={s.code} label={`${s.code} ${s.name}`.slice(0, 90)}>
@@ -73,19 +74,19 @@ export function LineDialog({ documentId, line, terms, onClose, onSaved }: { docu
                     ))}
                   </optgroup>
                 ))}
-              </select>
+              </SearchSelect>
               <FieldError id="ln-activity" message={errors.activityCode} />
             </div>
           ) : null}
 
           <div className="space-y-1.5">
             <Label htmlFor="ln-account">Kode rekening *</Label>
-            <select {...fieldA11y("ln-account", errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => set({ accountCode: e.target.value })}>
+            <SearchSelect {...fieldA11y("ln-account", errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => set({ accountCode: e.target.value })}>
               <option value="">Pilih rekening…</option>
               {accounts.map((a) => (
                 <option key={a.code} value={a.code.replace("90-99", "90")}>{`${a.code.replace("90-99", "90")} ${a.name}`.slice(0, 120)}</option>
               ))}
-            </select>
+            </SearchSelect>
             <FieldError id="ln-account" message={errors.accountCode} />
           </div>
 
@@ -103,12 +104,12 @@ export function LineDialog({ documentId, line, terms, onClose, onSaved }: { docu
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ln-fund">Sumber dana</Label>
-              <select {...fieldA11y("ln-fund", errors.fundSource)} className={SELECT_CLASS} value={f.fundSource} onChange={(e) => set({ fundSource: e.target.value })}>
+              <SearchSelect {...fieldA11y("ln-fund", errors.fundSource)} className={SELECT_CLASS} value={f.fundSource} onChange={(e) => set({ fundSource: e.target.value })}>
                 <option value="">Tidak dipilih</option>
                 {Object.entries(terms.fundSources).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}
-              </select>
+              </SearchSelect>
               <FieldError id="ln-fund" message={errors.fundSource} />
             </div>
           </div>

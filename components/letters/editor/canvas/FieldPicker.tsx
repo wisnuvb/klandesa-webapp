@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { LetterDocument } from "@/lib/letters/document/schema";
 import type { FieldType } from "@/lib/letters/registry";
 import { FIELD_TYPE_LABELS, buildFieldOptions, filterFieldOptions } from "./helpers";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export type NewFieldInput = { label: string; type: FieldType; options?: string[] };
 
@@ -152,11 +153,11 @@ function CreateForm({
       </div>
       <div className="space-y-1">
         <label htmlFor={`${uid}-jenis`} className="text-sm font-medium">Jenis isian</label>
-        <select id={`${uid}-jenis`} className={field} value={type} onChange={(e) => setType(e.target.value as FieldType)}>
+        <SearchSelect id={`${uid}-jenis`} className={field} value={type} onChange={(e) => setType(e.target.value as FieldType)}>
           {CREATABLE_TYPES.map((t) => (
             <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>
           ))}
-        </select>
+        </SearchSelect>
       </div>
       {type === "choice" && (
         <div className="space-y-1">

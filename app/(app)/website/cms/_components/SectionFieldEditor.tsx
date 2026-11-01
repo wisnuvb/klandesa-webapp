@@ -13,6 +13,7 @@ import type { WebsiteSection } from "@/lib/website-engine/types";
 import { getSectionFieldValue } from "../_lib/save-helpers";
 import { ListFieldEditor } from "./ListFieldEditor";
 import { VariantPicker } from "./VariantPicker";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type Props = {
   idx: number;
@@ -191,7 +192,7 @@ export const SectionFieldEditor = memo(function SectionFieldEditor({
     return (
       <div className="grid gap-2">
         <div className="text-xs text-muted-foreground">{field.label}</div>
-        <select
+        <SearchSelect
           className="h-9 w-full rounded-md border bg-background px-3 text-sm"
           value={v}
           onChange={(e) => onPatch(idx, field.name, e.target.value)}
@@ -202,7 +203,7 @@ export const SectionFieldEditor = memo(function SectionFieldEditor({
               {o.label}
             </option>
           ))}
-        </select>
+        </SearchSelect>
       </div>
     );
   }

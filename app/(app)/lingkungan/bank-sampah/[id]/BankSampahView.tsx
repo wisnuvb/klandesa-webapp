@@ -13,6 +13,7 @@ import { ResidentPicker } from "@/components/app/ResidentPicker";
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { ResidentPick } from "@/lib/kependudukan/mutasi-labels";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface Ledger {
   bank: { id: number; name: string };
@@ -234,10 +235,10 @@ function TxDialog({ bankId, kind, account, items, onClose, onSaved }: { bankId: 
             <>
               <div className="space-y-1.5">
                 <Label htmlFor="tx-item">Jenis sampah *</Label>
-                <select {...fieldA11y("tx-item", errors.itemId)} className={SELECT_CLASS} value={itemId} onChange={(e) => setItemId(e.target.value)}>
+                <SearchSelect {...fieldA11y("tx-item", errors.itemId)} className={SELECT_CLASS} value={itemId} onChange={(e) => setItemId(e.target.value)}>
                   <option value="">Pilih jenis…</option>
                   {items.map((i) => <option key={i.id} value={i.id}>{i.name} ({rupiah(i.pricePerKg)}/kg)</option>)}
-                </select>
+                </SearchSelect>
                 <FieldError id="tx-item" message={errors.itemId} />
               </div>
               <div className="space-y-1.5">

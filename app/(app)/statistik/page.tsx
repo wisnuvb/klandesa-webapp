@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import {
   Users,
   TrendingUp,
+  TrendingDown,
   Download,
   PieChart,
   Activity,
@@ -14,7 +15,9 @@ import {
   MapPin,
   Loader2,
   ChevronRight,
+  UserCheck,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   StatisticResidentsModal,
   type StatisticListDimension,
@@ -22,13 +25,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ExportDialog, type ExportFormat } from "@/components/app/patterns/ExportDialog";
+import { formatLongDate } from "@/lib/statistics/export";
+import { exportStatistics } from "@/lib/statistics/export-client";
+import type { StatisticsData } from "@/lib/statistics/types";
 import {
   BarChart,
   Bar,
@@ -41,8 +41,6 @@ import {
   PieChart as RePieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
 } from "recharts";
 
 const COLORS = [
@@ -55,31 +53,6 @@ const COLORS = [
   "#3b82f6",
   "#ec4899",
 ];
-
-interface StatisticsData {
-  summary: {
-    totalPenduduk: number;
-    lakiLaki: number;
-    perempuan: number;
-    pertumbuhanBulanIni: number;
-    persentasePertumbuhan: number;
-  };
-  jenisKelamin: Array<{ name: string; value: number; percentage: number }>;
-  usia: Array<{
-    range: string;
-    lakilaki: number;
-    perempuan: number;
-    total: number;
-  }>;
-  pendidikan: Array<{ tingkat: string; jumlah: number }>;
-  pekerjaan: Array<{ pekerjaan: string; jumlah: number }>;
-  perkawinan: Array<{ status: string; jumlah: number }>;
-  agama: Array<{ agama: string; jumlah: number }>;
-  golonganDarah: Array<{ golongan: string; jumlah: number }>;
-  wilayah: Array<{ wilayah: string; jumlah: number }>;
-  kesehatan: Array<{ kategori: string; jumlah: number }>;
-  trend: Array<{ bulan: string; jumlah: number }>;
-}
 
 const STATISTIK_TABS = [
   "overview",
@@ -96,9 +69,6 @@ export function Statistik() {
   const { data: session } = useSession();
   const villageName =
     session?.user?.village?.name || session?.user?.villageCode || null;
-  const [selectedPeriod, setSelectedPeriod] = useState(
-    new Date().getFullYear(),
-  );
   const [activeTab, setActiveTab] = usePersistedTab(
     "statistik",
     "overview",
@@ -107,6 +77,7 @@ export function Statistik() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<StatisticsData | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [statisticListModalOpen, setStatisticListModalOpen] = useState(false);
   const [statisticListDimension, setStatisticListDimension] =
     useState<StatisticListDimension | null>(null);
@@ -118,7 +89,7 @@ export function Statistik() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/statistics?year=${selectedPeriod}`);
+      const response = await fetch("/api/statistics");
 
       if (!response.ok) {
         throw new Error("Gagal mengambil data statistik");
@@ -136,8 +107,7 @@ export function Statistik() {
 
   useEffect(() => {
     fetchStatistics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPeriod]);
+  }, []);
 
   if (loading) {
     return (
@@ -176,15 +146,32 @@ export function Statistik() {
     golonganDarah,
     wilayah,
     kesehatan,
-    trend,
+    perubahanPenduduk,
   } = data;
-  const {
-    totalPenduduk,
-    lakiLaki,
-    perempuan,
-    pertumbuhanBulanIni,
-    persentasePertumbuhan,
-  } = summary;
+  const { totalPenduduk, lakiLaki, perempuan } = summary;
+
+  // Usia produktif 15–59 th dari kelompok usia yang sudah ada (data asli).
+  const PRODUKTIF = new Set(["15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59"]);
+  const usiaProduktif = usia
+    .filter((u) => PRODUKTIF.has(u.range))
+    .reduce((sum, u) => sum + u.total, 0);
+  const persenProduktif = totalPenduduk > 0 ? (usiaProduktif / totalPenduduk) * 100 : 0;
+  const persenLaki = totalPenduduk > 0 ? (lakiLaki / totalPenduduk) * 100 : 0;
+  const persenPerempuan = totalPenduduk > 0 ? (perempuan / totalPenduduk) * 100 : 0;
+
+  const handleExport = async (format: ExportFormat) => {
+    if (format === "pdf") {
+      window.open("/statistik/cetak", "_blank", "noopener");
+      return;
+    }
+    try {
+      await exportStatistics(format, data, villageName ?? "Desa");
+      toast.success(format === "excel" ? "Rekap statistik diunduh (Excel)." : "Rekap statistik diunduh (CSV).");
+    } catch (err) {
+      console.error("Gagal mengekspor statistik:", err);
+      toast.error("Gagal membuat berkas. Coba lagi.");
+    }
+  };
 
   const openResidentList = (
     dimension: StatisticListDimension,
@@ -194,9 +181,6 @@ export function Statistik() {
     setStatisticListCategory(category);
     setStatisticListModalOpen(true);
   };
-
-  const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
   return (
     <div className="space-y-6">
@@ -209,24 +193,16 @@ export function Statistik() {
             {villageName ? `${villageName}` : "desa Anda"}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Select
-            value={selectedPeriod.toString()}
-            onValueChange={(value) => setSelectedPeriod(Number(value))}
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            Data per {formatLongDate(new Date(data.dihitungPada))}
+          </p>
+          <Button
+            variant="outline"
+            className="min-h-11 gap-2"
+            onClick={() => setExportOpen(true)}
           >
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {yearOptions.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
+            <Download className="h-4 w-4" aria-hidden="true" />
             Export
           </Button>
         </div>
@@ -247,12 +223,9 @@ export function Statistik() {
                     Total Penduduk
                   </p>
                   <p className="text-3xl font-semibold mt-1">{totalPenduduk}</p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-green-600 font-medium">
-                      +{persentasePertumbuhan}%
-                    </span>
-                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Penduduk hidup
+                  </p>
                 </div>
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Users className="h-6 w-6 text-primary" />
@@ -274,7 +247,7 @@ export function Statistik() {
                   <p className="text-sm text-muted-foreground">Laki-laki</p>
                   <p className="text-3xl font-semibold mt-1">{lakiLaki}</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {((lakiLaki / totalPenduduk) * 100).toFixed(1)}%
+                    {persenLaki.toFixed(1)}%
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
@@ -297,7 +270,7 @@ export function Statistik() {
                   <p className="text-sm text-muted-foreground">Perempuan</p>
                   <p className="text-3xl font-semibold mt-1">{perempuan}</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {((perempuan / totalPenduduk) * 100).toFixed(1)}%
+                    {persenPerempuan.toFixed(1)}%
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-lg bg-pink-500/10 flex items-center justify-center">
@@ -317,16 +290,49 @@ export function Statistik() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Pertumbuhan</p>
-                  <p className="text-3xl font-semibold mt-1">
-                    +{pertumbuhanBulanIni}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Bulan ini
-                  </p>
+                  {perubahanPenduduk ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Perubahan bulan ini
+                      </p>
+                      <p
+                        className={`text-3xl font-semibold mt-1 ${perubahanPenduduk.bulanIni < 0 ? "text-red-600" : ""}`}
+                      >
+                        {perubahanPenduduk.bulanIni > 0 ? "+" : ""}
+                        {perubahanPenduduk.bulanIni}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {perubahanPenduduk.persenBulanIni > 0 ? "+" : ""}
+                        {perubahanPenduduk.persenBulanIni}% dari mutasi tercatat
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Usia produktif
+                      </p>
+                      <p className="text-3xl font-semibold mt-1">
+                        {usiaProduktif}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {persenProduktif.toFixed(1)}% · usia 15–59 th
+                      </p>
+                    </>
+                  )}
                 </div>
-                <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
+                <div
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center ${perubahanPenduduk && perubahanPenduduk.bulanIni < 0 ? "bg-red-500/10" : "bg-green-500/10"}`}
+                  aria-hidden="true"
+                >
+                  {perubahanPenduduk ? (
+                    perubahanPenduduk.bulanIni < 0 ? (
+                      <TrendingDown className="h-6 w-6 text-red-600" />
+                    ) : (
+                      <TrendingUp className="h-6 w-6 text-green-600" />
+                    )
+                  ) : (
+                    <UserCheck className="h-6 w-6 text-green-600" />
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -352,51 +358,51 @@ export function Statistik() {
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6 mt-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Trend Kependudukan */}
+                {/* Perubahan penduduk: hanya dari mutasi yang benar-benar tercatat */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Activity className="h-5 w-5 text-primary" />
-                      Trend Kependudukan 2024
+                      Perubahan Penduduk 6 Bulan Terakhir
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <AreaChart data={trend}>
-                        <defs>
-                          <linearGradient
-                            id="colorJumlah"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                          >
-                            <stop
-                              offset="5%"
-                              stopColor="#0f766e"
-                              stopOpacity={0.3}
+                    {perubahanPenduduk ? (
+                      <>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={perubahanPenduduk.perBulan}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis dataKey="bulan" stroke="#6b7280" />
+                            <YAxis stroke="#6b7280" allowDecimals={false} />
+                            <Tooltip
+                              formatter={(value, name) => [value, name]}
+                              labelFormatter={(_label, payload) => {
+                                const m = payload?.[0]?.payload;
+                                return m
+                                  ? `${m.bulan} ${String(m.key).slice(0, 4)} · selisih ${m.selisih > 0 ? "+" : ""}${m.selisih}`
+                                  : "";
+                              }}
                             />
-                            <stop
-                              offset="95%"
-                              stopColor="#0f766e"
-                              stopOpacity={0}
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis dataKey="bulan" stroke="#6b7280" />
-                        <YAxis stroke="#6b7280" />
-                        <Tooltip />
-                        <Area
-                          type="monotone"
-                          dataKey="jumlah"
-                          stroke="#0f766e"
-                          fillOpacity={1}
-                          fill="url(#colorJumlah)"
-                          strokeWidth={2}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                            <Legend />
+                            <Bar dataKey="bertambah" name="Lahir + datang" fill="#0f766e" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="berkurang" name="Meninggal + pindah" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          Dihitung dari mutasi penduduk yang sudah diterapkan.
+                        </p>
+                      </>
+                    ) : (
+                      <div className="flex h-[300px] flex-col items-center justify-center gap-2 text-center">
+                        <Activity className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+                        <p className="font-medium">Tren penduduk belum tersedia</p>
+                        <p className="max-w-xs text-sm text-muted-foreground">
+                          Grafik ini memakai catatan kelahiran, kematian, dan perpindahan
+                          penduduk. Desa Anda belum mencatat mutasi, jadi angkanya
+                          tidak ditampilkan agar tidak menyesatkan.
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -444,10 +450,6 @@ export function Statistik() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Distribusi Penduduk Berdasarkan Usia</CardTitle>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Export Data
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -625,10 +627,6 @@ export function Statistik() {
                     <CardTitle>
                       Distribusi Penduduk Berdasarkan Pendidikan
                     </CardTitle>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Export Data
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -700,10 +698,6 @@ export function Statistik() {
                     <CardTitle>
                       Distribusi Penduduk Berdasarkan Pekerjaan
                     </CardTitle>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Export Data
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -790,10 +784,6 @@ export function Statistik() {
                     <CardTitle>
                       Distribusi Penduduk Berdasarkan Status Perkawinan
                     </CardTitle>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Export Data
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -867,10 +857,6 @@ export function Statistik() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Distribusi Penduduk Berdasarkan Agama</CardTitle>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Export Data
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -952,10 +938,6 @@ export function Statistik() {
                       <MapPin className="h-5 w-5 text-primary" />
                       Distribusi Per Wilayah/Dusun
                     </CardTitle>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Export
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1093,6 +1075,19 @@ export function Statistik() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Export Statistik Kependudukan"
+        description="Rekap seluruh statistik (jenis kelamin, usia, pendidikan, pekerjaan, dan lainnya) sesuai data yang tampil."
+        formats={[
+          { id: "excel", label: "Excel (.xlsx) — satu sheet per kategori" },
+          { id: "csv", label: "CSV — satu tabel panjang" },
+          { id: "pdf", label: "PDF — buka halaman cetak" },
+        ]}
+        onExport={handleExport}
+      />
 
       <StatisticResidentsModal
         open={statisticListModalOpen}

@@ -6,38 +6,16 @@ import { normalizeOccupation } from "@/lib/statistics/occupation";
 import { normalizeEducation } from "@/lib/statistics/education";
 import { getAgeRange } from "@/lib/statistics/age-range";
 import { requireVillageApiContext } from "@/lib/api-village-context";
-
-// Interface untuk response data
-interface StatisticsResponse {
-  summary: {
-    totalPenduduk: number;
-    lakiLaki: number;
-    perempuan: number;
-    pertumbuhanBulanIni: number;
-    persentasePertumbuhan: number;
-  };
-  jenisKelamin: Array<{ name: string; value: number; percentage: number }>;
-  usia: Array<{
-    range: string;
-    lakilaki: number;
-    perempuan: number;
-    total: number;
-  }>;
-  pendidikan: Array<{ tingkat: string; jumlah: number }>;
-  pekerjaan: Array<{ pekerjaan: string; jumlah: number }>;
-  perkawinan: Array<{ status: string; jumlah: number }>;
-  agama: Array<{ agama: string; jumlah: number }>;
-  golonganDarah: Array<{ golongan: string; jumlah: number }>;
-  wilayah: Array<{ wilayah: string; jumlah: number }>;
-  kesehatan: Array<{ kategori: string; jumlah: number }>;
-  trend: Array<{ bulan: string; jumlah: number }>;
-}
+import { isKependudukanV2 } from "@/lib/kependudukan/sync";
+import type { MutationType } from "@/lib/kependudukan/mutation";
+import { buildPopulationChange, mutationRange } from "@/lib/statistics/population-change";
+import type { StatisticsData } from "@/lib/statistics/types";
 
 // Cache untuk data statistik (5 menit)
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 const cache = new Map<
   string,
-  { data: StatisticsResponse; timestamp: number }
+  { data: StatisticsData; timestamp: number }
 >();
 
 export async function GET(req: NextRequest) {
@@ -49,12 +27,8 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const { searchParams } = new URL(req.url);
-    const year =
-      searchParams.get("year") || new Date().getFullYear().toString();
-
-    // Check cache
-    const cacheKey = `stats-${village.id}-${year}`;
+    // Statistik selalu potret data penduduk saat ini; tidak ada data historis per tahun.
+    const cacheKey = `stats-${village.id}`;
     const cached = cache.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -238,51 +212,41 @@ export async function GET(req: NextRequest) {
       { kategori: "Balita Stunting", jumlah: healthStats.balitaStunting },
     ];
 
-    // 10. Trend Kependudukan (6 bulan terakhir)
-    // Untuk demo, kita hitung berdasarkan createdAt
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "Mei",
-      "Jun",
-      "Jul",
-      "Agu",
-      "Sep",
-      "Okt",
-      "Nov",
-      "Des",
-    ];
-    const currentMonth = new Date().getMonth();
-    const trendData: Array<{ bulan: string; jumlah: number }> = [];
-
-    for (let i = 5; i >= 0; i--) {
-      const monthIndex = (currentMonth - i + 12) % 12;
-      const monthName = months[monthIndex];
-
-      // Untuk lebih akurat, ini harus query ke database dengan filter tanggal
-      // Tapi untuk sekarang kita gunakan total saat ini sebagai baseline
-      trendData.push({
-        bulan: monthName,
-        jumlah: totalPenduduk - i * 3, // Simulasi pertumbuhan
+    // 10. Perubahan penduduk 6 bulan terakhir dari mutasi yang sudah diterapkan.
+    // Hanya desa Kependudukan v2 yang mencatat mutasi; selain itu tidak ada data asli untuk ditampilkan.
+    const now = new Date();
+    let perubahanPenduduk: StatisticsData["perubahanPenduduk"] = null;
+    if (isKependudukanV2(village.settings)) {
+      const { from, to } = mutationRange(now);
+      const mutations = await prisma.residentMutation.findMany({
+        where: {
+          villageId: village.id,
+          status: "APPLIED",
+          effectiveDate: {
+            gte: new Date(`${from}T00:00:00.000Z`),
+            lte: new Date(`${to}T00:00:00.000Z`),
+          },
+        },
+        select: { type: true, effectiveDate: true, rw: true, rt: true },
       });
+      perubahanPenduduk = buildPopulationChange(
+        mutations.map((m) => ({
+          type: m.type as MutationType,
+          effectiveDate: m.effectiveDate.toISOString().slice(0, 10),
+          rw: m.rw,
+          rt: m.rt,
+        })),
+        totalPenduduk,
+        now,
+      );
     }
 
-    // Pertumbuhan bulan ini (simulasi)
-    const pertumbuhanBulanIni = 3;
-    const persentasePertumbuhan = parseFloat(
-      ((pertumbuhanBulanIni / totalPenduduk) * 100).toFixed(2)
-    );
-
     // Prepare response data
-    const responseData = {
+    const responseData: StatisticsData = {
       summary: {
         totalPenduduk,
         lakiLaki: genderStats["Laki-laki"] || 0,
         perempuan: genderStats["Perempuan"] || 0,
-        pertumbuhanBulanIni,
-        persentasePertumbuhan,
       },
       jenisKelamin: dataJenisKelamin,
       usia: dataUsia,
@@ -293,7 +257,8 @@ export async function GET(req: NextRequest) {
       golonganDarah: dataGolonganDarah,
       wilayah: dataWilayah,
       kesehatan: dataKesehatan,
-      trend: trendData,
+      perubahanPenduduk,
+      dihitungPada: now.toISOString(),
     };
 
     // Store in cache
@@ -321,10 +286,6 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const loaded = await requireVillageApiContext(req);
   if (!loaded.ok) return loaded.response;
-  // Hanya cache desa pemanggil; kunci cache berawalan `stats-<villageId>-`.
-  const prefix = `stats-${loaded.ctx.village.id}-`;
-  for (const key of cache.keys()) {
-    if (key.startsWith(prefix)) cache.delete(key);
-  }
+  cache.delete(`stats-${loaded.ctx.village.id}`);
   return NextResponse.json({ success: true, message: "Cache cleared" });
 }

@@ -11,6 +11,7 @@ import { describeMutation, formatTanggal, MUTASI_TYPES, STATUS_META, type Mutasi
 import { useMutasi } from "../_hooks/useMutasi";
 import { DecideDialog, type Decision } from "./DecideDialog";
 import { MutasiFormDialog } from "./MutasiFormDialog";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const STATUS_ICON: Record<MutasiStatus, typeof Clock> = { PENDING: Clock, APPLIED: CheckCircle2, REJECTED: XCircle, CANCELLED: Ban };
 const STATUS_STYLE: Record<MutasiStatus, string> = {
@@ -146,7 +147,7 @@ export function MutasiView() {
                   <label htmlFor="mutasi-filter-jenis" className="text-sm text-muted-foreground">
                     Jenis
                   </label>
-                  <select
+                  <SearchSelect
                     id="mutasi-filter-jenis"
                     className="h-11 rounded-md border border-input bg-input-background px-3 text-base md:text-sm"
                     value={m.type}
@@ -158,7 +159,7 @@ export function MutasiView() {
                         {MUTATION_LABEL[t]}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                   <Button asChild variant="outline" className="min-h-11">
                     <a href={`/api/kependudukan/laporan/mutasi?format=csv&from=${year}-01-01&to=${year}-12-31`}>
                       <Download aria-hidden="true" />

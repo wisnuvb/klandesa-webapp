@@ -17,6 +17,7 @@ import {
 import { contrastRatio, hexToRgb } from "@/lib/website-engine/color";
 import { THEME_PALETTE_SWATCHES } from "../_lib/constants";
 import { colorPickerFallbackHex } from "../_lib/theme-utils";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export type CmsThemeLayoutCardProps = {
   loading: boolean;
@@ -159,7 +160,7 @@ export const CmsThemeLayoutCard = memo(function CmsThemeLayoutCard({
             <div className="text-xs text-muted-foreground">
               Font isi (Google Font)
             </div>
-            <select
+            <SearchSelect
               className="h-9 w-full rounded-md border bg-background px-3 text-sm"
               value=""
               onChange={(e) => {
@@ -176,7 +177,7 @@ export const CmsThemeLayoutCard = memo(function CmsThemeLayoutCard({
                   </option>
                 ),
               )}
-            </select>
+            </SearchSelect>
             <Input
               value={themeFont}
               onChange={(e) => onThemeFontChange(e.target.value)}
@@ -186,7 +187,7 @@ export const CmsThemeLayoutCard = memo(function CmsThemeLayoutCard({
           </div>
           <div className="grid gap-2">
             <div className="text-xs text-muted-foreground">Font judul</div>
-            <select
+            <SearchSelect
               className="h-9 w-full rounded-md border bg-background px-3 text-sm"
               value=""
               onChange={(e) => {
@@ -203,7 +204,7 @@ export const CmsThemeLayoutCard = memo(function CmsThemeLayoutCard({
                   </option>
                 ),
               )}
-            </select>
+            </SearchSelect>
             <Input
               value={themeFontHeading}
               onChange={(e) => onThemeFontHeadingChange(e.target.value)}

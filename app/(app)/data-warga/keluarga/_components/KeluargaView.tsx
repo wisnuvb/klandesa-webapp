@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { FAMILY_ROLES, formatTanggal, MUTASI_TYPES } from "@/lib/kependudukan/mutasi-labels";
 import { MUTATION_LABEL, type MutationType } from "@/lib/kependudukan/mutation";
 import { useApiGet } from "@/hooks/useApiGet";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface HouseholdRow {
   id: number;
@@ -145,26 +146,26 @@ function ChangeHeadPanel({ detail, onDone }: { detail: HouseholdDetail; onDone: 
     <section aria-label="Ganti Kepala Keluarga" className="space-y-3 rounded-md border p-4">
       <div className="space-y-1.5">
         <Label htmlFor="kepala-baru">Kepala Keluarga yang baru</Label>
-        <select id="kepala-baru" className={SELECT_CLASS} value={newHead} onChange={(e) => setNewHead(e.target.value)}>
+        <SearchSelect id="kepala-baru" className={SELECT_CLASS} value={newHead} onChange={(e) => setNewHead(e.target.value)}>
           <option value="">Pilih anggota…</option>
           {candidates.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name} ({m.familyRole})
             </option>
           ))}
-        </select>
+        </SearchSelect>
       </div>
       {otherHeads.length > 0 ? (
         <div className="space-y-1.5">
           <Label htmlFor="kepala-lama">Hubungan keluarga yang baru untuk {otherHeads.map((o) => o.name).join(", ")}</Label>
-          <select id="kepala-lama" className={SELECT_CLASS} value={role} onChange={(e) => setRole(e.target.value)}>
+          <SearchSelect id="kepala-lama" className={SELECT_CLASS} value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="">Pilih…</option>
             {FAMILY_ROLES.filter((r) => r !== "Kepala Keluarga").map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
             ))}
-          </select>
+          </SearchSelect>
         </div>
       ) : null}
       {error ? (

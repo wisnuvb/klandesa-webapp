@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type ServicesResponse = {
   village: { id: number; code: string; name: string };
@@ -255,7 +256,7 @@ export default function KioskPage() {
 
               <div className="space-y-1">
                 <p className="text-sm font-medium">Jenis Layanan</p>
-                <select
+                <SearchSelect
                   value={mailType}
                   onChange={(e) => setMailType(e.target.value)}
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary"
@@ -265,7 +266,7 @@ export default function KioskPage() {
                       {t}
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
               </div>
 
               <div className="space-y-1">

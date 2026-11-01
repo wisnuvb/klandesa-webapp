@@ -12,6 +12,7 @@ import { ResidentPicker } from "@/components/app/ResidentPicker";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { KIND_LABEL, KINDS, SOURCE_LABEL, SOURCES, type Kind, type Source } from "@/lib/dtsen/catalog";
 import type { ResidentPick } from "@/lib/kependudukan/mutasi-labels";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -42,16 +43,16 @@ export function ProposalFormDialog({ onClose, onSaved }: { onClose: () => void; 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="dt-kind">Jenis usulan *</Label>
-              <select {...fieldA11y("dt-kind", errors.kind)} className={SELECT_CLASS} value={f.kind} onChange={(e) => set({ kind: e.target.value as Kind })}>
+              <SearchSelect {...fieldA11y("dt-kind", errors.kind)} className={SELECT_CLASS} value={f.kind} onChange={(e) => set({ kind: e.target.value as Kind })}>
                 {KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-              </select>
+              </SearchSelect>
               <FieldError id="dt-kind" message={errors.kind} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="dt-source">Diusulkan oleh *</Label>
-              <select {...fieldA11y("dt-source", errors.source)} className={SELECT_CLASS} value={f.source} onChange={(e) => set({ source: e.target.value as Source })}>
+              <SearchSelect {...fieldA11y("dt-source", errors.source)} className={SELECT_CLASS} value={f.source} onChange={(e) => set({ source: e.target.value as Source })}>
                 {SOURCES.map((s) => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
-              </select>
+              </SearchSelect>
               <FieldError id="dt-source" message={errors.source} />
             </div>
           </div>

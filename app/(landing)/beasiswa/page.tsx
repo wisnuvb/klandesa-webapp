@@ -4,6 +4,7 @@ import {
   getLpdpOpenScholarshipsSnapshot,
   LPDP_OPEN_SCHOLARSHIPS_SOURCE_URL,
 } from "@/lib/scholarships/lpdp";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export const dynamic = "force-dynamic";
 
@@ -145,7 +146,7 @@ export default async function Page({
                   >
                     Kategori
                   </label>
-                  <select
+                  <SearchSelect
                     id="kategori"
                     name="kategori"
                     defaultValue={kategori}
@@ -157,7 +158,7 @@ export default async function Page({
                         {c}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                 </div>
 
                 <div className="lg:col-span-4">
@@ -167,7 +168,7 @@ export default async function Page({
                   >
                     Jenjang
                   </label>
-                  <select
+                  <SearchSelect
                     id="jenjang"
                     name="jenjang"
                     defaultValue={jenjang}
@@ -179,7 +180,7 @@ export default async function Page({
                         {l}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                 </div>
                 </div>
 
@@ -191,7 +192,7 @@ export default async function Page({
                   >
                     Instansi
                   </label>
-                  <select
+                  <SearchSelect
                     id="instansi"
                     name="instansi"
                     defaultValue={instansi}
@@ -203,7 +204,7 @@ export default async function Page({
                         {p}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                 </div>
 
                 <div className="lg:col-span-4">
@@ -213,7 +214,7 @@ export default async function Page({
                   >
                     Status
                   </label>
-                  <select
+                  <SearchSelect
                     id="status"
                     name="status"
                     defaultValue={status}
@@ -223,7 +224,7 @@ export default async function Page({
                     <option value="open">Sedang Dibuka</option>
                     <option value="last_day">Terakhir Hari Ini</option>
                     <option value="closed">Ditutup</option>
-                  </select>
+                  </SearchSelect>
                 </div>
 
                 <div className="lg:col-span-4">
@@ -233,7 +234,7 @@ export default async function Page({
                   >
                     Urutkan
                   </label>
-                  <select
+                  <SearchSelect
                     id="sort"
                     name="sort"
                     defaultValue={sort}
@@ -245,7 +246,7 @@ export default async function Page({
                     <option value="days_left_desc">Sisa hari paling besar</option>
                     <option value="title_asc">Judul A–Z</option>
                     <option value="title_desc">Judul Z–A</option>
-                  </select>
+                  </SearchSelect>
                 </div>
                 </div>
               </div>

@@ -287,6 +287,7 @@ function resolvePageMeta(pageId: string): PageMeta {
 
 /** Halaman anak yang judulnya berbeda dari menu induknya (sorotan menu tetap mengikuti induk). */
 const SUBPAGE_META: Array<PageMeta & { prefix: string }> = [
+  { prefix: "/statistik/cetak", title: "Cetak Statistik", subtitle: "Rekap statistik kependudukan siap cetak atau simpan sebagai PDF" },
   { prefix: "/billing/riwayat", title: "Riwayat Pembayaran", subtitle: "Lihat kembali tagihan, nomor VA, dan status pembayaran" },
   { prefix: "/layanan-surat/buat", title: "Buat Surat", subtitle: "Isi data, lihat hasilnya di kertas, lalu terbitkan" },
   { prefix: "/layanan-surat/editor", title: "Editor Jenis Surat", subtitle: "Ubah isi dan tampilan surat langsung di kertas" },

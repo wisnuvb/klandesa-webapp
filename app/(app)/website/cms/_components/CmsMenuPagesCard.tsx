@@ -28,6 +28,7 @@ import type { SectionSchemaEntry } from "../_lib/types";
 import { CmsActivePageFields } from "./CmsActivePageFields";
 import { CmsNavEditor } from "./CmsNavEditor";
 import { CmsSectionBlockCard } from "./CmsSectionBlockCard";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type Props = {
   engine: ResolvedEngineStructure | null;
@@ -111,7 +112,7 @@ export const CmsMenuPagesCard = memo(function CmsMenuPagesCard({
       <CardContent className="space-y-6">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">Halaman aktif:</span>
-          <select
+          <SearchSelect
             className="h-9 min-w-[200px] rounded-md border bg-background px-3 text-sm"
             value={pageIndex}
             onChange={(e) => onPageIndexChange(Number(e.target.value))}
@@ -123,7 +124,7 @@ export const CmsMenuPagesCard = memo(function CmsMenuPagesCard({
                 {p.slug === "" ? "(beranda)" : `(/${p.slug})`}
               </option>
             ))}
-          </select>
+          </SearchSelect>
           <Button
             type="button"
             variant="outline"
@@ -204,7 +205,7 @@ export const CmsMenuPagesCard = memo(function CmsMenuPagesCard({
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             <div className="flex items-center gap-2">
-              <select
+              <SearchSelect
                 className="h-9 rounded-md border bg-background px-3 text-sm"
                 value={newKind}
                 onChange={(e) =>
@@ -217,7 +218,7 @@ export const CmsMenuPagesCard = memo(function CmsMenuPagesCard({
                     {WEBSITE_SECTION_REGISTRY[k].label}
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
               <Button
                 variant="outline"
                 type="button"

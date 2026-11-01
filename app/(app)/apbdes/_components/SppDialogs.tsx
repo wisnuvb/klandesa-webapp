@@ -14,6 +14,7 @@ import type { PanjarView } from "@/lib/apbdes/spp";
 import { localToday } from "@/lib/form-input";
 import { MoneyInput } from "./MoneyInput";
 import { money, SELECT_CLASS, type Overview } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface Line {
   accountCode: string;
@@ -54,16 +55,16 @@ export function SppFormDialog({ o, plans, onClose, onSaved }: { o: Overview; pla
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="sp-act">Kegiatan *</Label>
-              <select {...fieldA11y("sp-act", errors.activityCode)} className={SELECT_CLASS} value={f.activityCode} onChange={(e) => { const p = approved.find((x) => x.activityCode === e.target.value); setF((x) => ({ ...x, activityCode: e.target.value, executorName: p?.executorName ?? x.executorName })); setLines([emptyLine(p?.accounts[0]?.accountCode)]); }}>
+              <SearchSelect {...fieldA11y("sp-act", errors.activityCode)} className={SELECT_CLASS} value={f.activityCode} onChange={(e) => { const p = approved.find((x) => x.activityCode === e.target.value); setF((x) => ({ ...x, activityCode: e.target.value, executorName: p?.executorName ?? x.executorName })); setLines([emptyLine(p?.accounts[0]?.accountCode)]); }}>
                 {approved.map((p) => <option key={p.activityCode} value={p.activityCode}>{p.activityCode} {p.name}</option>)}
-              </select>
+              </SearchSelect>
               <FieldError id="sp-act" message={errors.activityCode} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sp-mode">Pelaksanaan *</Label>
-              <select {...fieldA11y("sp-mode", errors.mode)} className={SELECT_CLASS} value={f.mode} onChange={(e) => setF((x) => ({ ...x, mode: e.target.value }))}>
+              <SearchSelect {...fieldA11y("sp-mode", errors.mode)} className={SELECT_CLASS} value={f.mode} onChange={(e) => setF((x) => ({ ...x, mode: e.target.value }))}>
                 {Object.entries(MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+              </SearchSelect>
               <FieldError id="sp-mode" message={errors.mode} />
             </div>
             <div className="space-y-1.5">
@@ -90,10 +91,10 @@ export function SppFormDialog({ o, plans, onClose, onSaved }: { o: Overview; pla
               <div key={i} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor={`sp-acc-${i}`}>Rekening *</Label>
-                  <select id={`sp-acc-${i}`} className={SELECT_CLASS} value={l.accountCode} onChange={(e) => setLine(i, { accountCode: e.target.value })}>
+                  <SearchSelect id={`sp-acc-${i}`} className={SELECT_CLASS} value={l.accountCode} onChange={(e) => setLine(i, { accountCode: e.target.value })}>
                     <option value="">Pilih rekening…</option>
                     {(plan?.accounts ?? []).map((a) => <option key={a.accountCode} value={a.accountCode}>{a.accountCode} {a.accountName}</option>)}
-                  </select>
+                  </SearchSelect>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor={`sp-d-${i}`}>Uraian</Label>
@@ -113,10 +114,10 @@ export function SppFormDialog({ o, plans, onClose, onSaved }: { o: Overview; pla
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor={`sp-k-${i}`}>Jenis pajak</Label>
-                  <select id={`sp-k-${i}`} className={SELECT_CLASS} value={l.taxKind} disabled={!l.taxAmount} onChange={(e) => setLine(i, { taxKind: e.target.value })}>
+                  <SearchSelect id={`sp-k-${i}`} className={SELECT_CLASS} value={l.taxKind} disabled={!l.taxAmount} onChange={(e) => setLine(i, { taxKind: e.target.value })}>
                     <option value="">Pilih jenis…</option>
                     {o.terms.taxKinds.map((k) => <option key={k} value={k}>{k}</option>)}
-                  </select>
+                  </SearchSelect>
                 </div>
                 {lines.length > 1 ? <div className="sm:col-span-2"><Button type="button" variant="ghost" className="min-h-11" onClick={() => setLines((p) => p.filter((_, j) => j !== i))}><Trash2 aria-hidden="true" />Hapus baris {i + 1}</Button></div> : null}
               </div>
@@ -173,9 +174,9 @@ export function SppActionDialog({ o, id, label, action, onClose, onDone }: { o: 
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="sa-ch">Dibayar dari *</Label>
-                <select {...fieldA11y("sa-ch", errors.channel)} className={SELECT_CLASS} value={f.channel} onChange={(e) => setF((x) => ({ ...x, channel: e.target.value }))}>
+                <SearchSelect {...fieldA11y("sa-ch", errors.channel)} className={SELECT_CLASS} value={f.channel} onChange={(e) => setF((x) => ({ ...x, channel: e.target.value }))}>
                   {Object.entries(o.terms.channels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
+                </SearchSelect>
                 <FieldError id="sa-ch" message={errors.channel} />
               </div>
             </>
@@ -239,16 +240,16 @@ export function PanjarDialog({ o, panjar, mode, onClose, onSaved }: { o: Overvie
             <>
               <div className="space-y-1.5">
                 <Label htmlFor="pj-acc">Rekening belanja yang dikurangi *</Label>
-                <select {...fieldA11y("pj-acc", errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => setF((x) => ({ ...x, accountCode: e.target.value }))}>
+                <SearchSelect {...fieldA11y("pj-acc", errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => setF((x) => ({ ...x, accountCode: e.target.value }))}>
                   {panjar.accounts.map((a) => <option key={a.accountCode} value={a.accountCode}>{a.accountCode} {a.accountName} (bisa dikembalikan {money(a.returnable)})</option>)}
-                </select>
+                </SearchSelect>
                 <FieldError id="pj-acc" message={errors.accountCode} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pj-ch">Disetor ke *</Label>
-                <select {...fieldA11y("pj-ch", errors.channel)} className={SELECT_CLASS} value={f.channel} onChange={(e) => setF((x) => ({ ...x, channel: e.target.value }))}>
+                <SearchSelect {...fieldA11y("pj-ch", errors.channel)} className={SELECT_CLASS} value={f.channel} onChange={(e) => setF((x) => ({ ...x, channel: e.target.value }))}>
                   {Object.entries(o.terms.channels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
+                </SearchSelect>
                 <FieldError id="pj-ch" message={errors.channel} />
               </div>
             </>

@@ -13,6 +13,7 @@ import { MEMBER_ROLES, ROLE_LABEL } from "@/lib/tata-kelola/catalog";
 import type { MemberView } from "@/lib/tata-kelola/institutions";
 import type { ResidentPick } from "@/lib/kependudukan/mutasi-labels";
 import { SELECT_CLASS } from "./InstitutionFormDialog";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const LABELS: Record<string, string> = { name: "Nama", role: "Jabatan", division: "Bidang", residentId: "Warga", startsAt: "Mulai", endsAt: "Berakhir" };
 
@@ -51,13 +52,13 @@ export function MemberFormDialog({ institutionId, institutionName, member, onClo
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="mb-role">Jabatan *</Label>
-              <select {...fieldA11y("mb-role", errors.role)} className={SELECT_CLASS} value={f.role} onChange={(e) => set({ role: e.target.value as typeof f.role })}>
+              <SearchSelect {...fieldA11y("mb-role", errors.role)} className={SELECT_CLASS} value={f.role} onChange={(e) => set({ role: e.target.value as typeof f.role })}>
                 {MEMBER_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {ROLE_LABEL[r]}
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
               <FieldError id="mb-role" message={errors.role} />
             </div>
             <div className="space-y-1.5">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { SektoralSection } from "./SektoralSection";
 import { MONTHS, SELECT_CLASS, type Overview } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const REPORTS = [
   { kind: "bku", title: "Buku Kas Umum", ref: "Lampiran P", text: "Seluruh penerimaan dan pengeluaran dengan saldo berjalan. Ditutup tiap akhir bulan.", monthly: true },
@@ -37,9 +38,9 @@ export function LaporanTab({ o }: { o: Overview }) {
       </div>
       <div className="w-48">
         <label htmlFor="lp-month" className="mb-1.5 block text-sm font-medium">Bulan (untuk buku kas dan bank)</label>
-        <select id="lp-month" className={SELECT_CLASS} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+        <SearchSelect id="lp-month" className={SELECT_CLASS} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
           {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-        </select>
+        </SearchSelect>
       </div>
       <ul className="grid gap-3 md:grid-cols-2">
         {REPORTS.map((r) => (

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type BlogTag = { id: number; slug: string; name: string };
 
@@ -385,7 +386,7 @@ export default function AdminBlogEditorPage() {
             </div>
             <div className="space-y-1">
               <div className="text-sm font-medium">Status</div>
-              <select
+              <SearchSelect
                 value={post.status}
                 onChange={(e) => setPost({ ...post, status: e.target.value })}
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm w-full"
@@ -394,7 +395,7 @@ export default function AdminBlogEditorPage() {
                 <option value="review">review</option>
                 <option value="published">published</option>
                 <option value="archived">archived</option>
-              </select>
+              </SearchSelect>
             </div>
           </CardContent>
         </Card>

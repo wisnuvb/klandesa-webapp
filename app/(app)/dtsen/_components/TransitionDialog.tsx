@@ -11,6 +11,7 @@ import { FieldError, FormErrorSummary, fieldA11y } from "@/components/app/FormEr
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { OUTCOME_LABEL, STATUS_LABEL, type Status } from "@/lib/dtsen/catalog";
 import { SELECT_CLASS } from "./ProposalFormDialog";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const LABELS: Record<string, string> = {
   ids: "Usulan", to: "Tahap", verifiedAt: "Tanggal verifikasi", verifiedBy: "Pemverifikasi", verificationNote: "Hasil verifikasi", musdesAt: "Tanggal musyawarah", musdesRef: "Nomor berita acara",
@@ -96,10 +97,10 @@ export function TransitionDialog({ ids, to, onClose, onDone }: { ids: number[]; 
               <>
                 <div className="space-y-1.5">
                   <Label htmlFor="tr-outcome">Hasil *</Label>
-                  <select {...fieldA11y("tr-outcome", errors.outcome)} className={SELECT_CLASS} value={f.outcome ?? ""} onChange={(e) => set("outcome", e.target.value)}>
+                  <SearchSelect {...fieldA11y("tr-outcome", errors.outcome)} className={SELECT_CLASS} value={f.outcome ?? ""} onChange={(e) => set("outcome", e.target.value)}>
                     <option value="">Pilih hasil…</option>
                     {(Object.keys(OUTCOME_LABEL) as (keyof typeof OUTCOME_LABEL)[]).map((o) => <option key={o} value={o}>{OUTCOME_LABEL[o]}</option>)}
-                  </select>
+                  </SearchSelect>
                   <FieldError id="tr-outcome" message={errors.outcome} />
                 </div>
                 {date("outcomeAt", "Tanggal hasil")}

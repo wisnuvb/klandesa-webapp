@@ -12,6 +12,7 @@ import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { LoanDetail } from "@/lib/coop/savings-loans";
 import { day, rupiah, SELECT_CLASS, type LoanRow, type SavingsResponse } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface LoansResponse {
   loans: LoanRow[];
@@ -101,10 +102,10 @@ function LoanDialog({ members, limits, onClose, onSaved }: { members: SavingsRes
         <form onSubmit={async (e) => { e.preventDefault(); if (await submit("/api/coop/loans", "POST", { ...f, memberId: Number(f.memberId) || undefined, termMonths: Number(f.termMonths) })) onSaved(); }} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label htmlFor="ln-member">Anggota peminjam *</Label>
-            <select {...fieldA11y("ln-member", errors.memberId)} className={SELECT_CLASS} value={f.memberId} onChange={(e) => set({ memberId: e.target.value })}>
+            <SearchSelect {...fieldA11y("ln-member", errors.memberId)} className={SELECT_CLASS} value={f.memberId} onChange={(e) => set({ memberId: e.target.value })}>
               <option value="">Pilih anggota…</option>
               {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            </SearchSelect>
             <FieldError id="ln-member" message={errors.memberId} />
           </div>
           <div className="space-y-1.5">

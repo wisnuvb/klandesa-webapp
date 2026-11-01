@@ -192,13 +192,13 @@ export function DataTable<T extends Record<string, any>>({
         {error && <div className="text-sm text-destructive">{error}</div>}
         <div className="flex items-center gap-2 w-full sm:w-80">
           <div className="relative w-full">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari..."
-              className="pl-8"
+              className="pl-9"
             />
           </div>
           <Button

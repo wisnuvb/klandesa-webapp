@@ -13,6 +13,7 @@ import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { KINDS, type ReportKind, type SectionDef } from "@/lib/laporan-desa/catalog";
 import { localToday } from "@/lib/form-input";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface Payload {
   report: {
@@ -52,15 +53,15 @@ export function LaporanDesaView() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1">
           <label htmlFor="ld-kind" className="mb-1.5 block text-sm font-medium">Jenis laporan</label>
-          <select id="ld-kind" className={SELECT_CLASS} value={kind} onChange={(e) => setKind(e.target.value as ReportKind)}>
+          <SearchSelect id="ld-kind" className={SELECT_CLASS} value={kind} onChange={(e) => setKind(e.target.value as ReportKind)}>
             {(Object.keys(KINDS) as ReportKind[]).map((k) => <option key={k} value={k}>{KINDS[k]}</option>)}
-          </select>
+          </SearchSelect>
         </div>
         <div className="w-40">
           <label htmlFor="ld-year" className="mb-1.5 block text-sm font-medium">{kind === "LPPD_JABATAN" ? "Tahun penyusunan" : "Tahun anggaran"}</label>
-          <select id="ld-year" className={SELECT_CLASS} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+          <SearchSelect id="ld-year" className={SELECT_CLASS} value={year} onChange={(e) => setYear(Number(e.target.value))}>
             {Array.from({ length: 8 }, (_, k) => thisYear - k).map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          </SearchSelect>
         </div>
       </div>
       {loading ? <p role="status" className="flex items-center gap-2 p-6 text-muted-foreground"><Loader2 aria-hidden="true" className="size-5 animate-spin" />Memuat…</p> : null}

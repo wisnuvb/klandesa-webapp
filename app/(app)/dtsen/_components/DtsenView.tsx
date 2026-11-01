@@ -10,6 +10,7 @@ import { isStatus, KIND_LABEL, OUTCOME_LABEL, SOURCE_LABEL, STATUS_LABEL, STATUS
 import type { ProposalView } from "@/lib/dtsen/service";
 import { ProposalFormDialog, SELECT_CLASS } from "./ProposalFormDialog";
 import { TransitionDialog } from "./TransitionDialog";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface ListResponse {
   items: ProposalView[];
@@ -107,7 +108,7 @@ export function DtsenView() {
         </form>
         <div className="w-full sm:w-72">
           <label htmlFor="dt-f-status" className="sr-only">Tahap</label>
-          <select id="dt-f-status" className={SELECT_CLASS} value={status} onChange={(e) => { setStatus(e.target.value); reset(); }}>
+          <SearchSelect id="dt-f-status" className={SELECT_CLASS} value={status} onChange={(e) => { setStatus(e.target.value); reset(); }}>
             <option value="">Semua tahap</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -115,7 +116,7 @@ export function DtsenView() {
                 {d?.byStatus[s] ? ` (${d.byStatus[s]})` : ""}
               </option>
             ))}
-          </select>
+          </SearchSelect>
         </div>
       </section>
 

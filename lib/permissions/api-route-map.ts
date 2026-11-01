@@ -38,6 +38,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/layanan-surat", resource: "mail" },
   { prefix: "/api/kiosk/settings", resource: "mail" },
   { prefix: "/api/kiosk/devices", resource: "mail" },
+  // Daftar warga memuat NIK: wajib izin ekspor data warga, bukan sekadar membaca statistik.
+  { prefix: "/api/statistics/residents-by-category/export", resource: "residents", suffixActions: { "": "export" } },
   { prefix: "/api/statistics", resource: "statistics" },
   { prefix: "/api/dashboard/stats", resource: "statistics" },
   { prefix: "/api/dashboard/idm", resource: "statistics" },
@@ -73,6 +75,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/tata-kelola/surat", resource: "register_surat" },
   { prefix: "/api/tata-kelola/lembaga", resource: "lembaga_desa" },
   { prefix: "/api/dtsen", resource: "dtsen_usulan" },
+  { prefix: "/api/musdes", resource: "perencanaan" },
+  { prefix: "/api/perencanaan", resource: "perencanaan" },
   { prefix: "/api/polls", resource: "polls" },
   { prefix: "/api/integrations/export", resource: "integrations", suffixActions: { "": "export" } },
   { prefix: "/api/integrations", resource: "integrations" },

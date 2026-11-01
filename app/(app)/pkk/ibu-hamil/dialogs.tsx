@@ -14,6 +14,7 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { DANGER_SIGNS, PROVIDERS } from "@/lib/kia/catalog";
 import type { PregnancyBrief, VisitView } from "@/lib/kia/service";
 import type { ResidentPick } from "@/lib/kependudukan/mutasi-labels";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -108,11 +109,11 @@ export function VisitDialog({ pregnancy, onClose, onSaved }: { pregnancy: Pick<P
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="vs-provider">Pemeriksa *</Label>
-              <select {...fieldA11y("vs-provider", errors.provider)} className={SELECT_CLASS} value={f.provider} onChange={(e) => set("provider", e.target.value)}>
+              <SearchSelect {...fieldA11y("vs-provider", errors.provider)} className={SELECT_CLASS} value={f.provider} onChange={(e) => set("provider", e.target.value)}>
                 {Object.entries(PROVIDERS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}
-              </select>
+              </SearchSelect>
               <FieldError id="vs-provider" message={errors.provider} />
             </div>
           </div>
@@ -172,10 +173,10 @@ export function EndDialog({ pregnancy, onClose, onSaved }: { pregnancy: Pick<Pre
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ status: "Hasil", endedAt: "Tanggal", endNote: "Keterangan" }} />
           <div className="space-y-1.5">
             <Label htmlFor="en-status">Hasil *</Label>
-            <select {...fieldA11y("en-status", errors.status)} className={SELECT_CLASS} value={f.status} onChange={(e) => setF((p) => ({ ...p, status: e.target.value }))}>
+            <SearchSelect {...fieldA11y("en-status", errors.status)} className={SELECT_CLASS} value={f.status} onChange={(e) => setF((p) => ({ ...p, status: e.target.value }))}>
               <option value="BERSALIN">Sudah bersalin</option>
               <option value="KEGUGURAN">Keguguran</option>
-            </select>
+            </SearchSelect>
             <FieldError id="en-status" message={errors.status} />
           </div>
           <div className="space-y-1.5">

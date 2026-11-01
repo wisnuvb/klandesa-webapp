@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DISPOSAL_REASON_LABEL, DISPOSAL_REASONS } from "@/lib/aset-desa/catalog";
 import { SELECT_CLASS, type ItemView } from "./types";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const LABELS: Record<string, string> = { reason: "Alasan", disposedAt: "Tanggal keputusan", decree: "Nomor keputusan", note: "Keterangan", regencyApproved: "Persetujuan Bupati/Wali Kota" };
 
@@ -73,14 +74,14 @@ export function DisposeDialog({ item, onClose, onDone }: { item: ItemView; onClo
           <p className="text-sm text-muted-foreground">Penghapusan didahului berita acara dan ditetapkan dengan Keputusan Kepala Desa (Pasal 23). Isikan nomor keputusannya di bawah.</p>
           <div className="space-y-1.5">
             <Label htmlFor="hapus-reason">Alasan *</Label>
-            <select {...common("reason")} className={SELECT_CLASS} value={reason} onChange={(e) => setReason(e.target.value)}>
+            <SearchSelect {...common("reason")} className={SELECT_CLASS} value={reason} onChange={(e) => setReason(e.target.value)}>
               <option value="">Pilih alasan…</option>
               {DISPOSAL_REASONS.map((r) => (
                 <option key={r} value={r}>
                   {DISPOSAL_REASON_LABEL[r]}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
             {errNode("reason")}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

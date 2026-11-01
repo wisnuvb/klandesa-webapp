@@ -11,6 +11,7 @@ import { FieldError, FormErrorSummary, fieldA11y } from "@/components/app/FormEr
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { INSTITUTION_TYPE_LABEL, INSTITUTION_TYPES } from "@/lib/tata-kelola/catalog";
 import type { InstitutionView } from "@/lib/tata-kelola/institutions";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -47,13 +48,13 @@ export function InstitutionFormDialog({ item, onClose, onSaved }: { item: Instit
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="lm-type">Jenis *</Label>
-              <select {...fieldA11y("lm-type", errors.type)} className={SELECT_CLASS} value={f.type} onChange={(e) => set({ type: e.target.value as typeof f.type })}>
+              <SearchSelect {...fieldA11y("lm-type", errors.type)} className={SELECT_CLASS} value={f.type} onChange={(e) => set({ type: e.target.value as typeof f.type })}>
                 {INSTITUTION_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {INSTITUTION_TYPE_LABEL[t]}
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
               <FieldError id="lm-type" message={errors.type} />
             </div>
             <div className="space-y-1.5">

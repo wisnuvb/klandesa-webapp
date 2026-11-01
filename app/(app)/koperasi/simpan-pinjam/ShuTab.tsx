@@ -7,6 +7,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { rupiah, SELECT_CLASS } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface ShuResult {
   year: number;
@@ -51,9 +52,9 @@ export function ShuTab() {
       <form onSubmit={calc} className="grid gap-4 rounded-lg border p-4 sm:grid-cols-3" noValidate>
         <div className="space-y-1.5">
           <Label htmlFor="shu-year">Tahun buku</Label>
-          <select id="shu-year" className={SELECT_CLASS} value={year} onChange={(e) => setYear(e.target.value)}>
+          <SearchSelect id="shu-year" className={SELECT_CLASS} value={year} onChange={(e) => setYear(e.target.value)}>
             {Array.from({ length: 6 }, (_, k) => thisYear - k).map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          </SearchSelect>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="shu-total">Total SHU untuk anggota *</Label>

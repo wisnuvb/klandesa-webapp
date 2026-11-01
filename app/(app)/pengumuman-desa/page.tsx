@@ -14,9 +14,9 @@ import {
   Trash2,
   X,
   Pin,
-  ChevronDown,
   Loader2,
 } from "lucide-react";
+import { SearchSelect } from "@/components/ui/search-select";
 
 // Types
 type AnnouncementCategory =
@@ -369,14 +369,14 @@ export function PengumumanDesa() {
               />
             </div>
             <div className="relative">
-              <select
+              <SearchSelect
                 value={filterCategory}
                 onChange={(e) =>
                   setFilterCategory(
                     e.target.value as AnnouncementCategory | "ALL",
                   )
                 }
-                className="pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none bg-white"
+                className="pl-4 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none bg-white"
               >
                 <option value="ALL">Semua Kategori</option>
                 <option value="UMUM">Umum</option>
@@ -385,8 +385,7 @@ export function PengumumanDesa() {
                 <option value="PEMBANGUNAN">Pembangunan</option>
                 <option value="KESEHATAN">Kesehatan</option>
                 <option value="PENDIDIKAN">Pendidikan</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+              </SearchSelect>
             </div>
           </div>
           <button
@@ -548,7 +547,7 @@ export function PengumumanDesa() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Kategori *
                   </label>
-                  <select
+                  <SearchSelect
                     value={formData.category}
                     onChange={(e) =>
                       setFormData({
@@ -564,7 +563,7 @@ export function PengumumanDesa() {
                     <option value="PEMBANGUNAN">Pembangunan</option>
                     <option value="KESEHATAN">Kesehatan</option>
                     <option value="PENDIDIKAN">Pendidikan</option>
-                  </select>
+                  </SearchSelect>
                 </div>
 
                 <div>

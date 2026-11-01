@@ -12,6 +12,7 @@ import { PelaksanaanTab } from "./PelaksanaanTab";
 import { SppTab } from "./SppTab";
 import { SettingsDialog } from "./SettingsDialog";
 import { SELECT_CLASS, money, type Overview } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export function ApbdesView() {
   const thisYear = new Date().getFullYear();
@@ -35,9 +36,9 @@ export function ApbdesView() {
         <div className="flex flex-wrap items-end gap-2">
           <div className="w-32">
             <label htmlFor="apb-year" className="mb-1.5 block text-sm font-medium">Tahun anggaran</label>
-            <select id="apb-year" className={SELECT_CLASS} value={year} onChange={(e) => { setYear(Number(e.target.value)); setWarnings([]); }}>
+            <SearchSelect id="apb-year" className={SELECT_CLASS} value={year} onChange={(e) => { setYear(Number(e.target.value)); setWarnings([]); }}>
               {Array.from({ length: 8 }, (_, k) => thisYear + 1 - k).map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
+            </SearchSelect>
           </div>
           {o?.can.update ? (
             <Button type="button" variant="outline" className="min-h-11" onClick={() => setSettings(true)}>

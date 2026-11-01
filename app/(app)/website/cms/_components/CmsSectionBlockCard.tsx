@@ -8,6 +8,7 @@ import type { SectionCmsField } from "@/lib/website-engine/site-sections";
 import type { SectionListValue } from "@/lib/website-engine/section-items";
 import type { WebsiteSection } from "@/lib/website-engine/types";
 import { SectionFieldEditor } from "./SectionFieldEditor";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const DND_TYPE = "CMS_SECTION";
 
@@ -147,7 +148,7 @@ export const CmsSectionBlockCard = memo(function CmsSectionBlockCard({
       <div className="mt-4 grid gap-3 border-t pt-4 md:grid-cols-2">
         <div className="grid gap-2">
           <div className="text-xs text-muted-foreground">Background</div>
-          <select
+          <SearchSelect
             className="h-9 w-full rounded-md border bg-background px-3 text-sm"
             value={style.background ?? "none"}
             onChange={(e) =>
@@ -159,12 +160,12 @@ export const CmsSectionBlockCard = memo(function CmsSectionBlockCard({
             <option value="surface">Surface</option>
             <option value="muted">Muted</option>
             <option value="primaryGradient">Gradient</option>
-          </select>
+          </SearchSelect>
         </div>
 
         <div className="grid gap-2">
           <div className="text-xs text-muted-foreground">Padding vertikal</div>
-          <select
+          <SearchSelect
             className="h-9 w-full rounded-md border bg-background px-3 text-sm"
             value={style.paddingY ?? "md"}
             onChange={(e) =>
@@ -176,12 +177,12 @@ export const CmsSectionBlockCard = memo(function CmsSectionBlockCard({
             <option value="sm">Kecil</option>
             <option value="md">Sedang</option>
             <option value="lg">Besar</option>
-          </select>
+          </SearchSelect>
         </div>
 
         <div className="grid gap-2">
           <div className="text-xs text-muted-foreground">Perataan</div>
-          <select
+          <SearchSelect
             className="h-9 w-full rounded-md border bg-background px-3 text-sm"
             value={style.align ?? "left"}
             onChange={(e) => onPatchField(idx, "style.align", e.target.value)}
@@ -189,7 +190,7 @@ export const CmsSectionBlockCard = memo(function CmsSectionBlockCard({
           >
             <option value="left">Kiri</option>
             <option value="center">Tengah</option>
-          </select>
+          </SearchSelect>
         </div>
 
         <div className="flex flex-col gap-2">

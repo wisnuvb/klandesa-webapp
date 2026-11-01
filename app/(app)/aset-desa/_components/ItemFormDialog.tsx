@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CATEGORIES, CATEGORY_KEYS, CONDITION_LABEL, CONDITIONS, ORIGIN_LABEL, ORIGINS, type CategoryKey } from "@/lib/aset-desa/catalog";
 import { SELECT_CLASS, type ItemView } from "./types";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface Form {
   name: string;
@@ -133,7 +134,7 @@ export function ItemFormDialog({ item, onClose, onSaved }: { item: ItemView | nu
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="aset-category">Golongan *</Label>
-              <select {...common("category")} className={SELECT_CLASS} value={f.category} onChange={(e) => pickCategory(e.target.value)}>
+              <SearchSelect {...common("category")} className={SELECT_CLASS} value={f.category} onChange={(e) => pickCategory(e.target.value)}>
                 <option value="">Pilih golongan…</option>
                 {(["UMUM", "ASLI"] as const).map((g) => (
                   <optgroup key={g} label={g === "ASLI" ? "Kekayaan asli desa" : "Barang dan aset lain"}>
@@ -144,19 +145,19 @@ export function ItemFormDialog({ item, onClose, onSaved }: { item: ItemView | nu
                     ))}
                   </optgroup>
                 ))}
-              </select>
+              </SearchSelect>
               {errNode("category")}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="aset-origin">Asal usul *</Label>
-              <select {...common("origin")} className={SELECT_CLASS} value={f.origin} disabled={isAsli(f.category)} onChange={(e) => set({ origin: e.target.value })}>
+              <SearchSelect {...common("origin")} className={SELECT_CLASS} value={f.origin} disabled={isAsli(f.category)} onChange={(e) => set({ origin: e.target.value })}>
                 <option value="">Pilih asal usul…</option>
                 {ORIGINS.filter((o) => o !== "ASLI_DESA" || isAsli(f.category)).map((o) => (
                   <option key={o} value={o}>
                     {ORIGIN_LABEL[o]}
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
               {isAsli(f.category) ? <p className="text-sm text-muted-foreground">Kekayaan asli desa otomatis berasal dari aset/kekayaan asli desa.</p> : null}
               {errNode("origin")}
             </div>
@@ -202,13 +203,13 @@ export function ItemFormDialog({ item, onClose, onSaved }: { item: ItemView | nu
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="aset-condition">Kondisi</Label>
-              <select {...common("condition")} className={SELECT_CLASS} value={f.condition} onChange={(e) => set({ condition: e.target.value })}>
+              <SearchSelect {...common("condition")} className={SELECT_CLASS} value={f.condition} onChange={(e) => set({ condition: e.target.value })}>
                 {CONDITIONS.map((c) => (
                   <option key={c} value={c}>
                     {CONDITION_LABEL[c]}
                   </option>
                 ))}
-              </select>
+              </SearchSelect>
               {errNode("condition")}
             </div>
           </div>

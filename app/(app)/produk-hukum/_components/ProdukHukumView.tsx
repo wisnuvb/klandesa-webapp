@@ -12,6 +12,7 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { LEGAL_TYPE_LABEL, LEGAL_TYPES, type LegalType } from "@/lib/tata-kelola/catalog";
 import type { LegalView } from "@/lib/tata-kelola/legal";
 import { LegalFormDialog, SELECT_CLASS } from "./LegalFormDialog";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface ListResponse {
   items: LegalView[];
@@ -89,25 +90,25 @@ export function ProdukHukumView() {
         </form>
         <div className="w-full sm:w-56">
           <label htmlFor="ph-f-type" className="sr-only">Jenis</label>
-          <select id="ph-f-type" className={SELECT_CLASS} value={type} onChange={(e) => { setType(e.target.value); reset(); }}>
+          <SearchSelect id="ph-f-type" className={SELECT_CLASS} value={type} onChange={(e) => { setType(e.target.value); reset(); }}>
             <option value="">Semua jenis</option>
             {LEGAL_TYPES.map((t) => <option key={t} value={t}>{LEGAL_TYPE_LABEL[t]}</option>)}
-          </select>
+          </SearchSelect>
         </div>
         <div className="w-full sm:w-40">
           <label htmlFor="ph-f-status" className="sr-only">Status</label>
-          <select id="ph-f-status" className={SELECT_CLASS} value={status} onChange={(e) => { setStatus(e.target.value as typeof status); reset(); }}>
+          <SearchSelect id="ph-f-status" className={SELECT_CLASS} value={status} onChange={(e) => { setStatus(e.target.value as typeof status); reset(); }}>
             <option value="">Semua status</option>
             <option value="BERLAKU">Berlaku</option>
             <option value="DICABUT">Dicabut</option>
-          </select>
+          </SearchSelect>
         </div>
         <div className="w-full sm:w-32">
           <label htmlFor="ph-f-year" className="sr-only">Tahun</label>
-          <select id="ph-f-year" className={SELECT_CLASS} value={year} onChange={(e) => { setYear(e.target.value); reset(); }}>
+          <SearchSelect id="ph-f-year" className={SELECT_CLASS} value={year} onChange={(e) => { setYear(e.target.value); reset(); }}>
             <option value="">Semua tahun</option>
             {Array.from({ length: 15 }, (_, k) => thisYear - k).map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          </SearchSelect>
         </div>
       </section>
 

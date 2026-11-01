@@ -233,6 +233,14 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: "crud",
     staff: ["read", "create", "update"],
   },
+  perencanaan: {
+    // Musyawarah Desa dan siklus RKP Desa. Kepala Desa menyetujui rancangan (approve) dan membuka kembali berita acara final;
+    // sekretaris desa (ketua tim penyusun) dan operator mengisi. Aksi update/delete/approve dicek di dalam rute karena rutenya POST.
+    admin: ["read", "create", "update", "delete", "export", "approve"],
+    village_head: ["read", "export", "approve"],
+    secretary: "crud_export",
+    staff: ["read", "create", "update", "export"],
+  },
   polls: {
     // Menerbitkan/menutup polling memakai "update" (dicek dalam rute karena POST).
     admin: "crud",

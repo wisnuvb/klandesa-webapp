@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { ChevronDown, Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +17,15 @@ import {
   type DataTableFetchResult,
 } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { usePermissions } from "@/hooks/use-permissions";
+import { downloadBlob, filenameFromDisposition } from "@/lib/statistics/download";
 import {
   Select,
   SelectContent,
@@ -125,6 +136,31 @@ export function StatisticResidentsModal({
   categoryLabel,
 }: StatisticResidentsModalProps) {
   const [genderFilter, setGenderFilter] = useState("semua");
+  const [exporting, setExporting] = useState(false);
+  // Daftar memuat NIK: ekspor mengikuti izin ekspor data warga, bukan izin baca statistik.
+  const { can } = usePermissions();
+  const canExport = can("residents", "export");
+
+  const exportList = async (format: "excel" | "csv") => {
+    if (!dimension || !categoryLabel) return;
+    setExporting(true);
+    try {
+      const sp = new URLSearchParams({ dimension, category: categoryLabel, format });
+      if (genderFilter !== "semua") sp.set("gender", genderFilter);
+      const res = await fetch(`/api/statistics/residents-by-category/export?${sp.toString()}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(typeof err.error === "string" ? err.error : "Gagal mengekspor data");
+      }
+      const blob = await res.blob();
+      downloadBlob(blob, filenameFromDisposition(res.headers.get("content-disposition")) ?? `penduduk.${format === "csv" ? "csv" : "xlsx"}`);
+      toast.success("Daftar penduduk diunduh.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal mengekspor data");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const columns = useMemo<DataTableColumn<StatisticResidentRow>[]>(() => {
     if (!dimension) return [];
@@ -313,6 +349,32 @@ export function StatisticResidentsModal({
               rowKey={(row) => row.id}
               filters={{ gender: genderFilter }}
               toolbar={
+                <>
+                {canExport ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="min-h-11 gap-2" disabled={exporting}>
+                        {exporting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Download className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        Export
+                        <ChevronDown className="h-4 w-4 opacity-60" aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="z-110">
+                      <DropdownMenuItem onSelect={() => void exportList("excel")}>
+                        <FileSpreadsheet className="h-4 w-4 text-green-600" aria-hidden="true" />
+                        Excel (.xlsx)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => void exportList("csv")}>
+                        <FileText className="h-4 w-4 text-blue-600" aria-hidden="true" />
+                        CSV
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
                 <Select value={genderFilter} onValueChange={setGenderFilter}>
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Filter jenis kelamin" />
@@ -323,6 +385,7 @@ export function StatisticResidentsModal({
                     <SelectItem value="Perempuan">Perempuan</SelectItem>
                   </SelectContent>
                 </Select>
+                </>
               }
               emptyState="Tidak ada penduduk untuk filter ini."
               pageSizeOptions={[5, 10, 20, 50]}

@@ -2,7 +2,7 @@
 
 import { isLengkapPlan } from "@/lib/billing/lengkap";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Download, Filter, QrCode, Search } from "lucide-react";
+import { Download, Filter, QrCode, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { AttendanceTable } from "./_components/AttendanceTable";
 import { AttendanceHistory } from "./_components/AttendanceHistory";
@@ -17,6 +17,7 @@ import { staffLimitForPlan } from "@/lib/attendance/capacity";
 import type { AttendanceStatus, AttendanceTodayResponse, CapacityOption } from "./types";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
 import Image from "next/image";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const ABSENSI_TABS = ["today", "history", "qrcode"] as const;
 
@@ -312,22 +313,21 @@ export default function AbsensiClient() {
                   </div>
                   <div className="relative">
                     <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <select
+                    <SearchSelect
                       value={filterStatus}
                       onChange={(e) =>
                         setFilterStatus(
                           e.target.value as AttendanceStatus | "ALL",
                         )
                       }
-                      className="pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none bg-white"
+                      className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none bg-white"
                     >
                       <option value="ALL">Semua Status</option>
                       <option value="PRESENT">Hadir</option>
                       <option value="LATE">Terlambat</option>
                       <option value="LEAVE">Izin</option>
                       <option value="ABSENT">Tidak Hadir</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                    </SearchSelect>
                   </div>
                 </div>
 

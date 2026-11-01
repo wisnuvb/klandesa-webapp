@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { AttendanceHistoryResponse, AttendanceStatus } from "../types";
 import { StatusBadge } from "./StatusBadge";
+import { SearchSelect } from "@/components/ui/search-select";
 
 function formatDateId(date: Date) {
   const yyyy = date.getFullYear();
@@ -171,19 +172,19 @@ export function AttendanceHistory() {
 
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <select
+          <SearchSelect
             value={filterStatus}
             onChange={(e) =>
               setFilterStatus(e.target.value as AttendanceStatus | "ALL")
             }
-            className="pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none bg-white"
+            className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none bg-white"
           >
             <option value="ALL">Semua Status</option>
             <option value="PRESENT">Hadir</option>
             <option value="LATE">Terlambat</option>
             <option value="LEAVE">Izin</option>
             <option value="ABSENT">Tidak Hadir</option>
-          </select>
+          </SearchSelect>
         </div>
       </div>
 

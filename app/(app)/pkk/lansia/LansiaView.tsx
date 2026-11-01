@@ -14,6 +14,7 @@ import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { ElderBoard, ElderCheckView } from "@/lib/kia/service";
 import type { ResidentPick } from "@/lib/kependudukan/mutasi-labels";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -72,10 +73,10 @@ export function LansiaView() {
           <p className="text-sm text-muted-foreground">Batas {s.reminderDays} hari adalah pengingat aplikasi, bukan ketentuan.{data!.truncated ? " Daftar dibatasi 3.000 lansia; ringkasan hanya mencakup yang ditampilkan." : ""}</p>
           <div className="w-56">
             <label htmlFor="ln-filter" className="mb-1.5 block text-sm font-medium">Tampilkan</label>
-            <select id="ln-filter" className={SELECT_CLASS} value={filter} onChange={(e) => setFilter(e.target.value as "perlu" | "semua")}>
+            <SearchSelect id="ln-filter" className={SELECT_CLASS} value={filter} onChange={(e) => setFilter(e.target.value as "perlu" | "semua")}>
               <option value="perlu">Perlu perhatian</option>
               <option value="semua">Semua lansia</option>
-            </select>
+            </SearchSelect>
           </div>
           {rows.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center">{s.elders === 0 ? "Belum ada warga usia 60 tahun ke atas di data warga." : "Semua lansia terpantau dan tanpa penanda."}</p> : (
             <ul className="space-y-3">
@@ -155,10 +156,10 @@ function CheckDialog({ presetId, presetName, onClose, onSaved }: { presetId: num
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ck-gtype">Jenis gula darah</Label>
-            <select {...fieldA11y("ck-gtype", errors.glucoseType)} className={SELECT_CLASS} value={f.glucoseType} onChange={(e) => set("glucoseType", e.target.value)}>
+            <SearchSelect {...fieldA11y("ck-gtype", errors.glucoseType)} className={SELECT_CLASS} value={f.glucoseType} onChange={(e) => set("glucoseType", e.target.value)}>
               <option value="PUASA">Puasa</option>
               <option value="SEWAKTU">Sewaktu</option>
-            </select>
+            </SearchSelect>
             <FieldError id="ck-gtype" message={errors.glucoseType} />
           </div>
           <div className="space-y-1.5">

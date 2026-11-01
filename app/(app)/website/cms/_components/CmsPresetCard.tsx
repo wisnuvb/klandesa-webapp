@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type Props = {
   loading: boolean;
@@ -35,7 +36,7 @@ export const CmsPresetCard = memo(function CmsPresetCard({
         <CardDescription>Struktur bawaan (template + global)</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-3">
-        <select
+        <SearchSelect
           className="h-9 rounded-md border bg-background px-3 text-sm"
           value={presetKey}
           onChange={(e) => onPresetSelect(e.target.value)}
@@ -47,7 +48,7 @@ export const CmsPresetCard = memo(function CmsPresetCard({
               {p.name}
             </option>
           ))}
-        </select>
+        </SearchSelect>
         <Button
           variant="outline"
           type="button"

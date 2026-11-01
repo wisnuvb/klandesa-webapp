@@ -36,6 +36,7 @@ export const PERMISSION_RESOURCES = [
   "dtsen_usulan",
   "polls",
   "apbdes",
+  "perencanaan",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];

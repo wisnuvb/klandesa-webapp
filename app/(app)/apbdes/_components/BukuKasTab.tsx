@@ -7,6 +7,7 @@ import { useApiGet } from "@/hooks/useApiGet";
 import type { EntryView } from "@/lib/apbdes/service";
 import { EntryDialog } from "./EntryDialog";
 import { ConfirmRequest, MONTHS, SELECT_CLASS, dateId, money, type Overview } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface BkuResponse {
   entries: EntryView[];
@@ -55,9 +56,9 @@ export function BukuKasTab({ o, reload }: { o: Overview; reload: () => void }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="w-48">
           <label htmlFor="bk-month" className="mb-1.5 block text-sm font-medium">Bulan</label>
-          <select id="bk-month" className={SELECT_CLASS} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+          <SearchSelect id="bk-month" className={SELECT_CLASS} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
             {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m} {o.months[i]!.state !== "BUKA" ? "(ditutup)" : ""}</option>)}
-          </select>
+          </SearchSelect>
         </div>
         {o.can.create && !locked ? (
           <Button type="button" size="lg" className="min-h-11" onClick={() => setDlg({ kind: "entry", entry: null })}>

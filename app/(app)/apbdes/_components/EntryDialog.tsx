@@ -13,6 +13,7 @@ import type { EntryView, LineView } from "@/lib/apbdes/service";
 import { localToday } from "@/lib/form-input";
 import { MoneyInput } from "./MoneyInput";
 import { SELECT_CLASS, type Overview } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const LABELS = { entryDate: "Tanggal", voucherNo: "Nomor bukti", type: "Jenis", channel: "Kas", accountCode: "Rekening", activityCode: "Kegiatan", description: "Uraian", amount: "Jumlah", taxAmount: "Pajak dipotong", taxKind: "Jenis pajak" };
 const today = localToday;
@@ -83,11 +84,11 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={LABELS} />
           <div className="space-y-1.5">
             <Label htmlFor="en-type">Jenis *</Label>
-            <select {...fieldA11y("en-type", errors.type)} className={SELECT_CLASS} value={f.type} onChange={(e) => set({ type: e.target.value, spendKey: "", accountCode: "", bankFee: false, taxAmount: "", taxKind: "" })}>
+            <SearchSelect {...fieldA11y("en-type", errors.type)} className={SELECT_CLASS} value={f.type} onChange={(e) => set({ type: e.target.value, spendKey: "", accountCode: "", bankFee: false, taxAmount: "", taxKind: "" })}>
               {Object.entries(o.terms.entryTypes).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
-            </select>
+            </SearchSelect>
             <FieldError id="en-type" message={errors.type} />
           </div>
 
@@ -107,11 +108,11 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
           {!isTransfer ? (
             <div className="space-y-1.5">
               <Label htmlFor="en-channel">Uang {f.type === "PENERIMAAN" ? "masuk ke" : "keluar dari"} *</Label>
-              <select {...fieldA11y("en-channel", errors.channel)} className={SELECT_CLASS} value={f.type === "PENGELUARAN" && f.bankFee ? "BANK" : f.channel} disabled={f.type === "PENGELUARAN" && f.bankFee} onChange={(e) => set({ channel: e.target.value })}>
+              <SearchSelect {...fieldA11y("en-channel", errors.channel)} className={SELECT_CLASS} value={f.type === "PENGELUARAN" && f.bankFee ? "BANK" : f.channel} disabled={f.type === "PENGELUARAN" && f.bankFee} onChange={(e) => set({ channel: e.target.value })}>
                 {Object.entries(o.terms.channels).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}
-              </select>
+              </SearchSelect>
               <FieldError id="en-channel" message={errors.channel} />
             </div>
           ) : (
@@ -121,7 +122,7 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
           {f.type === "PENERIMAAN" ? (
             <div className="space-y-1.5">
               <Label htmlFor="en-account">Rekening penerimaan *</Label>
-              <select {...fieldA11y("en-account", errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => set({ accountCode: e.target.value })}>
+              <SearchSelect {...fieldA11y("en-account", errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => set({ accountCode: e.target.value })}>
                 <option value="">Pilih rekening…</option>
                 <optgroup label="Pendapatan">
                   {o.terms.incomeAccounts.map((a) => <option key={a.code} value={a.code.replace("90-99", "90")}>{`${a.code.replace("90-99", "90")} ${a.name}`.slice(0, 120)}</option>)}
@@ -129,7 +130,7 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
                 <optgroup label="Penerimaan pembiayaan (saldo kas awal tahun = SiLPA tahun sebelumnya)">
                   {o.terms.financingAccounts.filter((a) => a.code.startsWith("6.1.")).map((a) => <option key={a.code} value={a.code.replace("90-99", "90")}>{`${a.code.replace("90-99", "90")} ${a.name}`.slice(0, 120)}</option>)}
                 </optgroup>
-              </select>
+              </SearchSelect>
               <FieldError id="en-account" message={errors.accountCode} />
             </div>
           ) : null}
@@ -138,10 +139,10 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
             <div className="space-y-1.5">
               <Label htmlFor="en-spend">Kegiatan dan rekening belanja *</Label>
               {!o.activeDocumentId ? <p role="alert" className="text-sm text-destructive">APB Desa belum ditetapkan, belanja belum dapat dicatat.</p> : null}
-              <select {...fieldA11y("en-spend", errors.accountCode ?? errors.activityCode)} className={SELECT_CLASS} value={f.spendKey} onChange={(e) => set({ spendKey: e.target.value })} disabled={!o.activeDocumentId || doc.loading}>
+              <SearchSelect {...fieldA11y("en-spend", errors.accountCode ?? errors.activityCode)} className={SELECT_CLASS} value={f.spendKey} onChange={(e) => set({ spendKey: e.target.value })} disabled={!o.activeDocumentId || doc.loading}>
                 <option value="">{doc.loading ? "Memuat anggaran…" : "Pilih dari APB Desa…"}</option>
                 {spendOptions.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-              </select>
+              </SearchSelect>
               <p className="text-sm text-muted-foreground">Hanya rekening yang ada di {o.activeLabel ?? "APB Desa"}. Belanja tidak boleh melebihi pagu.</p>
               <FieldError id="en-spend" message={errors.accountCode ?? errors.activityCode} />
             </div>
@@ -169,10 +170,10 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="en-taxkind">Jenis pajak</Label>
-                  <select {...fieldA11y("en-taxkind", errors.taxKind)} className={SELECT_CLASS} value={f.taxKind} disabled={!f.taxAmount} onChange={(e) => set({ taxKind: e.target.value })}>
+                  <SearchSelect {...fieldA11y("en-taxkind", errors.taxKind)} className={SELECT_CLASS} value={f.taxKind} disabled={!f.taxAmount} onChange={(e) => set({ taxKind: e.target.value })}>
                     <option value="">Pilih jenis…</option>
                     {o.terms.taxKinds.map((k) => <option key={k} value={k}>{k}</option>)}
-                  </select>
+                  </SearchSelect>
                   <FieldError id="en-taxkind" message={errors.taxKind} />
                 </div>
               </div>

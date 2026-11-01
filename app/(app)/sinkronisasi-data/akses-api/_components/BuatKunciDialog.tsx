@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export interface ScopeInfo {
   id: string;
@@ -150,13 +151,13 @@ export function BuatKunciDialog({ scopes, onClose, onCreated }: { scopes: ScopeI
               </fieldset>
               <div className="space-y-1.5">
                 <Label htmlFor="kunci-masa">Masa berlaku</Label>
-                <select id="kunci-masa" className="flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm" value={expiry} onChange={(e) => setExpiry(e.target.value)}>
+                <SearchSelect id="kunci-masa" className="flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm" value={expiry} onChange={(e) => setExpiry(e.target.value)}>
                   {EXPIRY.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
               </div>
               {conflict ? (
                 <p role="status" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-50">

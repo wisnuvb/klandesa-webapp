@@ -13,6 +13,7 @@ import type { FieldDef } from "@/lib/custom-data/schema";
 import { PII_LABEL } from "@/lib/custom-data/schema";
 import { SELECT_CLASS } from "./FieldBuilder";
 import type { RecordRowView, TableDetailView } from "./types";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type Values = Record<string, string>;
 
@@ -106,20 +107,20 @@ export function RecordFormDialog({ table, record, onClose, onSaved }: { table: T
                 {f.type === "longtext" ? (
                   <Textarea {...common} rows={4} value={v} onChange={(e) => set(e.target.value)} />
                 ) : f.type === "select" ? (
-                  <select {...common} className={SELECT_CLASS} value={v} onChange={(e) => set(e.target.value)}>
+                  <SearchSelect {...common} className={SELECT_CLASS} value={v} onChange={(e) => set(e.target.value)}>
                     <option value="">{f.required ? "Pilih…" : "— kosong —"}</option>
                     {(Array.isArray(f.options) ? (f.options as string[]) : []).map((o) => (
                       <option key={o} value={o}>
                         {o}
                       </option>
                     ))}
-                  </select>
+                  </SearchSelect>
                 ) : f.type === "boolean" ? (
-                  <select {...common} className={SELECT_CLASS} value={v} onChange={(e) => set(e.target.value)}>
+                  <SearchSelect {...common} className={SELECT_CLASS} value={v} onChange={(e) => set(e.target.value)}>
                     <option value="">{f.required ? "Pilih…" : "— kosong —"}</option>
                     <option value="ya">Ya</option>
                     <option value="tidak">Tidak</option>
-                  </select>
+                  </SearchSelect>
                 ) : (
                   <Input {...common} className="h-11" type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"} inputMode={f.type === "number" ? "decimal" : undefined} step={f.type === "number" ? "any" : undefined} value={v} maxLength={f.type === "text" ? 255 : undefined} onChange={(e) => set(e.target.value)} />
                 )}

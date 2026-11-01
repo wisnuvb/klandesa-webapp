@@ -39,6 +39,7 @@ import {
   formatFileSize,
   getFileIcon,
 } from "../_utils/fileUtils";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface UpgradeModalProps {
   open: boolean;
@@ -725,7 +726,7 @@ export function UploadModal(props: UploadModalProps) {
                           <label className="block text-xs font-medium text-gray-700 mb-1">
                             Maks dimensi
                           </label>
-                          <select
+                          <SearchSelect
                             value={maxDimension}
                             onChange={(e) =>
                               setMaxDimension(Number(e.target.value))
@@ -741,7 +742,7 @@ export function UploadModal(props: UploadModalProps) {
                             <option value={1280}>1280 px</option>
                             <option value={1920}>1920 px</option>
                             <option value={2560}>2560 px</option>
-                          </select>
+                          </SearchSelect>
                         </div>
                       </div>
                     )}

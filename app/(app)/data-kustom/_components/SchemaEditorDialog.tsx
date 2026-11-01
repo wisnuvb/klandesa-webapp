@@ -10,6 +10,7 @@ import { PII_CLASSES, PII_LABEL, FIELD_TYPE_LABEL, type PiiClass, type SchemaDif
 import { describeDiff, diffWarnings, fieldPayload, newFieldForm, type FieldForm } from "@/lib/custom-data/ui-model";
 import { FieldBuilder, SELECT_CLASS } from "./FieldBuilder";
 import type { TableDetailView } from "./types";
+import { SearchSelect } from "@/components/ui/search-select";
 
 interface Edit {
   label: string;
@@ -122,13 +123,13 @@ export function SchemaEditorDialog({ table, maxFields, onClose, onApplied }: { t
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor={`se-${f.key}-p`}>Jenis data</Label>
-                      <select id={`se-${f.key}-p`} className={SELECT_CLASS} value={e.pii} onChange={(ev) => patch(f.key, { pii: ev.target.value as PiiClass })} disabled={e.archive}>
+                      <SearchSelect id={`se-${f.key}-p`} className={SELECT_CLASS} value={e.pii} onChange={(ev) => patch(f.key, { pii: ev.target.value as PiiClass })} disabled={e.archive}>
                         {PII_CLASSES.map((c) => (
                           <option key={c} value={c}>
                             {PII_LABEL[c].label}
                           </option>
                         ))}
-                      </select>
+                      </SearchSelect>
                     </div>
                   </div>
                   {f.type === "select" ? (

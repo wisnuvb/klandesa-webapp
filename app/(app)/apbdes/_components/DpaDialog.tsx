@@ -13,6 +13,7 @@ import type { ActivityPlanView } from "@/lib/apbdes/dpa";
 import { PLAN_STATUS } from "@/lib/apbdes/catalog";
 import { MoneyInput } from "./MoneyInput";
 import { MONTHS, money, type Overview } from "./shared";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const RKK_LABELS: Record<string, string> = { executorName: "Pelaksana", location: "Lokasi", outputName: "Nama output", outputVolume: "Volume", outputUnit: "Satuan", target: "Sasaran", team: "Tim", startMonth: "Bulan mulai", endMonth: "Bulan selesai" };
 const SELECT_CLASS =
@@ -91,10 +92,10 @@ export function DpaDialog({ o, plan, onClose, onChanged }: { o: Overview; plan: 
               {(["startMonth", "endMonth"] as const).map((k) => (
                 <div key={k} className="space-y-1.5">
                   <Label htmlFor={`rkk-${k}`}>{RKK_LABELS[k]}</Label>
-                  <select {...fieldA11y(`rkk-${k}`, rkk.errors[k])} className={SELECT_CLASS} value={f[k]} disabled={!editable} onChange={(e) => set(k, e.target.value)}>
+                  <SearchSelect {...fieldA11y(`rkk-${k}`, rkk.errors[k])} className={SELECT_CLASS} value={f[k]} disabled={!editable} onChange={(e) => set(k, e.target.value)}>
                     <option value="">-</option>
                     {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                  </select>
+                  </SearchSelect>
                   <FieldError id={`rkk-${k}`} message={rkk.errors[k]} />
                 </div>
               ))}
@@ -206,9 +207,9 @@ function RabSection({ o, plan, editable, onChanged }: { o: Overview; plan: Activ
           <div className="sm:col-span-2"><FormErrorSummary innerRef={add.summaryRef} errors={add.errors} general={add.general} labels={labels} /></div>
           <div className="space-y-1.5">
             <Label htmlFor="rab-acc">Rekening</Label>
-            <select {...fieldA11y("rab-acc", add.errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => setF((p) => ({ ...p, accountCode: e.target.value }))}>
+            <SearchSelect {...fieldA11y("rab-acc", add.errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => setF((p) => ({ ...p, accountCode: e.target.value }))}>
               {plan.accounts.map((a) => <option key={a.accountCode} value={a.accountCode}>{a.accountCode} {a.accountName}</option>)}
-            </select>
+            </SearchSelect>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="rab-desc">Uraian *</Label>

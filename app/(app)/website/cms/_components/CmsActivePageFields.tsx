@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { WebsiteCMSPage } from "@/lib/website-engine/types";
 import { sanitizePageSlug } from "@/lib/website-engine/resolved-structure";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type Props = {
   activePage: WebsiteCMSPage;
@@ -57,7 +58,7 @@ export const CmsActivePageFields = memo(function CmsActivePageFields({
         <div className="text-xs text-muted-foreground">
           Layout preset (opsional)
         </div>
-        <select
+        <SearchSelect
           className="h-9 max-w-xs rounded-md border bg-background px-3 text-sm"
           value={activePage.layoutPreset ?? ""}
           onChange={(e) =>
@@ -70,7 +71,7 @@ export const CmsActivePageFields = memo(function CmsActivePageFields({
         >
           <option value="">Default (container)</option>
           <option value="fullBleed">Lebar penuh</option>
-        </select>
+        </SearchSelect>
       </div>
       <div className="mt-1 grid gap-3 border-t pt-3 md:col-span-2">
         <div className="text-sm font-medium">SEO untuk halaman ini</div>

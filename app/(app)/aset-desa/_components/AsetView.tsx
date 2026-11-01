@@ -11,6 +11,7 @@ import { acquiredLabel, categoryLabel, conditionLabel } from "@/lib/aset-desa/bo
 import { DisposeDialog } from "./DisposeDialog";
 import { ItemFormDialog } from "./ItemFormDialog";
 import { rupiah, SELECT_CLASS, type ItemView, type ListResponse } from "./types";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const PAGE_SIZE = 25;
 
@@ -103,7 +104,7 @@ export function AsetView() {
             <label htmlFor="aset-filter-kategori" className="sr-only">
               Golongan
             </label>
-            <select id="aset-filter-kategori" className={SELECT_CLASS} value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}>
+            <SearchSelect id="aset-filter-kategori" className={SELECT_CLASS} value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}>
               <option value="">Semua golongan</option>
               {CATEGORY_KEYS.map((k) => (
                 <option key={k} value={k}>
@@ -111,7 +112,7 @@ export function AsetView() {
                   {d?.summary.byCategory[k] ? ` (${d.summary.byCategory[k]})` : ""}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
         </div>
       </section>

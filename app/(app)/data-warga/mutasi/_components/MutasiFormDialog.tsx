@@ -17,6 +17,7 @@ import {
 } from "@/lib/kependudukan/mutasi-labels";
 import type { ActionResult } from "../_hooks/useMutasi";
 import { ResidentPicker } from "@/components/app/ResidentPicker";
+import { SearchSelect } from "@/components/ui/search-select";
 
 const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -149,14 +150,14 @@ export function MutasiFormDialog({ open, onOpenChange, onSubmit }: { open: boole
                 <Input id="mutasi-kk-tujuan" inputMode="numeric" className="h-11" value={f.toKk} onChange={(e) => set("toKk", e.target.value)} />
               </Field>
               <Field id="mutasi-peran" label="Hubungan dalam KK yang baru" required>
-                <select id="mutasi-peran" className={SELECT_CLASS} value={f.newFamilyRole} onChange={(e) => set("newFamilyRole", e.target.value)}>
+                <SearchSelect id="mutasi-peran" className={SELECT_CLASS} value={f.newFamilyRole} onChange={(e) => set("newFamilyRole", e.target.value)}>
                   <option value="">Pilih…</option>
                   {FAMILY_ROLES.map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
               </Field>
             </>
           ) : null}
@@ -174,11 +175,11 @@ export function MutasiFormDialog({ open, onOpenChange, onSubmit }: { open: boole
                 <Input id="mutasi-nama" className="h-11" value={f.name} onChange={(e) => set("name", e.target.value)} />
               </Field>
               <Field id="mutasi-jk" label="Jenis kelamin" required>
-                <select id="mutasi-jk" className={SELECT_CLASS} value={f.gender} onChange={(e) => set("gender", e.target.value as MutasiForm["gender"])}>
+                <SearchSelect id="mutasi-jk" className={SELECT_CLASS} value={f.gender} onChange={(e) => set("gender", e.target.value as MutasiForm["gender"])}>
                   <option value="">Pilih…</option>
                   <option value="Laki-laki">Laki-laki</option>
                   <option value="Perempuan">Perempuan</option>
-                </select>
+                </SearchSelect>
               </Field>
               <Field id="mutasi-tempat" label="Tempat lahir" required>
                 <Input id="mutasi-tempat" className="h-11" value={f.birthplace} onChange={(e) => set("birthplace", e.target.value)} />
@@ -205,13 +206,13 @@ export function MutasiFormDialog({ open, onOpenChange, onSubmit }: { open: boole
                 </Field>
               ) : null}
               <Field id="mutasi-hubungan" label="Hubungan dalam KK">
-                <select id="mutasi-hubungan" className={SELECT_CLASS} value={f.familyRole} onChange={(e) => set("familyRole", e.target.value)}>
+                <SearchSelect id="mutasi-hubungan" className={SELECT_CLASS} value={f.familyRole} onChange={(e) => set("familyRole", e.target.value)}>
                   {FAMILY_ROLES.map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
               </Field>
               {!isBirth ? (
                 <>

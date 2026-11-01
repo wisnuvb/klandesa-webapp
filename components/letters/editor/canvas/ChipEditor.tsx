@@ -7,6 +7,7 @@ import { FORMAT_IDS, type FormatId } from "@/lib/letters/format";
 import type { LetterDocument } from "@/lib/letters/document/schema";
 import { FieldPicker, type NewFieldInput } from "./FieldPicker";
 import { FORMAT_LABELS, refLabel } from "./helpers";
+import { SearchSelect } from "@/components/ui/search-select";
 
 export type ChipValue = { ref: string; format: FormatId | null; fallback: string | null };
 
@@ -58,7 +59,7 @@ export function ChipEditor({ doc, value, onChange, onRemove, onClose, onCreate }
       </Button>
       <div className="space-y-1">
         <label htmlFor={`${uid}-fmt`} className="text-sm font-medium">Cara menulis</label>
-        <select
+        <SearchSelect
           id={`${uid}-fmt`}
           className={field}
           value={value.format ?? ""}
@@ -68,7 +69,7 @@ export function ChipEditor({ doc, value, onChange, onRemove, onClose, onCreate }
           {FORMAT_IDS.map((f) => (
             <option key={f} value={f}>{FORMAT_LABELS[f]}</option>
           ))}
-        </select>
+        </SearchSelect>
       </div>
       <div className="space-y-1">
         <label htmlFor={`${uid}-fb`} className="text-sm font-medium">Jika kosong, tulis</label>

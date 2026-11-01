@@ -19,10 +19,10 @@ import {
   Tag,
   Globe,
   Lock,
-  ChevronDown,
   AlertCircle,
 } from "lucide-react";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { SearchSelect } from "@/components/ui/search-select";
 
 // Types
 type ReportStatus = "DRAFT" | "PENDING" | "PROCESS" | "DONE" | "REJECT";
@@ -367,7 +367,7 @@ export default function PengaduanMasyarakat() {
 
           {/* Filter Status */}
           <div className="relative">
-            <select
+            <SearchSelect
               value={filterStatus}
               onChange={(e) =>
                 setFilterStatus(e.target.value as ReportStatus | "ALL")
@@ -380,13 +380,12 @@ export default function PengaduanMasyarakat() {
               <option value="DONE">Selesai</option>
               <option value="REJECT">Ditolak</option>
               <option value="DRAFT">Draft</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </SearchSelect>
           </div>
 
           {/* Filter Type */}
           <div className="relative">
-            <select
+            <SearchSelect
               value={filterType}
               onChange={(e) =>
                 setFilterType(e.target.value as ReportType | "ALL")
@@ -400,13 +399,12 @@ export default function PengaduanMasyarakat() {
               <option value="RT">RT</option>
               <option value="RW">RW</option>
               <option value="WARGA">Warga</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </SearchSelect>
           </div>
 
           {/* Filter Public */}
           <div className="relative">
-            <select
+            <SearchSelect
               value={filterPublic}
               onChange={(e) =>
                 setFilterPublic(e.target.value as IsPublic | "ALL")
@@ -416,8 +414,7 @@ export default function PengaduanMasyarakat() {
               <option value="ALL">Semua Visibilitas</option>
               <option value="Y">Publik</option>
               <option value="N">Privat</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </SearchSelect>
           </div>
         </div>
       </motion.div>
