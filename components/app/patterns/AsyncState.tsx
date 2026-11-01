@@ -11,7 +11,7 @@ import {
   type AsyncPageError,
   type ModuleNotEntitledInfo,
 } from "@/lib/modules/client-error";
-import { getModuleById } from "@/lib/modules/registry";
+import { getModuleById, getModuleByPathSegment } from "@/lib/modules/registry";
 import { formatIdr } from "@/lib/billing/catalog";
 
 type AsyncStateProps = {
@@ -36,9 +36,8 @@ function resolveBillingUrl(
     return `/billing?module=${encodeURIComponent(info.module)}`;
   }
 
-  const mod = getModuleById(
-    pathname?.replace(/^\//, "").split("/")[0] ?? "",
-  );
+  const segment = pathname?.replace(/^\//, "").split("/")[0] ?? "";
+  const mod = getModuleById(segment) ?? getModuleByPathSegment(segment);
   if (mod) {
     return `/billing?module=${encodeURIComponent(mod.id)}`;
   }

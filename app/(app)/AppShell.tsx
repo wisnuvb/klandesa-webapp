@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { isRegionalAccount } from "@/lib/regional-session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
-import { getModuleById } from "@/lib/modules/registry";
+import { getModuleById, getModuleByPathSegment, resolveModulePath } from "@/lib/modules/registry";
 import { Toaster } from "sonner";
 import { TrialBanner } from "@/components/app/TrialBanner";
 import { UpdateAvailableNotice } from "@/components/app/UpdateAvailableNotice";
@@ -304,6 +304,10 @@ function derivePageKey(pathname: string): string {
   const oneLevel = segments[0];
   if (isKnownPageKey(oneLevel)) return oneLevel;
 
+  // Id modul bisa berbeda dari path-nya (mis. laporan-kades → /laporan-kepala-desa).
+  const byPath = getModuleByPathSegment(oneLevel);
+  if (byPath) return byPath.id;
+
   return "dashboard";
 }
 
@@ -424,8 +428,7 @@ function AppShellInner({
 
   const handlePageChange = (page: string) => {
     setActivePage(page);
-    const targetPath = page.startsWith("/") ? page : `/${page}`;
-    startNavTransition(() => router.push(targetPath));
+    startNavTransition(() => router.push(resolveModulePath(page)));
   };
 
   const showLarasFab =

@@ -526,3 +526,20 @@ export function getLiveModules(): ModuleDefinition[] {
 export function getModuleById(id: string): ModuleDefinition | undefined {
   return VILLAGE_MODULE_REGISTRY.find((m) => m.id === id);
 }
+
+/**
+ * Modul berdasarkan segmen URL pertama (mis. "dtsen" → modul `dtsen-usulan`).
+ * `id` dan `path` tidak selalu sama, jadi jangan membangun URL dari `id`.
+ */
+export function getModuleByPathSegment(segment: string): ModuleDefinition | undefined {
+  if (!segment) return undefined;
+  return VILLAGE_MODULE_REGISTRY.find(
+    (m) => m.path?.split("/").filter(Boolean)[0] === segment,
+  );
+}
+
+/** URL tujuan untuk id menu; id yang bukan modul dianggap sudah berupa path. */
+export function resolveModulePath(idOrPath: string): string {
+  if (idOrPath.startsWith("/")) return idOrPath;
+  return getModuleById(idOrPath)?.path ?? `/${idOrPath}`;
+}
