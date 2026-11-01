@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { UKM_CATEGORIES, uniqueCategories } from "./ukm-logic";
+import { UKM_CATEGORIES, parseUkmSettings, uniqueCategories, type UkmSettings } from "./ukm-logic";
 
-/** Kolom produk UKM untuk API mobile. Sengaja TANPA `productNotes` (catatan internal penjual) dan data pribadi pemilik. */
+/**
+ * Kolom produk UKM untuk API mobile. Sengaja TANPA `productNotes` (catatan internal penjual) dan data pribadi pemilik.
+ * `contactPhone`/`contactVisible` ikut dipilih, tetapi `toUkmDetail` hanya mengeluarkannya sesuai pilihan pemilik.
+ */
 export const UKM_SELECT = {
   id: true,
   name: true,
@@ -13,9 +16,17 @@ export const UKM_SELECT = {
   images: true,
   status: true,
   residentId: true,
+  contactPhone: true,
+  contactVisible: true,
   updatedAt: true,
   resident: { select: { name: true, hamlet: true } },
 } as const;
+
+/** Pengaturan UKM desa (mis. apakah produk warga diperiksa admin dulu). */
+export async function ukmVillageSettings(villageId: number): Promise<UkmSettings> {
+  const v = await prisma.village.findUnique({ where: { id: villageId }, select: { settings: true } });
+  return parseUkmSettings(v?.settings);
+}
 
 /** Baris `Potential` milik katalog UKM desa ini (kategori UMKM/UKM). */
 export const ukmScope = (villageId: number) => ({ villageId, category: { in: [...UKM_CATEGORIES] } });

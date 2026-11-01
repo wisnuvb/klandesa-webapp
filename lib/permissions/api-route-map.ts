@@ -69,6 +69,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/apbdes/dpa/persetujuan", resource: "apbdes", suffixActions: { "": "approve" } },
   { prefix: "/api/apbdes/spp/persetujuan", resource: "apbdes", suffixActions: { "": "approve" } },
   { prefix: "/api/apbdes", resource: "apbdes" },
+  { prefix: "/api/dana-desa/pengecualian", resource: "apbdes", suffixActions: { "": "approve" } },
+  { prefix: "/api/dana-desa", resource: "apbdes" },
   { prefix: "/api/aset-desa/buku", resource: "aset_desa", suffixActions: { "": "export" } },
   { prefix: "/api/aset-desa", resource: "aset_desa" },
   { prefix: "/api/tata-kelola/produk-hukum", resource: "produk_hukum" },

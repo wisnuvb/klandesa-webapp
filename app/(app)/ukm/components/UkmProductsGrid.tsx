@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Check, Clock, Edit, Eye, EyeOff, Image as ImageIcon, Trash2, User } from "lucide-react";
+import { Check, Clock, Edit, Eye, EyeOff, Image as ImageIcon, Phone, Trash2, User } from "lucide-react";
 import Image from "next/image";
 import { ukmStatusMeta, type UkmProduct } from "../_types";
 import { firstImage, formatCurrency } from "../_utils";
@@ -93,6 +93,15 @@ export default function UkmProductsGrid(props: Props) {
                 <p className="mb-2 inline-flex items-center gap-1.5 text-xs text-gray-600">
                   <User className="w-3.5 h-3.5" aria-hidden="true" />
                   Milik {product.owner.name}
+                </p>
+              ) : null}
+              {product.contact ? (
+                <p className="mb-2 flex items-center gap-1.5 text-xs text-gray-600">
+                  <Phone className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                  <span className="tabular-nums">{product.contact.phone}</span>
+                  <span className="text-gray-500">
+                    · {product.contact.visible ? "tampil ke warga" : "tidak ditampilkan"}
+                  </span>
                 </p>
               ) : null}
               <div className="mb-4">

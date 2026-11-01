@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Linking, useWindowDimensions, View } from 'react-native';
 import { Text } from '@/components/text';
 
 import { Avatar, Chip, InfoBox } from '@/components/cards';
@@ -10,7 +10,7 @@ import { Body, Button, ErrorBanner, Screen } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { formatDateId } from '@/lib/format';
 import { useToggleUkmVisible, useUkmItem } from '@/lib/queries';
-import { priceLabel, statusLook } from '@/lib/ukm-logic';
+import { contactLinks, formatPhone, priceLabel, statusLook } from '@/lib/ukm-logic';
 import { colors, spacing } from '@/theme';
 
 /** Galeri foto geser horizontal dengan penanda halaman (angka dan titik). */
@@ -57,6 +57,45 @@ function Gallery({ photos, name }: { photos: string[]; name: string }) {
           <Text style={{ fontSize: 13, color: colors.textMuted }} accessibilityLiveRegion="polite">Foto {page + 1} dari {photos.length}</Text>
         </View>
       ) : null}
+    </View>
+  );
+}
+
+/** Kontak penjual: orang lain melihat tombol hubungi (bila pemilik mengizinkan); pemilik melihat status tampilnya. */
+function ContactCard({ phone, mine, shown }: { phone: string | null; mine: boolean; shown: boolean }) {
+  async function open(url: string, fallback: string) {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Tidak bisa dibuka', fallback);
+    }
+  }
+
+  if (mine) {
+    return (
+      <View style={{ marginTop: spacing.md }}>
+        <InfoBox tone="info">
+          {phone
+            ? shown
+              ? `Nomor ${formatPhone(phone)} tampil ke warga lain di halaman ini. Ubah lewat "Ubah produk".`
+              : `Nomor ${formatPhone(phone)} tidak ditampilkan. Aktifkan lewat "Ubah produk" bila ingin dihubungi pembeli.`
+            : 'Belum ada nomor kontak. Tambahkan lewat "Ubah produk" bila ingin dihubungi pembeli.'}
+        </InfoBox>
+      </View>
+    );
+  }
+  if (!phone) {
+    return <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: spacing.md }}>Penjual tidak mencantumkan kontak. Tanyakan lewat kantor desa.</Text>;
+  }
+  const links = contactLinks(phone);
+  return (
+    <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+      <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }} accessibilityRole="header">Hubungi penjual</Text>
+      <Text style={{ fontSize: 16, color: colors.text }} selectable>{formatPhone(phone)}</Text>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ flex: 1 }}><Button label="WhatsApp" icon="logo-whatsapp" onPress={() => void open(links.whatsapp, 'WhatsApp belum terpasang di perangkat ini. Anda bisa menelepon nomor di atas.')} /></View>
+        <View style={{ flex: 1 }}><Button label="Telepon" icon="call-outline" variant="secondary" onPress={() => void open(links.tel, 'Perangkat ini tidak bisa menelepon. Catat nomor di atas.')} /></View>
+      </View>
     </View>
   );
 }
@@ -131,6 +170,8 @@ export default function ProdukDetail() {
 
       <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginTop: spacing.md, marginBottom: spacing.xs }} accessibilityRole="header">Tentang produk</Text>
       <Text style={{ fontSize: 16, lineHeight: 24, color: colors.text }} selectable>{d.description}</Text>
+
+      <ContactCard phone={d.contactPhone} mine={d.mine} shown={d.showContact} />
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg, padding: spacing.md, borderRadius: 18, backgroundColor: colors.surface }} accessible accessibilityLabel={`Dijual oleh ${d.seller}${d.sellerArea ? `, ${d.sellerArea}` : ''}`}>
         <Avatar name={d.seller} />

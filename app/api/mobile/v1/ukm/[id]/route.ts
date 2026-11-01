@@ -13,6 +13,7 @@ import {
   imageUrls,
   normalizeUkmStatus,
   parseUkmInput,
+  resolveUkmContact,
   toUkmDetail,
   ukmPhotoAllowed,
   ukmStatusAfterEdit,
@@ -72,6 +73,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!parsed.ok) return mobileError("INVALID_REQUEST", parsed.message, 400);
   const v = parsed.value;
 
+  const contact = resolveUkmContact({ phone: existing.contactPhone, visible: existing.contactVisible }, v);
+  if (!contact.ok) return mobileError("INVALID_REQUEST", contact.message, 400);
+
   const data: Prisma.PotentialUpdateInput = {};
   if (v.name !== undefined) data.name = v.name;
   if (v.description !== undefined) data.description = v.description;
@@ -81,7 +85,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (v.photos !== undefined) data.images = v.photos;
   if (v.price !== undefined) data.productionValue = v.price != null ? new Prisma.Decimal(v.price) : null;
 
-  const edited = Object.keys(data).length > 0;
+  // Kontak hanya info penjual: mengubahnya tidak mengajukan ulang produk yang ditutup desa.
+  const contactChanged = contact.changed;
+  if (contactChanged) {
+    data.contactPhone = contact.phone;
+    data.contactVisible = contact.visible;
+  }
+  const edited = Object.keys(data).some((k) => k !== "contactPhone" && k !== "contactVisible");
   let next = status;
   if (edited) next = ukmStatusAfterEdit(status);
   if (typeof body?.visible === "boolean") {
@@ -91,14 +101,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   } else if (body && "visible" in body) {
     return mobileError("INVALID_REQUEST", "Permintaan tidak valid.", 400);
   }
-  if (!edited && next === status) return mobileError("INVALID_REQUEST", "Tidak ada yang diubah.", 400);
+  if (!edited && !contactChanged && next === status) return mobileError("INVALID_REQUEST", "Tidak ada yang diubah.", 400);
   if (next !== status) data.status = next;
 
   const updated = await prisma.potential.update({ where: { id }, data, select: { id: true, status: true } });
 
   void auditAs(req, ctx.villageId, { type: "citizen", residentId: me.id }, "update", "ukm_products", id, {
     // Deskripsi dan foto hanya ditandai berubah (sama dengan jejak audit web).
-    fields: Object.keys(data).filter((k) => k !== "status"),
+    fields: Object.keys(data).filter((k) => k !== "status" && k !== "contactPhone"),
     ...(next !== status ? { status: { from: status, to: next } } : {}),
   });
   if (status === "inactive" && next === "pending") {

@@ -11,6 +11,8 @@ export const UKM_LIMITS = {
   descMax: 1000,
   unitMax: 20,
   stockMax: 999_999,
+  phoneMin: 8,
+  phoneMax: 15,
 } as const;
 
 /** Satuan yang paling sering dipakai; ketuk sekali, tidak perlu mengetik. */
@@ -25,9 +27,13 @@ export type UkmFormValues = {
   category: string | null;
   /** Ketikan stok; kosong = stok tidak dilacak. */
   stockText: string;
+  /** Nomor kontak penjual apa adanya; kosong = tidak ada. */
+  contactText: string;
+  /** Pemilik mengizinkan nomor tampil ke warga lain. */
+  showContact: boolean;
 };
 
-export type UkmField = 'name' | 'description' | 'price' | 'unit' | 'category' | 'stock' | 'photos';
+export type UkmField = 'name' | 'description' | 'price' | 'unit' | 'category' | 'stock' | 'photos' | 'contact';
 export type UkmFormErrors = Partial<Record<UkmField, string>>;
 
 export type UkmPayload = {
@@ -38,6 +44,8 @@ export type UkmPayload = {
   category: string | null;
   stock: number | null;
   photos: string[];
+  contactPhone: string | null;
+  showContact: boolean;
 };
 
 export type UkmValidation = { ok: true; payload: UkmPayload } | { ok: false; errors: UkmFormErrors };
@@ -81,10 +89,19 @@ export function validateUkmForm(
     else stock = Number(stockText);
   }
 
+  let contactPhone: string | null = null;
+  const rawPhone = v.contactText.replace(/[\s().-]/g, '');
+  if (rawPhone !== '') {
+    if (!/^\+?\d+$/.test(rawPhone) || rawPhone.replace('+', '').length < L.phoneMin || rawPhone.replace('+', '').length > L.phoneMax) {
+      errors.contact = 'Nomor tidak valid. Contoh: 081234567890.';
+    } else contactPhone = rawPhone;
+  }
+  if (v.showContact && contactPhone === null && !errors.contact) errors.contact = 'Isi nomor kontak untuk menampilkannya ke warga lain.';
+
   if (ctx.photos.length > ctx.maxPhotos) errors.photos = `Maksimal ${ctx.maxPhotos} foto.`;
 
   if (Object.keys(errors).length > 0) return { ok: false, errors };
-  return { ok: true, payload: { name, description, price, unit, category: v.category, stock, photos: [...ctx.photos] } };
+  return { ok: true, payload: { name, description, price, unit, category: v.category, stock, photos: [...ctx.photos], contactPhone, showContact: v.showContact && contactPhone !== null } };
 }
 
 /** Beri titik ribuan saat mengetik harga: "15000" → "15.000". Selain angka dibuang; maksimal 10 digit. */
@@ -125,6 +142,8 @@ export function isFormDirty(a: UkmFormValues & { photos: readonly string[] }, b:
     a.unit.trim() !== b.unit.trim() ||
     a.category !== b.category ||
     a.stockText.trim() !== b.stockText.trim() ||
+    a.contactText.replace(/[\s().-]/g, '') !== b.contactText.replace(/[\s().-]/g, '') ||
+    a.showContact !== b.showContact ||
     a.photos.length !== b.photos.length ||
     a.photos.some((p, i) => p !== b.photos[i])
   );
@@ -133,4 +152,25 @@ export function isFormDirty(a: UkmFormValues & { photos: readonly string[] }, b:
 /** Sisa jatah produk untuk teks "3 dari 20 produk". */
 export function quotaLabel(count: number, max: number): string {
   return `${count} dari ${max} produk`;
+}
+
+/** Tautan untuk menghubungi penjual. WhatsApp memakai awalan negara: "0812…" → "62812…". */
+export function contactLinks(phone: string): { tel: string; whatsapp: string } {
+  const digits = phone.replace(/\D/g, '');
+  const intl = digits.startsWith('62') ? digits : digits.startsWith('0') ? `62${digits.slice(1)}` : digits;
+  return { tel: `tel:${phone.startsWith('+') ? '+' : ''}${digits}`, whatsapp: `https://wa.me/${intl}` };
+}
+
+/** Nomor dibagi kelompok agar mudah dibaca: "081234567890" → "0812 3456 7890". Selain itu apa adanya. */
+export function formatPhone(phone: string): string {
+  const plus = phone.startsWith('+') ? '+' : '';
+  const d = phone.replace(/\D/g, '');
+  return d.length >= 10 ? `${plus}${d.replace(/(\d{4})(?=\d)/g, '$1 ').trim()}` : phone;
+}
+
+/** Teks hasil setelah produk baru terkirim: bergantung pada apakah desa memeriksa dulu. */
+export function createdMessage(status: UkmStatus): { title: string; body: string } {
+  return status === 'active'
+    ? { title: 'Produk Anda sudah tayang', body: 'Warga desa kini bisa melihat produk Anda di katalog Produk desa.' }
+    : { title: 'Terkirim, menunggu persetujuan desa', body: 'Terima kasih. Produk Anda akan tayang di katalog desa setelah diperiksa perangkat desa.' };
 }

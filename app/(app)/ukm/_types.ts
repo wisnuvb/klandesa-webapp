@@ -15,6 +15,8 @@ export type UkmProduct = {
   /** Catatan tambahan */
   notes: string | null;
   status: string;
+  /** Kontak penjual yang diisi pemilik di aplikasi (baca-saja); visible = tampil ke warga lain */
+  contact: { phone: string; visible: boolean } | null;
   /** Warga yang ditautkan sebagai pemilik; null = dikelola desa */
   owner: UkmOwner | null;
   createdAt: string;

@@ -2,10 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  formatPriceInput, isFormDirty, priceLabel, quotaLabel, statusLook, UKM_LIMITS, validateUkmForm, type UkmFormValues,
+  contactLinks, createdMessage, formatPhone, formatPriceInput, isFormDirty, priceLabel, quotaLabel, statusLook, UKM_LIMITS, validateUkmForm,
+  type UkmFormValues,
 } from '../src/lib/ukm-logic.ts';
 
-const base: UkmFormValues = { name: 'Keripik Singkong', description: 'Keripik singkong renyah, tanpa pengawet.', priceText: '15.000', unit: 'bungkus', category: 'Makanan', stockText: '20' };
+const base: UkmFormValues = { name: 'Keripik Singkong', description: 'Keripik singkong renyah, tanpa pengawet.', priceText: '15.000', unit: 'bungkus', category: 'Makanan', stockText: '20', contactText: '', showContact: false };
 const ctx = { categories: ['Makanan', 'Kerajinan'], photos: ['https://cdn/x/1.jpg'], maxPhotos: 4 };
 
 describe('validateUkmForm', () => {
@@ -14,7 +15,7 @@ describe('validateUkmForm', () => {
     assert.ok(r.ok);
     assert.deepEqual(r.payload, {
       name: 'Keripik Singkong', description: 'Keripik singkong renyah, tanpa pengawet.', price: 15000, unit: 'bungkus',
-      category: 'Makanan', stock: 20, photos: ['https://cdn/x/1.jpg'],
+      category: 'Makanan', stock: 20, photos: ['https://cdn/x/1.jpg'], contactPhone: null, showContact: false,
     });
   });
 
@@ -104,6 +105,58 @@ describe('validateUkmForm', () => {
   });
 });
 
+describe('kontak penjual', () => {
+  const run = (contactText: string, showContact: boolean) => validateUkmForm({ ...base, contactText, showContact }, ctx);
+
+  it('kontak opsional; nomor dirapikan dan pilihan tampil ikut terkirim', () => {
+    const r = run('0812-3456 7890', true);
+    assert.ok(r.ok);
+    assert.deepEqual([r.payload.contactPhone, r.payload.showContact], ['081234567890', true]);
+    const off = run('+62 812 3456 7890', false);
+    assert.ok(off.ok);
+    assert.deepEqual([off.payload.contactPhone, off.payload.showContact], ['+6281234567890', false]);
+  });
+
+  it('nomor kosong: tidak ada kontak, pilihan tampil otomatis mati', () => {
+    const r = run('  ', false);
+    assert.ok(r.ok);
+    assert.deepEqual([r.payload.contactPhone, r.payload.showContact], [null, false]);
+  });
+
+  it('menampilkan kontak tanpa nomor ditolak dengan pesan jelas', () => {
+    const r = run('', true);
+    assert.ok(!r.ok);
+    assert.match(r.errors.contact!, /Isi nomor/);
+  });
+
+  it('nomor tidak valid: huruf, terlalu pendek, terlalu panjang', () => {
+    for (const bad of ['abc', '0812abc', '1234567', '1'.repeat(16), '++6281234567']) {
+      const r = run(bad, false);
+      assert.ok(!r.ok, bad);
+      assert.match(r.errors.contact!, /tidak valid/, bad);
+    }
+    assert.ok(run('12345678', false).ok);
+    assert.ok(run('1'.repeat(15), false).ok);
+  });
+
+  it('tautan: WhatsApp memakai awalan 62, telepon memakai nomor asli', () => {
+    assert.deepEqual(contactLinks('081234567890'), { tel: 'tel:081234567890', whatsapp: 'https://wa.me/6281234567890' });
+    assert.deepEqual(contactLinks('+6281234567890'), { tel: 'tel:+6281234567890', whatsapp: 'https://wa.me/6281234567890' });
+    assert.deepEqual(contactLinks('6281234567890'), { tel: 'tel:6281234567890', whatsapp: 'https://wa.me/6281234567890' });
+  });
+
+  it('tampilan nomor dikelompokkan; nomor pendek apa adanya', () => {
+    assert.equal(formatPhone('081234567890'), '0812 3456 7890');
+    assert.equal(formatPhone('+6281234567890'), '+6281 2345 6789 0');
+    assert.equal(formatPhone('12345678'), '12345678');
+  });
+
+  it('teks setelah kirim: langsung tayang vs menunggu persetujuan', () => {
+    assert.match(createdMessage('active').title, /sudah tayang/);
+    assert.match(createdMessage('pending').title, /menunggu persetujuan/);
+  });
+});
+
 describe('formatPriceInput & priceLabel', () => {
   it('titik ribuan saat mengetik, buang selain angka dan nol di depan', () => {
     assert.equal(formatPriceInput('15000'), '15.000');
@@ -148,6 +201,8 @@ describe('isFormDirty & quotaLabel', () => {
     assert.equal(isFormDirty(a, { ...a, unit: 'kg' }), true);
     assert.equal(isFormDirty(a, { ...a, category: null }), true);
     assert.equal(isFormDirty(a, { ...a, stockText: '' }), true);
+    assert.equal(isFormDirty(a, { ...a, contactText: '0812' }), true);
+    assert.equal(isFormDirty(a, { ...a, showContact: true }), true);
     assert.equal(isFormDirty(a, { ...a, photos: [] }), true);
     assert.equal(isFormDirty(a, { ...a, photos: ['y'] }), true);
   });

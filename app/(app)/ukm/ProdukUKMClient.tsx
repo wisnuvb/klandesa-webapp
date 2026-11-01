@@ -5,6 +5,7 @@ import { Clock, Package, Tag } from "lucide-react";
 import type { UkmProduct, UkmProductDraft } from "./_types";
 import UkmCategoryModal from "./components/UkmCategoryModal";
 import UkmCategoryTable from "./components/UkmCategoryTable";
+import UkmModerationSetting from "./components/UkmModerationSetting";
 import UkmImagePreviewModal from "./components/UkmImagePreviewModal";
 import UkmProductModal from "./components/UkmProductModal";
 import UkmProductsGrid from "./components/UkmProductsGrid";
@@ -20,12 +21,14 @@ import { usePersistedTab } from "@/hooks/usePersistedTab";
 
 type Props = {
   initialProducts: UkmProduct[];
+  /** Pengaturan desa: produk baru dari warga diperiksa admin dulu */
+  initialModeration: boolean;
 };
 
 const UKM_PRODUK_TABS = ["products", "categories"] as const;
 
 export default function ProdukUKMClient(props: Props) {
-  const { initialProducts } = props;
+  const { initialProducts, initialModeration } = props;
 
   const [activeTab, setActiveTab] = usePersistedTab(
     "ukm-produk",
@@ -167,6 +170,8 @@ export default function ProdukUKMClient(props: Props) {
                 onAddProduct={handleAddProduct}
               />
 
+              <UkmModerationSetting initial={initialModeration} />
+
               {productsHook.pendingCount > 0 && productsHook.filterStatus !== "pending" ? (
                 <div
                   role="status"
@@ -248,7 +253,7 @@ export default function ProdukUKMClient(props: Props) {
       </motion.div>
 
       <UkmProductModal
-        key={productModalHook.key}
+        key={`produk-${productModalHook.key}`}
         open={productModalHook.open}
         title={productModalHook.editingId ? "Edit Produk" : "Tambah Produk Baru"}
         initialDraft={productModalHook.initialDraft}
@@ -259,7 +264,7 @@ export default function ProdukUKMClient(props: Props) {
       />
 
       <UkmCategoryModal
-        key={categoryModalHook.key}
+        key={`kategori-${categoryModalHook.key}`}
         open={categoryModalHook.open}
         title={categoryModalHook.editingName ? "Ubah Nama Kategori" : "Tambah Kategori Baru"}
         initialName={categoryModalHook.initialName}

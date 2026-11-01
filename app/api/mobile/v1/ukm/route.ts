@@ -8,14 +8,16 @@ import { auditAs } from "@/lib/mobile/audit-actor";
 import { notifyVillageStaff } from "@/lib/mobile/notify";
 import { displayName } from "@/lib/mobile/social-logic";
 import { getSpacesConfig } from "@/lib/spaces";
-import { UKM_SELECT, ukmCategoryNames, ukmScope } from "@/lib/mobile/ukm-data";
+import { UKM_SELECT, ukmCategoryNames, ukmScope, ukmVillageSettings } from "@/lib/mobile/ukm-data";
 import {
   UKM_LIMITS,
   UKM_PAGE_SIZE,
   parseUkmCursor,
   parseUkmInput,
+  resolveUkmContact,
   toUkmListItem,
   ukmPhotoAllowed,
+  ukmStatusForNew,
   type UkmRow,
 } from "@/lib/mobile/ukm-logic";
 
@@ -53,7 +55,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-/** Warga menjual produk baru. Selalu berstatus `pending` sampai admin desa menyetujui. */
+/** Warga menjual produk baru. `pending` bila desa memeriksa dulu (bawaan), kalau tidak langsung `active`. */
 export async function POST(req: NextRequest) {
   const loaded = await requireMobileContext(req, { allow: ["citizen"] });
   if (!loaded.ok) return loaded.response;
@@ -73,6 +75,8 @@ export async function POST(req: NextRequest) {
   );
   if (!parsed.ok) return mobileError("INVALID_REQUEST", parsed.message, 400);
   const v = parsed.value;
+  const contact = resolveUkmContact({ phone: null, visible: false }, v);
+  if (!contact.ok) return mobileError("INVALID_REQUEST", contact.message, 400);
 
   // Produk yang disembunyikan pemilik tidak menghabiskan kuota (tidak terlihat siapa pun).
   const own = { ...ukmScope(ctx.villageId), residentId: me.id };
@@ -85,6 +89,8 @@ export async function POST(req: NextRequest) {
     return mobileError("RATE_LIMITED", "Batas produk baru hari ini tercapai. Coba lagi besok.", 429);
   }
 
+  const { moderation } = await ukmVillageSettings(ctx.villageId);
+  const status = ukmStatusForNew(moderation);
   const created = await prisma.potential.create({
     data: {
       villageId: ctx.villageId,
@@ -96,17 +102,22 @@ export async function POST(req: NextRequest) {
       productionUnit: v.unit ?? null,
       stockQuantity: v.stock ?? null,
       images: v.photos ?? [],
-      status: "pending",
+      status,
       residentId: me.id,
+      contactPhone: contact.phone,
+      contactVisible: contact.visible,
     },
     select: { id: true },
   });
 
-  void auditAs(req, ctx.villageId, { type: "citizen", residentId: me.id }, "create", "ukm_products", created.id, { name: v.name, status: "pending" });
-  void notifyVillageStaff(ctx.villageId, "ukm", {
-    type: "system",
-    title: "Produk UKM baru dari warga",
-    body: `${displayName(me.name)}: ${v.name}`,
-  });
-  return NextResponse.json({ id: created.id, status: "pending" }, { status: 201 });
+  void auditAs(req, ctx.villageId, { type: "citizen", residentId: me.id }, "create", "ukm_products", created.id, { name: v.name, status });
+  // Staf hanya perlu diberi tahu bila ada yang harus mereka putuskan.
+  if (status === "pending") {
+    void notifyVillageStaff(ctx.villageId, "ukm", {
+      type: "system",
+      title: "Produk UKM baru dari warga",
+      body: `${displayName(me.name)}: ${v.name}`,
+    });
+  }
+  return NextResponse.json({ id: created.id, status }, { status: 201 });
 }

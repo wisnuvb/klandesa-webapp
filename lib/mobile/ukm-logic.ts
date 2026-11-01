@@ -6,6 +6,9 @@
  *  - pending  kiriman warga, menunggu persetujuan admin desa
  *  - hidden   disembunyikan oleh pemilik; pemilik boleh menayangkannya lagi
  *  - inactive disembunyikan oleh admin desa; pemilik tidak bisa menayangkannya sendiri
+ *
+ * Persetujuan admin bersifat opsional per desa (`UkmSettings.moderation`): bila mati, produk baru langsung `active`.
+ * Produk yang ditutup admin (`inactive`) tetap harus diajukan ulang karena admin sengaja menutupnya.
  */
 import { displayName } from "./social-logic";
 import { isOwnReportPhotoUrl } from "./report-logic";
@@ -24,6 +27,28 @@ export const UKM_STATUS_LABEL: Record<UkmStatus, string> = {
   hidden: "Disembunyikan oleh Anda",
   inactive: "Disembunyikan oleh desa",
 };
+
+// ---------- Pengaturan desa ----------
+
+/** Disimpan di `villages.settings.ukm` (JSON). Bawaan: produk warga diperiksa admin dulu. */
+export type UkmSettings = { moderation: boolean };
+export const DEFAULT_UKM_SETTINGS: UkmSettings = { moderation: true };
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+export function parseUkmSettings(settings: unknown): UkmSettings {
+  const ukm = isRecord(settings) && isRecord(settings.ukm) ? settings.ukm : null;
+  return { moderation: typeof ukm?.moderation === "boolean" ? ukm.moderation : DEFAULT_UKM_SETTINGS.moderation };
+}
+
+/** Gabungkan perubahan ke JSON pengaturan desa tanpa menghapus kunci lain (wilayah, tema, dst.). */
+export function mergeUkmSettings(existing: unknown, patch: Partial<UkmSettings>): Record<string, unknown> {
+  const base = isRecord(existing) ? { ...existing } : {};
+  return { ...base, ukm: { ...parseUkmSettings(existing), ...patch } };
+}
+
+/** Status produk baru dari warga: `pending` bila desa memeriksa dulu, kalau tidak langsung tayang. */
+export const ukmStatusForNew = (moderation: boolean): UkmStatus => (moderation ? "pending" : "active");
 
 /** Nilai lain (data lama, mis. "potential") dianggap tidak tayang, bukan tayang. */
 export function normalizeUkmStatus(raw: string | null | undefined): UkmStatus {
@@ -68,6 +93,10 @@ export const ukmStatusAfterEdit = (status: UkmStatus): UkmStatus => (status === 
 // ---------- Validasi masukan ----------
 
 export type UkmFields = {
+  /** Nomor kontak penjual yang diisi pemilik; null = belum diisi. */
+  contactPhone: string | null;
+  /** Pemilik memilih menampilkan kontak ke warga lain. Hanya berlaku bila nomor terisi. */
+  showContact: boolean;
   name: string;
   description: string;
   price: number | null;
@@ -115,6 +144,33 @@ function parseStock(v: unknown): Parsed<number | null> {
   const n = typeof v === "number" ? v : typeof v === "string" && /^\d+$/.test(v.trim()) ? Number(v.trim()) : NaN;
   if (!Number.isInteger(n) || n < 0 || n > MAX_STOCK) return { ok: false, message: `Stok berupa bilangan bulat 0–${MAX_STOCK}.` };
   return { ok: true, value: n };
+}
+
+/** Spasi, titik, kurung, dan strip diabaikan; sisanya 8–15 digit dengan "+" opsional di depan. Kosong/null = dihapus. */
+export function parseContactPhone(v: unknown): Parsed<string | null> {
+  if (v === null || v === "") return { ok: true, value: null };
+  if (typeof v !== "string") return { ok: false, message: "Nomor kontak tidak valid. Contoh: 081234567890." };
+  const s = clean(v).replace(/[\s().-]/g, "");
+  if (s === "") return { ok: true, value: null };
+  if (!/^\+?\d{8,15}$/.test(s)) return { ok: false, message: "Nomor kontak tidak valid. Contoh: 081234567890." };
+  return { ok: true, value: s };
+}
+
+/**
+ * Gabungkan kontak yang dikirim dengan yang tersimpan. Menampilkan kontak butuh nomor; menghapus nomor otomatis
+ * menyembunyikannya. `changed` = ada perubahan kontak (untuk jejak audit).
+ */
+export function resolveUkmContact(
+  current: { phone: string | null; visible: boolean },
+  input: Pick<Partial<UkmFields>, "contactPhone" | "showContact">,
+): { ok: true; phone: string | null; visible: boolean; changed: boolean } | { ok: false; message: string } {
+  const phone = input.contactPhone !== undefined ? input.contactPhone : current.phone;
+  let visible = input.showContact !== undefined ? input.showContact : current.visible;
+  if (!phone) {
+    if (input.showContact === true) return { ok: false, message: "Isi nomor kontak untuk menampilkannya ke warga lain." };
+    visible = false;
+  }
+  return { ok: true, phone, visible, changed: phone !== current.phone || visible !== current.visible };
 }
 
 function parseCategory(v: unknown, categories: readonly string[]): Parsed<string | null> {
@@ -179,6 +235,15 @@ export function parseUkmInput(
     if (!r.ok) return r;
     out.stock = r.value;
   }
+  if (has("contactPhone")) {
+    const r = parseContactPhone(b.contactPhone);
+    if (!r.ok) return r;
+    out.contactPhone = r.value;
+  }
+  if (has("showContact")) {
+    if (typeof b.showContact !== "boolean") return { ok: false, message: "Pilihan tampilkan kontak tidak valid." };
+    out.showContact = b.showContact;
+  }
   if (mode === "create" || has("photos")) {
     const r = parsePhotos(has("photos") ? b.photos : [], ctx);
     if (!r.ok) return r;
@@ -205,6 +270,8 @@ export type UkmRow = {
   images: unknown;
   status: string;
   residentId: number | null;
+  contactPhone: string | null;
+  contactVisible: boolean;
   updatedAt: Date;
   resident: { name: string; hamlet: string | null } | null;
 };
@@ -268,6 +335,9 @@ export function toUkmDetail(row: UkmRow, myResidentId: number | null) {
     statusNote: mine ? ukmStatusNote(status) : null,
     canEdit: mine,
     canToggleVisible: mine && canToggleUkmVisible(status),
+    // Pemilik selalu melihat nomornya sendiri; orang lain hanya bila pemilik memilih menampilkannya dan produk tayang.
+    contactPhone: mine ? row.contactPhone : row.contactVisible && status === "active" ? row.contactPhone : null,
+    showContact: mine && row.contactVisible && !!row.contactPhone,
     updatedAt: row.updatedAt.toISOString(),
   };
 }

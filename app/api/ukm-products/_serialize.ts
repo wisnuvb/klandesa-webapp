@@ -21,6 +21,8 @@ export function toUkmProduct(row: any) {
     notes: row.productNotes ?? null,
     images: normalizeImageUrls(row.images),
     status: row.status,
+    // Pilihan pemilik (diisi dari aplikasi mobile); admin hanya melihat, tidak mengubah.
+    contact: row.contactPhone ? { phone: row.contactPhone, visible: !!row.contactVisible } : null,
     owner: row.resident
       ? { id: row.resident.id, name: row.resident.name, nikLast4: String(row.resident.nik ?? "").slice(-4) }
       : null,
@@ -41,6 +43,8 @@ export const ukmProductSelect = {
   images: true,
   status: true,
   residentId: true,
+  contactPhone: true,
+  contactVisible: true,
   resident: { select: { id: true, name: true, nik: true } },
   createdAt: true,
   updatedAt: true,

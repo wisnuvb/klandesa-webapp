@@ -205,6 +205,16 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     sortOrder: 351,
   },
 
+  {
+    id: "dana-desa",
+    label: "Dana Desa",
+    path: "/dana-desa",
+    permission: "apbdes",
+    sdgGoals: [16, 17],
+    status: "beta",
+    sortOrder: 353,
+  },
+
   // --- Operasional: Portal warga ---
   {
     id: "pengumuman-desa",

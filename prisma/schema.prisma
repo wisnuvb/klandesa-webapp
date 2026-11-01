@@ -155,6 +155,10 @@ model Village {
   elderlyChecks      ElderlyCheck[]
   villageMeetings    VillageMeeting[]
   rkpdesDocuments    RkpdesDocument[]
+  ddYearSettings     DdYearSetting[]
+  ddFocusTags        DdFocusTag[]
+  ddRuleExceptions   DdRuleException[]
+  ddPublications     DdPublication[]
   publishedTemplates AppTemplate[]
   customTables      CustomTable[]
   customRecords     CustomRecord[]
@@ -1239,6 +1243,9 @@ model Potential {
   /// Pemilik produk UKM (warga). Null = dikelola desa. Hanya dipakai untuk category UMKM/UKM.
   residentId Int?
   resident   Resident? @relation("ResidentUkmProducts", fields: [residentId], references: [id], onDelete: SetNull)
+  /// Nomor kontak penjual yang diisi pemilik sendiri (bukan nomor terdaftar warga). Tampil ke warga lain hanya bila contactVisible.
+  contactPhone   String? @db.VarChar(20)
+  contactVisible Boolean @default(false)
 
   // Status. UKM: active (tayang), pending (kiriman warga menunggu persetujuan), hidden (disembunyikan pemilik),
   // inactive (disembunyikan desa). Potensi lain: active, inactive, potential.
@@ -4760,4 +4767,85 @@ model RkpdesIncomingProgram {
 
   @@index([documentId])
   @@map("rkpdes_incoming_programs")
+}
+
+/// Dana Desa per tahun anggaran (Paket 2): pagu dari keputusan pusat/kabupaten dan tanda penyampaian laporan.
+/// Rujukan: PMK 7/2026 Pasal 15, 20, 23-25; Permendesa PDT 16/2025 Pasal 10-12.
+model DdYearSetting {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year      Int
+
+  /// Pagu Dana Desa reguler dan pagu dukungan KDMP untuk Desa ini, dalam sen. Diisi dari keputusan yang berlaku.
+  regularCents    BigInt?
+  kdmpCents       BigInt?
+  /// Desa berstatus mandiri (Indeks Desa): tahap penyaluran 60/40, bukan 40/60.
+  isMandiri       Boolean   @default(false)
+  /// Tanggal laporan penetapan fokus ke Menteri (Permendesa 16/2025 Pasal 12) dan laporan tahap penyaluran (PMK 7/2026 Pasal 24).
+  focusReportedOn DateTime? @db.Date
+  prevYearReportedOn DateTime? @db.Date
+  stage1ReportedOn   DateTime? @db.Date
+  note            String?   @db.VarChar(500)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([villageId, year])
+  @@map("dd_year_settings")
+}
+
+/// Penandaan fokus penggunaan Dana Desa per kegiatan APB Desa (Permendesa 16/2025 Pasal 2).
+model DdFocusTag {
+  id           Int     @id @default(autoincrement())
+  villageId    Int
+  village      Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year         Int
+  activityCode String  @db.VarChar(12)
+  /// KEMISKINAN_EKSTREM | IKLIM_BENCANA | KESEHATAN | PANGAN_EKONOMI | KDMP | PADAT_KARYA | DIGITAL | SEKTOR_LAIN | OPERASIONAL
+  focus        String  @db.VarChar(20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([villageId, year, activityCode], map: "dd_focus_tags_unique")
+  @@map("dd_focus_tags")
+}
+
+/// Pengecualian atas peringatan larangan penggunaan Dana Desa, wajib beralasan (Lampiran II.J Permendesa 16/2025).
+model DdRuleException {
+  id           Int     @id @default(autoincrement())
+  villageId    Int
+  village      Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year         Int
+  ruleKey      String  @db.VarChar(8)
+  activityCode String  @db.VarChar(12)
+  accountCode  String  @db.VarChar(14)
+  reason       String  @db.VarChar(500)
+  createdById  Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([villageId, year, ruleKey, activityCode, accountCode], map: "dd_rule_exceptions_unique")
+  @@map("dd_rule_exceptions")
+}
+
+/// Bukti publikasi fokus penggunaan Dana Desa (Permendesa 16/2025 Pasal 10-11).
+model DdPublication {
+  id          Int     @id @default(autoincrement())
+  villageId   Int
+  village     Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+  year        Int
+  /// BALIHO | PAPAN_INFORMASI | MEDIA_ELEKTRONIK | MEDIA_CETAK | MEDIA_SOSIAL | WEBSITE | PENGERAS_SUARA | LAINNYA | SISTEM_INFORMASI
+  channel     String  @db.VarChar(20)
+  publishedOn DateTime @db.Date
+  /// Lokasi papan atau alamat tautan.
+  location    String?  @db.VarChar(300)
+  note        String?  @db.VarChar(300)
+  createdById Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([villageId, year])
+  @@map("dd_publications")
 }

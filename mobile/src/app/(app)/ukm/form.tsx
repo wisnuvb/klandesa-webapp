@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams, useNavigation, usePreventRemove } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Switch, View } from 'react-native';
 import { Text } from '@/components/text';
 
 import { ChoiceChip, InfoBox } from '@/components/cards';
@@ -11,13 +11,13 @@ import { Body, Button, ErrorBanner, Field, ResultState, Screen } from '@/compone
 import { ApiError } from '@/lib/api';
 import { useMyUkm, useSaveUkm, useUkmItem, type UkmDetail, type UkmStatus } from '@/lib/queries';
 import { uploadReportPhoto } from '@/lib/upload';
-import { formatPriceInput, isFormDirty, QUICK_UNITS, UKM_LIMITS, validateUkmForm, type UkmFormValues } from '@/lib/ukm-logic';
+import { createdMessage, formatPriceInput, isFormDirty, QUICK_UNITS, UKM_LIMITS, validateUkmForm, type UkmFormValues } from '@/lib/ukm-logic';
 import { colors, spacing } from '@/theme';
 
 type Photo = { uri: string; url?: string; failed?: boolean };
 type Snapshot = UkmFormValues & { photos: string[] };
 
-const EMPTY: UkmFormValues = { name: '', description: '', priceText: '', unit: '', category: null, stockText: '' };
+const EMPTY: UkmFormValues = { name: '', description: '', priceText: '', unit: '', category: null, stockText: '', contactText: '', showContact: false };
 const OVERLAY = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const;
 
 const toNumberText = (n: number | null) => (n === null ? '' : String(n));
@@ -61,10 +61,10 @@ export default function FormProduk() {
       <Screen><Stack.Screen options={{ title }} /><ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} /></Screen>
     );
   }
-  return <ProductForm editId={editing ? editId : undefined} detail={editing ? d : undefined} categories={mine.data.categories} maxPhotos={mine.data.limits.maxPhotos} />;
+  return <ProductForm editId={editing ? editId : undefined} detail={editing ? d : undefined} categories={mine.data.categories} maxPhotos={mine.data.limits.maxPhotos} moderation={mine.data.moderation} />;
 }
 
-function ProductForm({ editId, detail: d, categories, maxPhotos }: { editId?: number; detail?: UkmDetail; categories: string[]; maxPhotos: number }) {
+function ProductForm({ editId, detail: d, categories, maxPhotos, moderation }: { editId?: number; detail?: UkmDetail; categories: string[]; maxPhotos: number; moderation: boolean }) {
   const editing = editId !== undefined;
   const save = useSaveUkm();
   const navigation = useNavigation();
@@ -75,6 +75,7 @@ function ProductForm({ editId, detail: d, categories, maxPhotos }: { editId?: nu
     return {
       name: d.name, description: d.description, priceText: formatPriceInput(toNumberText(d.price)), unit: d.unit ?? '',
       category: d.category && categories.includes(d.category) ? d.category : null, stockText: toNumberText(d.stock), photos: d.photos,
+      contactText: d.contactPhone ?? '', showContact: d.showContact,
     };
   });
   const [values, setValues] = useState<UkmFormValues>(() => ({ ...initial }));
@@ -139,9 +140,7 @@ function ProductForm({ editId, detail: d, categories, maxPhotos }: { editId?: nu
 
   if (result) {
     const created = !editing;
-    const msg = created
-      ? { title: 'Terkirim, menunggu persetujuan desa', body: 'Terima kasih. Produk Anda akan tayang di katalog desa setelah diperiksa perangkat desa.' }
-      : savedMessage(result.status);
+    const msg = created ? createdMessage(result.status) : savedMessage(result.status);
     return (
       <Screen
         footer={
@@ -162,7 +161,7 @@ function ProductForm({ editId, detail: d, categories, maxPhotos }: { editId?: nu
     <Screen
       footer={
         <Button
-          label={editing ? 'Simpan perubahan' : 'Kirim ke desa'}
+          label={editing ? 'Simpan perubahan' : moderation ? 'Kirim ke desa' : 'Tayangkan produk'}
           icon={editing ? 'checkmark' : 'paper-plane-outline'}
           loading={save.isPending}
           disabled={uploading || failed}
@@ -172,7 +171,7 @@ function ProductForm({ editId, detail: d, categories, maxPhotos }: { editId?: nu
     >
       <Stack.Screen options={{ title: editing ? 'Ubah produk' : 'Jual produk' }} />
       <ErrorBanner message={error} />
-      {!editing ? <InfoBox tone="info">Produk baru diperiksa perangkat desa dulu sebelum tayang di katalog.</InfoBox> : null}
+      {!editing ? <InfoBox tone="info">{moderation ? 'Produk baru diperiksa perangkat desa dulu sebelum tayang di katalog.' : 'Produk baru langsung tayang di katalog desa setelah Anda kirim.'}</InfoBox> : null}
       {editing && d?.status === 'inactive' ? <InfoBox tone="warn">Produk ini disembunyikan desa. Setelah Anda memperbaikinya, produk dikirim ulang untuk diperiksa.</InfoBox> : null}
 
       <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginTop: spacing.md, marginBottom: 4 }} accessibilityRole="header">Foto produk</Text>
@@ -232,6 +231,19 @@ function ProductForm({ editId, detail: d, categories, maxPhotos }: { editId?: nu
         ) : null}
 
         <Field label="Stok (jumlah tersedia)" value={values.stockText} onChangeText={(t) => set('stockText', t.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" placeholder="contoh: 20" error={errors.stock} hint="Boleh dikosongkan bila tidak dihitung." />
+
+        <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginTop: spacing.md, marginBottom: 4 }} accessibilityRole="header">Kontak penjual</Text>
+        <Text style={{ fontSize: 15, color: colors.textMuted, marginBottom: spacing.sm }}>Isi bila pembeli boleh menghubungi Anda langsung. Nomor ini terpisah dari data kependudukan Anda.</Text>
+        <Field label="Nomor WhatsApp / telepon" value={values.contactText} onChangeText={(t) => set('contactText', t.replace(/[^\d+\s().-]/g, '').slice(0, 20))} keyboardType="phone-pad" autoComplete="tel" placeholder="contoh: 081234567890" error={errors.contact} hint="Boleh dikosongkan." />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Tampilkan nomor ke warga lain</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted }}>
+              {values.showContact ? 'Nomor tampil di halaman produk. Matikan kapan saja bila tidak ingin dihubungi.' : 'Nomor disimpan tetapi tidak tampil. Warga menghubungi lewat kantor desa.'}
+            </Text>
+          </View>
+          <Switch value={values.showContact} onValueChange={(on) => set('showContact', on)} accessibilityLabel="Tampilkan nomor ke warga lain" trackColor={{ true: colors.primary }} />
+        </View>
       </View>
     </Screen>
   );

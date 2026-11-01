@@ -1,7 +1,11 @@
--- Produk UKM ditautkan ke warga (pemilik/penjual): hanya MENAMBAH satu kolom nullable, satu indeks, dan satu FK.
--- Data lama tidak berubah (residentId = NULL berarti produk dikelola desa). Aman dijalankan saat aplikasi lama masih hidup.
+-- Produk UKM ditautkan ke warga (pemilik/penjual): hanya MENAMBAH kolom nullable/berdefault, satu indeks, dan satu FK.
+-- Data lama tidak berubah (residentId = NULL berarti produk dikelola desa; contactVisible = 0 berarti kontak tidak tampil).
+-- Aman dijalankan saat aplikasi lama masih hidup.
 -- Status produk UKM bertambah nilai: pending / hidden (kolom `status` sudah VARCHAR bebas, tanpa perubahan skema).
-ALTER TABLE `potentials` ADD COLUMN `residentId` INTEGER NULL;
+-- Pengaturan "persetujuan produk warga" disimpan di `villages.settings` (JSON, kunci `ukm`), jadi tanpa kolom baru.
+ALTER TABLE `potentials` ADD COLUMN `residentId` INTEGER NULL,
+    ADD COLUMN `contactPhone` VARCHAR(20) NULL,
+    ADD COLUMN `contactVisible` BOOLEAN NOT NULL DEFAULT false;
 
 CREATE INDEX `potentials_residentId_idx` ON `potentials`(`residentId`);
 

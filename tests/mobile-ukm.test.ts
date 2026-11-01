@@ -1,16 +1,22 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  DEFAULT_UKM_SETTINGS,
   UKM_LIMITS,
   canToggleUkmVisible,
+  mergeUkmSettings,
   normalizeUkmStatus,
+  parseContactPhone,
   parseUkmCursor,
   parseUkmInput,
+  parseUkmSettings,
+  resolveUkmContact,
   toUkmDetail,
   toUkmListItem,
   uniqueCategories,
   ukmPhotoAllowed,
   ukmStatusAfterEdit,
+  ukmStatusForNew,
   ukmStatusForVisibility,
   ukmStatusNote,
   type UkmRow,
@@ -137,12 +143,14 @@ describe("status", () => {
   });
 });
 
+const row = (over: Partial<UkmRow> = {}): UkmRow => ({
+  id: 7, name: "Keripik", description: "Enak sekali dan renyah", subCategory: "Makanan", productionValue: "15000.00",
+  productionUnit: "bungkus", stockQuantity: 12, images: [own("a"), own("b")], status: "active", residentId: 5,
+  contactPhone: "081234567890", contactVisible: false,
+  updatedAt: new Date("2026-11-01T03:00:00Z"), resident: { name: "SITI AMINAH PUTRI", hamlet: "Dusun Mawar" }, ...over,
+});
+
 describe("serialisasi", () => {
-  const row = (over: Partial<UkmRow> = {}): UkmRow => ({
-    id: 7, name: "Keripik", description: "Enak sekali dan renyah", subCategory: "Makanan", productionValue: "15000.00",
-    productionUnit: "bungkus", stockQuantity: 12, images: [own("a"), own("b")], status: "active", residentId: 5,
-    updatedAt: new Date("2026-11-01T03:00:00Z"), resident: { name: "SITI AMINAH PUTRI", hamlet: "Dusun Mawar" }, ...over,
-  });
 
   it("item daftar: nama penjual disamarkan, harga angka, sampul = foto pertama", () => {
     const i = toUkmListItem(row(), 5);
@@ -175,6 +183,95 @@ describe("serialisasi", () => {
     assert.deepEqual([other.canEdit, other.canToggleVisible, other.statusNote], [false, false, null]);
     const keys = Object.keys(other).join(",");
     assert.doesNotMatch(keys, /nik|rt|rw|resident|notes/i);
+  });
+});
+
+describe("pengaturan desa (persetujuan opsional)", () => {
+  it("bawaan: produk warga diperiksa dulu; data rusak/tidak ada memakai bawaan", () => {
+    assert.equal(DEFAULT_UKM_SETTINGS.moderation, true);
+    for (const raw of [null, undefined, "x", [], {}, { ukm: null }, { ukm: [] }, { ukm: { moderation: "no" } }]) {
+      assert.equal(parseUkmSettings(raw).moderation, true, JSON.stringify(raw));
+    }
+    assert.equal(parseUkmSettings({ ukm: { moderation: false } }).moderation, false);
+  });
+
+  it("status produk baru mengikuti pengaturan", () => {
+    assert.equal(ukmStatusForNew(true), "pending");
+    assert.equal(ukmStatusForNew(false), "active");
+  });
+
+  it("produk yang ditutup desa tetap diajukan ulang walau persetujuan mati", () => {
+    assert.equal(ukmStatusAfterEdit("inactive"), "pending");
+  });
+
+  it("menggabung pengaturan tidak menghapus kunci lain (mis. wilayah)", () => {
+    const merged = mergeUkmSettings({ wilayah: { kode_provinsi: "33" }, ukm: { moderation: true } }, { moderation: false });
+    assert.deepEqual(merged, { wilayah: { kode_provinsi: "33" }, ukm: { moderation: false } });
+    assert.deepEqual(mergeUkmSettings(null, { moderation: false }), { ukm: { moderation: false } });
+    assert.deepEqual(mergeUkmSettings([1], { moderation: true }), { ukm: { moderation: true } });
+  });
+});
+
+describe("kontak penjual", () => {
+  it("nomor dirapikan: spasi, titik, kurung, strip dibuang; '+' di depan boleh", () => {
+    const p = (v: unknown) => parseContactPhone(v);
+    assert.deepEqual(
+      ["0812-3456-7890", "+62 812 3456 7890", " (0812) 345.6789 ", null, "", "  "].map((v) => { const r = p(v); return r.ok ? r.value : "ERR"; }),
+      ["081234567890", "+6281234567890", "08123456789", null, null, null],
+    );
+  });
+
+  it("nomor yang bukan angka atau terlalu pendek/panjang ditolak", () => {
+    for (const bad of ["abc", "0812abc", "1234567", "1".repeat(16), "++62812345678", "62-8x", 81234567890, {}]) {
+      assert.equal(parseContactPhone(bad).ok, false, String(bad));
+    }
+  });
+
+  it("parseUkmInput: kontak opsional, hanya diperiksa bila dikirim", () => {
+    assert.deepEqual(parseUkmInput(valid, ctx(), "create").ok && Object.keys((parseUkmInput(valid, ctx(), "create") as { value: object }).value).sort(), ["description", "name", "photos"]);
+    const r = parseUkmInput({ ...valid, contactPhone: "0812 3456 7890", showContact: true }, ctx(), "create");
+    assert.ok(r.ok);
+    assert.deepEqual([r.value.contactPhone, r.value.showContact], ["081234567890", true]);
+    assert.equal(parseUkmInput({ ...valid, contactPhone: "x" }, ctx(), "create").ok, false);
+    for (const bad of ["true", 1, null]) assert.equal(parseUkmInput({ ...valid, showContact: bad }, ctx(), "create").ok, false, String(bad));
+  });
+
+  it("menampilkan kontak butuh nomor; menghapus nomor menyembunyikannya", () => {
+    const none = { phone: null, visible: false };
+    assert.equal(resolveUkmContact(none, { showContact: true }).ok, false);
+    assert.equal(resolveUkmContact(none, { contactPhone: null, showContact: true }).ok, false);
+    assert.deepEqual(resolveUkmContact(none, { contactPhone: "08123456789", showContact: true }), { ok: true, phone: "08123456789", visible: true, changed: true });
+    // nomor tersimpan, pemilik hanya mengubah pilihan tampil
+    const saved = { phone: "08123456789", visible: true };
+    assert.deepEqual(resolveUkmContact(saved, { showContact: false }), { ok: true, phone: "08123456789", visible: false, changed: true });
+    // menghapus nomor otomatis mematikan tampil
+    assert.deepEqual(resolveUkmContact(saved, { contactPhone: null }), { ok: true, phone: null, visible: false, changed: true });
+    // tidak mengirim apa pun = tidak berubah
+    assert.deepEqual(resolveUkmContact(saved, {}), { ok: true, phone: "08123456789", visible: true, changed: false });
+  });
+
+  it("detail: nomor hanya keluar ke orang lain bila pemilik memilih tampil DAN produk tayang", () => {
+    const hidden = toUkmDetail(row(), 99);
+    assert.deepEqual([hidden.contactPhone, hidden.showContact], [null, false]);
+    const shown = toUkmDetail(row({ contactVisible: true }), 99);
+    assert.deepEqual([shown.contactPhone, shown.showContact], ["081234567890", false], "bukan pemilik: showContact tidak dibocorkan");
+    for (const status of ["pending", "hidden", "inactive"]) {
+      assert.equal(toUkmDetail(row({ contactVisible: true, status }), 99).contactPhone, null, status);
+    }
+    assert.equal(toUkmDetail(row({ contactVisible: true, contactPhone: null }), 99).contactPhone, null);
+  });
+
+  it("pemilik selalu melihat nomornya sendiri beserta pilihannya", () => {
+    const off = toUkmDetail(row({ status: "pending" }), 5);
+    assert.deepEqual([off.contactPhone, off.showContact], ["081234567890", false]);
+    const on = toUkmDetail(row({ contactVisible: true }), 5);
+    assert.deepEqual([on.contactPhone, on.showContact], ["081234567890", true]);
+    assert.equal(toUkmDetail(row({ contactVisible: true, contactPhone: null }), 5).showContact, false);
+  });
+
+  it("daftar katalog tidak pernah memuat kontak", () => {
+    const i = toUkmListItem(row({ contactVisible: true }), 99) as Record<string, unknown>;
+    assert.equal("contactPhone" in i || "showContact" in i, false);
   });
 });
 

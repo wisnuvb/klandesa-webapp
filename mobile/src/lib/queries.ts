@@ -374,13 +374,21 @@ export type UkmListItem = {
 };
 export type UkmLimits = { maxProducts: number; maxPhotos: number; maxPerDay: number };
 export type UkmCatalogPage = { items: UkmListItem[]; categories: string[]; nextCursor: string | null };
-export type UkmMine = { items: UkmListItem[]; categories: string[]; limits: UkmLimits };
+/** `moderation`: true = produk baru diperiksa desa dulu; false = langsung tayang. */
+export type UkmMine = { items: UkmListItem[]; categories: string[]; limits: UkmLimits; moderation: boolean };
 export type UkmDetail = {
   id: number; name: string; description: string; price: number | null; unit: string | null; category: string | null; stock: number | null;
   photos: string[]; seller: string; sellerArea: string | null; mine: boolean; status: UkmStatus; statusLabel: string;
   statusNote: string | null; canEdit: boolean; canToggleVisible: boolean; updatedAt: string;
+  /** Nomor penjual: untuk orang lain hanya ada bila pemilik memilih menampilkannya; pemilik selalu melihat nomornya. */
+  contactPhone: string | null;
+  /** Pilihan pemilik (hanya benar untuk produk sendiri). */
+  showContact: boolean;
 };
-export type UkmInput = { name: string; description: string; price: number | null; unit: string; category: string | null; stock: number | null; photos: string[] };
+export type UkmInput = {
+  name: string; description: string; price: number | null; unit: string; category: string | null; stock: number | null; photos: string[];
+  contactPhone: string | null; showContact: boolean;
+};
 
 /** Katalog produk yang tayang di desa; 20 per halaman, lanjut dengan cursor. */
 export function useUkmCatalog(q: string, category: string | null) {
@@ -408,7 +416,7 @@ function useInvalidateUkm() {
   };
 }
 
-/** Buat produk baru (tanpa `id`, jadi "menunggu persetujuan") atau ubah produk sendiri (dengan `id`). */
+/** Buat produk baru (tanpa `id`; status mengikuti aturan desa: menunggu persetujuan atau langsung tayang) atau ubah produk sendiri (dengan `id`). */
 export function useSaveUkm() {
   const refresh = useInvalidateUkm();
   return useMutation({
