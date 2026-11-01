@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
   const name = parseRequiredString(body.name, 255);
   if (!name) {
-    return NextResponse.json({ error: "Nama unit wajib diisi" }, { status: 400 });
+    return NextResponse.json({ error: "Nama unit wajib diisi", fieldErrors: { name: "Nama unit wajib diisi." } }, { status: 400 });
   }
 
   const category = parseOptionalString(body.category, 100);

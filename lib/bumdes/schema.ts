@@ -19,11 +19,16 @@ const sane = (d: Date | null): Date | null => (d && d.getUTCFullYear() >= 2000 &
 const bad = (fe: Record<string, string>) => ({ ok: false as const, errors: Object.values(fe), fieldErrors: fe });
 const notRecord = () => ({ ok: false as const, errors: ["Data tidak valid."], fieldErrors: {} });
 
-function money(v: unknown): { value: bigint | null; bad: boolean } {
-  if (blank(v)) return { value: null, bad: false };
+const TOO_BIG = "Jumlah terlalu besar (maksimal Rp999.999.999.999,99).";
+/** `big`: bentuknya angka rupiah yang sah tetapi melebihi batas (dibedakan dari angka berbentuk salah). */
+function money(v: unknown): { value: bigint | null; bad: boolean; big: boolean } {
+  if (blank(v)) return { value: null, bad: false, big: false };
   const c = typeof v === "string" || typeof v === "number" ? toCents(v) : null;
-  return c === null || c > MAX_CENTS ? { value: null, bad: true } : { value: c, bad: false };
+  if (c !== null) return c > MAX_CENTS ? { value: null, bad: true, big: true } : { value: c, bad: false, big: false };
+  const s = typeof v === "string" ? v.trim() : typeof v === "number" && Number.isFinite(v) ? v.toFixed(2) : "";
+  return { value: null, bad: true, big: /^\d{14,}(\.\d+)?$/.test(s) };
 }
+const moneyMsg = (m: { big: boolean }, fallback: string): string => (m.big ? TOO_BIG : fallback);
 function optText(body: Record<string, unknown>, k: string, max: number, label: string, fe: Record<string, string>): string | null {
   const t = text(body[k], max);
   if (t.bad || t.tooLong) fe[k] = `${label} maksimal ${max} karakter.`;
@@ -81,7 +86,7 @@ export function parseCash(body: unknown, now: Date, base?: Partial<Omit<CashInpu
   if (!direction) fe.direction = "Pilih pemasukan atau pengeluaran.";
   const amountRaw = pick("amount", base?.amountCents !== undefined ? `${base.amountCents / 100n}.${String(base.amountCents % 100n).padStart(2, "0")}` : undefined);
   const amount = money(amountRaw);
-  if (amount.bad || amount.value === null || amount.value <= 0n) fe.amount = "Jumlah harus angka rupiah lebih dari nol (maksimal 2 desimal).";
+  if (amount.bad || amount.value === null || amount.value <= 0n) fe.amount = moneyMsg(amount, "Jumlah harus angka rupiah lebih dari nol (maksimal 2 desimal).");
   const catSrc = has(body, "category") ? { category: body.category } : { category: base?.category };
   const category = reqText(catSrc, "category", 100, "Kategori", fe);
   const descSrc = has(body, "description") ? { description: body.description } : { description: base?.description };
@@ -137,7 +142,8 @@ export function parseJournal(body: unknown, now: Date): Parsed<JournalInput> {
       const d = money(r.debit);
       const c = money(r.credit);
       const memo = text(r.memo, 200);
-      if (d.bad || c.bad) fe.lines = `Baris ${n}: jumlah harus angka rupiah (maksimal 2 desimal).`;
+      if (d.big || c.big) fe.lines = `Baris ${n}: ${TOO_BIG}`;
+      else if (d.bad || c.bad) fe.lines = `Baris ${n}: jumlah harus angka rupiah (maksimal 2 desimal).`;
       else if (memo.bad || memo.tooLong) fe.lines = `Baris ${n}: keterangan maksimal 200 karakter.`;
       else lines.push({ accountCode: typeof r.accountCode === "string" ? r.accountCode.trim() : "", debitCents: d.value ?? 0n, creditCents: c.value ?? 0n, memo: memo.value });
     });
@@ -238,7 +244,7 @@ export function parseLegal(body: unknown): Parsed<LegalInput> {
   }
   const businessFields = optText(body, "businessFields", 500, "Bidang usaha", fe);
   const cap = money(body.initialCapital);
-  if (cap.bad || (cap.value !== null && cap.value < 0n)) fe.initialCapital = "Modal awal harus angka rupiah.";
+  if (cap.bad || (cap.value !== null && cap.value < 0n)) fe.initialCapital = moneyMsg(cap, "Modal awal harus angka rupiah.");
   let rankingYear: number | null = null;
   if (!blank(body.rankingYear)) {
     rankingYear = digits(body.rankingYear);
@@ -309,7 +315,7 @@ export function parseFlow(body: unknown, now: Date): Parsed<FlowInput> {
   if (!flowDate) fe.flowDate = "Isi tanggal yang valid.";
   else if (future(flowDate, now)) fe.flowDate = "Tanggal tidak boleh di masa depan.";
   const amount = money(body.amount);
-  if (amount.bad || amount.value === null || amount.value <= 0n) fe.amount = "Jumlah harus angka rupiah lebih dari nol.";
+  if (amount.bad || amount.value === null || amount.value <= 0n) fe.amount = moneyMsg(amount, "Jumlah harus angka rupiah lebih dari nol.");
   const resolutionId = posInt(body.resolutionId);
   if (resolutionId === null) fe.resolutionId = "Pilih keputusan Musyawarah Desa yang menjadi dasarnya.";
   const cash = typeof body.cashAccountCode === "string" ? body.cashAccountCode.trim() : "";
@@ -345,7 +351,7 @@ export function parseResolution(body: unknown): Parsed<ResolutionInput> {
   const decisionId = posInt(body.decisionId);
   if (decisionId === null) fe.decisionId = "Pilih butir keputusan dalam berita acara yang memuat keputusan ini.";
   const amount = money(body.amount);
-  if (amount.bad || amount.value === null || amount.value <= 0n) fe.amount = "Jumlah yang diputuskan harus angka rupiah lebih dari nol.";
+  if (amount.bad || amount.value === null || amount.value <= 0n) fe.amount = moneyMsg(amount, "Jumlah yang diputuskan harus angka rupiah lebih dari nol.");
   let fiscalYear: number | null = null;
   if (body.kind === "BAGI_HASIL") {
     fiscalYear = digits(body.fiscalYear);

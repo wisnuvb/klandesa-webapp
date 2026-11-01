@@ -306,14 +306,31 @@ export async function savePlan(db: PrismaClient, args: { villageId: number; year
     .catch(rollbackToResult);
 }
 
+/**
+ * Hapus-lalu-sisip pada indeks unik `apbdes_cash_plans` memegang kunci celah (gap lock) yang bisa dibagi antar desa; dua desa yang menyimpan RAK
+ * bersamaan dapat saling menunggu dan MySQL memilih satu korban (Prisma P2034). Kunci tahun hanya menserialisasi per desa-tahun, jadi ulangi
+ * transaksi korban beberapa kali dengan jeda acak pendek sebelum menyerah.
+ */
+async function retryOnDeadlock<T>(run: () => Promise<T>, tries = 4): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run();
+    } catch (e) {
+      const deadlock = e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034";
+      if (!deadlock || attempt >= tries) throw e;
+      await new Promise((r) => setTimeout(r, 25 * attempt + Math.random() * 50));
+    }
+  }
+}
+
 export async function saveCashPlan(db: PrismaClient, args: { villageId: number; year: number; input: unknown }): Promise<Result<{ planned: string }>> {
   const p = parseCashPlanInput(args.input);
   if (!p.ok) return invalid(p);
   const { activityCode, accountCode, months } = p.value;
   if (!validYear(args.year)) return fail(400, "Tahun tidak valid.");
   await ensureYear(db, args.villageId, args.year);
-  return db
-    .$transaction(async (tx) => {
+  return retryOnDeadlock(() =>
+    db.$transaction(async (tx) => {
       await lockYear(tx, args.villageId, args.year);
       const cap = await budgetOf(tx, args.villageId, args.year, activityCode, accountCode);
       if (cap === 0n) return fail(409, "Kegiatan dan rekening ini tidak ada di APB Desa yang berlaku.");
@@ -325,8 +342,8 @@ export async function saveCashPlan(db: PrismaClient, args: { villageId: number; 
       const rows = months.map((amountCents, i) => ({ villageId: args.villageId, year: args.year, activityCode, accountCode, month: i + 1, amountCents })).filter((r) => r.amountCents > 0n);
       if (rows.length) await tx.apbdesCashPlan.createMany({ data: rows });
       return ok({ planned: fromCents(total) });
-    })
-    .catch(rollbackToResult);
+    }),
+  ).catch(rollbackToResult);
 }
 
 export async function addCostItem(db: PrismaClient, args: { villageId: number; year: number; input: unknown }): Promise<Result<{ id: number }>> {

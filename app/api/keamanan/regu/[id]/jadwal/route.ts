@@ -3,7 +3,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import { attempt, failResponse, parseIntId } from "@/lib/apbdes/http";
-import { addDays, todayJakarta } from "@/lib/keamanan/calc";
+import { addDays, timeJakarta, todayJakarta } from "@/lib/keamanan/calc";
 import { AUDIT, keamananCan } from "@/lib/keamanan/http";
 import { addShift, getSchedule } from "@/lib/keamanan/ronda";
 import { ATTENDANCE, MARKABLE } from "@/lib/keamanan/catalog";
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     const to = sane(parseIsoDate(q.get("to"))) ? q.get("to")! : addDays(today, 14);
     const r = await getSchedule(prisma, { villageId: ctx.village.id, groupId: id, from, to });
     if (!r.ok) return failResponse(r);
-    return NextResponse.json({ ...r.data, from, to, today, attendance: ATTENDANCE, markable: MARKABLE, can: keamananCan(ctx) });
+    return NextResponse.json({ ...r.data, from, to, today, nowTime: timeJakarta(), attendance: ATTENDANCE, markable: MARKABLE, can: keamananCan(ctx) });
   });
 }
 

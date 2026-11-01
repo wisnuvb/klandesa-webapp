@@ -6,7 +6,7 @@ import { ACCOUNTS, APBDES_CAPITAL_ACCOUNT, APBDES_PROFIT_SHARE_ACCOUNT, CASH_ACC
 import { buildReport, cashJournalLines, checkCashAccounts, checkLines, halfEnded, periodOfDate, rangeOf, reservedAccountViolation, totalsOf, voucherNumber, type BalanceRow, type JLine } from "../lib/bumdes/calc";
 import { parseCash, parseFlow, parseJournal, parseLegal, parseOfficer, parsePeriodAction, parseReason, parseResolution } from "../lib/bumdes/schema";
 import { accountName as apbdesAccountName, isLeafAccountCode } from "../lib/apbdes/catalog";
-import { csvCell } from "../lib/bumdes/export";
+import { csvCell, formatVillageRegion } from "../lib/bumdes/export";
 import { canManageBumdes, requireBumdesManageForRole, requireBumdesReadForRole } from "../lib/bumdes/access";
 
 const L = (accountCode: string, debit: bigint, credit: bigint): JLine => ({ accountCode, debitCents: debit, creditCents: credit, memo: null });
@@ -397,6 +397,30 @@ describe("BUMDes: validasi isian", () => {
     assert.equal(requireBumdesReadForRole("staff"), null);
     assert.ok(requireBumdesReadForRole("tamu"));
     assert.ok(requireBumdesReadForRole(null));
+  });
+
+  it("jumlah terlalu besar dijawab dengan pesan batas, bukan pesan 'lebih dari nol'", () => {
+    for (const amount of ["99999999999999", "1000000000000", "999999999999999"]) {
+      const r = parseCash({ unitId: 3, entryDate: "2026-10-01", direction: "income", amount, category: "x" }, NOW);
+      assert.ok(!r.ok && /terlalu besar \(maksimal Rp999\.999\.999\.999,99\)/.test(r.fieldErrors.amount!), `${amount}: ${JSON.stringify(r)}`);
+    }
+    const bad = parseCash({ unitId: 3, entryDate: "2026-10-01", direction: "income", amount: "abc", category: "x" }, NOW);
+    assert.ok(!bad.ok && /lebih dari nol/.test(bad.fieldErrors.amount!), "bentuk salah tetap pesan lama");
+    const j = parseJournal({ unitId: null, entryDate: "2026-10-01", description: "x", lines: [{ accountCode: "1.1.01.01", debit: "99999999999999999" }, { accountCode: "3.3.01.01", credit: "1" }] }, NOW);
+    assert.ok(!j.ok && /terlalu besar/.test(j.fieldErrors.lines!));
+    assert.ok(parseCash({ unitId: 3, entryDate: "2026-10-01", direction: "income", amount: "999999999999.99", category: "x" }, NOW).ok, "tepat di batas masih sah");
+    const f = parseResolution({ kind: "PENYERTAAN_MODAL", musdesMeetingId: 1, decisionId: 1, amount: "99999999999999999" });
+    assert.ok(!f.ok && /terlalu besar/.test(f.fieldErrors.amount!));
+  });
+
+  it("baris wilayah cetak tanpa awalan ganda", () => {
+    assert.equal(formatVillageRegion({ district: "Kecamatan Sawangan", regency: "Kabupaten Kota Depok", province: "Jawa Barat" }), "Kec. Sawangan, Kota Depok, Jawa Barat");
+    assert.equal(formatVillageRegion({ district: "Sawangan", regency: "Kota Depok", province: "Jawa Barat" }), "Kec. Sawangan, Kota Depok, Jawa Barat");
+    assert.equal(formatVillageRegion({ district: "Kec. Jatiyoso", regency: "Kab. Karanganyar", province: "Jawa Tengah" }), "Kec. Jatiyoso, Kabupaten Karanganyar, Jawa Tengah");
+    assert.equal(formatVillageRegion({ district: "kecamatan  Jatiyoso", regency: "kabupaten Karanganyar", province: "Jawa Tengah" }), "Kec. Jatiyoso, Kabupaten Karanganyar, Jawa Tengah");
+    assert.equal(formatVillageRegion({ district: "Jatiyoso", regency: "Karanganyar", province: "Jawa Tengah" }), "Kec. Jatiyoso, Karanganyar, Jawa Tengah", "tanpa awalan: apa adanya");
+    assert.equal(formatVillageRegion({ district: "", regency: null, province: "Jawa Tengah" }), "Jawa Tengah");
+    assert.equal(formatVillageRegion(null), "");
   });
 
   it("CSV: sel berawalan rumus dinetralkan", () => {

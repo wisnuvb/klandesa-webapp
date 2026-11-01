@@ -267,7 +267,7 @@ function JournalDialog({ journal, units, onClose, onDone }: { journal: JournalVi
                 <li key={r.key} className="grid min-w-0 gap-2 rounded-md border p-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
                   <div className="min-w-0 space-y-1">
                     <Label htmlFor={`jm-acc-${r.key}`} className="text-xs">Akun baris {i + 1}</Label>
-                    <AccountSelect id={`jm-acc-${r.key}`} value={r.accountCode} onChange={(v) => patch(r.key, { accountCode: v })} />
+                    <AccountSelect id={`jm-acc-${r.key}`} value={r.accountCode} includeCapital={opening} onChange={(v) => patch(r.key, { accountCode: v })} />
                   </div>
                   <div className="min-w-0 space-y-1">
                     <Label htmlFor={`jm-d-${r.key}`} className="text-xs">Debit</Label>

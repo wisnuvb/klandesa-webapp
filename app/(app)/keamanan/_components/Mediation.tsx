@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDelete } from "@/components/app/ConfirmDelete";
 import { Pill } from "@/components/app/perencanaan/shared";
 import { FormDialog, NoteDialog, SearchPick, fmtDateTime, toLocalInput, type Field } from "@/components/app/incident/common";
-import { MEDIATION_OUTCOMES, PARTY_SIDES } from "@/lib/keamanan/catalog";
+import { MEDIATION_OUTCOMES, PARTY_SIDES, reportStatusLabel } from "@/lib/keamanan/catalog";
 import type { MediationView } from "@/lib/keamanan/kejadian";
 import { ActionError, Check, Empty, Field as TextField, FormShell, Pick, ResidentField, fmtDay, opt, useAction, type ResidentHit } from "./shared";
 import type { DetailResp } from "./types";
@@ -254,7 +254,8 @@ function CompleteDialog({ m, onClose, onDone }: { m: MediationView; onClose: () 
   const [outcome, setOutcome] = useState("SEPAKAT");
   const [agreement, setAgreement] = useState("");
   const [referred, setReferred] = useState("");
-  const [heldAt, setHeldAt] = useState(toLocalInput(m.scheduledAt));
+  // Mediasi yang dijadwalkan di masa depan belum bisa diselesaikan pada waktu jadwalnya: bawaan = sekarang.
+  const [heldAt, setHeldAt] = useState(toLocalInput(new Date(m.scheduledAt) > new Date() ? new Date().toISOString() : m.scheduledAt));
   const needsAgreement = outcome === "SEPAKAT" || outcome === "SEPAKAT_SEBAGIAN";
   return (
     <FormShell
@@ -392,7 +393,7 @@ export function ReportSection({ eventId, data, editable, onChanged }: Props) {
               <div className="min-w-0 text-sm">
                 <p className="break-words font-medium">{r.title ?? "Judul disembunyikan (butuh izin baca Pengaduan Warga)"}</p>
                 <p className="text-muted-foreground">
-                  {r.status ? `Status ${r.status}` : ""}
+                  {r.status ? `Status ${reportStatusLabel(r.status)}` : ""}
                   {r.category ? ` · ${r.category}` : ""}
                   {r.createdAt ? ` · ${fmtDay(r.createdAt)}` : ""}
                 </p>
@@ -424,14 +425,14 @@ function LinkDialog({ eventId, onClose, onDone }: { eventId: number; onClose: ()
           {hit ? (
             <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 p-3">
               <p className="min-w-0 break-words text-sm">
-                <span className="font-medium">{hit.title}</span> · {hit.status}
+                <span className="font-medium">{hit.title}</span> · {reportStatusLabel(hit.status)}
               </p>
               <Button type="button" variant="outline" className="min-h-11" onClick={() => setHit(null)}>
                 Ganti
               </Button>
             </div>
           ) : (
-            <SearchPick<ReportHit> id="lk-q" label="Cari judul pengaduan *" hint="Ketik minimal 3 huruf judul." url={(q) => `/api/keamanan/pengaduan?q=${encodeURIComponent(q)}`} render={(r) => <>{r.title} · {r.status}{r.category ? ` · ${r.category}` : ""}</>} onPick={setHit} />
+            <SearchPick<ReportHit> id="lk-q" label="Cari judul pengaduan *" hint="Ketik minimal 3 huruf judul." url={(q) => `/api/keamanan/pengaduan?q=${encodeURIComponent(q)}`} render={(r) => <>{r.title} · {reportStatusLabel(r.status)}{r.category ? ` · ${r.category}` : ""}</>} onPick={setHit} />
           )}
           {errors.citizenReportId ? <p className="text-sm text-destructive">{errors.citizenReportId}</p> : null}
         </>

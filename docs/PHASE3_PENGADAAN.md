@@ -69,6 +69,12 @@ Dikerjakan 2026-11-01 sesuai `docs/PLAN_CELAH_FUNGSI.md` P9. Belum di-commit dan
 
 Dampak operasional: **operator/sekretaris tidak lagi dapat menetapkan penyedia terpilih atau memulai pelaksanaan**; itu dilakukan Kepala Desa atau admin (izin `approve`). Pemisahan peran yang lebih halus (mis. Kasi/Kaur vs. Kaur Keuangan sebagai peran terpisah) tetap keputusan pemilik.
 
+## Temuan uji browser (E1) dan perbaikannya
+- **Penawaran bentrok kepentingan** (penyedia = anggota TPK/pelaksana): kini ditandai "Bentrok kepentingan" dengan penjelasan di kartu, tombol pilih dinonaktifkan, dan **dikeluarkan dari perhitungan harga terendah dan syarat negosiasi**, sehingga penyedia lain langsung dapat dipilih. Pesan galat menyebut penawaran yang bentrok dan cara memperbaikinya (hapus atau perbaiki nama), serta penawaran terendah yang berlaku; pemenang yang kemudian menjadi bentrok dilepas otomatis saat penawaran diubah.
+- **Awalan wilayah ganda** pada cetak: helper bersama `lib/format-region.ts` (`districtLabel`, `regencyLabel`, `regionLine`: awalan Kecamatan/Kabupaten ditambah hanya bila belum ada; Kota/Kab./Kec. dipertahankan; "Kotabaru" bukan awalan Kota); dipakai cetak pengadaan dan kerja sama. Modul lain (mis. `/bumdes/cetak`) dapat memakainya.
+- **IDM:** id ganda `idm-year` dipisah (`idm-year-filter`); galat indikator server memuat nomor baris berkas asli ("Baris 17 di berkas (nama): skor harus angka antara 0 dan 99999") tanpa titik ganda; pratinjau menolak skor negatif, di atas 99.999, atau **lebih besar dari skor maksimal** (kolom skor maksimal didefinisikan sebagai batas atas) dengan daftar baris bermasalah, dan server menolak hal yang sama.
+- Tautan Musdes pada detail kerja sama kini bertinggi >= 44px.
+
 ## Titik pemasangan bersama yang diubah
 `prisma/schema.prisma` (9 model di atas `// >>> models:pengadaan`, 5 relasi balik di atas `// >>> back-relations:pengadaan`), `lib/modules/registry.ts` (3 entri: pengadaan, kerja-sama, idm), `lib/permissions/api-route-map.ts` (3 awalan + 3 pola: `penandatanganan`, `pemenang`, `status` pengadaan), `SummaryTab.tsx` (2 baris). Komponen bersama baru: `components/app/FindingList.tsx`, `components/app/PatchFieldsDialog.tsx`.
 
@@ -78,13 +84,14 @@ Dampak operasional: **operator/sekretaris tidak lagi dapat menetapkan penyedia t
 ## Pengujian
 | Berkas | Jumlah | Isi |
 |---|---|---|
-| `tests/pengadaan.test.ts` | 27 | TPK, pemenang/negosiasi, setiap pagar status, anggaran, ambang metode, temuan SPP, validasi masukan jahat, izin rute |
-| `tests/pengadaan.integration.test.ts` | 15 (MySQL) | alur penuh, negosiasi/pembelian langsung, swakelola, anggaran, **kunci** (anggaran serentak, nomor unik serentak, satu ketua serentak), isolasi lintas desa, SPP baca-saja (SPP tak berubah), ambang, batas berpindah, masukan jahat |
+| `tests/pengadaan.test.ts` | 28 | TPK, pemenang/negosiasi, setiap pagar status, anggaran, ambang metode, temuan SPP, validasi masukan jahat, izin rute |
+| `tests/pengadaan.integration.test.ts` | 16 (MySQL) | alur penuh, negosiasi/pembelian langsung, swakelola, anggaran, **kunci** (anggaran serentak, nomor unik serentak, satu ketua serentak), isolasi lintas desa, SPP baca-saja (SPP tak berubah), ambang, batas berpindah, masukan jahat |
 | `tests/pengadaan-render.test.tsx` | 3 | kartu pengaduan (nomor, tautan, rel aman), daftar temuan |
 | `tests/kerja-sama.test.ts` | 16 | pagar, hari kerja, temuan, validasi, izin (penandatanganan = approve) |
 | `tests/kerja-sama.integration.test.ts` | 9 (MySQL) | alur antar-Desa penuh dan pihak ketiga, tautan Musdes (desa lain/BLT/batal ditolak), isolasi, RAB/pihak, **kunci** (penandatanganan serentak sekali, pihak kembar serentak), jahat |
-| `tests/idm.test.ts` | 17 | angka koma/titik, CSV titik koma, struktur berkas publik (judul, baris nomor negatif, kelurahan tanpa skor), pencocokan desa, kolom bertahun, indikator, rekomendasi, validasi server, izin |
-| `tests/idm.integration.test.ts` | 6 (MySQL) | skor apa adanya (skala poin), penggantian, rekomendasi, isolasi, **impor serentak**, jahat |
+| `tests/idm.test.ts` | 19 | angka koma/titik, CSV titik koma, struktur berkas publik (judul, baris nomor negatif, kelurahan tanpa skor), pencocokan desa, kolom bertahun, indikator, rekomendasi, validasi server, izin |
+| `tests/idm.integration.test.ts` | 6 (MySQL) |
+| `tests/format-region.test.ts` | 3 | helper wilayah | skor apa adanya (skala poin), penggantian, rekomendasi, isolasi, **impor serentak**, jahat |
 
 **Uji mutasi** (cabut `FOR UPDATE`, jalankan 3 kali, tes harus gagal): pengadaan 3 tes gagal dari 3 (anggaran serentak, nomor unik, satu ketua) pada 3/3 putaran; kerja sama 1 tes gagal (penandatanganan serentak + pihak kembar) pada 3/3 putaran; IDM 1 tes gagal (impor serentak) pada 3/3 putaran. Kode dipulihkan setelah tiap mutasi. Tes tambahan yang lolos: `tests/module-routes.test.ts`, `tests/api-guard-coverage.test.ts`, `tests/perencanaan-permissions.test.ts`, `tests/select-render.test.tsx`.
 

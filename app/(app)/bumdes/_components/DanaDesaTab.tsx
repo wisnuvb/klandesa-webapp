@@ -38,7 +38,7 @@ export function DanaDesaTab() {
         </p>
         <p>
           Pencatatan ditulis ke Buku Kas Umum lewat fungsi buku kas yang sama dengan menu{" "}
-          <Link href="/apbdes" className="underline underline-offset-4">
+          <Link href="/apbdes" className="inline-flex min-h-11 items-center underline underline-offset-4">
             APB Desa
           </Link>{" "}
           (anggaran, saldo, dan bulan tutup buku tetap diperiksa di sana) dan sekaligus menjadi jurnal BUM Desa.
@@ -169,7 +169,7 @@ export function DanaDesaTab() {
                       <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${f.status === "DIBATALKAN" ? "line-through" : ""}`}>{rp(f.amount)}</td>
                       <td className="px-3 py-2">
                         {f.status === "DIBATALKAN" ? <StatusPill tone="off">Dibatalkan</StatusPill> : f.warnings.length ? <StatusPill tone="warn">Periksa</StatusPill> : <StatusPill tone="ok">Tercatat</StatusPill>}
-                        {f.apbdesEntry ? <span className="mt-1 block break-words text-xs text-muted-foreground">BKU {f.apbdesEntry.voucherNo}: {f.apbdesEntry.state === "OK" ? "cocok" : f.apbdesEntry.state === "HILANG" ? "catatan hilang" : "berbeda"}</span> : null}
+                        {f.apbdesEntry && f.status === "AKTIF" ? <span className="mt-1 block break-words text-xs text-muted-foreground">BKU {f.apbdesEntry.voucherNo}: {f.apbdesEntry.state === "OK" ? "cocok" : f.apbdesEntry.state === "HILANG" ? "catatan hilang" : "berbeda"}</span> : null}
                         {f.status === "DIBATALKAN" && f.voidReason ? <span className="mt-1 block break-words text-xs">Alasan: {f.voidReason}</span> : null}
                         {f.warnings.map((w) => (
                           <span key={w} className="mt-1 block break-words text-xs text-amber-900">{w}</span>

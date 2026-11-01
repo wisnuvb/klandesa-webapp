@@ -40,3 +40,19 @@ export function reportCsv(r: ReportView, e: StatementsView): string {
   out.push(row("", "Laba (rugi) bersih", e.labaRugi.labaBersih));
   return "﻿" + out.join("\r\n") + "\r\n";
 }
+
+const squash = (s: string | null | undefined): string => (s ?? "").replace(/\s+/g, " ").trim();
+
+/**
+ * Baris wilayah desa untuk cetak tanpa awalan ganda: kolom `district`/`regency` pada desa kadang sudah memuat kata "Kecamatan", "Kabupaten", atau "Kota"
+ * (mis. "Kecamatan Sawangan", "Kabupaten Kota Depok"). Kecamatan selalu ditulis "Kec. X"; kabupaten/kota dipertahankan bila sudah berawalan, dan
+ * awalan ganda "Kabupaten Kota ..." diringkas menjadi "Kota ...". Tanpa awalan, nama dipakai apa adanya (jenis tidak dapat ditebak).
+ */
+export function formatVillageRegion(v: { district?: string | null; regency?: string | null; province?: string | null } | null | undefined): string {
+  if (!v) return "";
+  const district = squash(v.district).replace(/^(kecamatan|kec\.?)\s+/i, "");
+  let regency = squash(v.regency).replace(/^(kabupaten|kab\.?)\s+(?=kota\b)/i, "");
+  regency = regency.replace(/^kab\.?\s+/i, "Kabupaten ").replace(/^(kabupaten|kota)\b/i, (m) => m[0]!.toUpperCase() + m.slice(1).toLowerCase());
+  const province = squash(v.province);
+  return [district ? `Kec. ${district}` : "", regency, province].filter(Boolean).join(", ");
+}

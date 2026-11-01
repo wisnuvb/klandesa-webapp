@@ -198,12 +198,12 @@ export interface ScheduleNight {
   short: number;
 }
 
-export async function getSchedule(db: Client, args: { villageId: number; groupId: number; from: string; to: string }): Promise<Result<{ group: { id: number; name: string; perShift: number }; nights: ScheduleNight[] }>> {
+export async function getSchedule(db: Client, args: { villageId: number; groupId: number; from: string; to: string }): Promise<Result<{ group: { id: number; name: string; perShift: number; startTime: string }; nights: ScheduleNight[] }>> {
   // Periksa panjang rentang SEBELUM membangun larik tanggal (rentang ekstrem "0000-01-01".."9999-12-31" = jutaan elemen).
   const span = daysBetween(args.from, args.to) + 1;
   if (!(span >= 1 && span <= LIMITS.scheduleDays)) return fail(400, `Rentang jadwal harus 1 sampai ${LIMITS.scheduleDays} malam.`);
   const dates = dateRange(args.from, args.to);
-  const group = await db.securityRondaGroup.findFirst({ where: { id: args.groupId, villageId: args.villageId }, select: { id: true, name: true, perShift: true } });
+  const group = await db.securityRondaGroup.findFirst({ where: { id: args.groupId, villageId: args.villageId }, select: { id: true, name: true, perShift: true, startTime: true } });
   if (!group) return fail(404, "Regu ronda tidak ditemukan.");
   const shifts = await db.securityRondaShift.findMany({ where: { villageId: args.villageId, groupId: args.groupId, shiftDate: { gte: date(args.from), lte: date(args.to) } }, orderBy: [{ shiftDate: "asc" }, { id: "asc" }], take: 5000 });
   const pending = await db.securityRondaSwap.findMany({ where: { villageId: args.villageId, groupId: args.groupId, status: "PENDING", shiftId: { in: shifts.map((s) => s.id) } }, select: { shiftId: true } });

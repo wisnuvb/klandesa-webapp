@@ -153,14 +153,23 @@ export const NATIONAL_REFERRALS = [
  * pagar, bukan definisi hukum, dan sengaja luas (lebih baik menolak kalimat sah daripada menyimpan data korban).
  */
 /** Akar kata: cocok bila MUNCUL di dalam kata (mencakup imbuhan: diperkosa, memperkosa, pencabulan, dirudapaksa, ...). */
-export const SENSITIVE_STEMS = ["perkosa", "merkosa", "rudapaksa", "cabul", "asusila", "persetubuhan", "sodomi", "pedofil", "incest", "trafficking", "seksual"] as const;
+export const SENSITIVE_STEMS = ["perkosa", "merkosa", "rudapaksa", "cabul", "asusila", "persetubuhan", "etubuh", "gagahi", "sodomi", "pedofil", "incest", "trafficking", "seksual", "sexual"] as const;
 /** Akar kata yang aman dicocokkan pada teks tanpa spasi/tanda baca ("per-kosa"); yang pendek dikecualikan agar tidak salah tangkap lintas kata ("tata susila"). */
 export const SENSITIVE_SQUASH_STEMS = ["perkosa", "merkosa", "rudapaksa", "persetubuhan", "pedofil"] as const;
 /** Kata utuh (bukan bagian kata lain). */
-export const SENSITIVE_EXACT = ["kdrt", "inses", "tppo"] as const;
+export const SENSITIVE_EXACT = ["kdrt", "inses", "tppo", "rape", "raped", "raping", "rapist", "meniduri", "ditiduri", "menidurinya"] as const;
 /** Frasa (dicocokkan pada teks berspasi dan tanpa spasi). */
 export const SENSITIVE_PHRASES = [
   "kekerasan dalam rumah tangga",
+  "kekerasan dlm rumah tangga",
+  "domestic violence",
+  "child abuse",
+  "sexual abuse",
+  "hubungan badan",
+  "hubungan intim",
+  "hubungan seks",
+  "memaksa berhubungan",
+  "dipaksa berhubungan",
   "kekerasan dalam pacaran",
   "kekerasan seksual",
   "kekerasan berbasis gender",
@@ -186,6 +195,10 @@ export const SENSITIVE_PHRASES = [
 ] as const;
 /** Gabungan untuk tampilan/uji. */
 export const SENSITIVE_TERMS = [...SENSITIVE_STEMS, ...SENSITIVE_EXACT, ...SENSITIVE_PHRASES] as const;
+
+/** Label status pengaduan warga (CitizenReport.status) untuk tampilan tautan. */
+export const REPORT_STATUS_LABEL: Record<string, string> = { DRAFT: "Draf", PENDING: "Menunggu", PROCESS: "Diproses", DONE: "Selesai", REJECT: "Ditolak" };
+export const reportStatusLabel = (s: string) => (Object.hasOwn(REPORT_STATUS_LABEL, s) ? REPORT_STATUS_LABEL[s]! : s);
 
 export const LIMITS = {
   members: 1000,

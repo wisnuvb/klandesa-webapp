@@ -332,6 +332,18 @@ function TxDialog({ tx, units, onClose, onDone }: { tx: BumdesTransactionRow | n
 }
 
 type Hist = { revisions: { revision: number; action: string; reason: string; before: Record<string, unknown>; after: Record<string, unknown> | null; at: string }[] };
+/** Nilai riwayat dalam bentuk yang dibaca orang: rupiah, tanggal, jenis, nama akun. */
+function showVal(k: string, v: unknown): string {
+  if (v === null || v === undefined || v === "") return "-";
+  const s = String(v);
+  if (k === "amount") return rp(s);
+  if (k === "entryDate") return fmtDate(s);
+  if (k === "direction") return s === "income" ? "Pemasukan" : s === "expense" ? "Pengeluaran" : s;
+  if (k === "status") return s === "AKTIF" ? "Aktif" : s === "DIBATALKAN" ? "Dibatalkan" : s;
+  if (k === "accountCode" || k === "cashAccountCode") return `${s} ${accountName(s)}`;
+  return s;
+}
+
 const FIELD: Record<string, string> = { entryDate: "Tanggal", direction: "Jenis", amount: "Jumlah", category: "Kategori", description: "Uraian", unitId: "Unit", accountCode: "Akun lawan", cashAccountCode: "Akun kas", status: "Status" };
 
 function HistoryDialog({ tx, onClose }: { tx: BumdesTransactionRow; onClose: () => void }) {
@@ -361,7 +373,7 @@ function HistoryDialog({ tx, onClose }: { tx: BumdesTransactionRow; onClose: () 
                     <ul className="list-disc space-y-0.5 pl-5 text-muted-foreground">
                       {changed.map((k) => (
                         <li key={k} className="break-words">
-                          {FIELD[k] ?? k}: {String(r.before[k] ?? "-")} → {String(r.after?.[k] ?? "-")}
+                          {FIELD[k] ?? k}: {showVal(k, r.before[k])} → {showVal(k, r.after?.[k])}
                         </li>
                       ))}
                     </ul>

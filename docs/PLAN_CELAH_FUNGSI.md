@@ -179,6 +179,21 @@ Sub-paket (masing-masing dapat dirilis sendiri):
 
 ---
 
+## 3b. Status pelaksanaan Paket 3 (2026-11-01)
+Dikerjakan paralel oleh beberapa agen, ditinjau keamanannya oleh peninjau independen, diuji di browser sungguhan, dan dilatih SQL-nya berurutan. Belum di-commit dan belum di-deploy; SQL belum diterapkan ke produksi.
+
+| Paket | Dokumen | Status |
+|---|---|---|
+| P1 sisa: tahapan RPJM Desa | [PHASE3_RPJM.md](PHASE3_RPJM.md) | dikode; dasar hukum bergeser (PP 16/2026, UU 3/2024), lihat dokumen |
+| P3: BUMDes inti (jurnal, neraca/laba rugi, tutup periode, legalitas, arus APBDes) | [PHASE3_BUMDES.md](PHASE3_BUMDES.md) | dikode |
+| P3: tanah kas & sewa; pesanan UKM | [PHASE3_ASET.md](PHASE3_ASET.md) | dikode |
+| P4: Bencana & Destana (+ primitif kejadian bersama) | [PHASE3_BENCANA.md](PHASE3_BENCANA.md) | dikode; Perka BNPB 1/2012 sudah dicabut Peraturan BNPB 7/2025 |
+| P5: Keamanan & ketertiban | [PHASE3_KEAMANAN.md](PHASE3_KEAMANAN.md) | dikode; "Permendagri 5/2018" tak ada, Linmas = Permendagri 26/2020 |
+| P7: Kalender kepatuhan | [PHASE3_KALENDER.md](PHASE3_KALENDER.md) | dikode; tanpa ZIP, tanpa pemasangan di Laras |
+| P9: Pengadaan, kerja sama, IDM, kartu pengaduan DD | [PHASE3_PENGADAAN.md](PHASE3_PENGADAAN.md) | dikode; "Perka LKPP 13/2018" tak ada, yang berlaku Peraturan LKPP 12/2019 |
+
+Belum: P6 (menunggu data Bapenda), P8 (menunggu agregasi SQL widget Data Kustom), ekspor Siskeudes/OM-SPAN, data Destana BPBD, cron produksi + rotasi rahasia, P9 butir 5-8 selain yang di atas.
+
 ## 4. Keputusan dan masukan yang saya butuhkan dari Anda / desa
 
 | # | Butuh | Untuk | Default jika tak dijawab |

@@ -374,18 +374,25 @@ export interface SwapCreateInput {
   counterpartAgreed: boolean;
   reason: string | null;
 }
-export const parseSwapCreate = (body: unknown): Parsed<SwapCreateInput> =>
-  run(
+export function parseSwapCreate(body: unknown): Parsed<SwapCreateInput> {
+  const p = run<SwapCreateInput & { swap: boolean }>(
     [
       intField("shiftId", "Giliran pemohon", 1, 2_000_000_000, { required: true }),
       intField("counterpartResidentId", "Pihak kedua", 1, 2_000_000_000, { required: true }),
       intField("counterpartShiftId", "Giliran pihak kedua", 1, 2_000_000_000),
       bool("counterpartAgreed", "Persetujuan pihak kedua", false),
+      bool("swap", "Bentuk tukar", false),
       txt("reason", "Alasan", 300),
     ],
     body,
     "create",
   );
+  if (!p.ok) return p;
+  // Bentuk "bertukar" tanpa giliran pihak kedua diam-diam menjadi penggantian biasa; tolak.
+  if (p.value.swap && p.value.counterpartShiftId === null) return bad({ counterpartShiftId: "Pilih giliran pihak kedua yang ditukar." });
+  const { shiftId, counterpartResidentId, counterpartShiftId, counterpartAgreed, reason } = p.value;
+  return { ok: true, value: { shiftId, counterpartResidentId, counterpartShiftId, counterpartAgreed, reason } };
+}
 
 export interface SwapDecision {
   decision: "APPROVE" | "REJECT" | "CANCEL";

@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fmtDate, rupiah, villageTitle } from "@/components/app/perencanaan/shared";
 import { useApiGet } from "@/hooks/useApiGet";
+import { formatVillageRegion } from "@/lib/bumdes/export";
 import type { registrationPack } from "@/lib/bumdes/service";
 
 type Pack = Extract<Awaited<ReturnType<typeof registrationPack>>, { ok: true }>["data"];
@@ -64,7 +65,7 @@ export function CetakView() {
               <tbody>
                 {row("Nama BUM Desa", data.bumdes.name)}
                 {row("Jenis", "BUM Desa (didirikan satu desa)")}
-                {row("Desa pendiri", data.village ? `${data.village.name}, Kec. ${data.village.district}, ${data.village.regency}, ${data.village.province}` : null)}
+                {row("Desa pendiri", data.village ? `${data.village.name}, ${formatVillageRegion(data.village)}` : null)}
                 {row("Alamat kedudukan", data.bumdes.address)}
                 {row("Telepon / surel", [data.bumdes.phone, data.bumdes.email].filter(Boolean).join(" / "))}
                 {row("Status badan hukum", data.profile.legalStatusLabel)}

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Findings, StatusPill, rp } from "../app/(app)/bumdes/_components/shared.tsx";
-import { AccountSelect } from "../app/(app)/bumdes/_components/AccountSelect.tsx";
+import { AccountSelect, offeredAccounts } from "../app/(app)/bumdes/_components/AccountSelect.tsx";
 
 const h = React.createElement;
 
@@ -35,5 +35,12 @@ describe("komponen BUMDes (render server)", () => {
     assert.doesNotMatch(cash, /Pendapatan Tiket/);
     const all = renderToStaticMarkup(h(AccountSelect, { id: "y", value: "", onChange: () => undefined }));
     assert.match(all, /id="y"/);
+  });
+
+  it("pilihan akun jalur kas/jurnal tidak menawarkan Penyertaan Modal dan Bagi Hasil; hanya jurnal pembukaan menawarkan modal", () => {
+    const codes = (o?: boolean) => offeredAccounts(o).map((a) => a.code);
+    assert.ok(!codes().includes("3.1.01.01") && !codes().includes("3.2.01.01"));
+    assert.ok(codes().includes("3.3.01.01") && codes().includes("1.1.01.01"));
+    assert.ok(codes(true).includes("3.1.01.01") && !codes(true).includes("3.2.01.01"));
   });
 });

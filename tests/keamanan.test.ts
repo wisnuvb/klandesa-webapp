@@ -288,6 +288,18 @@ describe("penjaga: bukan basis data kasus kekerasan perempuan/anak (pagar, bukan
   it("bentuk kata kerja, imbuhan, dan frasa lain (hasil tinjauan keamanan)", () => {
     for (const t of ["memperkosa", "diperkosa", "dicabuli", "pencabul", "rudapaksa", "dirudapaksa", "inses", "kekerasan terhadap istri", "penganiayaan terhadap anak", "melecehkan anak", "suami memukul istri sampai lebam", "istri dipukul suaminya", "kekerasan fisik terhadap ibu", "pemaksaan perkawinan", "kawin paksa", "perdagangan orang", "eksploitasi seksual"]) assert.ok(sensitiveViolenceTerm(t), t);
   });
+  it("tukar giliran: bentuk \"bertukar\" tanpa giliran pihak kedua ditolak, penggantian biasa tetap diterima", () => {
+    const base = { shiftId: 1, counterpartResidentId: 2, counterpartAgreed: true };
+    const bad = parseSwapCreate({ ...base, swap: true, counterpartShiftId: null });
+    assert.ok(!bad.ok && /giliran pihak kedua/i.test(bad.fieldErrors.counterpartShiftId!));
+    assert.ok(parseSwapCreate({ ...base, swap: true, counterpartShiftId: 7 }).ok);
+    const plain = parseSwapCreate({ ...base, swap: false });
+    assert.ok(plain.ok && plain.value.counterpartShiftId === null && !("swap" in plain.value));
+  });
+  it("bentuk kata kerja persetubuhan, istilah Inggris, dan singkatan yang lolos pada uji browser", () => {
+    for (const t of ["menyetubuhi anak", "digagahi tetangga", "meniduri anak di bawah umur", "memaksa berhubungan badan", "child abuse", "rape", "sexual assault", "kekerasan dlm rumah tangga", "dia menyetubuhi anak di bawah umur", "disetubuhi paksa", "menggagahi korban", "domestic violence"]) assert.ok(sensitiveViolenceTerm(t), t);
+    for (const t of ["grape juice dijual di pos", "drape tirai pos ronda", "scrape cat pagar pos", "Kekerasan dalam RT 03 tidak ada", "sexton gereja hadir"]) assert.equal(sensitiveViolenceTerm(t), null, t);
+  });
   it("pemisah tak terlihat, tanda gabung, huruf terpisah, homoglif, dan leetspeak tidak menembus", () => {
     const cases: Record<string, string> = {
       "pem\u200Berkosaan": "zero-width space",

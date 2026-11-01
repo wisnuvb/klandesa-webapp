@@ -65,6 +65,7 @@ export function ScheduleDialog({ group, onClose, onChanged }: { group: GroupView
               {data.nights.map((n) => {
                 const past = n.date < today;
                 const isToday = n.date === today;
+                const beforeStart = isToday && data.nowTime < data.group.startTime;
                 return (
                   <li key={n.date} className={`min-w-0 rounded-lg border p-3 ${isToday ? "border-primary" : ""}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -101,7 +102,7 @@ export function ScheduleDialog({ group, onClose, onChanged }: { group: GroupView
                             <div className="flex flex-wrap gap-1.5">
                               {n.date <= today && data.can.update
                                 ? data.markable
-                                    .filter((m) => m !== s.attendance && (m !== "PENDING" || s.attendance !== "PENDING"))
+                                    .filter((m) => m !== s.attendance && (m !== "PENDING" || s.attendance !== "PENDING") && (m === "PENDING" || !beforeStart))
                                     .map((m) => (
                                       <Button key={m} type="button" variant="outline" className="min-h-11" disabled={act.busy !== null} aria-label={`${MARK_TEXT[m]}: ${s.name}`} onClick={() => act.run(`m${s.id}${m}`, `/api/keamanan/jadwal/${s.id}/kehadiran`, "POST", { attendance: m })}>
                                         {MARK_TEXT[m]}
@@ -265,7 +266,7 @@ function SwapDialog({ group, data, shift, onClose, onDone }: { group: GroupView;
       description={`Giliran milik ${shift.name}. Permintaan baru berlaku setelah diputuskan petugas desa; catat bahwa pihak kedua setuju.`}
       labels={{ shiftId: "Giliran", counterpartResidentId: "Pihak kedua", counterpartShiftId: "Giliran pihak kedua", counterpartAgreed: "Persetujuan", reason: "Alasan" }}
       url="/api/keamanan/tukar"
-      body={() => ({ shiftId: shift.id, counterpartResidentId: cp ? Number(cp) : "", counterpartShiftId: mode === "swap" && cpShift ? Number(cpShift) : null, counterpartAgreed: agreed, reason })}
+      body={() => ({ shiftId: shift.id, counterpartResidentId: cp ? Number(cp) : "", counterpartShiftId: mode === "swap" && cpShift ? Number(cpShift) : null, swap: mode === "swap", counterpartAgreed: agreed, reason })}
       submitText="Ajukan"
       onClose={onClose}
       onDone={() => onDone()}

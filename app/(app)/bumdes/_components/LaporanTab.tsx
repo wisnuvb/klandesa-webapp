@@ -69,7 +69,6 @@ function Statements({ e }: { e: StatementsView }) {
             <caption className="sr-only">Neraca {e.name}</caption>
             <tbody>
               <Section s={n.aset} />
-              <Total label="Jumlah aset" value={n.totalAset} />
               <Section s={n.kewajiban} />
               <Section s={n.ekuitas} />
               <Total label="Jumlah kewajiban dan ekuitas" value={n.totalKewajibanEkuitas} />
