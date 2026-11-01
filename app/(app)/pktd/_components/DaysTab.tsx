@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/search-select";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
-import { ConfirmDelete } from "@/components/app/ConfirmDelete";
-import { PostToBkuDialog } from "@/components/app/apbdes/PostToBkuDialog";
+import { FundingPanel } from "@/components/app/apbdes/FundingPanel";
 import { Pill, SELECT_CLASS, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
@@ -20,12 +19,11 @@ export function DaysTab({ data, reload }: TabProps) {
   const [date, setDate] = useState(() => localToday());
   const [task, setTask] = useState("PELAKSANAAN");
   const [wage, setWage] = useState<string | null>(null);
-  const [paid, setPaid] = useState(true);
+  const [paid, setPaid] = useState(() => Number(data.activity.funding.available) > 0);
   const [picked, setPicked] = useState<number[]>([]);
   const [note, setNote] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busyDate, setBusyDate] = useState<string | null>(null);
-  const [posting, setPosting] = useState<TabProps["data"]["activity"]["payouts"][number] | null>(null);
   const form = useFormSubmit();
   const canAdd = data.can.create && a.status === "AKTIF" && a.workers.length > 0;
   const wageValue = wage ?? (a.wageMax ? String(Math.round(Number(a.wageMax))) : "");
@@ -63,6 +61,7 @@ export function DaysTab({ data, reload }: TabProps) {
 
   return (
     <>
+      <FundingPanel kind="PKTD" funding={a.funding} canRequest={data.can.create && a.status === "AKTIF"} year={a.year} title="Ajukan SPP upah PKTD" summary={`${a.title}. Rencana upah ${rupiah(a.plannedWage)}, sudah dibayar ${rupiah(a.paidWage)}.`} url={`/api/pktd/${a.id}/spp`} defaultActivityCode={a.activityCode} noun="Upah PKTD" reload={reload} />
       {canAdd ? (
         <form onSubmit={add} className="space-y-3 rounded-lg border p-4" noValidate>
           <h2 className="text-lg font-semibold">Catat hari kerja</h2>
@@ -108,7 +107,7 @@ export function DaysTab({ data, reload }: TabProps) {
           </fieldset>
           <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
             <input type="checkbox" className="size-5" checked={paid} onChange={(e) => setPaid(e.target.checked)} />
-            Upah dibayarkan hari ini juga (upah dibayar setiap hari)
+            Upah dibayarkan hari ini juga (upah dibayar setiap hari; dari dana SPP, tersedia {rupiah(a.funding.available)})
           </label>
           <div className="space-y-1.5">
             <Label htmlFor="dy-note">Catatan</Label>
@@ -181,55 +180,6 @@ export function DaysTab({ data, reload }: TabProps) {
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Belum ada hari kerja tercatat.</p>
         )}
       </section>
-
-      {a.payouts.length ? (
-        <section aria-labelledby="dy-bku-h" className="space-y-3">
-          <div>
-            <h2 id="dy-bku-h" className="text-lg font-semibold">
-              Pencatatan ke Buku Kas Umum
-            </h2>
-            <p className="text-sm text-muted-foreground">Upah yang dibayar pada satu tanggal dicatat sebagai satu pengeluaran pada Buku Kas Umum. Catatan hari kerja yang upahnya sudah tercatat tidak dapat dihapus sebelum pencatatannya dibatalkan.</p>
-          </div>
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[34rem] text-sm">
-              <caption className="sr-only">Upah PKTD per tanggal bayar dan status pencatatan Buku Kas Umum</caption>
-              <thead className="bg-muted text-left">
-                <tr>
-                  <th scope="col" className="px-3 py-2">Tanggal bayar</th>
-                  <th scope="col" className="px-3 py-2 text-right">Hari kerja</th>
-                  <th scope="col" className="px-3 py-2 text-right">Jumlah</th>
-                  <th scope="col" className="px-3 py-2">Buku Kas Umum</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {a.payouts.map((g) => (
-                  <tr key={`${g.paidOn}-${g.entryId ?? "x"}`}>
-                    <td className="whitespace-nowrap px-3 py-2">{fmtDate(g.paidOn)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{g.days}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{rupiah(g.total)}</td>
-                    <td className="px-3 py-1">
-                      {g.entryId ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Pill tone="done">Tercatat · {g.voucherNo ?? "-"}</Pill>
-                          {data.can.delete ? <ConfirmDelete buttonText="Batalkan" label={`Batalkan pencatatan Buku Kas Umum upah ${fmtDate(g.paidOn)}`} title="Batalkan pencatatan Buku Kas Umum?" description={`Catatan pengeluaran ${rupiah(g.total)} (bukti ${g.voucherNo ?? "-"}) akan dihapus dari Buku Kas Umum; upah tanggal ${fmtDate(g.paidOn)} kembali berstatus belum dicatat.`} text="Batalkan pencatatan" url={`/api/pktd/${a.id}/bku?entry=${g.entryId}`} onDone={reload} /> : null}
-                        </div>
-                      ) : data.can.create ? (
-                        <Button type="button" variant="outline" className="min-h-11" onClick={() => setPosting(g)}>
-                          Catat ke BKU
-                        </Button>
-                      ) : (
-                        <Pill tone="soon">Belum dicatat</Pill>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
-
-      {posting ? <PostToBkuDialog year={Number(posting.paidOn.slice(0, 4))} title="Catat upah PKTD ke Buku Kas Umum" summary={`${posting.days} hari kerja dibayar ${fmtDate(posting.paidOn)} · ${a.title}.`} amount={posting.total} url={`/api/pktd/${a.id}/bku`} extraBody={{ paidOn: posting.paidOn }} defaultChannel="TUNAI" defaultActivityCode={a.activityCode} defaultVoucher={`UPAH-${posting.paidOn}${a.payouts.filter((x) => x.paidOn === posting.paidOn && x.entryId).length ? `-${a.payouts.filter((x) => x.paidOn === posting.paidOn && x.entryId).length + 1}` : ""}`} onClose={() => setPosting(null)} onDone={() => { setPosting(null); reload(); }} /> : null}
     </>
   );
 }

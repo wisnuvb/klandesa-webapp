@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!id) return notFound();
     const r = await addWorkDays(prisma, { villageId: ctx.village.id, activityId: id, userId: ctx.userId ?? null, input: await req.json().catch(() => null) });
     if (!r.ok) return failResponse(r);
-    await auditWeb(req, ctx, "create", "pktd_work_days", id, { created: r.data.created, total: r.data.total });
+    await auditWeb(req, ctx, "create", "pktd_work_days", id, { created: r.data.created, total: r.data.total, sppId: r.data.sppId });
     return NextResponse.json({ success: true, ...r.data }, { status: 201 });
   });
 }
@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     if (!id) return notFound();
     const r = await markPaid(prisma, { villageId: ctx.village.id, activityId: id, input: await req.json().catch(() => null) });
     if (!r.ok) return failResponse(r);
-    await auditWeb(req, ctx, "update", "pktd_work_days", id, { paid: r.data.updated });
+    await auditWeb(req, ctx, "update", "pktd_work_days", id, { paid: r.data.updated, sppId: r.data.sppId });
     return NextResponse.json({ success: true, updated: r.data.updated });
   });
 }

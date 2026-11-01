@@ -31,7 +31,7 @@ describe("BLT Desa (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABASE_
     const s = await blt.changeStatus(prisma, { villageId, id, action: "tetapkan" });
     assert.ok(s.ok, JSON.stringify(s));
   };
-  const pay = (villageId: number, programId: number, beneficiaryId: number, o: Record<string, unknown> = {}) => blt.addPayment(prisma, { villageId, programId, userId: 1, input: { beneficiaryId, monthFrom: 1, method: "TUNAI", paidOn: "2026-03-10", ...o } });
+  const pay = (villageId: number, programId: number, beneficiaryId: number, o: Record<string, unknown> = {}) => blt.addPayment(prisma, { skipFunding: true, villageId, programId, userId: 1, input: { beneficiaryId, monthFrom: 1, method: "TUNAI", paidOn: "2026-03-10", ...o } });
   const view = async (villageId: number, id: number) => {
     const r = await blt.getProgram(prisma, villageId, id);
     assert.ok(r.ok, JSON.stringify(r));
@@ -207,9 +207,9 @@ describe("BLT Desa (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABASE_
     assert.ok((await pay(vA, id, bid, { monthFrom: 3 })).ok, "1 bulan lagi masih dalam batas 3");
     assert.equal((await pay(vA, id, bid, { monthFrom: 4 })).ok, false, "bulan ke-4 pada tanggal yang sama melampaui 3");
     assert.ok((await pay(vA, id, bid, { monthFrom: 4, monthTo: 6, paidOn: "2026-06-10" })).ok, "tanggal lain boleh");
-    const future = await blt.addPayment(prisma, { villageId: vA, programId: id, userId: 1, now: new Date("2026-11-01T03:00:00Z"), input: { beneficiaryId: bid, monthFrom: 7, method: "TUNAI", paidOn: "2026-12-25" } });
+    const future = await blt.addPayment(prisma, { skipFunding: true, villageId: vA, programId: id, userId: 1, now: new Date("2026-11-01T03:00:00Z"), input: { beneficiaryId: bid, monthFrom: 7, method: "TUNAI", paidOn: "2026-12-25" } });
     assert.equal(future.ok, false, "pembayaran dengan tanggal di masa depan");
-    const today = await blt.addPayment(prisma, { villageId: vA, programId: id, userId: 1, now: new Date("2026-11-01T03:00:00Z"), input: { beneficiaryId: bid, monthFrom: 7, method: "TUNAI", paidOn: "2026-11-01" } });
+    const today = await blt.addPayment(prisma, { skipFunding: true, villageId: vA, programId: id, userId: 1, now: new Date("2026-11-01T03:00:00Z"), input: { beneficiaryId: bid, monthFrom: 7, method: "TUNAI", paidOn: "2026-11-01" } });
     assert.ok(today.ok, JSON.stringify(today));
   });
 

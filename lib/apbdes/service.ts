@@ -276,13 +276,11 @@ export interface EntryView {
   taxKind: string | null;
   bankFee: boolean;
   locked: boolean;
-  /** Berasal dari SPP, panjar, atau pembayaran modul lain: tidak diubah/dihapus lewat formulir umum */
+  /** Berasal dari SPP atau panjar: tidak diubah/dihapus lewat formulir umum */
   linked: boolean;
-  /** Berasal dari pembayaran BLT, upah PKTD, atau angsuran KDMP (diubah lewat modul itu) */
-  fromPayout: boolean;
 }
 
-export const entryView = (e: LedgerEntry, closed: Set<number>, payoutIds: Set<number> = new Set()): EntryView => ({
+export const entryView = (e: LedgerEntry, closed: Set<number>): EntryView => ({
   id: e.id,
   entryDate: e.entryDate,
   voucherNo: e.voucherNo,
@@ -297,8 +295,7 @@ export const entryView = (e: LedgerEntry, closed: Set<number>, payoutIds: Set<nu
   taxKind: e.taxKind,
   bankFee: e.bankFee,
   locked: closed.has(monthOf(e.entryDate)),
-  linked: Boolean(e.requestId) || Boolean(e.panjarId) || payoutIds.has(e.id),
-  fromPayout: payoutIds.has(e.id),
+  linked: Boolean(e.requestId) || Boolean(e.panjarId),
 });
 
 export async function closedMonths(db: Db, villageId: number, year: number): Promise<Set<number>> {
@@ -394,36 +391,13 @@ export async function addEntry(db: PrismaClient, args: { villageId: number; user
   }).catch(rollbackToResult);
 }
 
-/** Apakah catatan ini dibuat dari pembayaran BLT, upah PKTD, atau angsuran KDMP (dikelola lewat modul itu). */
-export async function isPayoutLinked(tx: Db, entryId: number): Promise<boolean> {
-  const [a, b, c] = await Promise.all([
-    tx.bltPayment.count({ where: { bkuEntryId: entryId } }),
-    tx.pktdWorkDay.count({ where: { bkuEntryId: entryId } }),
-    tx.kdmpInstallment.count({ where: { bkuEntryId: entryId } }),
-  ]);
-  return a + b + c > 0;
-}
-/** Id catatan buku kas satu tahun yang berasal dari pembayaran modul lain. */
-export async function payoutLinkedIds(db: Db, villageId: number, year: number): Promise<Set<number>> {
-  const where = { bkuEntryId: { not: null }, villageId } as const;
-  const [a, b, c] = await Promise.all([
-    db.bltPayment.findMany({ where: { ...where, bkuEntry: { year } }, select: { bkuEntryId: true }, distinct: ["bkuEntryId"] }),
-    db.pktdWorkDay.findMany({ where: { ...where, bkuEntry: { year } }, select: { bkuEntryId: true }, distinct: ["bkuEntryId"] }),
-    db.kdmpInstallment.findMany({ where: { ...where, bkuEntry: { year } }, select: { bkuEntryId: true }, distinct: ["bkuEntryId"] }),
-  ]);
-  return new Set([...a, ...b, ...c].flatMap((r) => (r.bkuEntryId ? [r.bkuEntryId] : [])));
-}
-const PAYOUT_LINKED_MSG = "Catatan ini berasal dari pembayaran BLT, upah PKTD, atau angsuran KDMP. Ubah atau batalkan lewat modul yang bersangkutan.";
-
 /**
- * Menghapus satu catatan di dalam transaksi pemanggil (kunci tahun sudah dipegang). `viaPayout`: dipanggil dari modul pembayaran
- * yang membuat catatan itu, jadi catatan bertaut pembayaran boleh dihapus (tautannya dilepas oleh FK SET NULL / pemanggil).
+ * Menghapus satu catatan di dalam transaksi pemanggil (kunci tahun sudah dipegang).
  */
-export async function deleteEntryInTx(tx: Db, args: { villageId: number; entryId: number; viaPayout?: boolean }): Promise<Result<{ id: number; year: number }>> {
+export async function deleteEntryInTx(tx: Db, args: { villageId: number; entryId: number }): Promise<Result<{ id: number; year: number }>> {
   const cur = await tx.apbdesEntry.findFirst({ where: { id: args.entryId, villageId: args.villageId } });
   if (!cur) return fail(404, "Catatan tidak ditemukan.");
   if (cur.requestId !== null || cur.panjarId !== null) return fail(409, LINKED_MSG);
-  if (!args.viaPayout && (await isPayoutLinked(tx, cur.id))) return fail(409, PAYOUT_LINKED_MSG);
   const month = cur.entryDate.getUTCMonth() + 1;
   const closedSet = await closedMonths(tx, args.villageId, cur.year);
   if (closedSet.has(month)) return fail(409, LOCKED_MSG(month));
@@ -462,7 +436,6 @@ export async function updateEntry(db: PrismaClient, args: { villageId: number; e
     const oldMonth = cur.entryDate.getUTCMonth() + 1;
     const newMonth = p.value.entryDate.getUTCMonth() + 1;
     if (cur.requestId !== null || cur.panjarId !== null) return fail(409, LINKED_MSG);
-    if (await isPayoutLinked(tx, cur.id)) return fail(409, PAYOUT_LINKED_MSG);
     if (closed.has(oldMonth)) return fail(409, LOCKED_MSG(oldMonth));
     if (closed.has(newMonth)) return fail(409, LOCKED_MSG(newMonth));
     const laterUpd = LATER_CLOSED_MSG(closed, Math.min(oldMonth, newMonth));

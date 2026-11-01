@@ -119,7 +119,7 @@ export function BukuKasTab({ o, reload }: { o: Overview; reload: () => void }) {
                     <td className="whitespace-nowrap p-3 text-right tabular-nums">{inflow ? money(e.amount) : transfer ? <span className="text-muted-foreground">{money(e.amount)}</span> : ""}</td>
                     <td className="whitespace-nowrap p-3 text-right tabular-nums">{!inflow && !transfer ? money(e.amount) : ""}</td>
                     <td className="whitespace-nowrap p-3 text-right">
-                      {e.locked ? <Lock aria-label="Bulan sudah ditutup" className="ml-auto size-4 text-muted-foreground" /> : e.linked ? <span className="text-xs text-muted-foreground">{e.fromPayout ? "dari modul pembayaran" : "dari SPP/panjar"}</span> : (
+                      {e.locked ? <Lock aria-label="Bulan sudah ditutup" className="ml-auto size-4 text-muted-foreground" /> : e.linked ? <span className="text-xs text-muted-foreground">dari SPP/panjar</span> : (
                         <>
                           {o.can.update ? <Button type="button" variant="ghost" size="icon" className="size-11" aria-label={`Ubah ${e.description}`} onClick={() => setDlg({ kind: "entry", entry: e })}><Pencil aria-hidden="true" /></Button> : null}
                           {o.can.delete ? <Button type="button" variant="ghost" size="icon" className="size-11" aria-label={`Hapus ${e.description}`} onClick={() => setDlg({ kind: "del", entry: e })}><Trash2 aria-hidden="true" /></Button> : null}

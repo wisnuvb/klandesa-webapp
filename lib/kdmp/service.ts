@@ -5,7 +5,7 @@ import { accountKind } from "@/lib/apbdes/catalog";
 import { rulesFor } from "@/lib/dana-desa/rules";
 import type { Finding } from "@/lib/dana-desa/compliance";
 import { STEPS } from "@/lib/coop/formation";
-import { auditOf, entryBrief, parsePayoutChoice, postPayoutEntry, removePayoutEntry, runPayoutTx } from "@/lib/apbdes/payout";
+import { fundingOf, pickFunding, requestFunding, type FundingView } from "@/lib/apbdes/funding";
 import { KINDS, LIMITS, STATUS } from "./catalog";
 import { facilityStatus, kdmpFindings, shareBps, type FacilityFacts } from "./calc";
 import { parseDisbursement, parseFacilityCreate, parseFacilityPatch, parseInstallment, parseProgress } from "./schema";
@@ -45,9 +45,11 @@ export interface Overview {
   apbdes: { id: number; version: number; label: string; status: string } | null;
   cooperative: { name: string; stepsDone: number; stepsTotal: number; nextStep: string | null } | null;
   disbursements: { id: number; receivedOn: string; amount: string; reference: string | null; note: string | null }[];
-  installments: { id: number; paidOn: string; amount: string; payee: string; reference: string | null; note: string | null; facilityId: number | null; facilityName: string | null; bkuEntryId: number | null; bkuVoucher: string | null }[];
+  installments: { id: number; paidOn: string; amount: string; payee: string; reference: string | null; note: string | null; facilityId: number | null; facilityName: string | null }[];
   facilities: { id: number; kind: string; kindLabel: string; name: string; location: string | null; contract: string | null; paid: string; paidBps: number | null; progressPct: number; progressOn: string | null; operatingOn: string | null; status: string; statusLabel: string; note: string | null }[];
   findings: Finding[];
+  /** SPP yang mendanai angsuran tahun ini (angsuran baru hanya dapat dicatat dari SPP yang sudah dibayar) */
+  funding: FundingView;
   kinds: Record<string, string>;
 }
 
@@ -88,8 +90,8 @@ export async function getOverview(db: Db, args: { villageId: number; year: numbe
   const facts: FacilityFacts[] = facs.map((f) => ({ id: f.id, name: f.name, contractCents: f.contractCents, paidCents: paidBy.get(f.id) ?? 0n, progressPct: f.progressPct, progressOn: isoDay(f.progressOn), operatingOn: isoDay(f.operatingOn) }));
   const findings = kdmpFindings({ ruleShareBps: rules.kdmpShareBps, kdmpPaguCents: setting?.kdmpCents ?? null, regularPaguCents: setting?.regularCents ?? null, receivedCents, paidCents, budgetedCents, facilities: facts, unassignedPaidCents: unassigned, today: args.today });
 
+  const funding = await fundingOf(db, villageId, "KDMP", year, receivedCents > paidCents ? receivedCents - paidCents : 0n);
   const names = new Map(facs.map((f) => [f.id, f.name]));
-  const brief = await entryBrief(db, villageId, inst.flatMap((i) => (i.bkuEntryId ? [i.bkuEntryId] : [])));
   const kdmp = setting?.kdmpCents ?? null;
   const reg = setting?.regularCents ?? null;
   const steps = coop?.formation ? STEPS.filter((s) => s.done(coop.formation!)) : [];
@@ -103,13 +105,14 @@ export async function getOverview(db: Db, args: { villageId: number; year: numbe
     apbdes: doc ? { id: doc.id, version: doc.version, label: docLabel(doc.version), status: doc.status } : null,
     cooperative: coop ? { name: coop.name, stepsDone: steps.length, stepsTotal: STEPS.length, nextStep: next } : null,
     disbursements: disb.map((d) => ({ id: d.id, receivedOn: iso(d.receivedOn), amount: fromCents(d.amountCents), reference: d.reference, note: d.note })),
-    installments: inst.map((i) => ({ id: i.id, paidOn: iso(i.paidOn), amount: fromCents(i.amountCents), payee: i.payee, reference: i.reference, note: i.note, facilityId: i.facilityId, facilityName: i.facilityId ? (names.get(i.facilityId) ?? null) : null, bkuEntryId: i.bkuEntryId, bkuVoucher: i.bkuEntryId ? (brief.get(i.bkuEntryId)?.voucherNo ?? null) : null })),
+    installments: inst.map((i) => ({ id: i.id, paidOn: iso(i.paidOn), amount: fromCents(i.amountCents), payee: i.payee, reference: i.reference, note: i.note, facilityId: i.facilityId, facilityName: i.facilityId ? (names.get(i.facilityId) ?? null) : null })),
     facilities: facs.map((f) => {
       const p = paidBy.get(f.id) ?? 0n;
       const st = facilityStatus(f.progressPct, isoDay(f.operatingOn));
       return { id: f.id, kind: f.kind, kindLabel: KINDS[f.kind as keyof typeof KINDS] ?? f.kind, name: f.name, location: f.location, contract: f.contractCents === null ? null : fromCents(f.contractCents), paid: fromCents(p), paidBps: f.contractCents ? shareBps(p, f.contractCents) : null, progressPct: f.progressPct, progressOn: isoDay(f.progressOn), operatingOn: isoDay(f.operatingOn), status: st, statusLabel: STATUS[st], note: f.note };
     }),
     findings,
+    funding,
     kinds: KINDS,
   });
 }
@@ -151,7 +154,8 @@ export async function removeDisbursement(db: PrismaClient, args: { villageId: nu
     .catch(asResult);
 }
 
-export async function addInstallment(db: PrismaClient, args: { villageId: number; userId: number | null; input: unknown; now?: Date }): Promise<Result<{ id: number; year: number; amount: string; facilityId: number | null; payee: string; reference: string | null }>> {
+/** `skipFunding`: hanya untuk tes dan impor data lama; rute tidak pernah mengisinya. */
+export async function addInstallment(db: PrismaClient, args: { villageId: number; userId: number | null; input: unknown; now?: Date; skipFunding?: boolean }): Promise<Result<{ id: number; year: number; amount: string; facilityId: number | null; payee: string; reference: string | null; sppId: number | null }>> {
   const p = parseInstallment(args.input);
   if (!p.ok) return invalid(p);
   const v = p.value;
@@ -176,8 +180,14 @@ export async function addInstallment(db: PrismaClient, args: { villageId: number
       const received = rec._sum.amountCents ?? 0n;
       const already = paid._sum.amountCents ?? 0n;
       if (already + v.amountCents > received) return stop(`Angsuran melebihi dana KDMP yang diterima. Diterima ${rp(received)}, sudah diangsur ${rp(already)}. Catat penyaluran dana terlebih dahulu.`);
-      const row = await tx.kdmpInstallment.create({ data: { villageId: args.villageId, year: v.year, facilityId: v.facilityId, paidOn: v.paidOn, amountCents: v.amountCents, payee: v.payee, reference: v.reference, note: v.note, createdById: args.userId } });
-      return ok({ id: row.id, year: v.year, amount: fromCents(v.amountCents), facilityId: v.facilityId, payee: v.payee, reference: v.reference });
+      let sppId: number | null = null;
+      if (!args.skipFunding) {
+        const f = await pickFunding(tx, { villageId: args.villageId, kind: "KDMP", sourceId: v.year, amountCents: v.amountCents, paidOn: v.paidOn, what: "Angsuran KDMP" });
+        if (!f.ok) return fail(409, f.message);
+        sppId = f.sppId;
+      }
+      const row = await tx.kdmpInstallment.create({ data: { villageId: args.villageId, year: v.year, facilityId: v.facilityId, paidOn: v.paidOn, amountCents: v.amountCents, payee: v.payee, reference: v.reference, note: v.note, sppId, createdById: args.userId } });
+      return ok({ id: row.id, year: v.year, amount: fromCents(v.amountCents), facilityId: v.facilityId, payee: v.payee, reference: v.reference, sppId });
     })
     .catch(asResult);
 }
@@ -185,9 +195,7 @@ export async function addInstallment(db: PrismaClient, args: { villageId: number
 export async function removeInstallment(db: PrismaClient, args: { villageId: number; id: number }): Promise<Result<{ year: number; amount: string; payee: string; reference: string | null }>> {
   const row = await db.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId } });
   if (!row) return fail(404, "Catatan angsuran tidak ditemukan.");
-  if (row.bkuEntryId !== null) return fail(409, "Angsuran ini sudah dicatat di Buku Kas Umum. Batalkan pencatatan Buku Kas Umum lebih dulu.");
-  // bkuEntryId IS NULL dalam penghapusan: bila tertaut tepat setelah pembacaan di atas, penghapusan tidak terjadi.
-  const r = await db.kdmpInstallment.deleteMany({ where: { id: row.id, villageId: args.villageId, bkuEntryId: null } });
+  const r = await db.kdmpInstallment.deleteMany({ where: { id: row.id, villageId: args.villageId } });
   return r.count ? ok({ year: row.year, amount: fromCents(row.amountCents), payee: row.payee, reference: row.reference }) : fail(404, "Catatan angsuran tidak ditemukan.");
 }
 
@@ -323,52 +331,31 @@ export async function removeProgress(db: PrismaClient, args: { villageId: number
     .catch(asResult);
 }
 
-// ---- Tautan ke Buku Kas Umum
+// ---- Pengajuan SPP
 
-const lockInstallment = (villageId: number, id: number) => async (tx: Prisma.TransactionClient) => {
-  await tx.$queryRaw`SELECT id FROM kdmp_installments WHERE id = ${id} AND villageId = ${villageId} FOR UPDATE`;
-};
-
-/** Mencatat satu angsuran ke Buku Kas Umum sebagai pengeluaran pada tanggal bayar. Body: kegiatan, rekening, kas, nomor bukti. */
-export async function postInstallmentToBku(db: PrismaClient, args: { villageId: number; userId: number | null; id: number; input: unknown; now?: Date }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
-  const p = parsePayoutChoice(args.input);
-  if (!p.ok) return invalid(p);
-  const head = await db.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId }, select: { paidOn: true } });
-  if (!head) return fail(404, "Catatan angsuran tidak ditemukan.");
-  return runPayoutTx(db, {
+/** Mengajukan SPP (penyedia) untuk membiayai angsuran KDMP tahun tertentu. Body: kegiatan, rekening, jumlah, penerima, bukti terlampir. */
+export async function requestInstallmentSpp(db: PrismaClient, args: { villageId: number; year: number; userId: number | null; input: unknown; now?: Date }) {
+  if (!validYear(args.year)) return fail(400, "Tahun tidak valid.");
+  await ensureYear(db, args.villageId, args.year);
+  return requestFunding(db, {
     villageId: args.villageId,
-    year: head.paidOn.getUTCFullYear(),
-    lockModule: lockInstallment(args.villageId, args.id),
-    fn: async (tx) => {
-      const row = await tx.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId }, include: { facility: { select: { name: true } } } });
-      if (!row) return fail(404, "Catatan angsuran tidak ditemukan.");
-      if (row.bkuEntryId !== null) return fail(409, "Angsuran ini sudah dicatat di Buku Kas Umum.");
-      const desc = `Angsuran dukungan KDMP kepada ${row.payee}${row.facility ? ` (${row.facility.name})` : ""}${row.reference ? `, ${row.reference}` : ""}`;
-      const r = await postPayoutEntry(tx, { villageId: args.villageId, userId: args.userId, year: row.paidOn.getUTCFullYear(), entryDate: row.paidOn, choice: p.value, description: desc, amountCents: row.amountCents, now: args.now });
-      if (!r.ok) return r;
-      await tx.kdmpInstallment.update({ where: { id: row.id }, data: { bkuEntryId: r.data.id } });
-      return ok({ entryId: r.data.id, voucherNo: r.data.voucherNo, amount: fromCents(row.amountCents), ...auditOf(p.value, row.paidOn) });
+    userId: args.userId,
+    kind: "KDMP",
+    sourceId: args.year,
+    year: args.year,
+    input: args.input,
+    now: args.now,
+    describe: `Angsuran dukungan KDMP ${args.year}`,
+    lockModule: async (tx) => {
+      await tx.$queryRaw`SELECT id FROM dd_year_settings WHERE villageId = ${args.villageId} AND year = ${args.year} FOR UPDATE`;
     },
-  });
-}
-
-/** Membatalkan pencatatan Buku Kas Umum suatu angsuran (menghapus catatan kas yang dibuat darinya). */
-export async function unpostInstallmentFromBku(db: PrismaClient, args: { villageId: number; id: number }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
-  const head = await db.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId }, select: { bkuEntryId: true, bkuEntry: { select: { year: true } } } });
-  if (!head) return fail(404, "Catatan angsuran tidak ditemukan.");
-  if (head.bkuEntryId === null || !head.bkuEntry) return fail(409, "Angsuran ini belum dicatat di Buku Kas Umum.");
-  return runPayoutTx(db, {
-    villageId: args.villageId,
-    year: head.bkuEntry.year,
-    lockModule: lockInstallment(args.villageId, args.id),
-    fn: async (tx) => {
-      const row = await tx.kdmpInstallment.findFirst({ where: { id: args.id, villageId: args.villageId }, include: { bkuEntry: { select: { voucherNo: true, activityCode: true, accountCode: true, channel: true, entryDate: true } } } });
-      if (!row) return fail(404, "Catatan angsuran tidak ditemukan.");
-      if (row.bkuEntryId === null) return fail(409, "Angsuran ini belum dicatat di Buku Kas Umum.");
-      const entryId = row.bkuEntryId;
-      const r = await removePayoutEntry(tx, args.villageId, entryId);
-      if (!r.ok) return r;
-      return ok({ entryId, voucherNo: row.bkuEntry?.voucherNo ?? "", amount: fromCents(row.amountCents), activityCode: row.bkuEntry?.activityCode ?? null, accountCode: row.bkuEntry?.accountCode ?? null, channel: row.bkuEntry?.channel ?? "", paidOn: row.bkuEntry?.entryDate.toISOString().slice(0, 10) ?? "" });
+    remainingNeed: async (tx) => {
+      const [rec, paid] = await Promise.all([
+        tx.kdmpDisbursement.aggregate({ where: { villageId: args.villageId, year: args.year }, _sum: { amountCents: true } }),
+        tx.kdmpInstallment.aggregate({ where: { villageId: args.villageId, year: args.year }, _sum: { amountCents: true } }),
+      ]);
+      const rest = (rec._sum.amountCents ?? 0n) - (paid._sum.amountCents ?? 0n);
+      return rest > 0n ? { cents: rest } : { refuse: "Belum ada dana KDMP yang diterima dan belum diangsurkan. Catat penyaluran dana terlebih dahulu." };
     },
   });
 }

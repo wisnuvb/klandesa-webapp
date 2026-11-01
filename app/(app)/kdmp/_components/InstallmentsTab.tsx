@@ -9,24 +9,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/search-select";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
-import { Pill, SELECT_CLASS, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
+import { SELECT_CLASS, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import { ConfirmDelete } from "@/components/app/ConfirmDelete";
-import { PostToBkuDialog } from "@/components/app/apbdes/PostToBkuDialog";
+import { FundingPanel } from "@/components/app/apbdes/FundingPanel";
 import type { TabProps } from "./types";
 
 export function InstallmentsTab({ data, reload }: TabProps) {
   const [adding, setAdding] = useState(false);
-  const [posting, setPosting] = useState<TabProps["data"]["installments"][number] | null>(null);
   return (
     <section aria-labelledby="kd-ang-h" className="space-y-3">
+      <FundingPanel kind="KDMP" funding={data.funding} canRequest={data.can.create} year={data.year} title={`Ajukan SPP angsuran KDMP ${data.year}`} summary={`Dana KDMP diterima ${rupiah(data.totals.received)}, sudah diangsurkan ${rupiah(data.totals.paid)}.`} url="/api/kdmp/spp" extraBody={{ year: data.year }} noun="Angsuran KDMP" reload={reload} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="kd-ang-h" className="text-lg font-semibold">
             Angsuran dari dana KDMP
           </h2>
-          <p className="text-sm text-muted-foreground">Dana KDMP dipakai untuk angsuran pembangunan fisik gerai, pergudangan, dan kelengkapan (PMK 7/2026 Pasal 20). Jumlah angsuran tidak dapat melebihi dana yang sudah diterima.</p>
+          <p className="text-sm text-muted-foreground">Dana KDMP dipakai untuk angsuran pembangunan fisik gerai, pergudangan, dan kelengkapan (PMK 7/2026 Pasal 20). Angsuran dicatat setelah dibayar, dari SPP yang sudah dibayar, dan tidak dapat melebihi dana yang diterima.</p>
         </div>
         {data.can.create ? (
           <Button type="button" className="min-h-11" onClick={() => setAdding(true)}>
@@ -37,7 +37,7 @@ export function InstallmentsTab({ data, reload }: TabProps) {
       </div>
       {data.installments.length ? (
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[46rem] text-sm">
+          <table className="w-full min-w-[40rem] text-sm">
             <caption className="sr-only">Angsuran dana KDMP tahun {data.year}</caption>
             <thead className="bg-muted text-left">
               <tr>
@@ -45,7 +45,6 @@ export function InstallmentsTab({ data, reload }: TabProps) {
                 <th scope="col" className="px-3 py-2">Dibayarkan kepada</th>
                 <th scope="col" className="px-3 py-2">Untuk</th>
                 <th scope="col" className="px-3 py-2 text-right">Jumlah</th>
-                <th scope="col" className="px-3 py-2">Buku Kas Umum</th>
                 <th scope="col" className="px-3 py-2">
                   <span className="sr-only">Aksi</span>
                 </th>
@@ -61,22 +60,8 @@ export function InstallmentsTab({ data, reload }: TabProps) {
                   </td>
                   <td className="px-3 py-2">{i.facilityName ?? <span className="text-muted-foreground">Belum dikaitkan</span>}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{rupiah(i.amount)}</td>
-                  <td className="px-3 py-1">
-                    {i.bkuEntryId ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Pill tone="done">Tercatat · {i.bkuVoucher ?? "-"}</Pill>
-                        {data.can.delete ? <ConfirmDelete buttonText="Batalkan" label={`Batalkan pencatatan Buku Kas Umum angsuran ${i.payee} ${fmtDate(i.paidOn)}`} title="Batalkan pencatatan Buku Kas Umum?" description={`Catatan pengeluaran ${rupiah(i.amount)} di Buku Kas Umum (bukti ${i.bkuVoucher ?? "-"}) akan dihapus; angsuran ini kembali berstatus belum dicatat.`} text="Batalkan pencatatan" url={`/api/kdmp/angsuran/${i.id}/bku`} onDone={reload} /> : null}
-                      </div>
-                    ) : data.can.create ? (
-                      <Button type="button" variant="outline" className="min-h-11" onClick={() => setPosting(i)}>
-                        Catat ke BKU
-                      </Button>
-                    ) : (
-                      <Pill tone="soon">Belum dicatat</Pill>
-                    )}
-                  </td>
                   <td className="px-3 py-1 text-right">
-                    {data.can.delete && data.can.approve && !i.bkuEntryId ? <ConfirmDelete label={`Hapus angsuran ${fmtDate(i.paidOn)} ${i.payee}`} title="Hapus catatan angsuran?" description={`Angsuran ${rupiah(i.amount)} kepada ${i.payee} tanggal ${fmtDate(i.paidOn)} akan dihapus. Gunakan hanya untuk koreksi salah input; tindakan ini tercatat dalam jejak audit.`} url={`/api/kdmp/angsuran/${i.id}`} onDone={reload} /> : null}
+                    {data.can.delete && data.can.approve ? <ConfirmDelete label={`Hapus angsuran ${fmtDate(i.paidOn)} ${i.payee}`} title="Hapus catatan angsuran?" description={`Angsuran ${rupiah(i.amount)} kepada ${i.payee} tanggal ${fmtDate(i.paidOn)} akan dihapus. Gunakan hanya untuk koreksi salah input; tindakan ini tercatat dalam jejak audit.`} url={`/api/kdmp/angsuran/${i.id}`} onDone={reload} /> : null}
                   </td>
                 </tr>
               ))}
@@ -86,7 +71,6 @@ export function InstallmentsTab({ data, reload }: TabProps) {
       ) : (
         <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">Belum ada angsuran tercatat untuk tahun {data.year}.</p>
       )}
-      {posting ? <PostToBkuDialog year={Number(posting.paidOn.slice(0, 4))} title="Catat angsuran ke Buku Kas Umum" summary={`Angsuran kepada ${posting.payee}, ${fmtDate(posting.paidOn)}${posting.facilityName ? ` (${posting.facilityName})` : ""}.`} amount={posting.amount} url={`/api/kdmp/angsuran/${posting.id}/bku`} defaultChannel="BANK" defaultVoucher={posting.reference ?? `KDMP-${posting.id}`} onClose={() => setPosting(null)} onDone={() => { setPosting(null); reload(); }} /> : null}
       {adding ? <AddDialog data={data} onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload(); }} /> : null}
     </section>
   );
@@ -110,7 +94,7 @@ function AddDialog({ data, onClose, onDone }: { data: TabProps["data"]; onClose:
         <DialogHeader>
           <DialogTitle>Catat angsuran KDMP ({data.year})</DialogTitle>
           <DialogDescription>
-            Saldo dana yang belum diangsurkan: <strong className="tabular-nums">{rupiah(data.totals.balance)}</strong>.
+            Saldo dana yang belum diangsurkan: <strong className="tabular-nums">{rupiah(data.totals.balance)}</strong>. Dana SPP yang siap dipakai: <strong className="tabular-nums">{rupiah(data.funding.available)}</strong>.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={go} className="space-y-4" noValidate>

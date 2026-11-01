@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json().catch(() => null);
     const r = await addPayment(prisma, { villageId: ctx.village.id, programId: id, userId: ctx.userId ?? null, input: body });
     if (!r.ok) return failResponse(r);
-    await auditWeb(req, ctx, "create", "blt_payments", r.data.id, { programId: id, amount: r.data.amount });
+    await auditWeb(req, ctx, "create", "blt_payments", r.data.id, { programId: id, amount: r.data.amount, sppId: r.data.sppId });
     return NextResponse.json({ success: true, id: r.data.id, amount: r.data.amount }, { status: 201 });
   });
 }

@@ -9,6 +9,7 @@ import { cleanText, fail, future, invalid, isRecord, isoDay, parseIsoDate, type 
 import { fromCents, toCents, type Cents } from "@/lib/coop/loan-math";
 import { accountKind, accountName, isChannel, isKegiatanCode, isLeafAccountCode, isTaxKind, kegiatanName, type Channel, type Mode, type SppStatus } from "./catalog";
 import { plannedThrough } from "./dpa";
+import { lockModuleRow, moduleSpentBySpp } from "./spp-usage";
 import { Rollback, activeDocument, budgetMap, checkAll, closedMonths, ensureYear, loadEntries, lockYear, ok, rollbackToResult, toLedger } from "./service";
 
 export const SPP_LIMITS = { linesPerRequest: 50, requestsPerYear: 5000, workDays: 10 } as const;
@@ -175,54 +176,63 @@ export async function getRequest(db: Db, villageId: number, id: number): Promise
 
 const OPEN: SppStatus[] = ["DIAJUKAN", "DIVERIFIKASI", "DISETUJUI"];
 
-/** Mengajukan SPP. Syarat: DPA kegiatan disetujui (Pasal 52), rekening ada di APB Desa, tidak melebihi anggaran tersisa maupun rencana penarikan sampai bulan ini (Pasal 53). */
+/**
+ * Mengajukan SPP di dalam transaksi pemanggil; pemanggil WAJIB sudah memegang kunci tahun (lockYear) sebelum pembacaan apa pun.
+ * Syarat: DPA kegiatan disetujui (Pasal 52), rekening ada di APB Desa, tidak melebihi anggaran tersisa maupun rencana penarikan sampai bulan ini (Pasal 53).
+ * `source` menandai SPP yang diajukan dari modul pembayaran (BLT, PKTD, KDMP).
+ */
+export async function createRequestInTx(tx: Db, args: { villageId: number; userId: number | null; year: number; value: SppInput; now: Date; source?: { kind: "BLT" | "PKTD" | "KDMP"; id: number } }): Promise<Result<{ id: number; number: number }>> {
+  const { value: v, now } = args;
+  const doc = await activeDocument(tx, args.villageId, args.year);
+  if (!doc) return fail(409, "APB Desa tahun ini belum ditetapkan.");
+  const plan = await tx.apbdesActivityPlan.findUnique({ where: { villageId_year_activityCode: { villageId: args.villageId, year: args.year, activityCode: v.activityCode } } });
+  if (plan?.status !== "DISETUJUI") return fail(409, "DPA kegiatan ini belum disetujui Kepala Desa. Kegiatan dilaksanakan berdasarkan DPA yang disetujui (Pasal 52).");
+  if ((await tx.apbdesPayRequest.count({ where: { villageId: args.villageId, year: args.year } })) >= SPP_LIMITS.requestsPerYear) return fail(409, "Batas jumlah SPP tahun ini tercapai.");
+  const budget = budgetMap(doc.lines);
+  const entries = await loadEntries(tx, args.villageId, args.year);
+  const pending = await tx.apbdesPayRequestLine.findMany({ where: { request: { villageId: args.villageId, year: args.year, activityCode: v.activityCode, status: { in: OPEN } } }, select: { accountCode: true, amountCents: true } });
+  const month = args.year === now.getUTCFullYear() ? now.getUTCMonth() + 1 : args.year < now.getUTCFullYear() ? 12 : 1;
+  const asked = new Map<string, Cents>();
+  for (const l of v.lines) asked.set(l.accountCode, (asked.get(l.accountCode) ?? 0n) + l.amountCents);
+  for (const [acc, amount] of asked) {
+    const key = `${v.activityCode}|${acc}`;
+    const pagu = budget.get(key);
+    if (pagu === undefined) return invalid({ errors: [`Rekening ${acc} tidak ada di APB Desa untuk kegiatan ini.`], fieldErrors: { lines: `Rekening ${acc} tidak dianggarkan` } });
+    const realized = entries.filter((e) => e.activityCode === v.activityCode && e.accountCode === acc).reduce((a, e) => a + (e.type === "PENGELUARAN" ? e.amountCents : e.type === "PANJAR_KEMBALI" ? -e.amountCents : 0n), 0n);
+    const open = pending.filter((x) => x.accountCode === acc).reduce((a, x) => a + x.amountCents, 0n);
+    if (realized + open + amount > pagu) return invalid({ errors: [`Rekening ${acc}: permintaan Rp${fromCents(amount)} melebihi sisa anggaran Rp${fromCents(pagu - realized - open)} (termasuk SPP yang masih berjalan).`], fieldErrors: { lines: `Melebihi sisa anggaran pada ${acc}` } });
+    const cap = await plannedThrough(tx, args.villageId, args.year, v.activityCode, acc, month);
+    if (realized + open + amount > cap) return invalid({ errors: [`Rekening ${acc}: melebihi rencana penarikan (RAK) sampai bulan ${month}, yaitu Rp${fromCents(cap)}. Ubah rencana penarikan lewat DPA bila memang perlu.`], fieldErrors: { lines: `Melebihi rencana penarikan pada ${acc}` } });
+  }
+  const last = await tx.apbdesPayRequest.findFirst({ where: { villageId: args.villageId, year: args.year }, orderBy: { number: "desc" }, select: { number: true } });
+  const number = (last?.number ?? 0) + 1;
+  const row = await tx.apbdesPayRequest.create({
+    data: {
+      villageId: args.villageId,
+      year: args.year,
+      number,
+      activityCode: v.activityCode,
+      mode: v.mode,
+      executorName: v.executorName ?? plan.executorName,
+      workPeriod: v.workPeriod,
+      hasReceipt: v.hasReceipt,
+      sourceKind: args.source?.kind ?? null,
+      sourceId: args.source?.id ?? null,
+      createdById: args.userId,
+      lines: { create: v.lines.map((l) => ({ accountCode: l.accountCode, description: l.description, payee: l.payee, amountCents: l.amountCents, taxCents: l.taxCents, taxKind: l.taxKind })) },
+    },
+  });
+  return ok({ id: row.id, number });
+}
+
 export async function createRequest(db: PrismaClient, args: { villageId: number; userId: number | null; year: number; input: unknown; now?: Date }): Promise<Result<{ id: number; number: number }>> {
   const p = parseSppInput(args.input);
   if (!p.ok) return invalid(p);
-  const v = p.value;
-  const now = args.now ?? new Date();
   await ensureYear(db, args.villageId, args.year);
   return db
     .$transaction(async (tx) => {
       await lockYear(tx, args.villageId, args.year);
-      const doc = await activeDocument(tx, args.villageId, args.year);
-      if (!doc) return fail(409, "APB Desa tahun ini belum ditetapkan.");
-      const plan = await tx.apbdesActivityPlan.findUnique({ where: { villageId_year_activityCode: { villageId: args.villageId, year: args.year, activityCode: v.activityCode } } });
-      if (plan?.status !== "DISETUJUI") return fail(409, "DPA kegiatan ini belum disetujui Kepala Desa. Kegiatan dilaksanakan berdasarkan DPA yang disetujui (Pasal 52).");
-      if ((await tx.apbdesPayRequest.count({ where: { villageId: args.villageId, year: args.year } })) >= SPP_LIMITS.requestsPerYear) return fail(409, "Batas jumlah SPP tahun ini tercapai.");
-      const budget = budgetMap(doc.lines);
-      const entries = await loadEntries(tx, args.villageId, args.year);
-      const pending = await tx.apbdesPayRequestLine.findMany({ where: { request: { villageId: args.villageId, year: args.year, activityCode: v.activityCode, status: { in: OPEN } } }, select: { accountCode: true, amountCents: true } });
-      const month = args.year === now.getUTCFullYear() ? now.getUTCMonth() + 1 : args.year < now.getUTCFullYear() ? 12 : 1;
-      const asked = new Map<string, Cents>();
-      for (const l of v.lines) asked.set(l.accountCode, (asked.get(l.accountCode) ?? 0n) + l.amountCents);
-      for (const [acc, amount] of asked) {
-        const key = `${v.activityCode}|${acc}`;
-        const pagu = budget.get(key);
-        if (pagu === undefined) return invalid({ errors: [`Rekening ${acc} tidak ada di APB Desa untuk kegiatan ini.`], fieldErrors: { lines: `Rekening ${acc} tidak dianggarkan` } });
-        const realized = entries.filter((e) => e.activityCode === v.activityCode && e.accountCode === acc).reduce((a, e) => a + (e.type === "PENGELUARAN" ? e.amountCents : e.type === "PANJAR_KEMBALI" ? -e.amountCents : 0n), 0n);
-        const open = pending.filter((x) => x.accountCode === acc).reduce((a, x) => a + x.amountCents, 0n);
-        if (realized + open + amount > pagu) return invalid({ errors: [`Rekening ${acc}: permintaan Rp${fromCents(amount)} melebihi sisa anggaran Rp${fromCents(pagu - realized - open)} (termasuk SPP yang masih berjalan).`], fieldErrors: { lines: `Melebihi sisa anggaran pada ${acc}` } });
-        const cap = await plannedThrough(tx, args.villageId, args.year, v.activityCode, acc, month);
-        if (realized + open + amount > cap) return invalid({ errors: [`Rekening ${acc}: melebihi rencana penarikan (RAK) sampai bulan ${month}, yaitu Rp${fromCents(cap)}. Ubah rencana penarikan lewat DPA bila memang perlu.`], fieldErrors: { lines: `Melebihi rencana penarikan pada ${acc}` } });
-      }
-      const last = await tx.apbdesPayRequest.findFirst({ where: { villageId: args.villageId, year: args.year }, orderBy: { number: "desc" }, select: { number: true } });
-      const number = (last?.number ?? 0) + 1;
-      const row = await tx.apbdesPayRequest.create({
-        data: {
-          villageId: args.villageId,
-          year: args.year,
-          number,
-          activityCode: v.activityCode,
-          mode: v.mode,
-          executorName: v.executorName ?? plan.executorName,
-          workPeriod: v.workPeriod,
-          hasReceipt: v.hasReceipt,
-          createdById: args.userId,
-          lines: { create: v.lines.map((l) => ({ accountCode: l.accountCode, description: l.description, payee: l.payee, amountCents: l.amountCents, taxCents: l.taxCents, taxKind: l.taxKind })) },
-        },
-      });
-      return ok({ id: row.id, number });
+      return createRequestInTx(tx, { villageId: args.villageId, userId: args.userId, year: args.year, value: p.value, now: args.now ?? new Date() });
     })
     .catch(rollbackToResult);
 }
@@ -328,6 +338,9 @@ export interface PanjarView {
   spent: string;
   returned: string;
   balance: string;
+  /** Pembayaran yang dicatat modul BLT/PKTD/KDMP dari SPP ini; otomatis dihitung sebagai pertanggungjawaban */
+  fromModule: string;
+  moduleKind: string | null;
   state: "TERBUKA" | "LUNAS" | "TERLAMBAT";
   accounts: { accountCode: string; accountName: string; paid: string; returned: string; returnable: string }[];
   spj: { id: number; spjDate: string; voucherNo: string; description: string; amount: string; checked: boolean }[];
@@ -340,9 +353,11 @@ export async function listPanjar(db: Db, villageId: number, year: number, today:
   const requests = await db.apbdesPayRequest.findMany({ where: { id: { in: rows.map((r) => r.requestId) }, villageId }, include: { lines: true } });
   const returns = await db.apbdesEntry.findMany({ where: { villageId, year, type: "PANJAR_KEMBALI", panjarId: { in: rows.map((r) => r.id) } }, orderBy: { entryDate: "asc" } });
   const todayStr = today.toISOString().slice(0, 10);
+  const viaModule = await moduleSpentBySpp(db, rows.map((r) => r.requestId));
   return rows.map((p) => {
     const req = requests.find((r) => r.id === p.requestId);
-    const spent = p.spj.reduce((a, s) => a + s.amountCents, 0n);
+    const mod = viaModule.get(p.requestId) ?? 0n;
+    const spent = p.spj.reduce((a, s) => a + s.amountCents, 0n) + mod;
     const ret = returns.filter((e) => e.panjarId === p.id);
     const returned = ret.reduce((a, e) => a + e.amountCents, 0n);
     const balance = p.givenCents - spent - returned;
@@ -359,6 +374,8 @@ export async function listPanjar(db: Db, villageId: number, year: number, today:
       spent: fromCents(spent),
       returned: fromCents(returned),
       balance: fromCents(balance),
+      fromModule: fromCents(mod),
+      moduleKind: req?.sourceKind ?? null,
       state: balance === 0n ? "LUNAS" : isoDay(p.dueAt)! < todayStr ? "TERLAMBAT" : "TERBUKA",
       accounts: accs.map((a) => {
         const paid = (req?.lines ?? []).filter((l) => l.accountCode === a).reduce((x, l) => x + l.amountCents, 0n);
@@ -385,8 +402,11 @@ export async function addPanjarSpj(db: PrismaClient, args: { villageId: number; 
   const amount = money(b.amount);
   if (amount === null) fe.amount = "Jumlah harus angka lebih dari nol";
   if (Object.keys(fe).length || !spjDate || amount === null) return invalid({ errors: Object.values(fe), fieldErrors: fe });
-  const probe = await db.apbdesPanjar.findFirst({ where: { id: args.panjarId, villageId: args.villageId }, select: { year: true } });
+  const probe = await db.apbdesPanjar.findFirst({ where: { id: args.panjarId, villageId: args.villageId }, select: { year: true, requestId: true } });
   if (!probe) return fail(404, "Panjar tidak ditemukan.");
+  // Panjar dari SPP bersumber modul dipertanggungjawabkan otomatis oleh pembayaran yang dicatat di modulnya; SPJ manual akan menggandakan.
+  const src = await db.apbdesPayRequest.findFirst({ where: { id: probe.requestId, villageId: args.villageId }, select: { sourceKind: true } });
+  if (src?.sourceKind) return fail(409, "Panjar ini berasal dari SPP modul BLT/PKTD/KDMP dan dipertanggungjawabkan otomatis oleh pembayaran yang dicatat di modul itu. Catat pembayarannya di modul, bukan sebagai bukti manual.");
   return db
     .$transaction(async (tx) => {
       await lockYear(tx, args.villageId, probe.year);
@@ -394,7 +414,7 @@ export async function addPanjarSpj(db: PrismaClient, args: { villageId: number; 
       if (!p) return fail(404, "Panjar tidak ditemukan.");
       if (spjDate.getTime() < p.givenAt.getTime()) return invalid({ errors: ["Tanggal bukti sebelum panjar diberikan."], fieldErrors: { spjDate: "Sebelum panjar diberikan" } });
       const returned = (await tx.apbdesEntry.aggregate({ where: { villageId: args.villageId, panjarId: p.id, type: "PANJAR_KEMBALI" }, _sum: { amountCents: true } }))._sum.amountCents ?? 0n;
-      const spent = p.spj.reduce((a, s) => a + s.amountCents, 0n);
+      const spent = p.spj.reduce((a, s) => a + s.amountCents, 0n) + ((await moduleSpentBySpp(tx, [p.requestId])).get(p.requestId) ?? 0n);
       if (spent + returned + amount > p.givenCents) return invalid({ errors: [`Pertanggungjawaban melebihi panjar. Saldo panjar Rp${fromCents(p.givenCents - spent - returned)}.`], fieldErrors: { amount: "Melebihi saldo panjar" } });
       const row = await tx.apbdesPanjarSpj.create({ data: { panjarId: p.id, villageId: args.villageId, spjDate, voucherNo: voucher.value!, description: desc.value!, amountCents: amount } });
       return ok({ id: row.id, balance: fromCents(p.givenCents - spent - returned - amount) });
@@ -425,11 +445,14 @@ export async function returnPanjar(db: PrismaClient, args: { villageId: number; 
   const channel = isChannel(b.channel) ? b.channel : null;
   if (!channel) fe.channel = "Pilih kas tunai atau rekening bank";
   if (Object.keys(fe).length || !date || amount === null || !channel) return invalid({ errors: Object.values(fe), fieldErrors: fe });
-  const probe = await db.apbdesPanjar.findFirst({ where: { id: args.panjarId, villageId: args.villageId }, select: { year: true } });
+  const probe = await db.apbdesPanjar.findFirst({ where: { id: args.panjarId, villageId: args.villageId }, select: { year: true, requestId: true } });
   if (!probe) return fail(404, "Panjar tidak ditemukan.");
   const year = probe.year;
+  const src = await db.apbdesPayRequest.findFirst({ where: { id: probe.requestId, villageId: args.villageId }, select: { sourceKind: true, sourceId: true } });
   return db
     .$transaction(async (tx) => {
+      // Pengembalian mengurangi dana SPP yang dapat dibayarkan modul: serialkan dengan pencatatan pembayaran lewat kunci modul lebih dulu.
+      if (src?.sourceKind && src.sourceId !== null) await lockModuleRow(tx, args.villageId, src.sourceKind, src.sourceId);
       await lockYear(tx, args.villageId, year);
       const p = await tx.apbdesPanjar.findFirst({ where: { id: args.panjarId, villageId: args.villageId }, include: { spj: true } });
       if (!p) return fail(404, "Panjar tidak ditemukan.");
@@ -443,7 +466,7 @@ export async function returnPanjar(db: PrismaClient, args: { villageId: number; 
       const entries = await tx.apbdesEntry.findMany({ where: { villageId: args.villageId, panjarId: p.id, type: "PANJAR_KEMBALI" } });
       const returnedAll = entries.reduce((a, e) => a + e.amountCents, 0n);
       const returnedAcc = entries.filter((e) => e.accountCode === accountCode).reduce((a, e) => a + e.amountCents, 0n);
-      const spent = p.spj.reduce((a, s) => a + s.amountCents, 0n);
+      const spent = p.spj.reduce((a, s) => a + s.amountCents, 0n) + ((await moduleSpentBySpp(tx, [p.requestId])).get(p.requestId) ?? 0n);
       const balance = p.givenCents - spent - returnedAll;
       if (amount > balance) return invalid({ errors: [`Pengembalian melebihi saldo panjar (Rp${fromCents(balance)}).`], fieldErrors: { amount: "Melebihi saldo panjar" } });
       if (returnedAcc + amount > paid) return invalid({ errors: [`Pengembalian melebihi yang dibayarkan untuk rekening ini (Rp${fromCents(paid)}).`], fieldErrors: { amount: "Melebihi pembayaran rekening" } });

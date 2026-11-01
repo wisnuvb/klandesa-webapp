@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const { ctx } = guard;
     const r = await addInstallment(prisma, { villageId: ctx.village.id, userId: ctx.userId ?? null, input: await req.json().catch(() => null) });
     if (!r.ok) return failResponse(r);
-    await auditWeb(req, ctx, "create", "kdmp_installments", r.data.id, { year: r.data.year, amount: r.data.amount, facilityId: r.data.facilityId, payee: r.data.payee, reference: r.data.reference });
+    await auditWeb(req, ctx, "create", "kdmp_installments", r.data.id, { year: r.data.year, amount: r.data.amount, facilityId: r.data.facilityId, payee: r.data.payee, reference: r.data.reference, sppId: r.data.sppId });
     return NextResponse.json({ success: true, id: r.data.id }, { status: 201 });
   });
 }

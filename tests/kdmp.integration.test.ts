@@ -15,7 +15,7 @@ describe("KDMP (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABASE_URL 
   const TODAY = "2026-11-01";
 
   const recv = (villageId: number, amount: string, o: Record<string, unknown> = {}) => kd.addDisbursement(prisma, { villageId, userId: 1, now: NOW, input: { year: 2026, receivedOn: "2026-10-01", amount, ...o } });
-  const pay = (villageId: number, amount: string, o: Record<string, unknown> = {}) => kd.addInstallment(prisma, { villageId, userId: 1, now: NOW, input: { year: 2026, paidOn: "2026-10-15", amount, payee: "PT Pembangun", ...o } });
+  const pay = (villageId: number, amount: string, o: Record<string, unknown> = {}) => kd.addInstallment(prisma, { skipFunding: true, villageId, userId: 1, now: NOW, input: { year: 2026, paidOn: "2026-10-15", amount, payee: "PT Pembangun", ...o } });
   const fac = async (villageId: number, o: Record<string, unknown> = {}) => {
     const r = await kd.createFacility(prisma, { villageId, userId: 1, input: { year: 2026, kind: "GERAI", name: "Gerai Desa", contract: "100000000", ...o } });
     assert.ok(r.ok, JSON.stringify(r));

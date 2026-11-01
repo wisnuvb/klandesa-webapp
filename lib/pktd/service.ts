@@ -3,8 +3,7 @@ import { fail, invalid, isoDay, parseIsoDate, type Result } from "@/lib/form-inp
 import { fromCents } from "@/lib/coop/loan-math";
 import { kegiatanName } from "@/lib/apbdes/catalog";
 import { rulesFor } from "@/lib/dana-desa/rules";
-import { Rollback } from "@/lib/apbdes/service";
-import { auditOf, entryBrief, parsePayoutChoice, postPayoutEntry, removePayoutEntry, runPayoutTx } from "@/lib/apbdes/payout";
+import { fundingOf, pickFunding, requestFunding, type FundingView } from "@/lib/apbdes/funding";
 import { LIMITS, PRIORITIES, STATUS, TASKS } from "./catalog";
 import { activityWarnings, shareBps, wageProblem } from "./calc";
 import { parseActivityCreate, parseActivityPatch, parseDays, parsePay, parseWorker } from "./schema";
@@ -21,6 +20,17 @@ const asResult = (e: unknown): Result<never> => {
 };
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const tomorrowOf = (now: Date) => new Date(now.getTime() + 86_400_000).toISOString().slice(0, 10);
+
+/** Kebutuhan upah yang belum dibayarkan (sen): yang lebih besar antara rencana upah dan upah tercatat, dikurangi upah yang sudah dibayar. */
+async function wageNeed(db: Db, activityId: number, plannedWageCents: bigint): Promise<bigint> {
+  const [all, paid] = await Promise.all([
+    db.pktdWorkDay.aggregate({ where: { activityId }, _sum: { wageCents: true } }),
+    db.pktdWorkDay.aggregate({ where: { activityId, paidOn: { not: null } }, _sum: { wageCents: true } }),
+  ]);
+  const base = (all._sum.wageCents ?? 0n) > plannedWageCents ? (all._sum.wageCents ?? 0n) : plannedWageCents;
+  const rest = base - (paid._sum.wageCents ?? 0n);
+  return rest > 0n ? rest : 0n;
+}
 
 /** Kunci baris kegiatan. HARUS pernyataan pertama dalam transaksi (MySQL REPEATABLE READ). */
 async function lockActivity(tx: Db, villageId: number, id: number) {
@@ -92,14 +102,6 @@ export interface DayGroup {
   total: string;
   unpaid: number;
 }
-/** Upah yang sudah dibayar, dikelompokkan per tanggal bayar dan catatan Buku Kas Umum (kosong = belum dicatat). */
-export interface PayoutGroup {
-  paidOn: string;
-  entryId: number | null;
-  voucherNo: string | null;
-  days: number;
-  total: string;
-}
 export interface ActivityView {
   id: number;
   year: number;
@@ -125,7 +127,8 @@ export interface ActivityView {
   apbdesBudget: string | null;
   workers: WorkerView[];
   dayGroups: DayGroup[];
-  payouts: PayoutGroup[];
+  /** SPP yang mendanai upah kegiatan ini (upah baru hanya dapat dibayarkan dari SPP yang sudah dibayar) */
+  funding: FundingView;
   stats: { workers: number; women: number; priorityWorkers: number; workDays: number };
   warnings: { level: "ERROR" | "WARN" | "INFO"; message: string }[];
   terms: { priorities: { key: string; label: string }[]; tasks: Record<string, string> };
@@ -136,7 +139,7 @@ export async function getActivity(db: Db, villageId: number, id: number): Promis
   if (!a) return fail(404, "Kegiatan PKTD tidak ditemukan.");
   const { rules } = rulesFor(a.year);
   // Agregasi di SQL: jumlah baris hari kerja bisa besar (pekerja × tanggal).
-  const [perWorker, perWorkerUnpaid, perDate, perDateUnpaid, totals, paidTotals, unpaidCount, perPayout] = await Promise.all([
+  const [perWorker, perWorkerUnpaid, perDate, perDateUnpaid, totals, paidTotals, unpaidCount] = await Promise.all([
     db.pktdWorkDay.groupBy({ by: ["workerId"], where: { activityId: a.id }, _count: { _all: true }, _sum: { wageCents: true } }),
     db.pktdWorkDay.groupBy({ by: ["workerId"], where: { activityId: a.id, paidOn: null }, _count: { _all: true } }),
     db.pktdWorkDay.groupBy({ by: ["workDate"], where: { activityId: a.id }, _count: { _all: true }, _sum: { wageCents: true }, orderBy: { workDate: "desc" }, take: 90 }),
@@ -144,9 +147,7 @@ export async function getActivity(db: Db, villageId: number, id: number): Promis
     db.pktdWorkDay.aggregate({ where: { activityId: a.id }, _sum: { wageCents: true }, _count: { _all: true } }),
     db.pktdWorkDay.aggregate({ where: { activityId: a.id, paidOn: { not: null } }, _sum: { wageCents: true } }),
     db.pktdWorkDay.count({ where: { activityId: a.id, paidOn: null } }),
-    db.pktdWorkDay.groupBy({ by: ["paidOn", "bkuEntryId"], where: { activityId: a.id, paidOn: { not: null } }, _count: { _all: true }, _sum: { wageCents: true }, orderBy: { paidOn: "desc" }, take: 120 }),
   ]);
-  const brief = await entryBrief(db, villageId, perPayout.flatMap((g) => (g.bkuEntryId ? [g.bkuEntryId] : [])));
   const recorded = totals._sum.wageCents ?? 0n;
   const paid = paidTotals._sum.wageCents ?? 0n;
   const unpaidDays = unpaidCount;
@@ -163,6 +164,7 @@ export async function getActivity(db: Db, villageId: number, id: number): Promis
       apbdesBudget = sum._sum.amountCents === null ? null : fromCents(sum._sum.amountCents);
     }
   }
+  const funding = await fundingOf(db, villageId, "PKTD", a.id, a.status === "AKTIF" ? await wageNeed(db, a.id, a.plannedWageCents) : 0n);
   const warnings = activityWarnings({ minPct: rules.pktdWageMinPct, costCents: a.costCents, plannedWageCents: a.plannedWageCents, recordedWageCents: recorded, unpaidDays, wageMinCents: a.wageMinCents, wageMaxCents: a.wageMaxCents, workerCount: workers.length, priorityWorkerCount: workers.filter((w) => w.isPriority).length, done: a.status === "SELESAI" });
   return ok<ActivityView>({
     id: a.id,
@@ -189,7 +191,7 @@ export async function getActivity(db: Db, villageId: number, id: number): Promis
     apbdesBudget,
     workers,
     dayGroups: perDate.map((g) => ({ date: iso(g.workDate), count: g._count._all, total: fromCents(g._sum.wageCents ?? 0n), unpaid: perDateUnpaid.find((x) => iso(x.workDate) === iso(g.workDate))?._count._all ?? 0 })),
-    payouts: perPayout.map((g) => ({ paidOn: iso(g.paidOn!), entryId: g.bkuEntryId, voucherNo: g.bkuEntryId ? (brief.get(g.bkuEntryId)?.voucherNo ?? null) : null, days: g._count._all, total: fromCents(g._sum.wageCents ?? 0n) })),
+    funding,
     stats: { workers: workers.length, women: a.workers.filter((w) => w.gender === "P").length, priorityWorkers: workers.filter((w) => w.isPriority).length, workDays: totals._count._all },
     warnings,
     terms: { priorities: (Object.keys(PRIORITIES) as (keyof typeof PRIORITIES)[]).map((key) => ({ key, label: PRIORITIES[key].label })), tasks: { ...TASKS } },
@@ -245,6 +247,7 @@ export async function deleteActivity(db: PrismaClient, args: { villageId: number
       const cur = await lockActivity(tx, args.villageId, args.id);
       if (!cur) return fail(404, "Kegiatan PKTD tidak ditemukan.");
       if ((await tx.pktdWorkDay.count({ where: { activityId: cur.id } })) > 0) return fail(409, "Kegiatan sudah memiliki catatan hari kerja dan tidak dapat dihapus.");
+      if ((await tx.apbdesPayRequest.count({ where: { villageId: args.villageId, sourceKind: "PKTD", sourceId: cur.id, status: { not: "DITOLAK" } } })) > 0) return fail(409, "Kegiatan ini sudah memiliki SPP yang diajukan atau dibayar. Selesaikan atau kembalikan dana SPP-nya terlebih dahulu.");
       await tx.pktdActivity.delete({ where: { id: cur.id } });
       return ok({ id: cur.id });
     })
@@ -296,7 +299,8 @@ export async function removeWorker(db: PrismaClient, args: { villageId: number; 
 
 // ---- Hari kerja dan pembayaran upah
 
-export async function addWorkDays(db: PrismaClient, args: { villageId: number; activityId: number; userId: number | null; input: unknown; now?: Date }): Promise<Result<{ created: number; total: string }>> {
+/** `skipFunding`: hanya untuk tes dan impor data lama; rute tidak pernah mengisinya. */
+export async function addWorkDays(db: PrismaClient, args: { villageId: number; activityId: number; userId: number | null; input: unknown; now?: Date; skipFunding?: boolean }): Promise<Result<{ created: number; total: string; sppId: number | null }>> {
   const p = parseDays(args.input);
   if (!p.ok) return invalid(p);
   const v = p.value;
@@ -321,14 +325,21 @@ export async function addWorkDays(db: PrismaClient, args: { villageId: number; a
       const agg = await tx.pktdWorkDay.aggregate({ where: { activityId: cur.id }, _sum: { wageCents: true } });
       if ((agg._sum.wageCents ?? 0n) + total > cur.costCents) return stop("Upah yang tercatat akan melebihi total biaya kegiatan.");
       const paidOn = v.paid ? v.workDate : null;
-      await tx.pktdWorkDay.createMany({ data: workers.map((w) => ({ activityId: cur.id, villageId: args.villageId, workerId: w.id, workDate: v.workDate, task: v.task, wageCents: v.wageCents, paidOn, note: v.note, createdById: args.userId })) });
-      return ok({ created: workers.length, total: fromCents(total) });
+      let sppId: number | null = null;
+      if (v.paid && !args.skipFunding) {
+        const f = await pickFunding(tx, { villageId: args.villageId, kind: "PKTD", sourceId: cur.id, amountCents: total, paidOn: v.workDate, what: "Pembayaran upah" });
+        if (!f.ok) return fail(409, f.message);
+        sppId = f.sppId;
+      }
+      await tx.pktdWorkDay.createMany({ data: workers.map((w) => ({ activityId: cur.id, villageId: args.villageId, workerId: w.id, workDate: v.workDate, task: v.task, wageCents: v.wageCents, paidOn, sppId, note: v.note, createdById: args.userId })) });
+      return ok({ created: workers.length, total: fromCents(total), sppId });
     })
     .catch(asResult);
 }
 
 /** Menandai upah yang belum dibayar pada satu tanggal kerja sebagai sudah dibayar. */
-export async function markPaid(db: PrismaClient, args: { villageId: number; activityId: number; input: unknown; now?: Date }): Promise<Result<{ updated: number }>> {
+/** `skipFunding`: hanya untuk tes dan impor data lama; rute tidak pernah mengisinya. */
+export async function markPaid(db: PrismaClient, args: { villageId: number; activityId: number; input: unknown; now?: Date; skipFunding?: boolean }): Promise<Result<{ updated: number; sppId: number | null }>> {
   const p = parsePay(args.input);
   if (!p.ok) return invalid(p);
   return db
@@ -337,8 +348,15 @@ export async function markPaid(db: PrismaClient, args: { villageId: number; acti
       if (!cur) return fail(404, "Kegiatan PKTD tidak ditemukan.");
       if (cur.status === "SELESAI") return fail(409, "Kegiatan sudah selesai; buka kembali untuk mencatat pembayaran.");
       if (iso(p.value.paidOn) > tomorrowOf(args.now ?? new Date())) return invalid({ errors: ["Tanggal pembayaran tidak boleh di masa depan."], fieldErrors: { paidOn: "Tidak boleh di masa depan" } });
-      const r = await tx.pktdWorkDay.updateMany({ where: { activityId: cur.id, workDate: p.value.workDate, paidOn: null }, data: { paidOn: p.value.paidOn } });
-      return r.count ? ok({ updated: r.count }) : fail(404, "Tidak ada upah yang belum dibayar pada tanggal itu.");
+      let sppId: number | null = null;
+      if (!args.skipFunding) {
+        const due = await tx.pktdWorkDay.aggregate({ where: { activityId: cur.id, workDate: p.value.workDate, paidOn: null }, _sum: { wageCents: true } });
+        const f = await pickFunding(tx, { villageId: args.villageId, kind: "PKTD", sourceId: cur.id, amountCents: due._sum.wageCents ?? 0n, paidOn: p.value.paidOn, what: "Pembayaran upah" });
+        if (!f.ok) return fail(409, f.message);
+        sppId = f.sppId;
+      }
+      const r = await tx.pktdWorkDay.updateMany({ where: { activityId: cur.id, workDate: p.value.workDate, paidOn: null }, data: { paidOn: p.value.paidOn, ...(sppId ? { sppId } : {}) } });
+      return r.count ? ok({ updated: r.count, sppId }) : fail(404, "Tidak ada upah yang belum dibayar pada tanggal itu.");
     })
     .catch(asResult);
 }
@@ -349,9 +367,8 @@ export async function deleteWorkDays(db: PrismaClient, args: { villageId: number
       const cur = await lockActivity(tx, args.villageId, args.activityId);
       if (!cur) return fail(404, "Kegiatan PKTD tidak ditemukan.");
       if (cur.status === "SELESAI") return fail(409, "Kegiatan sudah selesai; buka kembali untuk mengoreksi.");
-      const rows = await tx.pktdWorkDay.findMany({ where: { activityId: cur.id, workDate: args.date }, select: { wageCents: true, paidOn: true, bkuEntryId: true } });
+      const rows = await tx.pktdWorkDay.findMany({ where: { activityId: cur.id, workDate: args.date }, select: { wageCents: true, paidOn: true } });
       if (!rows.length) return fail(404, "Tidak ada catatan pada tanggal itu.");
-      if (rows.some((r) => r.bkuEntryId !== null)) return fail(409, "Upah pada tanggal itu sudah dicatat di Buku Kas Umum. Batalkan pencatatan Buku Kas Umum lebih dulu.");
       const paid = rows.filter((r) => r.paidOn).length;
       if (paid && !args.allowPaid) return fail(403, "Ada upah yang sudah dibayarkan pada tanggal itu. Catatan pembayaran hanya dapat dihapus oleh admin.");
       await tx.pktdWorkDay.deleteMany({ where: { activityId: cur.id, workDate: args.date } });
@@ -451,56 +468,29 @@ export async function printData(db: Db, args: { villageId: number; id: number; f
   });
 }
 
-// ---- Tautan ke Buku Kas Umum
+// ---- Pengajuan SPP
 
-const lockRow = (villageId: number, id: number) => async (tx: Prisma.TransactionClient) => {
-  await tx.$queryRaw`SELECT id FROM pktd_activities WHERE id = ${id} AND villageId = ${villageId} FOR UPDATE`;
-};
-
-/** Mencatat upah yang dibayar pada satu tanggal ke Buku Kas Umum sebagai satu pengeluaran. Body: paidOn, kegiatan, rekening, kas, nomor bukti. */
-export async function postWagesToBku(db: PrismaClient, args: { villageId: number; activityId: number; userId: number | null; input: unknown; now?: Date }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; days: number; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
-  const p = parsePayoutChoice(args.input);
-  if (!p.ok) return invalid(p);
-  const paidOn = parseIsoDate((args.input as Record<string, unknown>).paidOn);
-  if (!paidOn) return invalid({ errors: ["Tanggal bayar tidak valid."], fieldErrors: { paidOn: "Pilih tanggal bayar." } });
-  const head = await db.pktdActivity.findFirst({ where: { id: args.activityId, villageId: args.villageId }, select: { id: true } });
+/** Mengajukan SPP untuk membiayai upah PKTD. Body: kegiatan, rekening, jumlah, nama Kaur/Kasi penerima panjar. */
+export async function requestActivitySpp(db: PrismaClient, args: { villageId: number; activityId: number; userId: number | null; input: unknown; now?: Date }) {
+  const head = await db.pktdActivity.findFirst({ where: { id: args.activityId, villageId: args.villageId }, select: { year: true, title: true } });
   if (!head) return fail(404, "Kegiatan PKTD tidak ditemukan.");
-  // Cek kasar di luar transaksi: tidak membuat baris tahun APB Desa bila tak ada upah yang bisa dicatat pada tanggal itu.
-  if (!(await db.pktdWorkDay.count({ where: { activityId: head.id, paidOn, bkuEntryId: null } }))) return fail(404, "Tidak ada upah yang sudah dibayar pada tanggal itu dan belum dicatat di Buku Kas Umum.");
-  return runPayoutTx(db, {
+  return requestFunding(db, {
     villageId: args.villageId,
-    year: paidOn.getUTCFullYear(),
-    lockModule: lockRow(args.villageId, args.activityId),
-    fn: async (tx) => {
-      const act = await tx.pktdActivity.findFirst({ where: { id: args.activityId, villageId: args.villageId }, select: { id: true, title: true } });
-      if (!act) return fail(404, "Kegiatan PKTD tidak ditemukan.");
-      const agg = await tx.pktdWorkDay.aggregate({ where: { activityId: act.id, paidOn, bkuEntryId: null }, _sum: { wageCents: true }, _count: { _all: true } });
-      const days = agg._count._all;
-      if (!days) return fail(404, "Tidak ada upah yang sudah dibayar pada tanggal itu dan belum dicatat di Buku Kas Umum.");
-      const total = agg._sum.wageCents ?? 0n;
-      const r = await postPayoutEntry(tx, { villageId: args.villageId, userId: args.userId, year: paidOn.getUTCFullYear(), entryDate: paidOn, choice: p.value, description: `Upah PKTD ${act.title}: ${days} hari kerja dibayar ${iso(paidOn)}`, amountCents: total, now: args.now });
-      if (!r.ok) return r;
-      const upd = await tx.pktdWorkDay.updateMany({ where: { activityId: act.id, paidOn, bkuEntryId: null }, data: { bkuEntryId: r.data.id } });
-      if (upd.count !== days) throw new Rollback("Data upah berubah saat dicatat. Coba lagi.");
-      return ok({ entryId: r.data.id, voucherNo: r.data.voucherNo, amount: fromCents(total), days, ...auditOf(p.value, paidOn) });
+    userId: args.userId,
+    kind: "PKTD",
+    sourceId: args.activityId,
+    year: head.year,
+    input: args.input,
+    now: args.now,
+    describe: `Upah PKTD ${head.title}`,
+    lockModule: async (tx) => {
+      await tx.$queryRaw`SELECT id FROM pktd_activities WHERE id = ${args.activityId} AND villageId = ${args.villageId} FOR UPDATE`;
     },
-  });
-}
-
-/** Membatalkan satu pencatatan Buku Kas Umum atas upah (menghapus catatan kas; upah kembali berstatus belum dicatat). */
-export async function unpostWagesFromBku(db: PrismaClient, args: { villageId: number; activityId: number; entryId: number }): Promise<Result<{ entryId: number; voucherNo: string; amount: string; days: number; activityCode: string | null; accountCode: string | null; channel: string; paidOn: string }>> {
-  const entry = await db.apbdesEntry.findFirst({ where: { id: args.entryId, villageId: args.villageId, pktdWorkDays: { some: { activityId: args.activityId } } }, select: { year: true, voucherNo: true, amountCents: true, activityCode: true, accountCode: true, channel: true, entryDate: true } });
-  if (!entry) return fail(404, "Catatan Buku Kas Umum untuk kegiatan ini tidak ditemukan.");
-  return runPayoutTx(db, {
-    villageId: args.villageId,
-    year: entry.year,
-    lockModule: lockRow(args.villageId, args.activityId),
-    fn: async (tx) => {
-      const days = await tx.pktdWorkDay.count({ where: { activityId: args.activityId, bkuEntryId: args.entryId } });
-      if (!days) return fail(404, "Catatan Buku Kas Umum untuk kegiatan ini tidak ditemukan.");
-      const r = await removePayoutEntry(tx, args.villageId, args.entryId);
-      if (!r.ok) return r;
-      return ok({ entryId: args.entryId, voucherNo: entry.voucherNo, amount: fromCents(entry.amountCents), days, activityCode: entry.activityCode, accountCode: entry.accountCode, channel: entry.channel, paidOn: entry.entryDate.toISOString().slice(0, 10) });
+    remainingNeed: async (tx) => {
+      const act = await tx.pktdActivity.findFirst({ where: { id: args.activityId, villageId: args.villageId }, select: { status: true, plannedWageCents: true } });
+      if (!act) return { refuse: "Kegiatan PKTD tidak ditemukan.", status: 404 };
+      if (act.status === "SELESAI") return { refuse: "Kegiatan sudah selesai; buka kembali untuk mengajukan SPP." };
+      return { cents: await wageNeed(tx, args.activityId, act.plannedWageCents) };
     },
   });
 }

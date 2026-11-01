@@ -80,6 +80,7 @@ export function SppTab({ o, reload }: { o: Overview; reload: () => void }) {
                   <h3 className="break-words font-semibold">{p.requestLabel} · {p.holderName}</h3>
                   <p className="text-sm">{p.activityCode} {p.activityName}</p>
                   <p className="text-sm">Diberikan {dateId(p.givenAt)} {money(p.given)} · dipertanggungjawabkan {money(p.spent)} · dikembalikan {money(p.returned)} · <strong>saldo {money(p.balance)}</strong></p>
+                  {p.moduleKind ? <p className="text-xs text-muted-foreground">Termasuk {money(p.fromModule)} yang dicatat di modul {p.moduleKind === "BLT" ? "BLT Desa" : p.moduleKind === "PKTD" ? "Padat Karya" : "KDMP"}; pembayaran itu otomatis menjadi pertanggungjawaban panjar.</p> : null}
                   <p className={`flex items-center gap-1.5 text-sm ${p.state === "TERLAMBAT" ? "text-destructive" : "text-muted-foreground"}`}>
                     {p.state === "TERLAMBAT" ? <AlertTriangle aria-hidden="true" className="size-4" /> : null}
                     {STATE_LABEL[p.state]} · batas {dateId(p.dueAt)}

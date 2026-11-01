@@ -4274,11 +4274,6 @@ model ApbdesEntry {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  /// Pembayaran BLT, upah PKTD, dan angsuran KDMP yang dicatat ke buku kas lewat modulnya (catatan ini lalu tak dapat diubah dari buku kas).
-  bltPayments  BltPayment[]
-  pktdWorkDays PktdWorkDay[]
-  kdmpInstallments KdmpInstallment[]
-
   @@index([villageId, year, entryDate, id])
   @@index([villageId, year, activityCode, accountCode])
   @@index([panjarId])
@@ -4495,6 +4490,9 @@ model ApbdesPayRequest {
   verifiedAt   DateTime?
   approvedAt   DateTime?
   paidAt       DateTime? @db.Date
+  /// Asal SPP bila diajukan dari modul pembayaran: BLT (sourceId = id program), PKTD (id kegiatan), KDMP (tahun). Kosong = SPP biasa.
+  sourceKind   String?   @db.VarChar(6)
+  sourceId     Int?
 
   createdById Int?
   createdAt   DateTime @default(now())
@@ -4502,8 +4500,14 @@ model ApbdesPayRequest {
 
   lines ApbdesPayRequestLine[]
 
+  /// Pembayaran modul yang dibiayai SPP ini (SPP harus sudah dibayar sebelum pembayaran dapat dicatat).
+  bltPayments      BltPayment[]
+  pktdWorkDays     PktdWorkDay[]
+  kdmpInstallments KdmpInstallment[]
+
   @@unique([villageId, year, number])
   @@index([villageId, year, status])
+  @@index([villageId, sourceKind, sourceId])
   @@map("apbdes_pay_requests")
 }
 
@@ -4954,16 +4958,16 @@ model BltPayment {
   /// Penerima yang menandatangani (bila diwakilkan, tulis nama dan hubungan).
   receivedBy  String?  @db.VarChar(150)
   note        String?  @db.VarChar(300)
-  /// Catatan Buku Kas Umum yang mencatat pembayaran ini (satu catatan per tanggal bayar); kosong = belum dicatat.
-  bkuEntryId  Int?
-  bkuEntry    ApbdesEntry? @relation(fields: [bkuEntryId], references: [id], onDelete: SetNull)
+  /// SPP yang membiayai pembayaran ini (Permendagri 20/2018 Pasal 52-56).
+  sppId       Int?
+  spp         ApbdesPayRequest? @relation(fields: [sppId], references: [id], onDelete: SetNull)
 
   createdById Int?
   createdAt   DateTime @default(now())
 
   @@index([beneficiaryId])
   @@index([programId, villageId])
-  @@index([bkuEntryId])
+  @@index([sppId])
   @@map("blt_payments")
 }
 
@@ -5040,16 +5044,16 @@ model PktdWorkDay {
   wageCents BigInt
   paidOn    DateTime? @db.Date
   note      String?   @db.VarChar(200)
-  /// Catatan Buku Kas Umum yang mencatat upah ini (satu catatan per tanggal bayar); kosong = belum dicatat.
-  bkuEntryId Int?
-  bkuEntry   ApbdesEntry? @relation(fields: [bkuEntryId], references: [id], onDelete: SetNull)
+  /// SPP yang membiayai upah ini; diisi saat upah dibayar.
+  sppId     Int?
+  spp       ApbdesPayRequest? @relation(fields: [sppId], references: [id], onDelete: SetNull)
 
   createdById Int?
   createdAt   DateTime @default(now())
 
   @@unique([workerId, workDate], map: "pktd_work_days_worker_date")
   @@index([activityId, workDate])
-  @@index([bkuEntryId])
+  @@index([sppId])
   @@map("pktd_work_days")
 }
 
@@ -5137,15 +5141,15 @@ model KdmpInstallment {
   /// Nomor perjanjian/kuitansi sebagai bukti.
   reference   String?  @db.VarChar(150)
   note        String?  @db.VarChar(300)
-  /// Catatan Buku Kas Umum yang mencatat angsuran ini; kosong = belum dicatat.
-  bkuEntryId  Int?
-  bkuEntry    ApbdesEntry? @relation(fields: [bkuEntryId], references: [id], onDelete: SetNull)
+  /// SPP yang membiayai angsuran ini.
+  sppId       Int?
+  spp         ApbdesPayRequest? @relation(fields: [sppId], references: [id], onDelete: SetNull)
 
   createdById Int?
   createdAt   DateTime @default(now())
 
   @@index([villageId, year])
   @@index([facilityId])
-  @@index([bkuEntryId])
+  @@index([sppId])
   @@map("kdmp_installments")
 }

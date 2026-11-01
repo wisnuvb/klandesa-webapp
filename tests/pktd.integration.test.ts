@@ -28,7 +28,7 @@ describe("PKTD (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABASE_URL 
     assert.ok(r.ok, JSON.stringify(r));
     return r.ok ? r.data.id : 0;
   };
-  const days = (villageId: number, activityId: number, workerIds: number[], o: Record<string, unknown> = {}) => pk.addWorkDays(prisma, { villageId, activityId, userId: 1, now: NOW, input: { workDate: "2026-03-02", task: "PELAKSANAAN", wage: "80000", workerIds, ...o } });
+  const days = (villageId: number, activityId: number, workerIds: number[], o: Record<string, unknown> = {}) => pk.addWorkDays(prisma, { skipFunding: true, villageId, activityId, userId: 1, now: NOW, input: { workDate: "2026-03-02", task: "PELAKSANAAN", wage: "80000", workerIds, ...o } });
   const view = async (villageId: number, id: number) => {
     const r = await pk.getActivity(prisma, villageId, id);
     assert.ok(r.ok, JSON.stringify(r));
@@ -89,11 +89,11 @@ describe("PKTD (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABASE_URL 
     const w1 = await worker(vA, id, "Pak D");
     const w2 = await worker(vA, id, "Pak E");
     assert.ok((await days(vA, id, [w1, w2])).ok);
-    assert.equal((await pk.markPaid(prisma, { villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-03-01" } })).ok, false, "sebelum tanggal kerja");
-    assert.equal((await pk.markPaid(prisma, { villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-12-30" } })).ok, false, "masa depan");
-    const paid = await pk.markPaid(prisma, { villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-03-02" } });
+    assert.equal((await pk.markPaid(prisma, { skipFunding: true, villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-03-01" } })).ok, false, "sebelum tanggal kerja");
+    assert.equal((await pk.markPaid(prisma, { skipFunding: true, villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-12-30" } })).ok, false, "masa depan");
+    const paid = await pk.markPaid(prisma, { skipFunding: true, villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-03-02" } });
     assert.ok(paid.ok && paid.data.updated === 2);
-    assert.equal((await pk.markPaid(prisma, { villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-03-02" } })).ok, false, "sudah dibayar semua");
+    assert.equal((await pk.markPaid(prisma, { skipFunding: true, villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-03-02" } })).ok, false, "sudah dibayar semua");
     let v = await view(vA, id);
     assert.equal(v.paidWage, "160000.00");
     assert.equal(v.warnings.some((x) => /belum ditandai dibayar/.test(x.message)), false);
@@ -104,7 +104,7 @@ describe("PKTD (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABASE_URL 
     assert.equal((await days(vA, id, [w2], { workDate: "2026-03-04" })).ok, false, "selesai: tidak bisa mencatat");
     assert.equal((await pk.deleteWorkDays(prisma, { villageId: vA, activityId: id, date: new Date("2026-03-03") })).ok, false, "selesai: tidak bisa menghapus");
     assert.equal((await pk.patchActivity(prisma, { villageId: vA, id, input: { title: "Ganti" } })).ok, false, "selesai: isian terkunci");
-    assert.equal((await pk.markPaid(prisma, { villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-03", paidOn: "2026-03-03" } })).ok, false, "selesai: pembayaran terkunci");
+    assert.equal((await pk.markPaid(prisma, { skipFunding: true, villageId: vA, activityId: id, now: NOW, input: { workDate: "2026-03-03", paidOn: "2026-03-03" } })).ok, false, "selesai: pembayaran terkunci");
     assert.equal((await pk.removeWorker(prisma, { villageId: vA, activityId: id, id: w2 })).ok, false, "selesai: pekerja terkunci");
     assert.equal((await pk.patchActivity(prisma, { villageId: vA, id, input: { status: "AKTIF" } })).ok, false, "hanya admin (izin approve) yang boleh membuka kembali");
     assert.ok((await pk.patchActivity(prisma, { villageId: vA, id, input: { status: "AKTIF" }, allowReopen: true })).ok, "dibuka kembali oleh admin");
@@ -171,7 +171,7 @@ describe("PKTD (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABASE_URL 
     assert.equal((await pk.patchActivity(prisma, { villageId: vB, id, input: { note: "x" } })).ok, false);
     assert.equal((await pk.addWorker(prisma, { villageId: vB, activityId: id, input: { name: "x", priority: "LAINNYA" } })).ok, false);
     assert.equal((await days(vB, id, [w], { workDate: "2026-03-09" })).ok, false);
-    assert.equal((await pk.markPaid(prisma, { villageId: vB, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-03-02" } })).ok, false);
+    assert.equal((await pk.markPaid(prisma, { skipFunding: true, villageId: vB, activityId: id, now: NOW, input: { workDate: "2026-03-02", paidOn: "2026-03-02" } })).ok, false);
     assert.equal((await pk.deleteWorkDays(prisma, { villageId: vB, activityId: id, date: new Date("2026-03-02") })).ok, false);
     assert.equal((await pk.searchCandidates(prisma, { villageId: vB, activityId: id, q: "Pak" })).ok, false);
     assert.equal((await pk.printData(prisma, { villageId: vB, id })).ok, false);
