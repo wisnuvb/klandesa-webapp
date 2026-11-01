@@ -17,19 +17,21 @@ export async function GET(req: NextRequest) {
     name = u?.name ?? "";
   }
   let username: string | undefined;
+  let photoUrl: string | null = null;
   const roles: { role: "rt"; rt: string; rw: string | null }[] = [];
   if (ctx.accountType === "citizen") {
     const a = await prisma.citizenAccount.findUnique({
       where: { id: ctx.accountId },
-      select: { username: true, residentId: true, resident: { select: { name: true } } },
+      select: { username: true, residentId: true, resident: { select: { name: true, photo: true, photoThumb: true } } },
     });
     name = a?.resident.name ?? "";
     username = a?.username;
+    photoUrl = a?.resident.photoThumb || a?.resident.photo || null;
     const rt = a ? await getRtAssignment(ctx.villageId, a.residentId) : null;
     if (rt) roles.push({ role: "rt", rt: rt.rt, rw: rt.rw });
   }
   return NextResponse.json({
-    account: { type: ctx.accountType, id: ctx.accountId, name, username, role: ctx.role },
+    account: { type: ctx.accountType, id: ctx.accountId, name, username, role: ctx.role, photoUrl },
     roles,
     village: { id: ctx.village.id, code: ctx.village.code, name: ctx.village.name, logoUrl: ctx.village.logoUrl },
   });

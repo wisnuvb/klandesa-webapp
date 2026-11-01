@@ -28,3 +28,9 @@ export const invalid = (p: { errors: string[]; fieldErrors: Record<string, strin
 
 /** Bila tahun dalam tanggal tak sama dengan tahun yang dinyatakan. */
 export const future = (d: Date, now: Date): boolean => d.getTime() > now.getTime() + 86_400_000;
+
+/** Tanggal hari ini menurut jam perangkat ("YYYY-MM-DD"). toISOString memakai UTC dan menghasilkan "kemarin" pada dini hari WIB. */
+export function localToday(now: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+}

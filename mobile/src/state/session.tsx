@@ -6,7 +6,7 @@ import { queryClient } from '@/lib/queries';
 import { profileStore, refreshTokenStore } from '@/lib/storage';
 
 export type Profile = {
-  account: { type: 'citizen' | 'staff'; id: number; name: string; username?: string; role: string };
+  account: { type: 'citizen' | 'staff'; id: number; name: string; username?: string; role: string; photoUrl?: string | null };
   village: { id: number; code: string; name: string; logoUrl: string | null };
 };
 
@@ -18,6 +18,8 @@ type Ctx = {
   /** Dipanggil setelah login/daftar berhasil (respons berisi token + profil). */
   signIn: (r: Tokens & Profile) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Perbarui data akun yang tersimpan di HP (mis. foto profil setelah diganti). */
+  updateAccount: (patch: Partial<Profile['account']>) => Promise<void>;
 };
 
 const SessionContext = createContext<Ctx | null>(null);
@@ -42,6 +44,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setProfile(p);
     setStatus('signedIn');
   }, []);
+
+  const updateAccount = useCallback(
+    async (patch: Partial<Profile['account']>) => {
+      if (!profile) return;
+      const next: Profile = { ...profile, account: { ...profile.account, ...patch } };
+      setProfile(next);
+      await profileStore.set(next);
+    },
+    [profile],
+  );
 
   const signOut = useCallback(async () => {
     const rt = await refreshTokenStore.get();
@@ -81,7 +93,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [clear]);
 
-  const value = useMemo(() => ({ status, profile, signIn, signOut }), [status, profile, signIn, signOut]);
+  const value = useMemo(() => ({ status, profile, signIn, signOut, updateAccount }), [status, profile, signIn, signOut, updateAccount]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

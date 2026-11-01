@@ -37,6 +37,7 @@ import {
   COUNTRY_CODE_OPTIONS,
 } from "@/utils/constants/user";
 import { ImageAssetModal } from "@/components/ImageAssetModal";
+import { ResidentPhotoUploader } from "./ResidentPhotoUploader";
 import { Resident } from "@prisma/client";
 
 interface EditResidentModalProps {
@@ -477,6 +478,18 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
             {/* Media */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold border-b pb-2">Media</h3>
+              {resident ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Foto warga</p>
+                  <ResidentPhotoUploader
+                    residentId={resident.id}
+                    name={resident.name}
+                    photo={resident.photo}
+                    photoThumb={resident.photoThumb}
+                    onChanged={onSuccess}
+                  />
+                </div>
+              ) : null}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative">
                   <FormInput
@@ -508,44 +521,6 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveMediaField("coverThumb");
-                      setMediaModalOpen(true);
-                    }}
-                    className="absolute right-2 top-8 p-1.5 bg-muted rounded-md hover:bg-muted/80 transition-colors"
-                    title="Pilih gambar"
-                  >
-                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                </div>
-                <div className="relative">
-                  <FormInput
-                    name="photo"
-                    control={control}
-                    label="Foto URL"
-                    placeholder="https://..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveMediaField("photo");
-                      setMediaModalOpen(true);
-                    }}
-                    className="absolute right-2 top-8 p-1.5 bg-muted rounded-md hover:bg-muted/80 transition-colors"
-                    title="Pilih gambar"
-                  >
-                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                </div>
-                <div className="relative">
-                  <FormInput
-                    name="photoThumb"
-                    control={control}
-                    label="Foto Thumb URL"
-                    placeholder="https://..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveMediaField("photoThumb");
                       setMediaModalOpen(true);
                     }}
                     className="absolute right-2 top-8 p-1.5 bg-muted rounded-md hover:bg-muted/80 transition-colors"

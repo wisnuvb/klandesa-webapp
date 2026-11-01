@@ -186,6 +186,24 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     status: "live",
     sortOrder: 350,
   },
+  {
+    id: "laporan-kades",
+    label: "Laporan Kepala Desa",
+    path: "/laporan-kepala-desa",
+    permission: "apbdes",
+    sdgGoals: [16],
+    status: "beta",
+    sortOrder: 352,
+  },
+  {
+    id: "apbdes",
+    label: "APBDes & Buku Kas",
+    path: "/apbdes",
+    permission: "apbdes",
+    sdgGoals: [16, 17],
+    status: "beta",
+    sortOrder: 351,
+  },
 
   // --- Operasional: Portal warga ---
   {
@@ -444,6 +462,18 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     group: "komunikasi",
     groupLabel: "Komunikasi Warga",
     sortOrder: 505,
+  },
+
+  {
+    id: "polling",
+    label: "Polling Warga",
+    path: "/polling",
+    permission: "polls",
+    sdgGoals: [16],
+    status: "beta",
+    group: "komunikasi",
+    groupLabel: "Komunikasi Warga",
+    sortOrder: 506,
   },
 
   // --- Pengaturan & langganan (bawah) ---

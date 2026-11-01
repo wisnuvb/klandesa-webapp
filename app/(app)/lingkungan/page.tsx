@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Leaf, Plus, Recycle, Trash2 } from "lucide-react";
 import { AsyncState, MetricGrid, type MetricItem } from "@/components/app/patterns";
@@ -223,6 +224,9 @@ export default function LingkunganPage() {
                   <TableCell>{b.monthlyKg}</TableCell>
                   <TableCell>{b.status}</TableCell>
                   <TableCell>
+                    <Button asChild variant="outline" size="sm" className="mr-2">
+                      <Link href={`/lingkungan/bank-sampah/${b.id}`}>Kelola</Link>
+                    </Button>
                     <Can resource="lingkungan" action="delete">
                       <Button variant="ghost" size="icon" onClick={() => void deleteBank(b.id)}>
                         <Trash2 className="h-4 w-4" />

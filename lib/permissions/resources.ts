@@ -34,6 +34,8 @@ export const PERMISSION_RESOURCES = [
   "register_surat",
   "lembaga_desa",
   "dtsen_usulan",
+  "polls",
+  "apbdes",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];

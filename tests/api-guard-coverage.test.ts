@@ -135,6 +135,7 @@ const AUDIT_EXEMPT: Record<string, string> = {
   "app/api/forum-threads/[id]/view/route.ts": "penghitung tayang",
   "app/api/notifications/read/route.ts": "status baca milik sendiri",
   "app/api/residents/bulk/check/route.ts": "validasi baca-saja",
+  "app/api/residents/photo-upload/route.ts": "hanya menerbitkan URL unggah; pencatatan di PUT /api/residents/[id]/photo",
   "app/api/statistics/route.ts": "DELETE hanya membersihkan cache",
 };
 const AUDIT_EXEMPT_PREFIX: Record<string, string> = {

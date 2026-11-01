@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type DataTableColumn } from "@/components/ui/data-table";
@@ -24,7 +25,22 @@ export const createDataWargaColumns = ({
     width: 56,
     align: "center",
   },
-  { key: "name", header: "Nama", sortable: true },
+  {
+    key: "name",
+    header: "Nama",
+    sortable: true,
+    cell: (w) => (
+      <div className="flex items-center gap-3">
+        <Avatar className="size-8">
+          <AvatarImage src={w.photoThumb || w.photo || undefined} alt="" loading="lazy" />
+          <AvatarFallback className="text-xs" aria-hidden="true">
+            {w.name.trim().slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <span>{w.name}</span>
+      </div>
+    ),
+  },
   {
     key: "nik",
     header: "NIK",

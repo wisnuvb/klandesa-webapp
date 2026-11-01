@@ -135,11 +135,19 @@ export default function KoperasiPage() {
                 Ringkasan anggota dan buku kas sederhana
               </p>
             </div>
-            {k.canManage && coop && (
-              <Button variant="outline" onClick={() => setProfileDlg(true)}>
-                Edit profil
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link href="/koperasi/simpan-pinjam">Simpan pinjam</Link>
               </Button>
-            )}
+              <Button asChild variant="outline">
+                <Link href="/koperasi/pembentukan">Pembentukan Kopdes</Link>
+              </Button>
+              {k.canManage && coop && (
+                <Button variant="outline" onClick={() => setProfileDlg(true)}>
+                  Edit profil
+                </Button>
+              )}
+            </div>
           </div>
 
           <CoopStatsCards summary={k.summary} loading={false} />

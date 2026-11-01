@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/text';
 
@@ -291,8 +292,9 @@ export function InfoBox({ tone = 'info', icon, children }: { tone?: 'info' | 'ok
   );
 }
 
-/** Avatar bulat berisi inisial nama (atau foto bila ada). */
-export function Avatar({ name, size = 48, tone = 'soft' }: { name: string; size?: number; tone?: 'soft' | 'deep' }) {
+/** Avatar bulat berisi foto bila ada, selain itu inisial nama. */
+export function Avatar({ name, size = 48, tone = 'soft', uri }: { name: string; size?: number; tone?: 'soft' | 'deep'; uri?: string | null }) {
+  if (uri) return <Image source={{ uri }} accessibilityLabel={`Foto ${name}`} contentFit="cover" style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primarySoft }} />;
   const text = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
   const deep = tone === 'deep';
   return (

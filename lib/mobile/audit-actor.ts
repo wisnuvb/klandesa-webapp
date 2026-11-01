@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
  */
 export type AuditActor =
   | { type: "staff"; userId: number }
-  | { type: "rt"; residentId: number; name: string; rt: string | null; rw: string | null };
+  | { type: "rt"; residentId: number; name: string; rt: string | null; rw: string | null }
+  | { type: "citizen"; residentId: number };
 
 export type AuditEntry = {
   villageId: number;
@@ -38,7 +39,9 @@ export function buildAuditEntry(
     entity,
     entityId: String(entityId),
     changes: safe,
-    metadata: actor.type === "rt" ? { via: "mobile", actor: { type: "rt", residentId: actor.residentId, name: actor.name, rt: actor.rt, rw: actor.rw } } : { via: "mobile" },
+    metadata: actor.type === "rt" ? { via: "mobile", actor: { type: "rt", residentId: actor.residentId, name: actor.name, rt: actor.rt, rw: actor.rw } }
+      : actor.type === "citizen" ? { via: "mobile", actor: { type: "citizen", residentId: actor.residentId } }
+      : { via: "mobile" },
     ipAddress: (headers.forwardedFor?.split(",")[0] ?? "").trim().slice(0, 50) || null,
     userAgent: headers.userAgent?.slice(0, 500) ?? null,
   };

@@ -100,7 +100,7 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
     const { endpoint, secret } = await mkEp(vA, ["mutasi.diterapkan"]);
     await svc.enqueueEvent(prisma, { villageId: vA, type: "mutasi.diterapkan", data: { mutationId: "12", type: "MOVE_OUT", residentId: 99 } });
     const { sent, send } = mkSender(() => 200);
-    const r = await del.processDue(prisma, { send });
+    const r = await del.processDue(prisma, { villageId: vA, send });
     assert.deepEqual([r.due, r.success, r.retrying, r.dead], [1, 1, 0, 0]);
     assert.equal(sent.length, 1);
 
@@ -121,7 +121,7 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
     assert.equal(ep.consecutiveFailures, 0);
     assert.ok(ep.lastSuccessAt);
     // Tidak dikirim dua kali.
-    assert.equal((await del.processDue(prisma, { send })).due, 0);
+    assert.equal((await del.processDue(prisma, { villageId: vA, send })).due, 0);
     await prisma.webhookEndpoint.delete({ where: { id: endpoint.id } });
   });
 
@@ -130,21 +130,21 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
     await svc.enqueueEvent(prisma, { villageId: vA, type: "pengumuman.terbit", data: { announcementId: 1 } });
     const { sent, send } = mkSender((n) => (n < 3 ? 503 : 204));
 
-    let r = await del.processDue(prisma, { send });
+    let r = await del.processDue(prisma, { villageId: vA, send });
     assert.equal(r.retrying, 1);
     let row = await prisma.webhookDelivery.findFirstOrThrow({ where: { endpointId: endpoint.id } });
     assert.equal(row.status, "PENDING");
     assert.equal(row.lastStatusCode, 503);
     assert.ok(row.nextAttemptAt.getTime() > Date.now() + 30_000, "belum jatuh tempo");
-    assert.equal((await del.processDue(prisma, { send })).due, 0, "belum waktunya, tidak dikirim lagi");
+    assert.equal((await del.processDue(prisma, { villageId: vA, send })).due, 0, "belum waktunya, tidak dikirim lagi");
 
-    r = await del.processDue(prisma, { send, now: later(1) });
+    r = await del.processDue(prisma, { villageId: vA, send, now: later(1) });
     assert.equal(r.retrying, 1);
     row = await prisma.webhookDelivery.findFirstOrThrow({ where: { endpointId: endpoint.id } });
     assert.equal(row.attempts, 2);
     assert.ok(row.nextAttemptAt.getTime() > Date.now() + 4 * 60_000, "jeda kedua lebih panjang");
 
-    r = await del.processDue(prisma, { send, now: later(6) });
+    r = await del.processDue(prisma, { villageId: vA, send, now: later(6) });
     assert.equal(r.success, 1);
     assert.equal(sent.length, 3);
     assert.equal((await prisma.webhookDelivery.findFirstOrThrow({ where: { endpointId: endpoint.id } })).status, "SUCCESS");
@@ -156,7 +156,7 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
     const { endpoint } = await mkEp(vA, ["pengumuman.terbit"]);
     await svc.enqueueEvent(prisma, { villageId: vA, type: "pengumuman.terbit", data: { announcementId: 2 } });
     const { send } = mkSender(() => "boom");
-    for (let i = 0; i < svc.MAX_ATTEMPTS; i++) await del.processDue(prisma, { send, now: later(24 * 60 * (i + 1)) });
+    for (let i = 0; i < svc.MAX_ATTEMPTS; i++) await del.processDue(prisma, { villageId: vA, send, now: later(24 * 60 * (i + 1)) });
     const row = await prisma.webhookDelivery.findFirstOrThrow({ where: { endpointId: endpoint.id } });
     assert.equal(row.status, "DEAD");
     assert.equal(row.attempts, svc.MAX_ATTEMPTS);
@@ -166,7 +166,7 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
     const ok = await svc.retryDelivery(prisma, { villageId: vA, endpointId: endpoint.id, deliveryId: row.id });
     assert.ok(ok.ok);
     const ok2 = mkSender(() => 200);
-    assert.equal((await del.processDue(prisma, { send: ok2.send })).success, 1);
+    assert.equal((await del.processDue(prisma, { villageId: vA, send: ok2.send })).success, 1);
     assert.equal((await svc.retryDelivery(prisma, { villageId: vA, endpointId: endpoint.id, deliveryId: row.id })).ok, false, "yang sudah sukses tidak bisa dikirim ulang");
     await prisma.webhookEndpoint.delete({ where: { id: endpoint.id } });
   });
@@ -174,15 +174,15 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
   it("kode 4xx permanen langsung menyerah; 429 tetap dicoba lagi; 410 mematikan tujuan", async () => {
     const { endpoint } = await mkEp(vA, ["pengumuman.terbit"]);
     await svc.enqueueEvent(prisma, { villageId: vA, type: "pengumuman.terbit", data: { announcementId: 3 } });
-    let r = await del.processDue(prisma, { send: mkSender(() => 404).send });
+    let r = await del.processDue(prisma, { villageId: vA, send: mkSender(() => 404).send });
     assert.equal(r.dead, 1);
 
     await svc.enqueueEvent(prisma, { villageId: vA, type: "pengumuman.terbit", data: { announcementId: 4 } });
-    r = await del.processDue(prisma, { send: mkSender(() => 429).send });
+    r = await del.processDue(prisma, { villageId: vA, send: mkSender(() => 429).send });
     assert.equal(r.retrying, 1);
 
     await svc.enqueueEvent(prisma, { villageId: vA, type: "pengumuman.terbit", data: { announcementId: 5 } });
-    r = await del.processDue(prisma, { send: mkSender(() => 410).send });
+    r = await del.processDue(prisma, { villageId: vA, send: mkSender(() => 410).send });
     assert.equal(r.dead, 1);
     const ep = await prisma.webhookEndpoint.findUniqueOrThrow({ where: { id: endpoint.id } });
     assert.equal(ep.isActive, false);
@@ -197,7 +197,7 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
     const { send } = mkSender(() => 500);
     for (let i = 0; i < svc.AUTO_DISABLE_AFTER_FAILURES; i++) {
       await svc.enqueueEvent(prisma, { villageId: vA, type: "pengumuman.terbit", data: { announcementId: i } });
-      await del.processDue(prisma, { send, now: later(1) });
+      await del.processDue(prisma, { villageId: vA, send, now: later(1) });
     }
     const ep = await prisma.webhookEndpoint.findUniqueOrThrow({ where: { id: endpoint.id } });
     assert.equal(ep.isActive, false);
@@ -217,7 +217,7 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
       await new Promise((r) => setTimeout(r, 30));
       return send(u, h, b);
     };
-    await Promise.all([del.processDue(prisma, { send: slow }), del.processDue(prisma, { send: slow }), del.processDue(prisma, { send: slow })]);
+    await Promise.all([del.processDue(prisma, { villageId: vA, send: slow }), del.processDue(prisma, { villageId: vA, send: slow }), del.processDue(prisma, { villageId: vA, send: slow })]);
     assert.equal(sent.length, 6, "tiap kejadian terkirim tepat sekali");
     assert.equal(new Set(sent.map((s) => s.headers["X-Klandesa-Delivery"])).size, 6);
     await prisma.webhookEndpoint.delete({ where: { id: endpoint.id } });
@@ -246,7 +246,7 @@ describe("webhook keluar (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DAT
     assert.ok(r.ok && r.data.secret && r.data.secret !== secret);
     await svc.enqueueEvent(prisma, { villageId: vA, type: "pengumuman.terbit", data: { announcementId: 1 } });
     const s = mkSender(() => 200);
-    await del.processDue(prisma, { send: s.send });
+    await del.processDue(prisma, { villageId: vA, send: s.send });
     const h = s.sent[0].headers["X-Klandesa-Signature"];
     assert.ok(sign.verifyWebhook(r.ok ? r.data.secret! : "", h, s.sent[0].body));
     assert.equal(sign.verifyWebhook(secret, h, s.sent[0].body), false);

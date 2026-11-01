@@ -16,7 +16,7 @@ const BAD_CREDS = "Email atau password salah. Jika berulang kali salah, akun dik
 export async function loginCitizen(req: Request, username: string, password: string) {
   const account = await prisma.citizenAccount.findUnique({
     where: { username },
-    include: { resident: { select: { name: true } }, village: true },
+    include: { resident: { select: { name: true, photo: true, photoThumb: true } }, village: true },
   });
   if (!account || account.deletedAt) {
     await verifyPassword(password, await getDummyHash()).catch(() => false);
@@ -60,7 +60,7 @@ export async function loginCitizen(req: Request, username: string, password: str
   );
   return Response.json({
     ...tokens,
-    account: { type: "citizen", id: account.id, name: account.resident.name, username: account.username, role: "citizen" },
+    account: { type: "citizen", id: account.id, name: account.resident.name, username: account.username, role: "citizen", photoUrl: account.resident.photoThumb || account.resident.photo || null },
     village: { id: account.village.id, code: account.village.code, name: account.village.name, logoUrl: account.village.logoUrl },
   });
 }

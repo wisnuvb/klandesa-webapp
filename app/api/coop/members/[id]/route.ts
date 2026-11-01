@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { CoopAppRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { memberHasFinancialRecords } from "@/lib/coop/savings-loans";
 import { toJSONSafe } from "@/utils/json";
 import {
   loadCoopApiContextWithCooperative,
@@ -186,6 +187,10 @@ export async function DELETE(
   }
 
   const { cooperative } = loaded.ctx;
+  // Riwayat simpanan/pinjaman harus utuh: anggota yang punya catatan keuangan dinonaktifkan, bukan dihapus.
+  if (await memberHasFinancialRecords(prisma, id)) {
+    return NextResponse.json({ error: "Anggota ini punya catatan simpanan atau pinjaman, jadi tidak dapat dihapus. Ubah statusnya menjadi tidak aktif." }, { status: 409 });
+  }
   const deleted = await prisma.cooperativeMember.deleteMany({
     where: { id, cooperativeId: cooperative.id },
   });

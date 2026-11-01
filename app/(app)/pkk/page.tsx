@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Baby,
@@ -318,12 +319,26 @@ export default function PkkPage() {
               Posyandu, dasawisma, dan pemantauan stunting balita.
             </p>
           </div>
-          <Can resource="pkk" action="export">
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href="/pkk/gizi">Status gizi balita</Link>
             </Button>
-          </Can>
+            <Button asChild variant="outline">
+              <Link href="/pkk/imunisasi">Imunisasi anak</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/pkk/ibu-hamil">KIA: ibu hamil</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/pkk/lansia">Posyandu lansia</Link>
+            </Button>
+            <Can resource="pkk" action="export">
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </Can>
+          </div>
         </div>
 
         <MetricGrid items={metricItems} columns={4} />

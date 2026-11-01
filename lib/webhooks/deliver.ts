@@ -161,11 +161,12 @@ export interface ProcessSummary {
   dead: number;
 }
 
-export async function processDue(db: Db, opts: { limit?: number; now?: Date; send?: Sender } = {}): Promise<ProcessSummary> {
+/** `villageId` membatasi ke satu desa (dipakai tes agar tak ikut mengirim pengiriman milik desa/tes lain); kosong = semua desa (cron). */
+export async function processDue(db: Db, opts: { limit?: number; now?: Date; send?: Sender; villageId?: number } = {}): Promise<ProcessSummary> {
   const now = opts.now ?? new Date();
   const send = opts.send ?? postWebhook;
   const rows = await db.webhookDelivery.findMany({
-    where: { status: "PENDING", nextAttemptAt: { lte: now }, endpoint: { isActive: true } },
+    where: { status: "PENDING", nextAttemptAt: { lte: now }, endpoint: { isActive: true, ...(opts.villageId ? { villageId: opts.villageId } : {}) } },
     orderBy: { nextAttemptAt: "asc" },
     take: Math.min(Math.max(opts.limit ?? 20, 1), 200),
     select: CLAIM_SELECT,

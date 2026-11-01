@@ -191,6 +191,14 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: "crud_export",
     staff: "crud",
   },
+  apbdes: {
+    // Menutup/membuka bulan memakai create/update/delete di dalam rute; "approve" hanya untuk persetujuan bulan oleh Kepala Desa.
+    admin: ["read", "create", "update", "delete", "export", "approve"],
+    village_head: ["read", "export", "approve"],
+    secretary: "crud_export",
+    // Kaur Keuangan (staff) mencetak buku kas dan buku pembantu; ekspor tidak memperluas akses baca yang sudah ada.
+    staff: "crud_export",
+  },
   aset_desa: {
     // Penghapusan dari buku inventaris (Pasal 21-23) memakai aksi "delete": hanya yang berwenang menetapkannya.
     admin: "crud_export",
@@ -224,6 +232,13 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     village_head: "read",
     secretary: "crud",
     staff: ["read", "create", "update"],
+  },
+  polls: {
+    // Menerbitkan/menutup polling memakai "update" (dicek dalam rute karena POST).
+    admin: "crud",
+    village_head: "read",
+    secretary: "crud",
+    staff: "read",
   },
 };
 

@@ -7,8 +7,10 @@ import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/mobile/report-logic";
 import { buildSpacesPublicUrl, getSpacesClient, getSpacesConfig } from "@/lib/spaces";
 import { MOBILE_MEDIA_QUOTA_BYTES, mediaQuotaFullMessage } from "@/lib/mobile/media-quota";
 import { releaseMobileMedia, reserveMobileMedia } from "@/lib/mobile/media-usage";
+import { getCitizenResident } from "@/lib/mobile/citizen-data";
+import { presignResidentPhoto } from "@/lib/residents/photo-server";
 
-/** Presigned PUT untuk foto laporan warga dan postingan Warga (jpeg/png/webp, maks 2,5 MB). Foto sudah dikompres di HP. Perangkat desa hanya boleh untuk postingan Warga dan bukti iuran/kas. */
+/** Presigned PUT untuk foto laporan warga, postingan Warga, dan foto profil warga (kind "profile", khusus akun warga) (jpeg/png/webp, maks 2,5 MB). Foto sudah dikompres di HP. Perangkat desa hanya boleh untuk postingan Warga dan bukti iuran/kas. */
 export async function POST(req: NextRequest) {
   const loaded = await requireMobileContext(req, { allow: ["citizen", "staff"] });
   if (!loaded.ok) return loaded.response;
@@ -23,6 +25,13 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json().catch(() => null)) as { contentType?: unknown; fileSize?: unknown; kind?: unknown } | null;
   if (ctx.accountType === "staff" && body?.kind !== "social" && body?.kind !== "fee") return mobileError("FORBIDDEN", "Anda tidak punya akses ke fitur ini.", 403);
+  if (body?.kind === "profile") {
+    const me = await getCitizenResident(ctx);
+    if (!me) return mobileError("FORBIDDEN", "Anda tidak punya akses ke fitur ini.", 403);
+    const r = await presignResidentPhoto(ctx.village, me.id, body.contentType, body.fileSize);
+    if (!r.ok) return mobileError(r.status === 403 ? "FORBIDDEN" : "INVALID_REQUEST", r.message, r.status, r.reason ? { reason: r.reason } : undefined);
+    return NextResponse.json({ uploadUrl: r.uploadUrl, fileUrl: r.fileUrl, uploadHeaders: r.uploadHeaders });
+  }
   const folder = body?.kind === "social" ? "mobile-social" : body?.kind === "fee" ? "mobile-fees" : "mobile-reports";
   const contentType = typeof body?.contentType === "string" ? body.contentType : "";
   const size = Number(body?.fileSize);

@@ -10,7 +10,7 @@ export function useFormSubmit() {
   const summaryRef = useRef<HTMLDivElement>(null);
 
   /** Mengembalikan isi JSON jawaban bila sukses, atau null bila gagal (galat sudah tersimpan di state). */
-  async function submit<T = Record<string, unknown>>(url: string, method: "POST" | "PATCH" | "DELETE", body?: unknown, fallback = "Gagal menyimpan. Coba lagi."): Promise<T | null> {
+  async function submit<T = Record<string, unknown>>(url: string, method: "POST" | "PATCH" | "PUT" | "DELETE", body?: unknown, fallback = "Gagal menyimpan. Coba lagi."): Promise<T | null> {
     setBusy(true);
     setErrors({});
     setGeneral(null);
