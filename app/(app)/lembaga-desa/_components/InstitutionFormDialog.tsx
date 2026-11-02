@@ -12,6 +12,8 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { INSTITUTION_TYPE_LABEL, INSTITUTION_TYPES } from "@/lib/tata-kelola/catalog";
 import type { InstitutionView } from "@/lib/tata-kelola/institutions";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachments } from "@/components/app/attachments/useAttachments";
 
 export const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -28,13 +30,17 @@ export function InstitutionFormDialog({ item, onClose, onSaved }: { item: Instit
     periodEnd: item?.periodEnd ?? "",
     description: item?.description ?? "",
   });
-  const { busy, errors, general, summaryRef, submit } = useFormSubmit();
+  const { busy: saving, errors, general, summaryRef, submit } = useFormSubmit();
+  const att = useAttachments("INSTITUTION", item?.id ?? null);
+  const busy = saving || att.flushing;
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const ok = await submit(item ? `/api/tata-kelola/lembaga/${item.id}` : "/api/tata-kelola/lembaga", item ? "PATCH" : "POST", f);
-    if (ok) onSaved();
+    const res = await submit<{ institution?: { id?: number } }>(item ? `/api/tata-kelola/lembaga/${item.id}` : "/api/tata-kelola/lembaga", item ? "PATCH" : "POST", f);
+    if (!res) return;
+    if (!item && res.institution?.id) await att.flushAndNotify(res.institution.id);
+    onSaved();
   }
 
   return (
@@ -90,6 +96,7 @@ export function InstitutionFormDialog({ item, onClose, onSaved }: { item: Instit
             <Textarea {...fieldA11y("lm-description", errors.description)} rows={2} value={f.description} maxLength={500} onChange={(e) => set({ description: e.target.value })} />
             <FieldError id="lm-description" message={errors.description} />
           </div>
+          <AttachmentsSection att={att} title="SK pembentukan dan berkas lembaga" />
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={LABELS} />
           <DialogFooter className="gap-2 sm:gap-2">
             <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={onClose}>Batal</Button>

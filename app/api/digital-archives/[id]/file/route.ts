@@ -1,26 +1,9 @@
-import { Readable } from "node:stream";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSpacesClient, getSpacesConfig, publicUrlToStorageKey } from "@/lib/spaces";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { canAccessArchiveBinary } from "@/lib/digitalArchive/access";
-import { isVillageArchiveKey } from "@/lib/digitalArchive/media";
-
-function mimeForArchive(fileName: string, fileType: string) {
-  const ext = fileName.split(".").pop()?.toLowerCase() || fileType.toLowerCase();
-  const map: Record<string, string> = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    gif: "image/gif",
-    webp: "image/webp",
-    svg: "image/svg+xml",
-    pdf: "application/pdf",
-  };
-  return map[ext] || "application/octet-stream";
-}
+import { archiveObjectResponse } from "@/lib/digitalArchive/stream";
 
 /**
  * Stream / unduh berkas arsip. Objek privat (isPublic = false) hanya untuk akun
@@ -74,66 +57,7 @@ export async function GET(
       );
     }
 
-    const forceDownload = req.nextUrl.searchParams.get("download") === "1";
-
-    const key =
-      archive.storageKey?.trim() || publicUrlToStorageKey(archive.filePath);
-    // Isolasi antar-desa: hanya objek di folder arsip desa ini yang boleh dialirkan atau diarahkan.
-    if (!isVillageArchiveKey(key, village.code)) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-
-    if (
-      archive.isPublic &&
-      archive.filePath &&
-      /^https?:\/\//i.test(archive.filePath) &&
-      !forceDownload
-    ) {
-      return NextResponse.redirect(archive.filePath);
-    }
-
-    const s3 = getSpacesClient();
-    const cfg = getSpacesConfig();
-
-    const obj = await s3.send(
-      new GetObjectCommand({
-        Bucket: cfg.bucket,
-        Key: key,
-      }),
-    );
-
-    const body = obj.Body;
-    if (!body) {
-      return NextResponse.json({ error: "Berkas kosong" }, { status: 404 });
-    }
-
-    const disposition =
-      req.nextUrl.searchParams.get("download") === "1" ? "attachment" : "inline";
-    const contentType = obj.ContentType || mimeForArchive(archive.fileName, archive.fileType);
-
-    let webBody: ReadableStream | null = null;
-    if (
-      body &&
-      typeof (body as { transformToWebStream?: () => ReadableStream })
-        .transformToWebStream === "function"
-    ) {
-      webBody = (body as { transformToWebStream: () => ReadableStream }).transformToWebStream();
-    } else if (body instanceof Readable) {
-      // Node `Readable.toWeb` using type stream/web; DOM `ReadableStream` different in TS.
-      webBody = Readable.toWeb(body) as ReadableStream;
-    }
-
-    if (!webBody) {
-      return NextResponse.json({ error: "Stream tidak didukung" }, { status: 500 });
-    }
-
-    return new NextResponse(webBody, {
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `${disposition}; filename="${encodeURIComponent(archive.fileName)}"`,
-        "Cache-Control": archive.isPublic ? "public, max-age=3600" : "private, no-store",
-      },
-    });
+    return archiveObjectResponse(archive, village.code, req.nextUrl.searchParams.get("download") === "1");
   } catch (error) {
     console.error("GET /api/digital-archives/[id]/file error:", error);
     return NextResponse.json({ error: "Gagal mengambil berkas" }, { status: 500 });

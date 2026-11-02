@@ -12,6 +12,8 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { LEGAL_TYPE_LABEL, LEGAL_TYPES } from "@/lib/tata-kelola/catalog";
 import type { LegalView } from "@/lib/tata-kelola/legal";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachments } from "@/components/app/attachments/useAttachments";
 
 export const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -28,14 +30,18 @@ export function LegalFormDialog({ item, onClose, onSaved }: { item: LegalView | 
     promulgatedAt: item?.promulgatedAt ?? "",
     submittedAt: item?.submittedAt ?? "",
   });
-  const { busy, errors, general, summaryRef, submit } = useFormSubmit();
+  const { busy: saving, errors, general, summaryRef, submit } = useFormSubmit();
+  const att = useAttachments("LEGAL_DOCUMENT", item?.id ?? null);
+  const busy = saving || att.flushing;
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const body = { ...f, promulgatedAt: f.promulgatedAt || null, submittedAt: f.submittedAt || null };
-    const ok = await submit(item ? `/api/tata-kelola/produk-hukum/${item.id}` : "/api/tata-kelola/produk-hukum", item ? "PATCH" : "POST", body);
-    if (ok) onSaved();
+    const res = await submit<{ item?: { id?: number } }>(item ? `/api/tata-kelola/produk-hukum/${item.id}` : "/api/tata-kelola/produk-hukum", item ? "PATCH" : "POST", body);
+    if (!res) return;
+    if (!item && res.item?.id) await att.flushAndNotify(res.item.id);
+    onSaved();
   }
 
   return (
@@ -91,6 +97,7 @@ export function LegalFormDialog({ item, onClose, onSaved }: { item: LegalView | 
               <FieldError id="ph-submittedAt" message={errors.submittedAt} />
             </div>
           </div>
+          <AttachmentsSection att={att} title="Berkas produk hukum" hint="Unggah salinan bertanda tangan (PDF atau pindaian). Disimpan di Arsip Digital." />
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={LABELS} />
           <DialogFooter className="gap-2 sm:gap-2">
             <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={onClose}>

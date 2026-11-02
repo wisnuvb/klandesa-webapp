@@ -12,6 +12,8 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { NATURE_LABEL, NATURES, type Direction } from "@/lib/tata-kelola/catalog";
 import type { RegisterView } from "@/lib/tata-kelola/register";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachments } from "@/components/app/attachments/useAttachments";
 
 const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -30,15 +32,19 @@ export function MailFormDialog({ direction, item, onClose, onSaved }: { directio
     disposition: item?.disposition ?? "",
     notes: item?.notes ?? "",
   });
-  const { busy, errors, general, summaryRef, submit } = useFormSubmit();
+  const { busy: saving, errors, general, summaryRef, submit } = useFormSubmit();
+  const att = useAttachments("MAIL_REGISTER", item?.id ?? null);
+  const busy = saving || att.flushing;
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
   const regLabel = out ? "Tanggal dikirim" : "Tanggal diterima";
   const labels: Record<string, string> = { letterNumber: "Nomor surat", letterDate: "Tanggal surat", registeredAt: regLabel, party: out ? "Tujuan" : "Asal", subject: "Perihal", nature: "Sifat", disposition: "Disposisi", notes: "Keterangan" };
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const ok = await submit(item ? `/api/tata-kelola/surat/${item.id}` : "/api/tata-kelola/surat", item ? "PATCH" : "POST", { ...f, direction: item?.direction ?? direction });
-    if (ok) onSaved();
+    const res = await submit<{ item?: { id?: number } }>(item ? `/api/tata-kelola/surat/${item.id}` : "/api/tata-kelola/surat", item ? "PATCH" : "POST", { ...f, direction: item?.direction ?? direction });
+    if (!res) return;
+    if (!item && res.item?.id) await att.flushAndNotify(res.item.id);
+    onSaved();
   }
 
   return (
@@ -103,6 +109,7 @@ export function MailFormDialog({ direction, item, onClose, onSaved }: { directio
             <Input {...fieldA11y("sr-notes", errors.notes)} className="h-11" value={f.notes} maxLength={500} onChange={(e) => set({ notes: e.target.value })} />
             <FieldError id="sr-notes" message={errors.notes} />
           </div>
+          <AttachmentsSection att={att} title={out ? "Lampiran surat keluar" : "Scan surat masuk"} />
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={labels} />
           <DialogFooter className="gap-2 sm:gap-2">
             <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={onClose}>

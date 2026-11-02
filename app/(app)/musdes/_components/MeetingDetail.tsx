@@ -16,6 +16,7 @@ import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import { UNSUR, UNSUR_KEYS } from "@/lib/musdes/catalog";
+import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 import { MeetingFormDialog } from "./MeetingFormDialog";
 import type { AttendeeView, DecisionView, DetailResponse } from "./types";
 
@@ -228,6 +229,8 @@ export function MeetingDetail({ id }: { id: number }) {
           </section>
         </>
       ) : null}
+
+      <LiveAttachments type="MEETING" id={m.id} title="Dokumen musyawarah" hint="Daftar hadir, berita acara bertanda tangan, dan foto kegiatan (PDF atau pindaian). Boleh ditambahkan kapan saja, termasuk setelah berita acara difinalkan." />
 
       {editing ? <MeetingFormDialog meeting={m} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); reload(); }} /> : null}
       {dialog === "held" ? <HeldDialog url={aksi} defaultDate={m.scheduledOn ?? localToday()} onClose={() => setDialog(null)} onDone={() => { setDialog(null); reload(); }} /> : null}

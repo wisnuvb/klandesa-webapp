@@ -28,6 +28,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { EDUCATION_OPTIONS } from "@/utils/constants/user";
+import { AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachments } from "@/components/app/attachments/useAttachments";
 
 interface FormDialogProps {
   showFormDialog: boolean;
@@ -76,7 +78,9 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   onSuccess,
 }) => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const att = useAttachments("OFFICIAL", null);
+  const isLoading = saving || att.flushing;
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -129,7 +133,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
 
   const onSubmit = async (values: FormValues) => {
     try {
-      setIsLoading(true);
+      setSaving(true);
       const response = await fetch("/api/officials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -158,6 +162,9 @@ export const FormDialog: React.FC<FormDialogProps> = ({
         throw new Error(error.error || "Gagal menambahkan perangkat desa");
       }
 
+      const created = (await response.json().catch(() => null)) as { id?: number } | null;
+      if (created?.id) await att.flushAndNotify(created.id);
+
       toast.success("Data perangkat berhasil ditambahkan");
       setShowFormDialog(false);
       form.reset({
@@ -184,7 +191,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
       const message = err instanceof Error ? err.message : "Terjadi kesalahan";
       toast.error(message);
     } finally {
-      setIsLoading(false);
+      setSaving(false);
     }
   };
 
@@ -539,6 +546,10 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                   </FormItem>
                 )}
               />
+            </div>
+
+            <div className="mt-4">
+              <AttachmentsSection att={att} title="Berkas SK pengangkatan" hint="Unggah salinan SK pengangkatan (PDF atau pindaian). Disimpan di Arsip Digital." />
             </div>
 
             <div className="flex justify-end gap-2 border-t pt-4 mt-4">

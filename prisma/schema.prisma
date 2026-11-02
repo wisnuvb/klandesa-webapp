@@ -172,6 +172,7 @@ model Village {
   landAgreements     LandAgreement[]
   landCharges        LandCharge[]
   landAgreementDocs  LandAgreementDoc[]
+  recordAttachments  RecordAttachment[]
   ukmOrderRequests   UkmOrderRequest[]
   // >>> back-relations:aset (sisipkan tepat di atas baris ini)
   incidentEvents     IncidentEvent[]
@@ -5801,6 +5802,30 @@ model LandAgreementDoc {
 
   @@unique([agreementId, archiveId])
   @@map("land_agreement_docs")
+}
+
+/// Lampiran generik: menaut rekaman modul mana pun (surat, SK, perangkat, rapat, mutasi, dst.) ke dokumen di Arsip Digital.
+/// Berkas TIDAK disalin: ukuran, kuota storage, dan penghapusan objek tetap dikelola Arsip Digital (digital_archives.fileSize).
+model RecordAttachment {
+  id        Int     @id @default(autoincrement())
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  /// Kunci registri lib/attachments/catalog.ts (MAIL_REGISTER | LEGAL_DOCUMENT | OFFICIAL | INSTITUTION | MEETING | MUTATION)
+  entityType String @db.VarChar(30)
+  /// id rekaman pada tabel entitas (tanpa FK; keberadaannya diperiksa per desa saat melampirkan)
+  entityId   BigInt
+  /// digital_archives.id (tanpa FK; diperiksa milik desa yang sama saat disimpan, penghapusan arsip diblokir selagi terlampir)
+  archiveId  BigInt
+  label      String @db.VarChar(150)
+
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([villageId, entityType, entityId, archiveId], map: "record_attachment_unique")
+  @@index([villageId, entityType, entityId])
+  @@index([villageId, archiveId])
+  @@map("record_attachments")
 }
 
 /// Pesanan sederhana produk UKM desa: diminta pembeli, dikonfirmasi/diselesaikan/dibatalkan penjual atau admin. Tanpa pembayaran online.

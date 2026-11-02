@@ -8,6 +8,7 @@ import { getSpacesClient, getSpacesConfig, publicUrlToStorageKey } from "@/lib/s
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { canDeleteArchiveRecord } from "@/lib/digitalArchive/access";
 import { isVillageArchiveKey } from "@/lib/digitalArchive/media";
+import { attachmentUsageCount } from "@/lib/attachments/service";
 
 export async function PATCH(
   req: NextRequest,
@@ -195,6 +196,15 @@ export async function DELETE(
       return NextResponse.json(
         { error: "Anda tidak berhak menghapus arsip ini" },
         { status: 403 },
+      );
+    }
+
+    // Berkas yang masih terlampir pada surat/SK/dll. tidak boleh hilang diam-diam: lepas lampirannya dulu.
+    const attachedTo = await attachmentUsageCount(prisma, village.id, existing.id);
+    if (attachedTo > 0) {
+      return NextResponse.json(
+        { error: `Berkas ini masih terlampir pada ${attachedTo} catatan (surat, SK, dan sejenisnya). Lepas lampirannya dari catatan itu dulu sebelum menghapus.` },
+        { status: 409 },
       );
     }
 

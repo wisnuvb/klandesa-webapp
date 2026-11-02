@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 import type { OfficialRow } from "../_lib/types";
 
 type OfficialDetailDialogProps = {
@@ -21,7 +22,7 @@ export function OfficialDetailDialog(props: OfficialDetailDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detail Perangkat</DialogTitle>
           <DialogDescription>Informasi lengkap perangkat desa.</DialogDescription>
@@ -59,6 +60,7 @@ export function OfficialDetailDialog(props: OfficialDetailDialogProps) {
               <p className="text-muted-foreground">Alamat</p>
               <p className="col-span-2">{selectedOfficial.address || "-"}</p>
             </div>
+            <LiveAttachments type="OFFICIAL" id={selectedOfficial.id} title="Berkas SK pengangkatan" readOnly />
           </div>
         )}
 

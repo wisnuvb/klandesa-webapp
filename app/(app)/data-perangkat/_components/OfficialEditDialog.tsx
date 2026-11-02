@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { EditFormState, OfficialRow, Position } from "../_lib/types";
+import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 
 type OfficialEditDialogProps = {
   open: boolean;
@@ -48,7 +49,7 @@ export function OfficialEditDialog(props: OfficialEditDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Perangkat</DialogTitle>
           <DialogDescription>Perbarui data perangkat desa.</DialogDescription>
@@ -169,6 +170,8 @@ export function OfficialEditDialog(props: OfficialEditDialogProps) {
                 }
               />
             </div>
+
+            <LiveAttachments type="OFFICIAL" id={selectedOfficial.id} title="Berkas SK pengangkatan" hint="Salinan SK pengangkatan (PDF atau pindaian). Disimpan di Arsip Digital." />
           </div>
         )}
 
