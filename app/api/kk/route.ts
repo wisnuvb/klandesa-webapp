@@ -33,19 +33,21 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    let grouped = await prisma.resident.groupBy({
+    const matched = await prisma.resident.groupBy({
       by: ["kk"],
       where,
       _count: { _all: true },
     });
     // Dicari lewat nama: hitungan di atas hanya anggota yang cocok, jadi hitung ulang seluruh anggota tiap KK.
-    if (search && grouped.length > 0) {
-      grouped = await prisma.resident.groupBy({
-        by: ["kk"],
-        where: { villageId: village.id, kk: { in: grouped.map((g) => g.kk as string) } },
-        _count: { _all: true },
-      });
-    }
+    // (Hasil ditampung di konstanta baru, bukan menimpa `matched`: penugasan ulang membuat TypeScript menyimpulkan generik groupBy dari tipe tujuan dan galat.)
+    const grouped =
+      search && matched.length > 0
+        ? await prisma.resident.groupBy({
+            by: ["kk"],
+            where: { villageId: village.id, kk: { in: matched.map((g) => g.kk as string) } },
+            _count: { _all: true },
+          })
+        : matched;
 
     const summaries = await Promise.all(
       grouped.map(async (g) => {
