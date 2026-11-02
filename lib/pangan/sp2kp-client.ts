@@ -2,10 +2,14 @@
  * Klien tunggal ke API SP2KP Kemendag. Semua pemanggil (cermin data, cron) lewat sini supaya
  * timeout, retry, dan klasifikasi galat seragam.
  *
- * Latar: dari VPS, paket SYN ke api-sp2kp.kemendag.go.id kadang hilang (connect 5 dtk, sesekali
- * >10 dtk). Tanpa timeout sendiri, `fetch` menunggu 10 dtk lalu gagal. Percobaan baru = soket baru,
- * jadi timeout pendek + ulang jauh lebih cepat pulih daripada menunggu satu soket.
+ * Latar (terukur 2026-11-02 dari VPS produksi): perlambatan 5/10/15/20 detik berasal dari DNS, bukan TCP —
+ * TTL record A hanya 30 dtk dan resolver hosting sering macet. Karena itu transport bawaan di sini memakai
+ * `node:http(s)` dengan cache DNS (lib/pangan/dns-cache.ts) dan koneksi keep-alive, bukan `fetch` global.
+ * Di atas itu: timeout per percobaan + ulang, karena percobaan baru lebih cepat pulih daripada menunggu.
  */
+import http from "node:http";
+import https from "node:https";
+import { sharedDnsCache } from "./dns-cache";
 
 export const SP2KP_BASE = "https://api-sp2kp.kemendag.go.id";
 
@@ -50,6 +54,57 @@ export type Sp2kpRequest = {
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 8, keepAliveMsecs: 15_000 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 8 });
+
+/**
+ * Transport bawaan: setara `fetch` untuk kebutuhan di sini (GET, atau POST multipart), tetapi memakai
+ * cache DNS bersama dan agen keep-alive. Batas waktu dari `init.signal` mencakup DNS + koneksi + respons.
+ */
+export const httpFetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+  const u = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
+  const secure = u.protocol === "https:";
+  const method = init?.method ?? "GET";
+  const headers: Record<string, string> = { accept: "*/*", "user-agent": "node" };
+
+  let payload: Buffer | undefined;
+  if (init?.body instanceof FormData) {
+    const encoded = new Response(init.body);
+    payload = Buffer.from(await encoded.arrayBuffer());
+    headers["content-type"] = encoded.headers.get("content-type") ?? "multipart/form-data";
+    headers["content-length"] = String(payload.length);
+  }
+
+  return new Promise<Response>((resolve, reject) => {
+    const mod = secure ? https : http;
+    const req = mod.request(
+      {
+        hostname: u.hostname,
+        port: u.port || (secure ? 443 : 80),
+        path: u.href.slice(u.origin.length), // pertahankan '?' di ujung seperti yang dikirim kode lama
+        method,
+        headers,
+        agent: secure ? httpsAgent : httpAgent,
+        lookup: sharedDnsCache().lookup,
+        signal: init?.signal ?? undefined,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("error", reject);
+        res.on("end", () => {
+          const status = res.statusCode ?? 502;
+          const body = status === 204 || status === 205 || status === 304 ? null : Buffer.concat(chunks);
+          resolve(new Response(body, { status }));
+        });
+      },
+    );
+    req.on("error", reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}) as typeof fetch;
+
 function isRetryable(e: Sp2kpError): boolean {
   if (e.kind === "timeout" || e.kind === "network") return true;
   if (e.kind === "upstream") return e.status === 429 || (e.status ?? 0) >= 500;
@@ -60,7 +115,7 @@ async function attemptOnce(
   req: Sp2kpRequest,
   timeoutMs: number,
 ): Promise<Record<string, unknown>> {
-  const doFetch = req.fetchImpl ?? fetch;
+  const doFetch = req.fetchImpl ?? httpFetch;
   const method = req.method ?? "GET";
   let body: FormData | undefined;
   if (method === "POST" && req.form) {
@@ -80,6 +135,8 @@ async function attemptOnce(
     text = await res.text();
   } catch (e) {
     const name = (e as { name?: string } | null)?.name;
+    // Gagal/lambat: minta DNS disegarkan di latar belakang (alamat lama tetap dipakai sampai ada yang baru).
+    if (!req.fetchImpl) sharedDnsCache().refresh(new URL(SP2KP_BASE).hostname);
     if (name === "TimeoutError" || name === "AbortError") {
       throw new Sp2kpError("timeout", `Tidak ada respons dalam ${timeoutMs} ms`);
     }
