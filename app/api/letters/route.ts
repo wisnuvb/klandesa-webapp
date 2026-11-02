@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { readJsonBody } from "@/lib/http/read-json";
+import { linkIssuedLetter, permohonanIdFrom } from "@/lib/mail/request-decision";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { INPUT_LIMITS } from "@/lib/letters/server/input";
 import { createLetter } from "@/lib/letters/server/service";
@@ -28,7 +29,13 @@ export async function POST(req: NextRequest) {
       letterNumber: result.value.letterNumber,
       status: result.value.status,
     });
-    return NextResponse.json(result.value, { status: 201 });
+    // Surat diterbitkan dari halaman Permohonan Warga: tautkan dan setujui permohonannya (galat tidak menggagalkan surat).
+    const pid = permohonanIdFrom(parsed.body);
+    const linkedRequest =
+      pid != null && result.value.status === "completed"
+        ? await linkIssuedLetter({ villageId: village.id, requestId: pid, letterId: BigInt(result.value.id) })
+        : false;
+    return NextResponse.json({ ...result.value, ...(pid != null ? { permohonanLinked: linkedRequest } : {}) }, { status: 201 });
   } catch (err) {
     console.error("POST /api/letters error:", err);
     return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });

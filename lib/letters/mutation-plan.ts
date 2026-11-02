@@ -132,11 +132,16 @@ function planMoveIn(input: PlanInput, values: LetterValues, now: Date): Mutation
   } else {
     // Pendatang baru: butuh data lengkap (NIK, tempat/tanggal lahir, KK tujuan). Yang kurang → dijelaskan, surat tetap terbit.
     const nr = newResidentFromPerson(person);
+    // KK tujuan diisi di isian surat (bukan data pribadi pemohon); isian pemohon, bila ada, didahulukan.
+    if (!nr.kk) {
+      const kkTujuan = str(values.fields.kk_tujuan).replace(/\s+/g, "");
+      if (kkTujuan) nr.kk = kkTujuan;
+    }
     const missing: string[] = [];
     if (!/^\d{16}$/.test(nr.nik ?? "")) missing.push("NIK 16 digit");
     if (!nr.birthplace || !nr.birthDate) missing.push("tempat dan tanggal lahir");
     if (!nr.gender) missing.push("jenis kelamin");
-    if (!nr.kk) missing.push("nomor KK tujuan di desa ini");
+    if (!nr.kk) missing.push("nomor KK tujuan di desa ini (isian \"Nomor KK tujuan\" di surat)");
     if (missing.length > 0) {
       plan.skipped.push(`Data pendatang belum lengkap (${missing.join(", ")}), jadi pengajuan mutasi tidak dibuat. Lengkapi lewat Buku Mutasi → Datang.`);
     } else {

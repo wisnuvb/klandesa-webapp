@@ -162,6 +162,14 @@ describe("surat pindah/datang → pengajuan mutasi (MySQL nyata)", { skip: enabl
     assert.match(r.value.mutation?.skipped[0] ?? "", /nomor KK tujuan/);
   });
 
+  it("pendatang baru dengan isian surat \"Nomor KK tujuan\" → mutasi MOVE_IN PENDING dibuat", async () => {
+    const r = await issue("cat_kep_skpwni", { people: { pemohon: { manual: { nama: "Pendatang KK", nik: "3578016801850003", ttl: "Surabaya, 28 Januari 1985", jenis_kelamin: "Perempuan" } } }, fields: { daerah_asal: "Surabaya", tanggal_datang: "2026-10-28", kk_tujuan: KK } });
+    assert.ok(r.ok, r.ok ? "" : r.error);
+    assert.equal(r.value.mutation?.created.length, 1);
+    const row = (await pending()).find((m) => m.type === "MOVE_IN" && m.source === "letter" && m.status === "PENDING" && JSON.stringify(m.details).includes("Pendatang KK"));
+    assert.ok(row, "mutasi MOVE_IN dari surat tidak ditemukan");
+  });
+
   it("jenis surat lain (kelahiran) tidak membawa info mutasi dan tidak membuat pengajuan", async () => {
     const before_ = (await pending()).length;
     const r = await issue("cat_kep_sk_lahir", { people: {}, fields: {} });

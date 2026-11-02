@@ -171,6 +171,18 @@ export function buildSubmitBody(f: MutasiForm): BuildResult {
   };
 }
 
+/** Asal pengajuan untuk baris "Diajukan oleh …" di kartu mutasi. Sumber `letter` = diajukan otomatis saat surat pindah terbit. */
+export function describeMutationSource(item: Pick<MutasiItemView, "source" | "type" | "requestedBy">): string {
+  if (item.source === "letter") {
+    const surat = item.type === "MOVE_OUT" ? "surat pindah" : "surat datang";
+    return `Diajukan otomatis dari ${surat}${item.requestedBy ? `, diterbitkan oleh ${item.requestedBy}` : ""}`;
+  }
+  if (item.requestedBy) return `Diajukan oleh ${item.requestedBy}`;
+  if (item.source === "legacy_edit") return "Tercatat otomatis dari perubahan Data Warga";
+  if (item.source === "import") return "Tercatat otomatis dari impor";
+  return "Diajukan";
+}
+
 export interface MutasiItemView {
   id: string;
   type: MutationType;

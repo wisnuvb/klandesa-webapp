@@ -25,6 +25,20 @@ const tabelPengikut = (id = "tabel_pengikut") => ({
   ],
 });
 
+/** Nomor KK tujuan di desa ini. Dipakai untuk mengajukan mutasi "datang" bagi pendatang baru (opsional). */
+const kkTujuanField = () =>
+  field("kk_tujuan", "Nomor KK tujuan di desa ini", "text", {
+    required: false,
+    placeholder: "16 digit",
+    help: "Isi bila pemohon bergabung ke KK yang sudah ada di desa ini; dipakai untuk mengajukan mutasi datang otomatis.",
+  });
+
+const kkTujuanKalimat = () => ({
+  id: "kk_tujuan_cond", type: "conditional" as const, when: { ref: "isian.kk_tujuan", op: "filled" as const }, children: [
+    para("kk_tujuan_kalimat", t("Tercatat pada Kartu Keluarga nomor "), f("isian.kk_tujuan"), t(" di desa kami.")),
+  ],
+});
+
 export const KEPENDUDUKAN: CatalogEntry[] = [
   {
     catalogKey: "cat_kep_sk_pindah",
@@ -75,6 +89,7 @@ export const KEPENDUDUKAN: CatalogEntry[] = [
         field("alamat_asal", "Alamat asal", "longtext"),
         field("tanggal_datang", "Tanggal datang", "date"),
         field("status_tinggal", "Status tinggal", "choice", { options: ["Pindah menetap", "Tinggal sementara"] }),
+        kkTujuanField(),
       ],
       groups: [pengikutGroup()],
       body: [
@@ -91,6 +106,7 @@ export const KEPENDUDUKAN: CatalogEntry[] = [
           f("isian.status_tinggal", "lower"),
           t("."),
         ),
+        kkTujuanKalimat(),
         para("pengikut_intro", t("Anggota keluarga yang turut datang (bila ada):")),
         tabelPengikut(),
         para("catatan", t("Keterangan ini diberikan untuk keperluan administrasi kependudukan.")),
@@ -204,6 +220,7 @@ export const KEPENDUDUKAN: CatalogEntry[] = [
         field("no_skpwni", "Nomor surat pindah dari daerah asal", "text", { required: false }),
         field("tanggal_skpwni", "Tanggal surat pindah", "date", { required: false }),
         field("tanggal_datang", "Tanggal datang", "date"),
+        kkTujuanField(),
       ],
       groups: [pengikutGroup()],
       body: [
@@ -218,6 +235,7 @@ export const KEPENDUDUKAN: CatalogEntry[] = [
           f("isian.tanggal_datang"),
           t(" dan bertempat tinggal di alamat tersebut di atas."),
         ),
+        kkTujuanKalimat(),
         { id: "skpwni", type: "conditional", when: { ref: "isian.no_skpwni", op: "filled" }, children: [
           para("skpwni_kalimat", t("Berdasarkan surat pindah nomor "), f("isian.no_skpwni"), t(" tanggal "), f("isian.tanggal_skpwni", undefined, "-"), t(".")),
         ] },

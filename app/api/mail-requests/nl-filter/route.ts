@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { AI_CREDITS_CONSUMPTION_ENABLED } from "@/lib/ai/credits";
@@ -58,6 +59,8 @@ export async function POST(req: NextRequest) {
         await refund();
         return NextResponse.json({ error: "Permintaan tidak bisa diterjemahkan menjadi filter. Kredit tidak terpakai; coba kalimat lain." }, { status: 422 });
       }
+      // Isi permintaan tidak dicatat; hanya bahwa fitur dipakai dan kunci filter yang dihasilkan.
+      await auditWeb(req, loaded.ctx, "ai_nl_filter", "mail_requests", "search", { filterKeys: Object.keys(parsed.filters) });
       return NextResponse.json({ ...parsed, remainingCredits: await getAiCreditBalance(userId) });
     } catch (e) {
       await refund();

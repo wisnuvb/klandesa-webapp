@@ -1,9 +1,12 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { buildWhere, parseQueueParams } from "@/lib/mail/request-queue";
+
+/** Batas baris per ekspor agar satu permintaan tidak memuat seluruh tabel ke memori. */
+const MAX_EXPORT_ROWS = 10_000;
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,40 +15,16 @@ export async function GET(req: NextRequest) {
     const { village } = loaded.ctx;
 
     const url = new URL(req.url);
-    const search = url.searchParams.get("search") ?? undefined;
-    const status = url.searchParams.get("status") ?? undefined;
-
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
 
-    const where: any = { villageId: village.id };
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { nik: { contains: search } },
-        { mailType: { contains: search } },
-        { requestNumber: { contains: search } },
-      ];
-    }
-
-    if (status && status !== "all") {
-      const statusMap: Record<string, string> = {
-        PENDING: "pending",
-        DIPROSES: "pending",
-        SELESAI: "approved",
-        DITOLAK: "rejected",
-      };
-      const dbStatus = statusMap[status];
-      if (dbStatus) {
-        where.status = dbStatus;
-      }
-    }
-
+    // Penyaring sama dengan halaman Permohonan Warga (status, antrean, jenis, saluran, RT, tanggal, kata kunci).
+    const where = buildWhere(village.id, parseQueueParams(url.searchParams));
     const mailRequests = await prisma.mailRequest.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      take: MAX_EXPORT_ROWS,
     });
 
     if (mailRequests.length === 0) {

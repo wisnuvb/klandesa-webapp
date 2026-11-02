@@ -80,9 +80,15 @@ export async function linkIssuedLetter(args: { villageId: number; requestId: big
   try {
     const row = await prisma.mailRequest.findFirst({
       where: { id: args.requestId, villageId: args.villageId },
-      select: { status: true, mailServiceId: true },
+      select: { status: true, mailServiceId: true, nik: true },
     });
     if (!row || row.status === "rejected" || row.mailServiceId != null) return false;
+    // Surat harus milik pemohon yang sama: mencegah menautkan (dan otomatis menyetujui) permohonan orang lain.
+    const letter = await prisma.mailService.findFirst({
+      where: { id: args.letterId, villageId: args.villageId, status: "completed" },
+      select: { applicantNik: true },
+    });
+    if (!letter || letter.applicantNik !== row.nik) return false;
     if (row.status === "approved") {
       const r = await prisma.mailRequest.updateMany({
         where: { id: args.requestId, villageId: args.villageId, status: "approved", mailServiceId: null },
@@ -102,4 +108,11 @@ export async function linkIssuedLetter(args: { villageId: number; requestId: big
     console.error("linkIssuedLetter failed", e);
     return false;
   }
+}
+
+/** `permohonanId` dari body pembuatan/ubah surat; null bila tak ada atau bukan bilangan bulat positif. */
+export function permohonanIdFrom(body: unknown): bigint | null {
+  const raw = body && typeof body === "object" ? (body as { permohonanId?: unknown }).permohonanId : undefined;
+  const s = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw : "";
+  return /^\d{1,18}$/.test(s) && BigInt(s) > 0n ? BigInt(s) : null;
 }

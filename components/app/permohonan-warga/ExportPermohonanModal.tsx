@@ -21,6 +21,8 @@ interface ExportPermohonanModalProps {
   currentFilters?: {
     status: string;
     search?: string;
+    /** Seluruh filter halaman sebagai query string (antrean, jenis, saluran, RT, tanggal); menimpa status/search di atas. */
+    query?: string;
   };
 }
 
@@ -44,6 +46,7 @@ export function ExportPermohonanModal({
           params.set("status", currentFilters.status);
         }
         if (currentFilters.search) params.set("search", currentFilters.search);
+        if (currentFilters.query) new URLSearchParams(currentFilters.query).forEach((v, k) => params.set(k, v));
       } else {
         if (status && status !== "all") params.set("status", status);
         if (search) params.set("search", search);
@@ -132,8 +135,7 @@ export function ExportPermohonanModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="DIPROSES">Diproses</SelectItem>
+                    <SelectItem value="PENDING">Menunggu</SelectItem>
                     <SelectItem value="SELESAI">Selesai</SelectItem>
                     <SelectItem value="DITOLAK">Ditolak</SelectItem>
                   </SelectContent>

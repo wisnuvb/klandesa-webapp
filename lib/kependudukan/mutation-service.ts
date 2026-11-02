@@ -193,6 +193,8 @@ export async function decideMutation(tx: Db, a: DecideArgs): Promise<ServiceResu
         hamlet: clean(c.hamlet) ?? base?.hamlet ?? null,
         fatherName: clean(c.fatherName) ?? null,
         motherName: clean(c.motherName) ?? null,
+        // Dasar kategori "Datang" dan hitung mundur jumlah penduduk pada laporan LAMPID.
+        ...(input.type === "MOVE_IN" ? { arrivalDate: new Date(`${input.effectiveDate}T00:00:00.000Z`), originAddress: clean(stored.origin)?.slice(0, 500) ?? null } : {}),
       },
       select: { id: true, name: true, nik: true, rt: true, rw: true, kk: true },
     });

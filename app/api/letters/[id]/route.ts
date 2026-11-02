@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { readJsonBody } from "@/lib/http/read-json";
+import { linkIssuedLetter, permohonanIdFrom } from "@/lib/mail/request-decision";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { INPUT_LIMITS } from "@/lib/letters/server/input";
 import { deleteDraft, getLetterDetail, updateLetter } from "@/lib/letters/server/service";
@@ -55,7 +56,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       letterNumber: result.value.letterNumber,
       status: result.value.status,
     });
-    return NextResponse.json(result.value);
+    const pid = permohonanIdFrom(parsed.body);
+    const linkedRequest =
+      pid != null && result.value.status === "completed"
+        ? await linkIssuedLetter({ villageId: village.id, requestId: pid, letterId: id })
+        : false;
+    return NextResponse.json({ ...result.value, ...(pid != null ? { permohonanLinked: linkedRequest } : {}) });
   } catch (err) {
     console.error("PATCH /api/letters/[id] error:", err);
     return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });

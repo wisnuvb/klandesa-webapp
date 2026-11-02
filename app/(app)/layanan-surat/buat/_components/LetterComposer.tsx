@@ -28,9 +28,9 @@ function Centered({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto flex max-w-xl flex-col items-center gap-4 p-10 text-center">{children}</div>;
 }
 
-export function LetterComposer({ templateId, suratId }: { templateId: number | null; suratId: number | null }) {
+export function LetterComposer({ templateId, suratId, permohonanId = null }: { templateId: number | null; suratId: number | null; permohonanId?: number | null }) {
   const router = useRouter();
-  const c = useLetterComposer(templateId, suratId);
+  const c = useLetterComposer(templateId, suratId, permohonanId);
   const [tab, setTab] = useState<Tab>("isi");
   const { doc, spec, context, state, numberingMode, setNotice } = c;
 

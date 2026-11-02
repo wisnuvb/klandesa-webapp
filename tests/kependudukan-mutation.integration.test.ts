@@ -148,6 +148,20 @@ describe("alur mutasi (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_DATABA
     assert.equal((await prisma.resident.findUniqueOrThrow({ where: { id: ids.other } })).moveDate, null);
   });
 
+  it("datang sebagai warga baru: tanggal datang dan asal tercatat (dasar laporan LAMPID)", async () => {
+    const s = await submit({
+      type: "MOVE_IN",
+      effectiveDate: "2026-10-28",
+      details: { origin: "Bogor", newResident: { name: "Pendatang Baru", nik: "3508070503920001", gender: "Laki-laki", birthplace: "Bogor", birthDate: "1992-03-05", kk: KK_B, familyRole: "Anak" } },
+    });
+    assert.ok(s.ok, s.ok ? "" : s.errors.join(";"));
+    const r = await decide(s.ok ? s.data.id : "0", { nik: "3508070503920001" }); // NIK tidak disimpan di pengajuan
+    assert.ok(r.ok, r.ok ? "" : r.errors.join(";"));
+    const row = await prisma.resident.findFirstOrThrow({ where: { villageId, name: "Pendatang Baru" } });
+    assert.equal(row.arrivalDate?.toISOString().slice(0, 10), "2026-10-28");
+    assert.equal(row.originAddress, "Bogor");
+  });
+
   it("perubahan KK memindahkan anggota dan menyinkronkan kedua rumah tangga", async () => {
     const s = await submit({ type: "KK_CHANGE", effectiveDate: "2026-10-26", residentId: ids.kid, details: { toKk: KK_B, newFamilyRole: "Anak" } });
     assert.ok(s.ok);

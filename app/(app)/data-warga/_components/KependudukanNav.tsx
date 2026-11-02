@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Loader2, Sparkles, Users } from "lucide-react";
+import { BookOpen, FileBarChart, Loader2, Sparkles, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -16,6 +16,18 @@ import {
 import { Button } from "@/components/ui/button";
 
 type Info = { enabled: true; pending: number } | { enabled: false; canActivate: boolean };
+
+/** Laporan LAMPID dihitung dari data warga juga, jadi tidak bergantung pada aktivasi Buku Mutasi. */
+function LampidLink() {
+  return (
+    <Button asChild variant="outline" className="min-h-11">
+      <Link href="/data-warga/lampid">
+        <FileBarChart aria-hidden="true" />
+        Laporan LAMPID
+      </Link>
+    </Button>
+  );
+}
 
 /**
  * Pintu masuk ke Buku Mutasi dan Keluarga/Wilayah. Bila fitur belum aktif, admin desa bisa mengaktifkannya dengan satu klik
@@ -62,12 +74,18 @@ export function KependudukanNav() {
     }
   }
 
-  if (!info) return null;
+  const lampidOnly = (
+    <nav aria-label="Laporan kependudukan" className="flex flex-wrap gap-2">
+      <LampidLink />
+    </nav>
+  );
+  if (!info) return lampidOnly;
 
   if (!info.enabled) {
-    if (!info.canActivate) return null;
+    if (!info.canActivate) return lampidOnly;
     return (
       <>
+        {lampidOnly}
         <section aria-label="Aktifkan fitur keluarga dan buku mutasi" className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
             <Sparkles aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
@@ -124,6 +142,7 @@ export function KependudukanNav() {
           Keluarga dan Wilayah
         </Link>
       </Button>
+      <LampidLink />
     </nav>
   );
 }

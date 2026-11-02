@@ -3,7 +3,6 @@
 import { ChevronLeft, ChevronRight, Eye, Inbox, Loader2, SearchX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ageLabel, CHANNEL_LABEL, CheckBadge, formatDate, RtBadge, StatusBadge, type QueueRow } from "./shared";
 
@@ -18,9 +17,6 @@ export function RequestTable({
   onPage,
   onOpen,
   onRetry,
-  selectable,
-  selected,
-  onToggle,
 }: {
   rows: QueueRow[];
   loading: boolean;
@@ -32,14 +28,11 @@ export function RequestTable({
   onPage: (p: number) => void;
   onOpen: (row: QueueRow) => void;
   onRetry: () => void;
-  selectable?: boolean;
-  selected?: ReadonlySet<number>;
-  onToggle?: (id: number) => void;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
-  const cols = selectable ? 7 : 6;
+  const cols = 6;
 
   return (
     <div className="space-y-3" aria-busy={loading}>
@@ -47,7 +40,6 @@ export function RequestTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              {selectable ? <TableHead className="w-10"><span className="sr-only">Pilih</span></TableHead> : null}
               <TableHead>Pemohon</TableHead>
               <TableHead>Jenis surat &amp; keperluan</TableHead>
               <TableHead>Diajukan</TableHead>
@@ -80,16 +72,8 @@ export function RequestTable({
               </TableRow>
             ) : (
               rows.map((r) => {
-                const canPick = selectable && r.status === "PENDING" && !!r.checks?.ready && !r.checks.blocksApproval;
                 return (
                   <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onOpen(r)}>
-                    {selectable ? (
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        {canPick ? (
-                          <Checkbox checked={selected?.has(r.id) ?? false} onCheckedChange={() => onToggle?.(r.id)} aria-label={`Pilih ${r.requestNumber}`} />
-                        ) : null}
-                      </TableCell>
-                    ) : null}
                     <TableCell>
                       <p className="font-medium">{r.name}</p>
                       <p className="font-mono text-xs text-muted-foreground">{r.nik}</p>

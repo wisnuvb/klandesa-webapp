@@ -45,7 +45,7 @@ async function readError(res: Response, fallback: string): Promise<string> {
   return data?.error || fallback;
 }
 
-export function useLetterComposer(templateParam: number | null, suratParam: number | null) {
+export function useLetterComposer(templateParam: number | null, suratParam: number | null, permohonanParam: number | null = null) {
   const router = useRouter();
   const { appConfirm } = useAppDialogs();
 
@@ -201,6 +201,42 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
     return ((await res.json()) as { person: PersonValues }).person;
   }, []);
 
+  const permohonanQuery = permohonanParam != null ? `&permohonan=${permohonanParam}` : "";
+
+  // ------------------------------------------------------------------ isi otomatis dari permohonan warga
+  const prefilled = useRef<number | null>(null);
+  useEffect(() => {
+    if (permohonanParam == null || phase !== "ready" || letterId != null || !spec) return;
+    if (prefilled.current === permohonanParam) return;
+    prefilled.current = permohonanParam;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/mail-requests/${permohonanParam}/prefill`);
+        if (!res.ok) throw new Error(await readError(res, "Gagal memuat data permohonan"));
+        const pre = (await res.json()) as { requestNumber: string; name: string; purpose: string; residentId: number | null };
+        const person = pre.residentId != null && spec.people.some((p) => p.id === "pemohon") ? await fetchPerson(pre.residentId) : null;
+        setState((prev) => {
+          if (!prev) return prev;
+          const next: ComposerState = { ...prev };
+          if (person && pre.residentId != null) {
+            next.people = { ...prev.people, pemohon: { mode: "resident", residentId: pre.residentId, query: pre.name, db: person, values: { ...person } } };
+          }
+          if (spec.fields.some((f) => f.id === "keperluan") && !prev.fields.keperluan) next.fields = { ...prev.fields, keperluan: pre.purpose };
+          // Isi otomatis bukan "perubahan belum disimpan": peringatan keluar baru muncul setelah operator mengubah sesuatu.
+          savedSig.current = stateSignature(next);
+          return next;
+        });
+        setNotice(
+          person
+            ? `Terisi otomatis dari permohonan ${pre.requestNumber}. Periksa sebelum menerbitkan; permohonan akan otomatis disetujui saat surat terbit.`
+            : `Permohonan ${pre.requestNumber}: pemohon tidak ditemukan di data warga, pilih atau isi manual. Permohonan akan otomatis disetujui saat surat terbit.`,
+        );
+      } catch (e) {
+        setNotice(e instanceof Error ? e.message : "Gagal memuat data permohonan");
+      }
+    })();
+  }, [permohonanParam, phase, letterId, spec, fetchPerson]);
+
   // ------------------------------------------------------------------ orang
   const selectPerson = useCallback(
     (role: string, resident: ResidentOption) =>
@@ -351,7 +387,10 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
 
       setBusy(status);
       try {
-        const payload = buildPayload({ spec, state, status, templateId: letterId == null ? (templateId ?? undefined) : undefined, numberingMode });
+        const payload = {
+          ...buildPayload({ spec, state, status, templateId: letterId == null ? (templateId ?? undefined) : undefined, numberingMode }),
+          ...(permohonanParam != null ? { permohonanId: permohonanParam } : {}),
+        };
         const res = await fetch(letterId == null ? "/api/letters" : `/api/letters/${letterId}`, {
           method: letterId == null ? "POST" : "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -368,7 +407,7 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
         if (status === "draft") {
           savedSig.current = stateSignature(state);
           setNotice("Draf tersimpan. Anda bisa melanjutkannya nanti dari daftar surat.");
-          if (suratParam !== saved.id) router.replace(`${BACK_URL}/buat?surat=${saved.id}`);
+          if (suratParam !== saved.id) router.replace(`${BACK_URL}/buat?surat=${saved.id}${permohonanQuery}`);
           return true;
         }
 
@@ -395,7 +434,7 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
         setBusy(null);
       }
     },
-    [state, spec, doc, numberingMode, appConfirm, letterId, templateId, suratParam, router, loadingKeys],
+    [state, spec, doc, numberingMode, appConfirm, letterId, templateId, suratParam, router, loadingKeys, permohonanParam, permohonanQuery],
   );
 
   const goBack = useCallback(async () => {

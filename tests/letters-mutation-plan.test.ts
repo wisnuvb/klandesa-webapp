@@ -132,6 +132,29 @@ describe("surat pindah datang → MOVE_IN", () => {
     assert.match(noNik.skipped[0], /NIK 16 digit/);
   });
 
+  it("pendatang baru: isian surat \"Nomor KK tujuan\" melengkapi KK dan lolos validasi mutasi", () => {
+    const plan = planLetterMutations({
+      kind: "MOVE_IN",
+      input: input(undefined),
+      values: values({ fields: { ...fields, kk_tujuan: "3508 0000 0000 0999" }, pemohon: { nama: "Sari", nik: NIK_P, ttl: "Surabaya, 28 Januari 1985", jenis_kelamin: "Perempuan" } }),
+      now: NOW,
+    });
+    assert.deepEqual(plan.skipped, []);
+    const p = plan.proposals[0].input;
+    assert.equal(p.details.newResident?.kk, "3508000000000999");
+    assert.deepEqual(validateMutation(p, null, NOW, "submit"), { ok: true });
+  });
+
+  it("KK di data pemohon didahulukan atas isian KK tujuan", () => {
+    const plan = planLetterMutations({
+      kind: "MOVE_IN",
+      input: input(undefined),
+      values: values({ fields: { ...fields, kk_tujuan: "3508000000000111" }, pemohon: { nama: "Sari", nik: NIK_P, kk: "3508000000000999", ttl: "Surabaya, 28 Januari 1985", jenis_kelamin: "Perempuan" } }),
+      now: NOW,
+    });
+    assert.equal(plan.proposals[0].input.details.newResident?.kk, "3508000000000999");
+  });
+
   it("tinggal sementara, tanggal kosong/masa depan, asal kosong → dilewati", () => {
     const base = values({ fields });
     assert.match(planLetterMutations({ kind: "MOVE_IN", input: input(9), values: values({ fields: { ...fields, status_tinggal: "Tinggal sementara" } }), now: NOW }).skipped[0], /sementara/);

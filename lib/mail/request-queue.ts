@@ -45,6 +45,8 @@ export function uiStatus(dbStatus: string): UiStatus {
 }
 
 function clampInt(raw: string | null, fallback: number, min: number, max: number): number {
+  // Number(null) dan Number("") bernilai 0 (bukan NaN): parameter yang tidak ada harus memakai nilai bawaan, bukan `min`.
+  if (raw == null || raw.trim() === "") return fallback;
   const n = Number(raw);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.trunc(n)));

@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Ban, CheckCircle2, ChevronDown, Clock, Download, Info, Paperclip, Plus, XCircle } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle2, ChevronDown, Clock, Download, FileText, Info, Paperclip, Plus, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AsyncState } from "@/components/app/patterns";
 import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 import { MUTATION_LABEL, type MutationType } from "@/lib/kependudukan/mutation";
-import { describeMutation, formatTanggal, MUTASI_TYPES, MUTATION_ATTACHMENT_HINT, STATUS_META, type MutasiItemView, type MutasiStatus } from "@/lib/kependudukan/mutasi-labels";
+import { describeMutation, describeMutationSource, formatTanggal, MUTASI_TYPES, MUTATION_ATTACHMENT_HINT, STATUS_META, type MutasiItemView, type MutasiStatus } from "@/lib/kependudukan/mutasi-labels";
 import { useMutasi } from "../_hooks/useMutasi";
 import { DecideDialog, type Decision } from "./DecideDialog";
 import { MutasiFormDialog } from "./MutasiFormDialog";
@@ -61,7 +61,8 @@ function MutasiCard({ item, count, canDecide, canSubmit, busyId, onDecide, onCan
       </div>
 
       <p className="text-sm text-muted-foreground">
-        {item.requestedBy ? `Diajukan oleh ${item.requestedBy}` : item.source === "legacy_edit" ? "Tercatat otomatis dari perubahan Data Warga" : item.source === "import" ? "Tercatat otomatis dari impor" : "Diajukan"}
+        {item.source === "letter" ? <FileText aria-hidden="true" className="mr-1.5 inline size-4 align-text-bottom" /> : null}
+        {describeMutationSource(item)}
         {item.decidedBy ? ` · Diputuskan oleh ${item.decidedBy}` : ""}
       </p>
       {item.rejectionReason ? <p className="rounded-md bg-muted p-3 text-sm">Alasan ditolak: {item.rejectionReason}</p> : null}

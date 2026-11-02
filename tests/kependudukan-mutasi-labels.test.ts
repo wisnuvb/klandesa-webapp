@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildSubmitBody, describeMutation, emptyForm, needsNikOnApprove, usesExistingResident, type MutasiItemView, type ResidentPick } from "../lib/kependudukan/mutasi-labels";
+import { buildSubmitBody, describeMutation, describeMutationSource, emptyForm, needsNikOnApprove, usesExistingResident, type MutasiItemView, type ResidentPick } from "../lib/kependudukan/mutasi-labels";
 
 const budi: ResidentPick = { id: 5, name: "Budi", nikLast4: "1234", kkLast4: "0001", rt: "01", rw: "01", status: "aktif" };
 
@@ -59,4 +59,14 @@ test("ringkasan kalimat dan kebutuhan NIK saat menyetujui", () => {
   assert.equal(needsNikOnApprove({ type: "BIRTH", residentId: null }), true);
   assert.equal(needsNikOnApprove({ type: "MOVE_IN", residentId: 3 }), false);
   assert.equal(needsNikOnApprove({ type: "DEATH", residentId: 3 }), false);
+});
+
+test("asal pengajuan: dari surat pindah/datang, pengaju, otomatis, dan bawaan", () => {
+  const m = (o: Partial<MutasiItemView>) => ({ source: "web", type: "MOVE_OUT" as const, requestedBy: null, ...o });
+  assert.equal(describeMutationSource(m({ source: "letter", requestedBy: "Siti" })), "Diajukan otomatis dari surat pindah, diterbitkan oleh Siti");
+  assert.equal(describeMutationSource(m({ source: "letter", type: "MOVE_IN" })), "Diajukan otomatis dari surat datang");
+  assert.equal(describeMutationSource(m({ requestedBy: "Budi" })), "Diajukan oleh Budi");
+  assert.equal(describeMutationSource(m({ source: "legacy_edit" })), "Tercatat otomatis dari perubahan Data Warga");
+  assert.equal(describeMutationSource(m({ source: "import" })), "Tercatat otomatis dari impor");
+  assert.equal(describeMutationSource(m({})), "Diajukan");
 });
