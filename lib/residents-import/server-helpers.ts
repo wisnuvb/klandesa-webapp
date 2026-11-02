@@ -16,6 +16,7 @@ export const UPDATABLE: Array<keyof DbRecord> = [
   "moveDate", "deathDate", "fatherNik", "fatherName", "motherNik", "motherName",
   "disabilityId", "otherDisability", "datePregnant", "contraception", "height", "weight", "income",
   "cover", "coverThumb", "photo", "photoThumb", "countryCode", "tempIdNumber", "tempRt", "houseOwnership", "desil",
+  "ethnicity", "residencyStatus", "arrivalDate", "originAddress", "birthCertNo", "ktpStatus", "marriageDate", "marriageCertNo", "passportNo", "kitasNo",
 ];
 const BOOLEAN_FIELDS: Array<keyof DbRecord> = [
   "isAlive", "isIlliterate", "isDisability", "isPregnant", "isBreastfeeding", "isStunting", "isBpjsKis",

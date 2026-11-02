@@ -38,6 +38,8 @@ import {
 } from "@/utils/constants/user";
 import { ImageAssetModal } from "@/components/ImageAssetModal";
 import { ResidentPhotoUploader } from "./ResidentPhotoUploader";
+import { EthnicityField } from "./EthnicityField";
+import { KTP_STATUS_LABEL, RESIDENCY_STATUS_LABEL } from "@/lib/residents/extra-fields";
 import { Resident } from "@prisma/client";
 
 interface EditResidentModalProps {
@@ -64,6 +66,8 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
   });
   const isAliveVal = useWatch({ control, name: "isAlive" });
   const isPregnantVal = useWatch({ control, name: "isPregnant" });
+  const nationalityVal = useWatch({ control, name: "nationality" });
+  const isForeigner = nationalityVal === "WNA";
   const isAliveBool = String(isAliveVal) === "true";
   const isPregnantBool = !!isPregnantVal;
 
@@ -87,6 +91,8 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
         datePregnant: resident.datePregnant
           ? new Date(resident.datePregnant)
           : undefined,
+        arrivalDate: resident.arrivalDate ? new Date(resident.arrivalDate) : undefined,
+        marriageDate: resident.marriageDate ? new Date(resident.marriageDate) : undefined,
         // Convert boolean to string for select
         isAlive: String(resident.isAlive) as any,
         disabilityId: (resident.disabilityId
@@ -269,6 +275,77 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
                   placeholder="Pilih status hubungan"
                   options={KK_RELATIONSHIP_STATUS}
                 />
+              </div>
+            </div>
+
+            {/* Kependudukan Tambahan */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">
+                Kependudukan Tambahan
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <EthnicityField name="ethnicity" control={control} />
+                <FormSelect
+                  name="ktpStatus"
+                  control={control}
+                  label="Status KTP-el"
+                  placeholder="Pilih status perekaman"
+                  options={KTP_STATUS_LABEL}
+                />
+                <FormSelect
+                  name="residencyStatus"
+                  control={control}
+                  label="Status Kependudukan"
+                  placeholder="Pilih status kependudukan"
+                  options={RESIDENCY_STATUS_LABEL}
+                />
+                <FormDateInput
+                  name="arrivalDate"
+                  control={control}
+                  label="Tanggal Datang"
+                />
+                <div className="md:col-span-2">
+                  <FormInput
+                    name="originAddress"
+                    control={control}
+                    label="Alamat Asal"
+                    placeholder="Alamat/daerah asal sebelum datang"
+                    maxLength={500}
+                  />
+                </div>
+                <FormInput
+                  name="birthCertNo"
+                  control={control}
+                  label="No. Akta Kelahiran"
+                  maxLength={50}
+                />
+                <FormInput
+                  name="marriageCertNo"
+                  control={control}
+                  label="No. Akta Perkawinan"
+                  maxLength={50}
+                />
+                <FormDateInput
+                  name="marriageDate"
+                  control={control}
+                  label="Tanggal Perkawinan"
+                />
+                {isForeigner ? (
+                  <>
+                    <FormInput
+                      name="passportNo"
+                      control={control}
+                      label="No. Paspor"
+                      maxLength={30}
+                    />
+                    <FormInput
+                      name="kitasNo"
+                      control={control}
+                      label="No. KITAS/KITAP"
+                      maxLength={30}
+                    />
+                  </>
+                ) : null}
               </div>
             </div>
 

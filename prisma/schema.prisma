@@ -498,6 +498,22 @@ model Resident {
   houseOwnership String? @db.VarChar(100)
   desil          String? @db.VarChar(50)
 
+  // Kependudukan tambahan (2026-11, aditif; lihat docs/PHASE6_WARGA_FIELDS.md)
+  /// Suku/etnis: teks baku dari daftar umum (lib/residents/ethnicity.ts), boleh teks bebas
+  ethnicity       String?   @db.VarChar(100)
+  /// TETAP | TIDAK_TETAP (penduduk sementara/pendatang)
+  residencyStatus String?   @db.VarChar(20)
+  arrivalDate     DateTime? @db.Date
+  originAddress   String?   @db.VarChar(500)
+  birthCertNo     String?   @db.VarChar(50)
+  /// BELUM_WAJIB | BELUM_REKAM | SUDAH_REKAM | SUDAH_CETAK
+  ktpStatus       String?   @db.VarChar(20)
+  marriageDate    DateTime? @db.Date
+  marriageCertNo  String?   @db.VarChar(50)
+  /// Khusus WNA
+  passportNo      String?   @db.VarChar(30)
+  kitasNo         String?   @db.VarChar(30)
+
   // Status
   isAlive   Boolean   @default(true)
   moveDate  DateTime? // Place of residence if already moved

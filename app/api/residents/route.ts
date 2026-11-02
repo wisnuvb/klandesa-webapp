@@ -17,6 +17,7 @@ import {
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
 import { emitWebhookEvent } from "@/lib/webhooks/deliver";
+import { parseExtraFields } from "@/lib/residents/extra-fields";
 
 function mapReligionId(id: string) {
   const map: Record<string, string> = {
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest) {
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
+    const extra = parseExtraFields(body);
+    if (!extra.ok) return NextResponse.json({ error: extra.error }, { status: 400 });
 
     // Basic validation
     const required = [
@@ -91,6 +94,7 @@ export async function POST(req: NextRequest) {
       phone: body.phone_number || null,
       email: body.email || null,
       isAlive: String(body.is_live ?? "Y") === "Y",
+      ...extra.data,
     };
 
     const result = await prisma.$transaction(async (tx) => {

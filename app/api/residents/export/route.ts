@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
       Pendidikan: resident.education || "",
       Pekerjaan: resident.occupation || "",
       "Golongan Darah": resident.bloodType || "",
+      Suku: resident.ethnicity || "",
     }));
 
     // Generate filename with timestamp

@@ -54,6 +54,7 @@ export function diffRecord(
 export const RESIDENT_AUDIT_MASKED: ReadonlySet<string> = new Set([
   "nik", "kk", "fatherNik", "motherNik", "phone", "email", "address", "income",
   "tempIdNumber", "cover", "coverThumb", "photo", "photoThumb",
+  "birthCertNo", "marriageCertNo", "passportNo", "kitasNo", "originAddress",
 ]);
 
 export const RESIDENT_AUDIT_IGNORED: ReadonlySet<string> = new Set(["updatedAt", "createdAt"]);

@@ -11,6 +11,8 @@ import {
   splitBirthPlaceDate,
 } from "./nik-date";
 import { cleanText, digitsOnly, isPlaceholder } from "./text";
+import { normalizeEthnicity } from "../residents/ethnicity";
+import { resolveKtpStatus, resolveResidencyStatus } from "../residents/extra-fields";
 import {
   resolveBlood,
   resolveEducation,
@@ -64,6 +66,12 @@ const MAX_LEN: Partial<Record<FieldId, number>> = {
   marital_status: 50,
   status_family_id: 50,
   nationality: 50,
+  ethnicity: 100,
+  origin_address: 500,
+  birth_cert_no: 50,
+  marriage_cert_no: 50,
+  passport_no: 30,
+  kitas_no: 30,
 };
 
 const pad2 = (n: string) => (n.length === 1 ? `0${n}` : n);
@@ -295,11 +303,30 @@ export function normalizeRow(raw: Partial<Record<FieldId, unknown>>, opts: Norma
       else out.is_alive = yn ? "Y" : "N";
     }
   }
-  for (const id of ["death_date", "move_date", "date_pregnant"] as const) {
+  for (const id of ["death_date", "move_date", "date_pregnant", "arrival_date", "marriage_date"] as const) {
     if (isPlaceholder(src[id])) continue;
     const iso = parseDateLoose(src[id], now);
     if (iso) out[id] = iso;
     else add(id, "warning", `${FIELD_BY_ID[id].label} "${textOf(src[id])}" tidak bisa dibaca; dikosongkan`);
+  }
+
+  // ── Suku & status (kode baku; teks tak dikenali dikosongkan dengan peringatan) ──
+  if (!isPlaceholder(src.ethnicity)) {
+    const e = normalizeEthnicity(textOf(src.ethnicity));
+    if (e) out.ethnicity = e;
+    if (e && e.length > 100) add("ethnicity", "error", "Suku maksimal 100 karakter");
+  }
+  if (!isPlaceholder(src.residency_status)) {
+    const t = textOf(src.residency_status);
+    const v = resolveResidencyStatus(t);
+    if (v) out.residency_status = v;
+    else if (t) add("residency_status", "warning", `Status kependudukan "${t}" tidak dikenali; dikosongkan`);
+  }
+  if (!isPlaceholder(src.ktp_status)) {
+    const t = textOf(src.ktp_status);
+    const v = resolveKtpStatus(t);
+    if (v) out.ktp_status = v;
+    else if (t) add("ktp_status", "warning", `Status KTP-el "${t}" tidak dikenali; dikosongkan`);
   }
 
   // ── Ya/Tidak ──
@@ -320,7 +347,7 @@ export function normalizeRow(raw: Partial<Record<FieldId, unknown>>, opts: Norma
   }
 
   // ── Teks bebas ──
-  for (const id of ["other_disability", "contraception", "cover", "cover_thumb", "photo", "photo_thumb", "country_code", "temp_id_number", "house_ownership", "desil"] as const) {
+  for (const id of ["other_disability", "contraception", "cover", "cover_thumb", "photo", "photo_thumb", "country_code", "temp_id_number", "house_ownership", "desil", "origin_address", "birth_cert_no", "marriage_cert_no", "passport_no", "kitas_no"] as const) {
     const t = textOf(src[id]);
     out[id] = t;
     const max = MAX_LEN[id];
@@ -394,6 +421,16 @@ export function toDbRecord(v: Values) {
     tempRt: nul(v.temp_rt),
     houseOwnership: nul(v.house_ownership),
     desil: nul(v.desil),
+    ethnicity: nul(v.ethnicity),
+    residencyStatus: nul(v.residency_status),
+    arrivalDate: day(v.arrival_date),
+    originAddress: nul(v.origin_address),
+    birthCertNo: nul(v.birth_cert_no),
+    ktpStatus: nul(v.ktp_status),
+    marriageDate: day(v.marriage_date),
+    marriageCertNo: nul(v.marriage_cert_no),
+    passportNo: nul(v.passport_no),
+    kitasNo: nul(v.kitas_no),
   };
 }
 

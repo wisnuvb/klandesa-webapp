@@ -54,6 +54,16 @@ export const FIELD_IDS = [
   "temp_rt",
   "house_ownership",
   "desil",
+  "ethnicity",
+  "residency_status",
+  "arrival_date",
+  "origin_address",
+  "birth_cert_no",
+  "ktp_status",
+  "marriage_date",
+  "marriage_cert_no",
+  "passport_no",
+  "kitas_no",
 ] as const;
 
 export type FieldId = (typeof FIELD_IDS)[number];
@@ -182,6 +192,26 @@ export const FIELDS: FieldDef[] = [
     synonyms: ["kepemilikan rumah", "status rumah", "status kepemilikan rumah"] },
   { id: "desil", label: "Desil", group: "Lainnya", kind: "text", example: "",
     synonyms: ["desil", "desil dtks", "desil kesejahteraan"] },
+  { id: "ethnicity", label: "Suku", group: "Pribadi", kind: "text", example: "Jawa",
+    synonyms: ["suku", "suku bangsa", "etnis", "suku etnis", "etnik"] },
+  { id: "residency_status", label: "Status Kependudukan", group: "Status", kind: "enum", example: "Tetap",
+    synonyms: ["status kependudukan", "jenis penduduk", "penduduk tetap sementara", "status tinggal", "tetap sementara"] },
+  { id: "arrival_date", label: "Tanggal Datang", group: "Status", kind: "date", example: "",
+    synonyms: ["tanggal datang", "tgl datang", "tanggal masuk", "tanggal pindah masuk", "tanggal kedatangan"] },
+  { id: "origin_address", label: "Alamat Asal", group: "Alamat", kind: "text", example: "",
+    synonyms: ["alamat asal", "asal datang", "daerah asal", "asal daerah", "alamat sebelumnya"] },
+  { id: "birth_cert_no", label: "No. Akta Kelahiran", group: "Identitas", kind: "text", example: "",
+    synonyms: ["no akta kelahiran", "nomor akta kelahiran", "akta kelahiran", "no akta lahir", "nomor akta lahir"] },
+  { id: "ktp_status", label: "Status KTP-el", group: "Status", kind: "enum", example: "Sudah rekam",
+    synonyms: ["status ktp el", "status ktp", "status rekam ktp el", "perekaman ktp", "perekaman ktp el", "status perekaman"] },
+  { id: "marriage_date", label: "Tanggal Perkawinan", group: "Pribadi", kind: "date", example: "",
+    synonyms: ["tanggal perkawinan", "tgl kawin", "tanggal kawin", "tanggal nikah", "tanggal pernikahan"] },
+  { id: "marriage_cert_no", label: "No. Akta Perkawinan", group: "Pribadi", kind: "text", example: "",
+    synonyms: ["no akta perkawinan", "nomor akta perkawinan", "akta perkawinan", "no akta nikah", "nomor akta nikah", "akta nikah"] },
+  { id: "passport_no", label: "No. Paspor", group: "Identitas", kind: "text", example: "",
+    synonyms: ["no paspor", "nomor paspor", "paspor"] },
+  { id: "kitas_no", label: "No. KITAS/KITAP", group: "Identitas", kind: "text", example: "",
+    synonyms: ["no kitas", "nomor kitas", "no kitap", "nomor kitap", "no kitas kitap", "kitas", "kitap"] },
 ];
 
 export const FIELD_BY_ID: Record<FieldId, FieldDef> = Object.fromEntries(

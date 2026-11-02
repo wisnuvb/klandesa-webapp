@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { residentLeavesVillage } from "@/lib/mobile/citizen-status-logic";
+import { parseExtraFields } from "@/lib/residents/extra-fields";
 import { archiveResident, isKependudukanV2, runKependudukanSync, syncAfterResidentUpdate, syncResidents } from "@/lib/kependudukan/sync";
 
 type AuditCtx = Parameters<typeof auditWeb>[1];
@@ -84,6 +85,8 @@ export async function PUT(
     }
 
     const body = await request.json();
+    const extra = parseExtraFields(body);
+    if (!extra.ok) return NextResponse.json({ error: extra.error }, { status: 400 });
 
     // Verify resident exists and belongs to this village
     const existing = await prisma.resident.findFirst({
@@ -238,6 +241,7 @@ export async function PUT(
         tempRt: body.tempRt?.trim() || existing.tempRt,
         houseOwnership: body.houseOwnership?.trim() || existing.houseOwnership,
         desil: body.desil?.trim() || existing.desil,
+        ...extra.data,
       },
     });
 
@@ -281,6 +285,8 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    const extra = parseExtraFields(body);
+    if (!extra.ok) return NextResponse.json({ error: extra.error }, { status: 400 });
 
     // Verify resident exists and belongs to this village
     const existing = await prisma.resident.findFirst({
@@ -527,6 +533,7 @@ export async function PATCH(
           body.desil !== undefined
             ? String(body.desil).trim() || null
             : existing.desil,
+        ...extra.data,
       },
     });
 

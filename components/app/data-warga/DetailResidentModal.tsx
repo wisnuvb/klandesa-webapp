@@ -15,6 +15,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { calculateAge } from "@/utils";
 import { DISABILITY_OPTIONS } from "@/utils/constants/user";
 import { Resident } from "@prisma/client";
+import {
+  KTP_STATUS_LABEL,
+  RESIDENCY_STATUS_LABEL,
+  type KtpStatus,
+  type ResidencyStatus,
+} from "@/lib/residents/extra-fields";
 
 interface DetailResidentModalProps {
   resident: Resident | null;
@@ -205,6 +211,7 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
               <Field label="Agama">{resident.religion}</Field>
               <Field label="Golongan Darah">{resident.bloodType || "-"}</Field>
               <Field label="Kewarganegaraan">{resident.nationality}</Field>
+              <Field label="Suku">{resident.ethnicity || "-"}</Field>
               <Field label="Kode Negara">{resident.countryCode || "-"}</Field>
             </Grid>
           </Section>
@@ -386,6 +393,40 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
                 <Field label="Tanggal Meninggal">
                   {formatDate(resident.deathDate)}
                 </Field>
+              )}
+            </Grid>
+          </Section>
+
+          <Section title="Dokumen & Kependudukan Tambahan">
+            <Grid>
+              <Field label="Status Kependudukan">
+                {resident.residencyStatus
+                  ? RESIDENCY_STATUS_LABEL[resident.residencyStatus as ResidencyStatus] ?? resident.residencyStatus
+                  : "-"}
+              </Field>
+              <Field label="Tanggal Datang">{formatDate(resident.arrivalDate)}</Field>
+              <Field label="Alamat Asal">{resident.originAddress || "-"}</Field>
+              <Field label="Status KTP-el">
+                {resident.ktpStatus
+                  ? KTP_STATUS_LABEL[resident.ktpStatus as KtpStatus] ?? resident.ktpStatus
+                  : "-"}
+              </Field>
+              <Field label="No. Akta Kelahiran" className="font-mono text-sm">
+                {resident.birthCertNo || "-"}
+              </Field>
+              <Field label="Tanggal Perkawinan">{formatDate(resident.marriageDate)}</Field>
+              <Field label="No. Akta Perkawinan" className="font-mono text-sm">
+                {resident.marriageCertNo || "-"}
+              </Field>
+              {resident.nationality === "WNA" && (
+                <>
+                  <Field label="No. Paspor" className="font-mono text-sm">
+                    {resident.passportNo || "-"}
+                  </Field>
+                  <Field label="No. KITAS/KITAP" className="font-mono text-sm">
+                    {resident.kitasNo || "-"}
+                  </Field>
+                </>
               )}
             </Grid>
           </Section>
