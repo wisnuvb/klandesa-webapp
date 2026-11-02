@@ -6,6 +6,8 @@ import { validateDocument } from "@/lib/letters/document/validate";
 import { deriveFormSpec, type FormSpec } from "@/lib/letters/document/form-spec";
 import type { LetterDocument } from "@/lib/letters/document/schema";
 import type { ResidentOption } from "@/components/AutocompleteResidentInput";
+import type { OfficialId } from "@/lib/letters/registry";
+import type { LetterMutationOutcome } from "@/lib/letters/mutation-plan";
 import { personRowFromPerson, type LetterValues, type PersonValues } from "@/lib/letters/values";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import {
@@ -32,6 +34,8 @@ export type IssuedLetter = {
   values: LetterValues;
   /** true bila surat ini sudah terbit sebelum halaman dibuka (bukan baru saja diterbitkan). */
   wasAlready: boolean;
+  /** Hanya surat pindah/datang yang baru terbit: pengajuan Buku Mutasi yang dibuat, atau alasan tidak dibuat. */
+  mutation?: LetterMutationOutcome;
 };
 
 const BACK_URL = "/layanan-surat";
@@ -118,7 +122,7 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
           }
           const fs = deriveFormSpec(v.doc);
           setSpec(fs);
-          const st = stateFromValues({ doc: v.doc, spec: fs, values: detail.values, letterDate: detail.letterDate, letterNumber: detail.letterNumber });
+          const st = stateFromValues({ doc: v.doc, spec: fs, values: detail.values, letterDate: detail.letterDate, letterNumber: detail.letterNumber, context: ctx });
           setState(st);
           savedSig.current = stateSignature(st);
           setOpenedDraft(true);
@@ -255,6 +259,11 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
   const setField = useCallback((id: string, value: string) => update((s) => ({ ...s, fields: { ...s.fields, [id]: value } })), [update]);
   const setDate = useCallback((date: string) => update((s) => ({ ...s, date })), [update]);
   const setNumber = useCallback((number: string) => update((s) => ({ ...s, number })), [update]);
+  const setOfficial = useCallback(
+    (id: OfficialId, key: "nama" | "nip", value: string) =>
+      update((s) => ({ ...s, officials: { ...s.officials, [id]: { ...(s.officials[id] ?? { nama: "", nip: "" }), [key]: value } } })),
+    [update],
+  );
 
   // ------------------------------------------------------------------ grup
   const addRow = useCallback(
@@ -352,7 +361,7 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
           setSubmitError(await readError(res, "Gagal menyimpan surat"));
           return false;
         }
-        const saved = (await res.json()) as { id: number; letterNumber: string };
+        const saved = (await res.json()) as { id: number; letterNumber: string; mutation?: LetterMutationOutcome };
         handledSurat.current = saved.id;
         setLetterId(saved.id);
 
@@ -375,7 +384,7 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
           return false;
         }
         savedSig.current = stateSignature(state);
-        setIssued({ id: saved.id, letterNumber: d.letterNumber, templateId: d.templateId, document: v.doc, values: d.values, wasAlready: false });
+        setIssued({ id: saved.id, letterNumber: d.letterNumber, templateId: d.templateId, document: v.doc, values: d.values, wasAlready: false, mutation: saved.mutation });
         setPhase("issued");
         router.replace(`${BACK_URL}/buat?surat=${saved.id}`);
         return true;
@@ -407,12 +416,12 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
   const actions = useMemo(
     () => ({
       selectPerson, clearPerson, setPersonQuery, setPersonManual, setPersonValue,
-      setField, setDate, setNumber,
+      setField, setDate, setNumber, setOfficial,
       addRow, removeRow, setRowValue, setRowQuery, selectRowResident, clearRowResident,
     }),
     [
       selectPerson, clearPerson, setPersonQuery, setPersonManual, setPersonValue,
-      setField, setDate, setNumber,
+      setField, setDate, setNumber, setOfficial,
       addRow, removeRow, setRowValue, setRowQuery, selectRowResident, clearRowResident,
     ],
   );

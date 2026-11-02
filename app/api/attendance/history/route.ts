@@ -107,8 +107,8 @@ export async function GET(req: NextRequest) {
       attendanceDate: { gte: Date; lte: Date };
       status?: AttendanceStatus;
       official?: {
-        name?: { contains: string; mode: "insensitive" };
-        position?: { name?: { contains: string; mode: "insensitive" } };
+        name?: { contains: string };
+        position?: { name?: { contains: string } };
       };
     } = {
       villageId: village.id,
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
     if (status) where.status = status as AttendanceStatus;
     if (search) {
       where.official = {
-        name: { contains: search, mode: "insensitive" },
+        name: { contains: search },
       };
     }
 

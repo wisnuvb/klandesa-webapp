@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
     const where: any = { villageId: village.id };
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
+        { name: { contains: search } },
+        { description: { contains: search } },
       ];
     }
     if (isActive !== null && isActive !== undefined) {

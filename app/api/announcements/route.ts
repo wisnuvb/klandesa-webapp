@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { emitWebhookEvent } from "@/lib/webhooks/deliver";
+import { parseAnnouncementImageUrl } from "@/lib/announcements/image-url";
 
 export async function GET(req: NextRequest) {
   try {
@@ -74,13 +75,16 @@ export async function POST(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
+    const image = parseAnnouncementImageUrl(body.imageUrl);
+    if (!image.ok) return NextResponse.json({ error: image.error }, { status: 400 });
+
     const announcement = await prisma.announcement.create({
       data: {
         villageId: village.id,
         title: body.title,
         content: body.content,
         category: body.category,
-        imageUrl: body.imageUrl || null,
+        imageUrl: image.value ?? null,
         isPinned: body.isPinned || false,
         publishDate: body.publishDate ? new Date(body.publishDate) : new Date(),
         createdById: Number(session.user.id),

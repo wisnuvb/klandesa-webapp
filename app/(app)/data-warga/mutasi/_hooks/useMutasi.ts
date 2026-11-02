@@ -16,12 +16,15 @@ interface ListResponse {
 }
 
 type ApiFail = { error?: string; errors?: string[]; code?: string };
-export type ActionResult = { ok: true } | { ok: false; errors: string[] };
+export type ActionResult = { ok: true; id?: string } | { ok: false; errors: string[] };
 
 async function send(url: string, method: string, body: unknown): Promise<ActionResult> {
   try {
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      const created = (await res.json().catch(() => null)) as { id?: unknown } | null;
+      return { ok: true, ...(typeof created?.id === "string" || typeof created?.id === "number" ? { id: String(created.id) } : {}) };
+    }
     const j = (await res.json().catch(() => null)) as ApiFail | null;
     return { ok: false, errors: j?.errors?.length ? j.errors : [j?.error ?? "Permintaan gagal. Coba lagi."] };
   } catch {

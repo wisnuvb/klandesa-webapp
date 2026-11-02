@@ -10,6 +10,7 @@ import { MEDIATION_OUTCOMES, PARTY_SIDES, reportStatusLabel } from "@/lib/keaman
 import type { MediationView } from "@/lib/keamanan/kejadian";
 import { ActionError, Check, Empty, Field as TextField, FormShell, Pick, ResidentField, fmtDay, opt, useAction, type ResidentHit } from "./shared";
 import type { DetailResp } from "./types";
+import { AttachmentDisclosure } from "@/components/app/attachments/AttachmentsSection";
 
 interface Props {
   eventId: number;
@@ -190,6 +191,8 @@ function MediationCard({ m, data, editable, onChanged }: { m: MediationView; dat
         </div>
       ) : null}
       {editable && can.delete && m.status !== "COMPLETED" ? <ConfirmDelete buttonText="Hapus mediasi" label="Hapus mediasi" title="Hapus mediasi ini?" description="Mediasi beserta daftar pihaknya dihapus. Berita acara yang sudah selesai tidak dapat dihapus." url={`/api/keamanan/mediasi/${m.id}`} onDone={onChanged} /> : null}
+
+      <AttachmentDisclosure type="SECURITY_MEDIATION" id={m.id} title="Berita acara dan dokumen" hint="Berita acara mediasi bertanda tangan para pihak dan dokumen pendukung. Memuat data pribadi para pihak: simpan seperlunya." />
 
       {editing ? <MediationForm title="Ubah jadwal mediasi" url={`/api/keamanan/mediasi/${m.id}`} method="PATCH" initial={m} onClose={() => setEditing(false)} onDone={() => { setEditing(false); onChanged(); }} /> : null}
       {addParty ? <PartyDialog mediationId={m.id} party={null} onClose={() => setAddParty(false)} onDone={() => { setAddParty(false); onChanged(); }} /> : null}

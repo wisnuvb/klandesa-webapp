@@ -8,19 +8,12 @@ import { Button } from "@/components/ui/button";
 import { AsyncState } from "@/components/app/patterns";
 import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 import { MUTATION_LABEL, type MutationType } from "@/lib/kependudukan/mutation";
-import { describeMutation, formatTanggal, MUTASI_TYPES, STATUS_META, type MutasiItemView, type MutasiStatus } from "@/lib/kependudukan/mutasi-labels";
+import { describeMutation, formatTanggal, MUTASI_TYPES, MUTATION_ATTACHMENT_HINT, STATUS_META, type MutasiItemView, type MutasiStatus } from "@/lib/kependudukan/mutasi-labels";
 import { useMutasi } from "../_hooks/useMutasi";
 import { DecideDialog, type Decision } from "./DecideDialog";
 import { MutasiFormDialog } from "./MutasiFormDialog";
 import { SearchSelect } from "@/components/ui/search-select";
-
-const ATTACHMENT_HINT: Record<MutationType, string> = {
-  BIRTH: "Akta kelahiran atau surat keterangan lahir (PDF atau foto).",
-  DEATH: "Akta kematian atau surat keterangan kematian (PDF atau foto).",
-  MOVE_OUT: "Surat keterangan pindah (PDF atau foto).",
-  MOVE_IN: "Surat keterangan pindah datang atau surat kedatangan (PDF atau foto).",
-  KK_CHANGE: "Kartu Keluarga baru atau dokumen pendukung perubahan (PDF atau foto).",
-};
+import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
 
 const STATUS_ICON: Record<MutasiStatus, typeof Clock> = { PENDING: Clock, APPLIED: CheckCircle2, REJECTED: XCircle, CANCELLED: Ban };
 const STATUS_STYLE: Record<MutasiStatus, string> = {
@@ -46,7 +39,7 @@ function Chip({ active, onClick, label, count }: { active: boolean; onClick: () 
   );
 }
 
-function MutasiCard({ item, canDecide, canSubmit, busyId, onDecide, onCancel }: { item: MutasiItemView; canDecide: boolean; canSubmit: boolean; busyId: string | null; onDecide: (d: Decision) => void; onCancel: (id: string) => void }) {
+function MutasiCard({ item, count, canDecide, canSubmit, busyId, onDecide, onCancel }: { item: MutasiItemView; count: number; canDecide: boolean; canSubmit: boolean; busyId: string | null; onDecide: (d: Decision) => void; onCancel: (id: string) => void }) {
   const Icon = STATUS_ICON[item.status];
   const pending = item.status === "PENDING";
   const [showFiles, setShowFiles] = useState(false);
@@ -82,12 +75,12 @@ function MutasiCard({ item, canDecide, canSubmit, busyId, onDecide, onCancel }: 
           className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Paperclip aria-hidden="true" className="size-4" />
-          Lampiran dokumen
+          Lampiran dokumen{count > 0 ? ` (${count})` : ""}
           <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${showFiles ? "rotate-180" : ""}`} />
         </button>
         {showFiles ? (
           <div id={filesId} className="pt-2">
-            <LiveAttachments type="MUTATION" id={Number(item.id)} title="Dokumen pendukung" hint={ATTACHMENT_HINT[item.type]} />
+            <LiveAttachments type="MUTATION" id={Number(item.id)} title="Dokumen pendukung" hint={MUTATION_ATTACHMENT_HINT[item.type]} />
           </div>
         ) : null}
       </div>
@@ -120,6 +113,7 @@ export function MutasiView() {
   const [formOpen, setFormOpen] = useState(false);
   const [decision, setDecision] = useState<Decision>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const counts = useAttachmentCounts("MUTATION", m.data?.items.map((i) => i.id) ?? []);
   const canSubmit = m.data?.permissions.canSubmit ?? false;
   const canDecide = m.data?.permissions.canDecide ?? false;
   const year = new Date().getFullYear();
@@ -209,6 +203,7 @@ export function MutasiView() {
                     <li key={item.id}>
                       <MutasiCard
                         item={item}
+                        count={counts[item.id] ?? 0}
                         canDecide={canDecide}
                         canSubmit={canSubmit}
                         busyId={busyId}

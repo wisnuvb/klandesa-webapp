@@ -5,6 +5,8 @@ import { calculateAge } from "@/utils";
 import { Edit, Eye, Trash2 } from "lucide-react";
 import type { OfficialRow } from "../_lib/types";
 import { getPositionBadgeVariant } from "../_lib/formatting";
+import { AttachmentCountBadge } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
 
 type PerangkatTableCardProps = {
   isLoading: boolean;
@@ -26,6 +28,8 @@ export function PerangkatTableCard(props: PerangkatTableCardProps) {
     onEdit,
     onDelete,
   } = props;
+
+  const counts = useAttachmentCounts("OFFICIAL", rows.map((r) => r.id));
 
   return (
     <EntityTableCard
@@ -49,7 +53,12 @@ export function PerangkatTableCard(props: PerangkatTableCardProps) {
         {
           id: "name",
           header: "Nama",
-          cell: (row) => <span className="font-medium">{row.name}</span>,
+          cell: (row) => (
+            <span className="inline-flex items-center gap-2 font-medium">
+              {row.name}
+              <AttachmentCountBadge count={counts[row.id] ?? 0} />
+            </span>
+          ),
         },
         {
           id: "nik",

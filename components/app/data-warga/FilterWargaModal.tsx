@@ -27,11 +27,13 @@ import {
   RELIGION_OPTIONS,
 } from "@/utils/constants/user";
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ETHNICITIES } from "@/lib/residents/ethnicity";
 
 export interface WargaFilters {
   gender: string;
   status: string;
   religion: string;
+  ethnicity: string;
   education: string;
   occupation: string;
   familyRole: string;
@@ -50,6 +52,7 @@ export const DEFAULT_FILTERS: WargaFilters = {
   gender: "all",
   status: "all",
   religion: "all",
+  ethnicity: "all",
   education: "all",
   occupation: "all",
   familyRole: "all",
@@ -69,6 +72,7 @@ export function countActiveFilters(filters: WargaFilters): number {
   if (filters.gender !== "all") count++;
   if (filters.status !== "all") count++;
   if (filters.religion !== "all") count++;
+  if (filters.ethnicity !== "all") count++;
   if (filters.education !== "all") count++;
   if (filters.occupation !== "all") count++;
   if (filters.familyRole !== "all") count++;
@@ -180,6 +184,23 @@ export function FilterWargaModal({
                     {religionKeys.map((k) => (
                       <SelectItem key={k} value={k}>
                         {RELIGION_OPTIONS[k]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Suku</Label>
+                <Select value={local.ethnicity} onValueChange={(v) => set("ethnicity", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Semua" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua</SelectItem>
+                    {ETHNICITIES.map((e) => (
+                      <SelectItem key={e} value={e}>
+                        {e}
                       </SelectItem>
                     ))}
                   </SelectContent>

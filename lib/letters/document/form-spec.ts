@@ -3,7 +3,7 @@
  * mendeklarasikan form; form turun otomatis dari isi kanvas, sehingga "isian" yang dipakai
  * di kertas = pertanyaan yang muncul, tidak lebih dan tidak kurang.
  */
-import { parseRef, type PersonFieldKey } from "../registry";
+import { OFFICIAL_IDS, parseRef, type OfficialId, type PersonFieldKey } from "../registry";
 import { collectRefs, flattenBlocks } from "./validate";
 import type { CustomField, Group, LetterDocument, PersonRole } from "./schema";
 
@@ -12,6 +12,8 @@ export type FormSpec = {
   people: Array<PersonRole & { fields: PersonFieldKey[] }>;
   fields: CustomField[];
   groups: Group[];
+  /** Pejabat yang tampil di kertas; namanya terisi dari Pengaturan Desa tetapi boleh ditimpa operator. */
+  officials: OfficialId[];
   /** Terisi otomatis dari profil desa, pejabat, dan data surat; tidak ditanyakan. */
   auto: { desa: string[]; pejabat: string[]; surat: string[] };
 };
@@ -20,6 +22,7 @@ export function deriveFormSpec(doc: LetterDocument): FormSpec {
   const used = new Map<string, Set<PersonFieldKey>>();
   const auto = { desa: new Set<string>(), pejabat: new Set<string>(), surat: new Set<string>() };
   const usedIsian = new Set<string>();
+  const usedOfficials = new Set<OfficialId>();
 
   const touchRole = (role: string, field?: PersonFieldKey) => {
     if (!used.has(role)) used.set(role, new Set());
@@ -32,15 +35,20 @@ export function deriveFormSpec(doc: LetterDocument): FormSpec {
     if (p.kind === "person") touchRole(p.role, p.field);
     else if (p.kind === "isian") usedIsian.add(p.id);
     else if (p.kind === "desa") auto.desa.add(ref);
-    else if (p.kind === "pejabat") auto.pejabat.add(ref);
-    else auto.surat.add(ref);
+    else if (p.kind === "pejabat") {
+      auto.pejabat.add(ref);
+      usedOfficials.add(p.official);
+    } else auto.surat.add(ref);
   }
   for (const b of flattenBlocks(doc.body)) {
     if (b.type === "personData") for (const f of b.fields) touchRole(b.role, f as PersonFieldKey);
     if (b.type === "signature") {
       for (const s of b.slots) {
         if (s.who.kind === "peran") touchRole(s.who.role, "nama");
-        if (s.who.kind === "pejabat") auto.pejabat.add(`pejabat.${s.who.official}.nama`);
+        if (s.who.kind === "pejabat") {
+          auto.pejabat.add(`pejabat.${s.who.official}.nama`);
+          usedOfficials.add(s.who.official as OfficialId);
+        }
       }
     }
   }
@@ -49,6 +57,7 @@ export function deriveFormSpec(doc: LetterDocument): FormSpec {
     people: doc.people.map((r) => ({ ...r, fields: [...(used.get(r.id) ?? [])] })),
     fields: doc.fields.filter((f) => usedIsian.has(f.id)),
     groups: doc.groups,
+    officials: OFFICIAL_IDS.filter((id) => usedOfficials.has(id)),
     auto: { desa: [...auto.desa], pejabat: [...auto.pejabat], surat: [...auto.surat] },
   };
 }

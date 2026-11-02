@@ -5,6 +5,7 @@ import { diffRecord } from "@/lib/audit/diff";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { parseAnnouncementImageUrl } from "@/lib/announcements/image-url";
 
 export async function PATCH(
   req: NextRequest,
@@ -27,6 +28,9 @@ export async function PATCH(
       return subscriptionBlockedResponse(village);
     }
 
+    const image = parseAnnouncementImageUrl(body.imageUrl);
+    if (!image.ok) return NextResponse.json({ error: image.error }, { status: 400 });
+
     const existing = await prisma.announcement.findFirst({
       where: { id, villageId: village.id },
       select: { id: true, title: true, content: true, category: true, isPinned: true, publishDate: true, isActive: true, viewCount: true },
@@ -41,7 +45,7 @@ export async function PATCH(
         title: body.title,
         content: body.content,
         category: body.category,
-        imageUrl: body.imageUrl,
+        imageUrl: image.value,
         isPinned: body.isPinned,
         publishDate: body.publishDate ? new Date(body.publishDate) : undefined,
         isActive: body.isActive,

@@ -11,6 +11,7 @@ import {
   emptyForm,
   FAMILY_ROLES,
   MUTASI_TYPES,
+  MUTATION_ATTACHMENT_HINT,
   TYPE_META,
   usesExistingResident,
   type MutasiForm,
@@ -18,6 +19,8 @@ import {
 import type { ActionResult } from "../_hooks/useMutasi";
 import { ResidentPicker } from "@/components/app/ResidentPicker";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachments } from "@/components/app/attachments/useAttachments";
 
 const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -38,7 +41,9 @@ function Field({ id, label, hint, children, required }: { id: string; label: str
 export function MutasiFormDialog({ open, onOpenChange, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; onSubmit: (body: Record<string, unknown>) => Promise<ActionResult> }) {
   const [f, setF] = useState<MutasiForm>(emptyForm());
   const [errors, setErrors] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const att = useAttachments("MUTATION", null);
+  const saving = submitting || att.flushing;
   const summaryRef = useRef<HTMLDivElement>(null);
   const today = new Date().toISOString().slice(0, 10);
   const set = <K extends keyof MutasiForm>(k: K, v: MutasiForm[K]) => setF((p) => ({ ...p, [k]: v }));
@@ -57,11 +62,15 @@ export function MutasiFormDialog({ open, onOpenChange, onSubmit }: { open: boole
       setErrors(built.errors);
       return;
     }
-    setSaving(true);
+    setSubmitting(true);
     const r = await onSubmit(built.body);
-    setSaving(false);
-    if (r.ok) onOpenChange(false);
-    else setErrors(r.errors);
+    setSubmitting(false);
+    if (!r.ok) {
+      setErrors(r.errors);
+      return;
+    }
+    if (r.id) await att.flushAndNotify(Number(r.id));
+    onOpenChange(false);
   }
 
   return (
@@ -226,6 +235,8 @@ export function MutasiFormDialog({ open, onOpenChange, onSubmit }: { open: boole
               ) : null}
             </fieldset>
           ) : null}
+
+          <AttachmentsSection att={att} title="Dokumen pendukung" hint={MUTATION_ATTACHMENT_HINT[f.type]} />
 
           {errors.length ? (
             <div ref={summaryRef} tabIndex={-1} role="alert" className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive outline-none">

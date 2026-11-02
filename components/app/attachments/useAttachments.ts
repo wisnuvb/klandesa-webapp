@@ -27,6 +27,12 @@ export interface FlushResult {
   failed: Array<{ name: string; error: string }>;
 }
 
+/** Dikirim setiap lampiran berubah supaya penanda jumlah di daftar ikut diperbarui tanpa memuat ulang halaman. */
+export const ATTACHMENTS_CHANGED_EVENT = "lampiran:changed";
+const announceChange = () => {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(ATTACHMENTS_CHANGED_EVENT));
+};
+
 const msg = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback);
 
 /**
@@ -96,6 +102,7 @@ export function useAttachments(type: AttachmentEntityType, entityId: number | nu
           await uploadAndAttach(f, type, entityId, (progress) => setUploads((u) => u.map((x) => (x.key === key ? { ...x, progress } : x))));
           setUploads((u) => u.filter((x) => x.key !== key));
           await reload();
+          announceChange();
         } catch (e) {
           setUploads((u) => u.map((x) => (x.key === key ? { ...x, error: msg(e, "Gagal mengunggah.") } : x)));
         }
@@ -113,6 +120,7 @@ export function useAttachments(type: AttachmentEntityType, entityId: number | nu
       try {
         await unlinkAttachment(id);
         await reload();
+        announceChange();
       } catch (e) {
         setActionError(msg(e, "Gagal melepas lampiran."));
       }
@@ -136,6 +144,7 @@ export function useAttachments(type: AttachmentEntityType, entityId: number | nu
         }
       }
       setQueue(left);
+      if (uploaded) announceChange();
       return { uploaded, failed };
     },
     [queue, type],
@@ -165,3 +174,35 @@ export function useAttachments(type: AttachmentEntityType, entityId: number | nu
 }
 
 export type AttachmentsApi = ReturnType<typeof useAttachments>;
+
+const EMPTY_COUNTS: Record<string, number> = {};
+
+/**
+ * Jumlah lampiran per rekaman untuk daftar (satu permintaan untuk seluruh halaman). Diperbarui otomatis saat lampiran
+ * berubah di mana pun pada halaman. Gagal memuat = tanpa penanda (tidak mengganggu daftar).
+ */
+export function useAttachmentCounts(type: AttachmentEntityType, ids: ReadonlyArray<number | string>): Record<string, number> {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const key = ids.join(",");
+  useEffect(() => {
+    if (!key) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/lampiran/ringkasan?type=${type}&ids=${key}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const j = (await res.json()) as { counts?: Record<string, number> };
+        if (alive) setCounts(j.counts ?? {});
+      } catch {
+        /* tanpa penanda */
+      }
+    };
+    void load();
+    window.addEventListener(ATTACHMENTS_CHANGED_EVENT, load);
+    return () => {
+      alive = false;
+      window.removeEventListener(ATTACHMENTS_CHANGED_EVENT, load);
+    };
+  }, [type, key]);
+  return key ? counts : EMPTY_COUNTS;
+}

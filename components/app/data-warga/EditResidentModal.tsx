@@ -39,6 +39,7 @@ import {
 import { ImageAssetModal } from "@/components/ImageAssetModal";
 import { ResidentPhotoUploader } from "./ResidentPhotoUploader";
 import { EthnicityField } from "./EthnicityField";
+import { normalizeGender } from "@/lib/residents/gender";
 import { KTP_STATUS_LABEL, RESIDENCY_STATUS_LABEL } from "@/lib/residents/extra-fields";
 import { Resident } from "@prisma/client";
 
@@ -93,6 +94,8 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
           : undefined,
         arrivalDate: resident.arrivalDate ? new Date(resident.arrivalDate) : undefined,
         marriageDate: resident.marriageDate ? new Date(resident.marriageDate) : undefined,
+        // Data lama bisa berisi "M"/"F": tampilkan sebagai nilai baku supaya pilihan tidak kosong.
+        gender: normalizeGender(resident.gender) ?? resident.gender,
         // Convert boolean to string for select
         isAlive: String(resident.isAlive) as any,
         disabilityId: (resident.disabilityId
@@ -212,8 +215,8 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
                   label="Jenis Kelamin"
                   placeholder="Pilih jenis kelamin"
                   options={[
-                    { value: "M", label: "Laki-laki" },
-                    { value: "F", label: "Perempuan" },
+                    { value: "Laki-laki", label: "Laki-laki" },
+                    { value: "Perempuan", label: "Perempuan" },
                   ]}
                   required
                 />

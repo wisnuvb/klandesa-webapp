@@ -12,6 +12,8 @@ import { DisposeDialog } from "./DisposeDialog";
 import { ItemFormDialog } from "./ItemFormDialog";
 import { rupiah, SELECT_CLASS, type ItemView, type ListResponse } from "./types";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentDisclosure } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
 
 const PAGE_SIZE = 25;
 
@@ -29,6 +31,7 @@ export function AsetView() {
   if (search) qs.set("search", search);
   const list = useApiGet<ListResponse>(`/api/aset-desa?${qs}`);
   const d = list.data;
+  const counts = useAttachmentCounts("INVENTORY_ITEM", d?.items.map((i) => i.id) ?? []);
   const pages = d ? Math.max(1, Math.ceil(d.total / d.pageSize)) : 1;
 
   function applySearch(e: React.FormEvent) {
@@ -202,6 +205,7 @@ export function AsetView() {
                   {i.disposalReason ? DISPOSAL_REASON_LABEL[i.disposalReason as DisposalReason] : ""}. SK: {i.disposalDecree}.{i.disposalNote ? ` ${i.disposalNote}` : ""}
                 </p>
               ) : null}
+              <AttachmentDisclosure type="INVENTORY_ITEM" id={i.id} count={counts[i.id] ?? 0} title="Lampiran" hint="Bukti perolehan, BAST, foto barang, dan SK penghapusan (PDF, pindaian, atau foto)." />
             </li>
           ))}
         </ul>

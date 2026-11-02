@@ -20,6 +20,21 @@ export const ATTACHMENT_ENTITIES = {
   INSTITUTION: { label: "Lembaga desa", resource: "lembaga_desa", archiveSub: "Lembaga Desa" },
   MEETING: { label: "Musyawarah/rapat", resource: "perencanaan", archiveSub: "Musyawarah" },
   MUTATION: { label: "Mutasi penduduk", resource: "residents", archiveSub: "Mutasi Penduduk" },
+  // Gelombang 2
+  PROCUREMENT: { label: "Pengadaan barang/jasa", resource: "apbdes", archiveSub: "Pengadaan" },
+  AGREEMENT: { label: "Kerja sama desa", resource: "perencanaan", archiveSub: "Kerja Sama" },
+  BLT_PROGRAM: { label: "Program BLT Desa", resource: "blt", archiveSub: "BLT Desa" },
+  PKTD_ACTIVITY: { label: "Kegiatan PKTD", resource: "apbdes", archiveSub: "PKTD" },
+  INVENTORY_ITEM: { label: "Inventaris dan aset", resource: "aset_desa", archiveSub: "Aset Desa" },
+  DTSEN_PROPOSAL: { label: "Usulan DTSEN", resource: "dtsen_usulan", archiveSub: "Usulan DTSEN" },
+  SECURITY_MEDIATION: { label: "Mediasi keamanan", resource: "keamanan", archiveSub: "Mediasi" },
+  SECURITY_MEMBER: { label: "Anggota Satlinmas", resource: "keamanan", archiveSub: "Satlinmas" },
+  VILLAGE_REPORT: { label: "Laporan kepala desa", resource: "apbdes", archiveSub: "Laporan Desa" },
+  TRANSACTION: { label: "Transaksi kas", resource: "finance", archiveSub: "Bukti Transaksi" },
+  PAY_REQUEST: { label: "SPP (permintaan pembayaran)", resource: "apbdes", archiveSub: "SPP" },
+  BUMDES_PROFILE: { label: "Legalitas BUMDes", resource: "bumdes", archiveSub: "Legalitas BUMDes" },
+  BUMDES_OFFICER: { label: "Pengurus BUMDes", resource: "bumdes", archiveSub: "Pengurus BUMDes" },
+  COOP_FORMATION: { label: "Pembentukan koperasi", resource: "cooperative", archiveSub: "Koperasi" },
 } as const satisfies Record<string, AttachmentEntity>;
 
 export type AttachmentEntityType = keyof typeof ATTACHMENT_ENTITIES;

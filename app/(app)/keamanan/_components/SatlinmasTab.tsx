@@ -11,6 +11,7 @@ import type { MemberView } from "@/lib/keamanan/service";
 import { useApiGet } from "@/hooks/useApiGet";
 import { ActionError, Empty, Field as TextField, Findings, FormShell, Pick, ResidentField, fmtDay, s, useAction, where, type ResidentHit } from "./shared";
 import type { EquipmentResp, MembersResp } from "./types";
+import { AttachmentDisclosure } from "@/components/app/attachments/AttachmentsSection";
 
 export function SatlinmasTab({ onChanged }: { onChanged: () => void }) {
   const members = useApiGet<MembersResp>("/api/keamanan/anggota");
@@ -80,6 +81,7 @@ export function SatlinmasTab({ onChanged }: { onChanged: () => void }) {
                       {r.status === "ENDED" ? <Row k="Berakhir" v={`${fmtDay(r.endedOn)} · ${r.endReasonLabel ?? ""}${r.endDecree ? ` · ${r.endDecree}` : ""}`} /> : null}
                     </dl>
                     <Findings items={r.findings} label={`Temuan ${r.name}`} />
+                    <AttachmentDisclosure type="SECURITY_MEMBER" id={r.id} title="SK dan dokumen anggota" hint="SK pengangkatan, kartu anggota, dan dokumen pengukuhan (PDF atau pindaian)." />
                     <div className="flex flex-wrap gap-2">
                       {m.can.update ? (
                         <Button type="button" variant="outline" className="min-h-11" onClick={() => setForm({ member: r })}>

@@ -716,6 +716,8 @@ export interface OfficerView {
 export interface LegalOverview {
   bumdes: { id: number; name: string; address: string | null; phone: string | null; email: string | null; legalNotes: string | null };
   profile: {
+    /** null selama profil legalitas belum pernah disimpan. */
+    id: number | null;
     legalStatus: string;
     legalStatusLabel: string;
     establishMeetingId: number | null;
@@ -790,6 +792,7 @@ export async function getLegal(db: Db, args: { villageId: number; bumdesId: numb
   return ok({
     bumdes: b,
     profile: {
+      id: p?.id ?? null,
       legalStatus: status,
       legalStatusLabel: { BELUM_DAFTAR: "Belum didaftarkan", PROSES: "Dalam proses pendaftaran", BADAN_HUKUM: "Berbadan hukum" }[status] ?? status,
       establishMeetingId: p?.establishMeetingId ?? null,

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -6,15 +7,7 @@ import {
   type DataTableFetchParams,
   type DataTableFetchResult,
 } from "@/components/ui/data-table";
-import {
-  Plus,
-  MoreVertical,
-  FileSpreadsheet,
-  FileText,
-  Download,
-  Upload,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Plus, MoreVertical, FileSpreadsheet, FileText, Download, Upload, SlidersHorizontal, Users } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { DetailResidentModal } from "./DetailResidentModal";
 import { EditResidentModal } from "./EditResidentModal";
@@ -93,6 +86,7 @@ export const DataWargaTable = ({
       if (f.gender && f.gender !== "all") qs.set("gender", f.gender);
       if (f.status && f.status !== "all") qs.set("status", f.status);
       if (f.religion && f.religion !== "all") qs.set("religion", f.religion);
+      if (f.ethnicity && f.ethnicity !== "all") qs.set("ethnicity", f.ethnicity);
       if (f.education && f.education !== "all") qs.set("education", f.education);
       if (f.occupation && f.occupation !== "all") qs.set("occupation", f.occupation);
       if (f.familyRole && f.familyRole !== "all") qs.set("familyRole", f.familyRole);
@@ -143,6 +137,11 @@ export const DataWargaTable = ({
         </Button>
 
         <div className="ml-auto space-x-2">
+          <Button asChild data-tour="warga-add-family-btn" variant="outline" className="gap-2">
+            <Link href="/data-warga/keluarga/tambah">
+              <Users className="h-4 w-4" /> Tambah Keluarga
+            </Link>
+          </Button>
           <Button data-tour="warga-add-btn" onClick={() => setShowAddModal(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Tambah Warga
           </Button>

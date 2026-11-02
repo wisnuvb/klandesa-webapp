@@ -13,6 +13,7 @@ import {
   personOverrides,
   refToTarget,
   stateFromValues,
+  stateSignature,
   type ComposerState,
   type PreviewContext,
 } from "../app/(app)/layanan-surat/buat/_utils/composer.ts";
@@ -181,11 +182,81 @@ describe("refToTarget", () => {
     assert.deepEqual(refToTarget("isian.luas"), { kind: "input", id: "field-luas" });
     assert.deepEqual(refToTarget("grup.ahli_waris.2.nik"), { kind: "input", id: "group-ahli_waris-2-nik", fallbackId: "group-ahli_waris-2-cari" });
   });
-  it("desa, pejabat, surat terisi otomatis; ref ngawur → null", () => {
-    for (const r of ["desa.nama", "pejabat.kades.nama", "surat.nomor"]) assert.equal(refToTarget(r)?.kind, "auto", r);
+  it("desa dan jabatan terisi otomatis; ref ngawur → null", () => {
+    for (const r of ["desa.nama", "pejabat.kades.jabatan", "surat.tempat"]) assert.equal(refToTarget(r)?.kind, "auto", r);
     assert.equal(refToTarget("desa.rahasia"), null);
     assert.equal(refToTarget(""), null);
     assert.equal(refToTarget("grup.x.y.z"), null);
+  });
+});
+
+describe("refToTarget: nomor surat dan pejabat", () => {
+  it("nomor manual → fokus ke kotak nomor; auto/none → penjelasan", () => {
+    assert.deepEqual(refToTarget("surat.nomor", "manual"), { kind: "input", id: "letter-number" });
+    const auto = refToTarget("surat.nomor", "auto");
+    assert.equal(auto?.kind, "auto");
+    assert.match((auto as { message: string }).message, /otomatis saat surat diterbitkan/);
+    assert.equal(refToTarget("surat.nomor")?.kind, "auto");
+    assert.match((refToTarget("surat.nomor", "none") as { message: string }).message, /dimatikan/);
+  });
+  it("tanggal, hari, bulan, tahun → kotak tanggal surat", () => {
+    for (const f of ["tanggal", "hari", "bulan_romawi", "tahun"]) assert.deepEqual(refToTarget(`surat.${f}`), { kind: "input", id: "letter-date" }, f);
+  });
+  it("nama dan NIP pejabat → kotak penandatangan", () => {
+    assert.deepEqual(refToTarget("pejabat.kades.nama"), { kind: "input", id: "official-kades-nama" });
+    assert.deepEqual(refToTarget("pejabat.camat.nip"), { kind: "input", id: "official-camat-nip" });
+  });
+});
+
+describe("penandatangan (pejabat) manual", () => {
+  it("spec memuat pejabat yang tampil di kertas, berurutan", () => {
+    const { spec } = load("keteranganDomisili");
+    assert.ok(spec.officials.includes("kades"));
+    const ahli = load("ahliWaris").spec;
+    assert.deepEqual(ahli.officials, ["kades", "camat"]);
+  });
+  it("initialState menyiapkan isian kosong per pejabat", () => {
+    const { spec } = load("ahliWaris");
+    const s = initialState(spec);
+    assert.deepEqual(s.officials, { kades: { nama: "", nip: "" }, camat: { nama: "", nip: "" } });
+  });
+  it("pratinjau: isian menimpa Pengaturan Desa, kosong memakai bawaan", () => {
+    const { doc, spec } = load("ahliWaris");
+    const s = initialState(spec);
+    const none = buildPreviewValues({ doc, context, state: s, date: isoToDate(s.date), nomor: "" });
+    assert.equal(none.pejabat.kades.nama, "Sofwan");
+    s.officials.kades.nama = "  Budi Santoso ";
+    s.officials.camat.nama = "Camat Baru";
+    const v = buildPreviewValues({ doc, context, state: s, date: isoToDate(s.date), nomor: "" });
+    assert.equal(v.pejabat.kades.nama, "Budi Santoso");
+    assert.equal(v.pejabat.kades.jabatan, "Kepala Desa");
+    assert.equal(v.pejabat.camat.nama, "Camat Baru");
+    assert.equal(context.pejabat.kades.nama, "Sofwan", "konteks tidak berubah");
+  });
+  it("payload: hanya yang diisi yang dikirim", () => {
+    const { spec } = load("ahliWaris");
+    const s = initialState(spec);
+    assert.equal(buildPayload({ spec, state: s, status: "draft", numberingMode: "auto" }).officials, undefined);
+    s.officials.kades = { nama: " Budi ", nip: "" };
+    assert.deepEqual(buildPayload({ spec, state: s, status: "draft", numberingMode: "auto" }).officials, { kades: { nama: "Budi" } });
+  });
+  it("draf dibuka: nama berbeda dari Pengaturan Desa dianggap penimpaan", () => {
+    const { doc, spec } = load("ahliWaris");
+    const values = sampleLetterValues(doc);
+    values.pejabat.kades = { nama: "Budi Santoso", nip: "", jabatan: "Kepala Desa" };
+    values.pejabat.camat = { nama: "", nip: "", jabatan: "Camat" };
+    const s = stateFromValues({ doc, spec, values, letterDate: "2026-10-20", context });
+    assert.deepEqual(s.officials.kades, { nama: "Budi Santoso", nip: "" });
+    assert.deepEqual(s.officials.camat, { nama: "", nip: "" });
+    values.pejabat.kades.nama = "Sofwan";
+    assert.equal(stateFromValues({ doc, spec, values, letterDate: "2026-10-20", context }).officials.kades.nama, "");
+  });
+  it("tanda tangan berubah memicu tanda 'belum tersimpan'", () => {
+    const { spec } = load("ahliWaris");
+    const s = initialState(spec);
+    const before = stateSignature(s);
+    s.officials.kades.nama = "X";
+    assert.notEqual(stateSignature(s), before);
   });
 });
 
@@ -227,10 +298,22 @@ describe("render komponen (SSR smoke + aksesibilitas)", async () => {
   const { GroupsSection } = await import("../app/(app)/layanan-surat/buat/_components/GroupsSection.tsx");
   const { CheckPanel } = await import("../app/(app)/layanan-surat/buat/_components/CheckPanel.tsx");
   const { PaperPane } = await import("../app/(app)/layanan-surat/buat/_components/PaperPane.tsx");
+  const { OfficialsSection } = await import("../app/(app)/layanan-surat/buat/_components/OfficialsSection.tsx");
 
   const noop = () => undefined;
   const html = (el: React.ReactElement) => renderToStaticMarkup(React.createElement(AppDialogProvider, null, el));
 
+  it("OfficialsSection: kotak nama/NIP berlabel, bawaan desa jadi petunjuk, kosong bila tak ada pejabat", () => {
+    const { spec } = load("ahliWaris");
+    const out = html(React.createElement(OfficialsSection, { officials: spec.officials, values: initialState(spec).officials, defaults: context.pejabat, onChange: noop }));
+    assert.match(out, /<legend[^>]*>.*Penandatangan/);
+    assert.match(out, /for="official-kades-nama"[^>]*>Nama Kepala Desa/);
+    assert.match(out, /id="official-camat-nip"/);
+    assert.match(out, /placeholder="Sofwan"/);
+    assert.match(out, /placeholder="Belum diisi di Pengaturan Desa"/);
+    assert.match(out, /aria-describedby="official-kades-help"/);
+    assert.equal(html(React.createElement(OfficialsSection, { officials: [], values: {}, defaults: context.pejabat, onChange: noop })), "");
+  });
   it("tiap jenis isian punya label terhubung & penanda wajib/sensitif", () => {
     const base = { label: "Nominal", required: true, sensitive: true, help: "Bantuan", options: ["A", "B", "C", "D"] };
     for (const type of ["text", "longtext", "number", "money", "date", "choice"] as const) {

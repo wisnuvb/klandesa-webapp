@@ -227,3 +227,12 @@ export function describeMutation(m: MutasiItemView): string {
 export function needsNikOnApprove(m: Pick<MutasiItemView, "type" | "residentId">): boolean {
   return (m.type === "BIRTH" || m.type === "MOVE_IN") && m.residentId == null;
 }
+
+/** Petunjuk dokumen pendukung per jenis mutasi (bagian Lampiran). */
+export const MUTATION_ATTACHMENT_HINT: Record<MutationType, string> = {
+  BIRTH: "Akta kelahiran atau surat keterangan lahir (PDF atau foto).",
+  DEATH: "Akta kematian atau surat keterangan kematian (PDF atau foto).",
+  MOVE_OUT: "Surat keterangan pindah (PDF atau foto).",
+  MOVE_IN: "Surat keterangan pindah datang atau surat kedatangan (PDF atau foto).",
+  KK_CHANGE: "Kartu Keluarga baru atau dokumen pendukung perubahan (PDF atau foto).",
+};

@@ -19,6 +19,7 @@ import { OffersSection } from "./OffersSection";
 import { PackageDialog } from "./PackageDialog";
 import { TeamSection } from "./TeamSection";
 import { STATUS_TONE, moneyRaw, type DetailResp } from "./types";
+import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 
 type Group = "rincian" | "negosiasi" | "spk" | "bast" | "pengumuman";
 const STAGES = ["PERSIAPAN", "PEMILIHAN", "PELAKSANAAN", "SELESAI"] as const;
@@ -366,6 +367,7 @@ export function DetailView({ id }: { id: number }) {
       ) : null}
       {group && gf ? <PatchFieldsDialog url={`/api/pengadaan/${d.id}`} title={gf.title} description={gf.description} fields={gf.fields} onClose={() => setGroup(null)} onDone={() => { setGroup(null); reload(); }} /> : null}
       {cancelling ? <CancelDialog id={d.id} onClose={() => setCancelling(false)} onDone={() => { setCancelling(false); reload(); }} /> : null}
+      <LiveAttachments type="PROCUREMENT" id={d.id} title="Dokumen pengadaan" hint="Kontrak/surat perjanjian, BAST, SK TPK, penawaran penyedia, dan dokumen pendukung lain (PDF atau pindaian)." />
     </div>
   );
 }

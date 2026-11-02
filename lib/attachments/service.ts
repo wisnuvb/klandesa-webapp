@@ -50,6 +50,35 @@ export async function entityExists(db: Db, villageId: number, ref: AttachmentRef
       return !!(await db.villageMeeting.findFirst({ where, select }));
     case "MUTATION":
       return !!(await db.residentMutation.findFirst({ where: { id: ref.id, villageId }, select }));
+    case "PROCUREMENT":
+      return !!(await db.procurementPackage.findFirst({ where, select }));
+    case "AGREEMENT":
+      return !!(await db.villageAgreement.findFirst({ where, select }));
+    case "BLT_PROGRAM":
+      return !!(await db.bltProgram.findFirst({ where, select }));
+    case "PKTD_ACTIVITY":
+      return !!(await db.pktdActivity.findFirst({ where, select }));
+    case "INVENTORY_ITEM":
+      return !!(await db.inventoryItem.findFirst({ where, select }));
+    case "DTSEN_PROPOSAL":
+      return !!(await db.dtsenProposal.findFirst({ where, select }));
+    case "SECURITY_MEDIATION":
+      return !!(await db.securityMediation.findFirst({ where, select }));
+    case "SECURITY_MEMBER":
+      return !!(await db.securityMember.findFirst({ where, select }));
+    case "VILLAGE_REPORT":
+      return !!(await db.villageReport.findFirst({ where, select }));
+    case "TRANSACTION":
+      return !!(await db.transaction.findFirst({ where: { id: ref.id, villageId }, select }));
+    case "PAY_REQUEST":
+      return !!(await db.apbdesPayRequest.findFirst({ where, select }));
+    // Tabel anak BUMDes/koperasi tidak punya villageId sendiri: desa ditentukan lewat induknya.
+    case "BUMDES_PROFILE":
+      return !!(await db.bumdesLegalProfile.findFirst({ where: { id: Number(ref.id), bumdes: { villageId } }, select }));
+    case "BUMDES_OFFICER":
+      return !!(await db.bumdesOfficer.findFirst({ where: { id: Number(ref.id), bumdes: { villageId } }, select }));
+    case "COOP_FORMATION":
+      return !!(await db.cooperativeFormation.findFirst({ where: { id: Number(ref.id), cooperative: { villageId } }, select }));
   }
 }
 
@@ -148,4 +177,28 @@ export async function detach(db: Db, args: { villageId: number; attachmentId: nu
 /** Jumlah rekaman yang masih melampirkan berkas arsip ini; dipakai untuk memblokir penghapusan arsip. */
 export async function attachmentUsageCount(db: Db, villageId: number, archiveId: bigint): Promise<number> {
   return db.recordAttachment.count({ where: { villageId, archiveId } });
+}
+
+export const COUNT_MAX_IDS = 200;
+
+/** "1,2,3" → [1n,2n,3n]; yang tidak valid dibuang, duplikat digabung, dibatasi COUNT_MAX_IDS. */
+export function parseIdList(raw: string | null | undefined): bigint[] {
+  const out = new Set<bigint>();
+  for (const part of (raw ?? "").split(",")) {
+    const id = parseEntityId(part.trim());
+    if (id !== null) out.add(id);
+    if (out.size >= COUNT_MAX_IDS) break;
+  }
+  return [...out];
+}
+
+/** Jumlah lampiran per rekaman untuk satu jenis (penanda di daftar). Rekaman tanpa lampiran tidak muncul di hasil. */
+export async function countAttachments(db: Db, villageId: number, type: AttachmentEntityType, ids: bigint[]): Promise<Record<string, number>> {
+  if (!ids.length) return {};
+  const rows = await db.recordAttachment.groupBy({
+    by: ["entityId"],
+    where: { villageId, entityType: type, entityId: { in: ids } },
+    _count: { _all: true },
+  });
+  return Object.fromEntries(rows.map((r) => [String(r.entityId), r._count._all]));
 }

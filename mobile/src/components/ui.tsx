@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { createContext, forwardRef, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, forwardRef, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -13,6 +13,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type HostInstance,
   type TextInputInstance,
   type TextInputProps,
   type ViewStyle,
@@ -47,6 +48,26 @@ export function useKeyboardVisible() {
 }
 
 /**
+ * KeyboardAvoidingView yang memperhitungkan jarak layar dari tepi atas jendela (header Stack, status bar).
+ * KAV hanya tahu posisinya di dalam induk, jadi tanpa `keyboardVerticalOffset` padding-nya kurang setinggi header
+ * dan kolom di tepi bawah (mis. input komentar) tertinggal di belakang keyboard.
+ */
+export function KeyboardAvoider({ children }: { children: ReactNode }) {
+  const ref = useRef<HostInstance>(null);
+  const [offset, setOffset] = useState(0);
+  return (
+    <View
+      ref={ref} collapsable={false} style={{ flex: 1 }}
+      onLayout={() => ref.current?.measureInWindow((_x, y) => setOffset(y))}
+    >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={offset}>
+        {children}
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+/**
  * Kerangka layar. Android memakai edge-to-edge (konten tampil di belakang status bar dan bar navigasi),
  * jadi semua tepi aman dihitung di sini: atas (bila tanpa header), bawah (bar navigasi/gestur), dan kiri-kanan (landscape/notch).
  * `edges` bisa dipersempit, mis. layar yang menaruh area berwarna sendiri sampai ke tepi.
@@ -64,7 +85,7 @@ export function Screen({
   const active = keyboard || inTabs ? base.filter((e) => e !== 'bottom') : base;
   const body = (
     <SafeAreaView style={[s.screen, { backgroundColor: background }]} edges={active}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <KeyboardAvoider>
         {scroll ? (
           <ScrollView
             style={{ flex: 1 }}
@@ -80,7 +101,7 @@ export function Screen({
           <View style={[s.content, { flex: 1 }]}>{children}</View>
         )}
         {footer ? <View style={s.footer}>{footer}</View> : null}
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
   if (!header) return body;

@@ -14,9 +14,11 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { KINDS, type ReportKind, type SectionDef } from "@/lib/laporan-desa/catalog";
 import { localToday } from "@/lib/form-input";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentDisclosure } from "@/components/app/attachments/AttachmentsSection";
 
 interface Payload {
   report: {
+    id: number | null;
     kind: ReportKind;
     year: number;
     status: "DRAFT" | "DISERAHKAN";
@@ -130,6 +132,8 @@ function Editor({ data, reload }: { data: Payload; reload: () => void }) {
         {locked && can.approve ? <Button type="button" variant="ghost" className="min-h-11" onClick={() => setDlg("reopen")}>Buka kembali</Button> : null}
       </div>
       {dirty && can.approve && !locked ? <p className="text-sm text-muted-foreground">Simpan perubahan dulu sebelum menandai diserahkan.</p> : null}
+
+      <AttachmentDisclosure type="VILLAGE_REPORT" id={report.id} title="Berkas laporan" hint="Laporan bertanda tangan, tanda terima penyerahan, dan lampiran pendukung (PDF atau pindaian). Boleh ditambahkan juga setelah laporan ditandai diserahkan." />
 
       <FormErrorSummary innerRef={save.summaryRef} errors={save.errors} general={save.general} labels={Object.fromEntries(sections.map((s) => [s.id, s.title]))} />
       <p ref={notice} tabIndex={-1} role="status" className="text-sm text-emerald-800 outline-none dark:text-emerald-300">{justSaved ? "Perubahan tersimpan." : ""}</p>

@@ -30,6 +30,7 @@ const data = (over: Partial<StatisticsData> = {}): StatisticsData => ({
   perkawinan: [{ status: "Menikah", jumlah: 100 }, { status: "Belum Menikah", jumlah: 100 }],
   agama: [{ agama: "Islam", jumlah: 200 }],
   golonganDarah: [{ golongan: "O", jumlah: 120 }, { golongan: "Tidak Diketahui", jumlah: 80 }],
+  suku: [{ suku: "Jawa", jumlah: 150 }, { suku: "Madura", jumlah: 30 }, { suku: "Tidak Diketahui", jumlah: 20 }],
   wilayah: [{ wilayah: "Dusun A/B: Utara?", jumlah: 200 }],
   kesehatan: [{ kategori: "Peserta BPJS/KIS", jumlah: 150 }, { kategori: "Ibu Hamil", jumlah: 5 }],
   perubahanPenduduk: null,
@@ -49,6 +50,19 @@ describe("tabel statistik", () => {
     const t = buildStatisticTables(data()).find((x) => x.sheet === "Pendidikan")!;
     assert.deepEqual(t.rows, [["SMA/Sederajat", 120, 60], ["SD/Sederajat", 80, 40]]);
     assert.deepEqual(t.total, ["Total", 200, 100]);
+  });
+
+  it("tabel suku memuat jumlah, persen, dan total konsisten", () => {
+    const t = buildStatisticTables(data()).find((x) => x.sheet === "Suku")!;
+    assert.deepEqual(t.rows, [["Jawa", 150, 75], ["Madura", 30, 15], ["Tidak Diketahui", 20, 10]]);
+    assert.deepEqual(t.total, ["Total", 200, 100]);
+  });
+
+  it("filter daftar warga per suku: kosong dihitung 'Tidak Diketahui'", () => {
+    const base = { id: 1, name: "A", nik: "1", kk: null, gender: "Laki-laki", birthDate: new Date("1990-01-01T00:00:00Z"), occupation: null, maritalStatus: null, religion: null, education: null, bloodType: null, hamlet: null, rt: null, rw: null, isDisability: false, isBpjsKis: false, isPregnant: false, isBreastfeeding: false, isStunting: false };
+    const all: ResidentDb[] = [{ ...base, id: 1, name: "Budi", ethnicity: "Jawa" }, { ...base, id: 2, name: "Citra", ethnicity: null }, { ...base, id: 3, name: "Dewi", ethnicity: "Madura" }];
+    assert.deepEqual(filterResidents(all, { dimension: "ethnicity", category: "Jawa" }).map((r) => r.name), ["Budi"]);
+    assert.deepEqual(filterResidents(all, { dimension: "ethnicity", category: "Tidak Diketahui" }).map((r) => r.name), ["Citra"]);
   });
 
   it("tabel usia menjumlahkan laki-laki, perempuan, dan total", () => {
@@ -172,13 +186,14 @@ describe("ekspor daftar warga per kategori", () => {
   const mk = (over: Partial<ResidentDb>): ResidentDb => ({
     id: 1, name: "Budi", nik: "3374010101900001", kk: "3374010101900099", gender: "Laki-laki",
     birthDate: new Date("1990-01-05T00:00:00Z"), occupation: "Petani/Pekebun", maritalStatus: "Menikah",
-    religion: "Islam", education: "SMA/Sederajat", bloodType: "O", hamlet: "Dusun A", rt: "01", rw: "02",
+    religion: "Islam", education: "SMA/Sederajat", bloodType: "O", ethnicity: "Jawa", hamlet: "Dusun A", rt: "01", rw: "02",
     isDisability: false, isBpjsKis: true, isPregnant: false, isBreastfeeding: false, isStunting: false, ...over,
   });
 
   it("NIK dan KK tetap teks, tanggal lahir dd/mm/yyyy, kolom sesuai urutan header", () => {
     const row = residentExportRow(mk({}), 1);
-    assert.equal(row.length, 15);
+    assert.equal(row.length, 16);
+    assert.equal(row[15], "Jawa");
     assert.equal(row[2], "3374010101900001");
     assert.equal(typeof row[2], "string");
     assert.equal(row[5], "05/01/1990");

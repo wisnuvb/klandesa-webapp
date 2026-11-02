@@ -11,6 +11,8 @@ import type { ProposalView } from "@/lib/dtsen/service";
 import { ProposalFormDialog, SELECT_CLASS } from "./ProposalFormDialog";
 import { TransitionDialog } from "./TransitionDialog";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentDisclosure } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
 
 interface ListResponse {
   items: ProposalView[];
@@ -49,6 +51,7 @@ export function DtsenView() {
   if (search) qs.set("search", search);
   const list = useApiGet<ListResponse>(`/api/dtsen/usulan?${qs}`);
   const d = list.data;
+  const counts = useAttachmentCounts("DTSEN_PROPOSAL", d?.items.map((i) => i.id) ?? []);
   const pages = d ? Math.max(1, Math.ceil(d.total / d.pageSize)) : 1;
 
   const chosen = d ? d.items.filter((i) => selected.has(i.id)) : [];
@@ -195,6 +198,7 @@ export function DtsenView() {
                 {i.status === "DIBATALKAN" && i.outcomeNote ? <div className="sm:col-span-2"><dt className="inline text-muted-foreground">Alasan batal: </dt><dd className="inline">{i.outcomeNote}</dd></div> : null}
                 {i.status === "SELESAI" && i.outcomeNote ? <div className="sm:col-span-2"><dt className="inline text-muted-foreground">Catatan: </dt><dd className="inline">{i.outcomeNote}</dd></div> : null}
               </dl>
+              <AttachmentDisclosure type="DTSEN_PROPOSAL" id={i.id} count={counts[i.id] ?? 0} title="Lampiran" hint="Berita acara musdes, surat pengantar, dan bukti pendukung usulan (PDF, pindaian, atau foto). Dokumen memuat data warga: simpan seperlunya." />
             </li>
           ))}
         </ul>

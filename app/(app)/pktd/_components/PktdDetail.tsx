@@ -13,6 +13,7 @@ import { DaysTab } from "./DaysTab";
 import { Gauge } from "./Gauge";
 import { WorkersTab } from "./WorkersTab";
 import type { DetailResponse } from "./types";
+import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 
 type Tab = "ringkasan" | "pekerja" | "hari";
 
@@ -153,6 +154,7 @@ export function PktdDetail({ id }: { id: number }) {
           </Button>
         </div>
       ) : null}
+      <LiveAttachments type="PKTD_ACTIVITY" id={id} title="Dokumen kegiatan PKTD" hint="SK kegiatan, daftar hadir pekerja, foto kegiatan, dan bukti pembayaran upah (PDF atau pindaian)." />
     </div>
   );
 }

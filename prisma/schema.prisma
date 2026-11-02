@@ -966,6 +966,8 @@ model MailRequest {
   templateId         Int?
   /// Isian tambahan dari form (JSON)
   formData           Json?
+  /// Surat yang diterbitkan untuk permohonan ini (tautan eksplisit; diisi saat surat terbit dari halaman Permohonan Warga). Tanpa FK.
+  mailServiceId      BigInt?
 
   /// Tahap pengantar RT (mobile). null = tanpa tahap RT; pending | approved | rejected. Lihat lib/mobile/rt-logic.ts.
   rtStatus              String?   @db.VarChar(20)
@@ -988,6 +990,7 @@ model MailRequest {
   @@index([villageId, channel])
   @@index([residentId, createdAt])
   @@index([villageId, rtStatus, applicantRt, applicantRw])
+  @@index([villageId, mailServiceId])
   @@map("mail_requests")
 }
 

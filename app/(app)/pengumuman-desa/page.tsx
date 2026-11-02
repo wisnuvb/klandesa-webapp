@@ -15,8 +15,10 @@ import {
   X,
   Pin,
   Loader2,
+  ImagePlus,
 } from "lucide-react";
 import { SearchSelect } from "@/components/ui/search-select";
+import { DigitalArchivePickerModal } from "@/components/digital-archive/DigitalArchivePickerModal";
 
 // Types
 type AnnouncementCategory =
@@ -64,7 +66,9 @@ export function PengumumanDesa() {
     content: "",
     category: "UMUM" as AnnouncementCategory,
     isPinned: false,
+    imageUrl: null as string | null,
   });
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
   const fetchAnnouncements = useCallback(async () => {
     try {
@@ -185,6 +189,7 @@ export function PengumumanDesa() {
       content: "",
       category: "UMUM",
       isPinned: false,
+      imageUrl: null,
     });
     setShowAddModal(true);
   };
@@ -197,6 +202,7 @@ export function PengumumanDesa() {
       content: announcement.content,
       category: (announcement.category as AnnouncementCategory) || "UMUM",
       isPinned: announcement.isPinned,
+      imageUrl: announcement.imageUrl,
     });
     setShowAddModal(true);
   };
@@ -417,7 +423,16 @@ export function PengumumanDesa() {
                   className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
+                    {announcement.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={announcement.imageUrl}
+                        alt={`Flyer: ${announcement.title}`}
+                        loading="lazy"
+                        className="hidden sm:block w-28 h-28 shrink-0 rounded-lg border border-gray-200 object-cover bg-gray-50"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-3 mb-3">
                         {announcement.isPinned && (
                           <Pin className="w-5 h-5 text-orange-600 shrink-0 mt-1" />
@@ -581,6 +596,50 @@ export function PengumumanDesa() {
                   />
                 </div>
 
+                <div>
+                  <span className="block text-sm font-medium text-gray-700 mb-2">
+                    Flyer / Foto (opsional)
+                  </span>
+                  {formData.imageUrl ? (
+                    <div className="space-y-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={formData.imageUrl}
+                        alt="Pratinjau flyer pengumuman"
+                        className="w-full max-h-72 rounded-lg border border-gray-200 object-contain bg-gray-50"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowImagePicker(true)}
+                          className="inline-flex min-h-10 items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <ImagePlus className="w-4 h-4" aria-hidden="true" />
+                          Ganti gambar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, imageUrl: null })}
+                          className="inline-flex min-h-10 items-center gap-2 px-4 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
+                          Hapus gambar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowImagePicker(true)}
+                      className="w-full flex flex-col items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-teal-500 hover:bg-teal-50 hover:text-teal-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    >
+                      <ImagePlus className="w-8 h-8" aria-hidden="true" />
+                      <span className="text-sm font-medium">Unggah atau pilih flyer / foto</span>
+                      <span className="text-xs text-gray-500">JPG, PNG, atau WebP. Bisa unggah baru atau pilih dari Arsip Digital.</span>
+                    </button>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -676,6 +735,15 @@ export function PengumumanDesa() {
                   </span>
                 </div>
 
+                {selectedAnnouncement.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={selectedAnnouncement.imageUrl}
+                    alt={`Flyer: ${selectedAnnouncement.title}`}
+                    className="w-full max-h-[70vh] rounded-lg border border-gray-200 object-contain bg-gray-50"
+                  />
+                )}
+
                 <div className="prose max-w-none">
                   <p className="text-gray-700 whitespace-pre-line leading-relaxed">
                     {selectedAnnouncement.content}
@@ -686,6 +754,16 @@ export function PengumumanDesa() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DigitalArchivePickerModal
+        open={showImagePicker}
+        onOpenChange={setShowImagePicker}
+        onPick={(url) => setFormData((f) => ({ ...f, imageUrl: url }))}
+        title="Pilih flyer / foto pengumuman"
+        description="Unggah gambar baru atau pilih dari arsip. Hanya berkas publik yang ditampilkan agar flyer bisa dilihat warga di situs dan aplikasi."
+        imageOnly
+        publicOnly
+      />
     </div>
   );
 }

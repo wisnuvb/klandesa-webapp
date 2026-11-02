@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { AlertCircle, HardDrive, Sparkles } from "lucide-react";
 import type { PlanDetail, StoragePlan } from "../_types";
+import type { UsageLine } from "@/lib/digitalArchive/usage";
 import {
   formatFileSize,
   getQuotaColor,
@@ -25,6 +26,8 @@ interface Props {
     excel: number;
     archives: number;
   };
+  /** Pemakaian per sumber (kategori; lampiran dirinci per modul). */
+  usageBySource: UsageLine[];
   onUpgradeClick: () => void;
 }
 
@@ -38,6 +41,7 @@ export function StorageSidebar(props: Props) {
     usagePercentage,
     fileCount,
     fileStats,
+    usageBySource,
     onUpgradeClick,
   } = props;
 
@@ -242,6 +246,43 @@ export function StorageSidebar(props: Props) {
           })}
         </div>
       </motion.div>
+
+      {usageBySource.length > 0 ? (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+        >
+          <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+            <HardDrive className="w-4 h-4 text-teal-600" />
+            Pemakaian per Sumber
+          </h3>
+          <p className="text-xs text-gray-500 mb-4">Lampiran surat, SK, dan dokumen modul lain dihitung terpisah per modul.</p>
+          <ul className="space-y-3">
+            {usageBySource.map((line) => {
+              const percentage = usedBytes > 0 ? (line.bytes / usedBytes) * 100 : 0;
+              return (
+                <li key={line.label}>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="text-xs text-gray-700 break-words min-w-0">
+                      {line.label} <span className="text-gray-500">({line.count} berkas)</span>
+                    </span>
+                    <span className="text-xs font-medium text-gray-900 shrink-0 tabular-nums">{formatFileSize(line.bytes)}</span>
+                  </div>
+                  <div
+                    className="w-full bg-gray-200 rounded-full h-1.5"
+                    role="img"
+                    aria-label={`${line.label}: ${Math.round(percentage)} persen dari penyimpanan terpakai`}
+                  >
+                    <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, percentage)}%` }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </motion.div>
+      ) : null}
     </div>
   );
 }

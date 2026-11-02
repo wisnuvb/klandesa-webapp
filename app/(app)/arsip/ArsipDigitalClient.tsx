@@ -25,6 +25,7 @@ import {
   collectUploadFolderPathSuggestions,
 } from "./_utils/fileUtils";
 import { StorageSidebar } from "./_components/StorageSidebar";
+import { summarizeUsageBySource } from "@/lib/digitalArchive/usage";
 import { FileManager } from "./_components/FileManager";
 import {
   NewFolderModal,
@@ -129,6 +130,7 @@ export function ArsipDigitalClient(props: Props) {
   );
 
   const stats = useMemo(() => calculateFileStats(files), [files]);
+  const usageBySource = useMemo(() => summarizeUsageBySource(entries), [entries]);
 
   const totalQuotaBytes = villageStorage.storageLimitGb * 1024 * 1024 * 1024;
   const usedBytes = stats.usedBytes;
@@ -545,6 +547,7 @@ export function ArsipDigitalClient(props: Props) {
           excel: stats.excel,
           archives: stats.archives,
         }}
+        usageBySource={usageBySource}
         onUpgradeClick={() => setShowUpgradeModal(true)}
       />
 

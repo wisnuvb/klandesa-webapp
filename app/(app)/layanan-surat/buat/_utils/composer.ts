@@ -5,8 +5,8 @@
  */
 import type { CustomField, LetterDocument } from "@/lib/letters/document/schema";
 import type { FormSpec } from "@/lib/letters/document/form-spec";
-import { isPersonField, parseRef, type PersonFieldKey } from "@/lib/letters/registry";
-import { completeManualPerson, isRealIsoDate } from "@/lib/letters/server/input";
+import { OFFICIAL_IDS, isPersonField, parseRef, type PersonFieldKey } from "@/lib/letters/registry";
+import { applyOfficialOverrides, completeManualPerson, isRealIsoDate, type OfficialsInput } from "@/lib/letters/server/input";
 import {
   buildSuratValues,
   emptyLetterValues,
@@ -41,8 +41,13 @@ export type GroupRowState = {
   values: Record<string, string>;
 };
 
+/** Penimpa pejabat penandatangan; "" = pakai nilai dari Pengaturan Desa. */
+export type OfficialState = { nama: string; nip: string };
+
 export type ComposerState = {
   people: Record<string, PersonState>;
+  /** id pejabat (kades, sekdes, camat) → isian penimpa; hanya pejabat yang tampil di kertas. */
+  officials: Record<string, OfficialState>;
   fields: Record<string, string>;
   groups: Record<string, GroupRowState[]>;
   /** YYYY-MM-DD */
@@ -60,6 +65,7 @@ export type LetterPayload = {
   status: "draft" | "completed";
   letterDate: string;
   number?: string;
+  officials?: OfficialsInput;
   people: Record<string, ApiPersonPayload>;
   fields: Record<string, string>;
   groups: Record<string, Array<{ residentId?: number; values: Record<string, string> }>>;
@@ -78,6 +84,10 @@ export function emptyPerson(): PersonState {
   return { mode: "unset", query: "", db: {}, values: {} };
 }
 
+export function emptyOfficial(): OfficialState {
+  return { nama: "", nip: "" };
+}
+
 export function emptyRow(): GroupRowState {
   return { key: newRowKey(), query: "", db: {}, values: {} };
 }
@@ -86,11 +96,13 @@ export function emptyRow(): GroupRowState {
 export function initialState(spec: FormSpec, today: string = todayIso()): ComposerState {
   const people: Record<string, PersonState> = {};
   for (const p of spec.people) people[p.id] = emptyPerson();
+  const officials: Record<string, OfficialState> = {};
+  for (const id of spec.officials) officials[id] = emptyOfficial();
   const fields: Record<string, string> = {};
   for (const f of spec.fields) fields[f.id] = "";
   const groups: Record<string, GroupRowState[]> = {};
   for (const g of spec.groups) groups[g.id] = Array.from({ length: Math.max(g.min, 1) }, emptyRow);
-  return { people, fields, groups, date: today, number: "" };
+  return { people, officials, fields, groups, date: today, number: "" };
 }
 
 const digitsOnly = (s: string) => s.replace(/\D/g, "");
@@ -129,10 +141,23 @@ export function buildPreviewValues(args: {
     });
   }
   v.desa = { ...context.desa };
-  v.pejabat = context.pejabat;
+  v.pejabat = applyOfficialOverrides(context.pejabat, officialOverrides(state.officials));
   v.logoUrl = context.logoUrl ?? undefined;
   v.surat = buildSuratValues({ date, nomor, tempat: context.desa.nama ?? "" });
   return v;
+}
+
+/** Isian pejabat yang sungguh diisi operator (dirapikan; kosong dibuang). */
+export function officialOverrides(officials: ComposerState["officials"]): OfficialsInput {
+  const out: OfficialsInput = {};
+  for (const id of OFFICIAL_IDS) {
+    const o = officials[id];
+    if (!o) continue;
+    const nama = o.nama.trim();
+    const nip = o.nip.trim();
+    if (nama || nip) out[id] = { ...(nama ? { nama } : null), ...(nip ? { nip } : null) };
+  }
+  return out;
 }
 
 const isBlankRecord = (r: Record<string, string>) => Object.values(r).every((x) => x.trim() === "");
@@ -206,6 +231,10 @@ export function buildPayload(args: {
   }
 
   const payload: LetterPayload = { status, letterDate: state.date, people, fields, groups };
+  const officials = officialOverrides(state.officials);
+  // Hanya pejabat yang tampil di kertas yang boleh dikirim (server menolak yang lain).
+  for (const id of Object.keys(officials) as Array<keyof typeof officials>) if (!spec.officials.includes(id)) delete officials[id];
+  if (Object.keys(officials).length > 0) payload.officials = officials;
   if (templateId != null) payload.templateId = templateId;
   if (numberingMode === "manual" && state.number.trim() !== "") payload.number = state.number.trim();
   return payload;
@@ -221,6 +250,8 @@ export function stateFromValues(args: {
   values: LetterValues;
   letterDate: string;
   letterNumber?: string;
+  /** Pejabat dari Pengaturan Desa saat ini: nama pada draf yang berbeda dianggap penimpaan operator. */
+  context?: Pick<PreviewContext, "pejabat">;
 }): ComposerState {
   const { spec, values, doc } = args;
   const state = initialState(spec, (args.letterDate || "").slice(0, 10) || todayIso());
@@ -236,6 +267,15 @@ export function stateFromValues(args: {
         values: { ...saved },
       };
     }
+  }
+  for (const id of spec.officials) {
+    const saved = values.pejabat?.[id];
+    const base = args.context?.pejabat[id];
+    if (!saved) continue;
+    state.officials[id] = {
+      nama: saved.nama && saved.nama !== (base?.nama ?? "") ? saved.nama : "",
+      nip: saved.nip && saved.nip !== (base?.nip ?? "") ? saved.nip : "",
+    };
   }
   for (const f of spec.fields) state.fields[f.id] = values.fields[f.id] ?? "";
   for (const g of doc.groups) {
@@ -263,11 +303,14 @@ export type FieldTarget =
 
 export const MSG_AUTO_DESA = "Terisi otomatis dari Pengaturan Desa.";
 export const MSG_AUTO_SURAT = "Terisi otomatis dari tanggal dan nomor surat.";
+export const MSG_AUTO_NOMOR = "Nomor surat dibuat otomatis saat surat diterbitkan.";
+export const MSG_NO_NOMOR = "Penomoran dimatikan untuk jenis surat ini.";
+export const MSG_AUTO_JABATAN = "Jabatan mengikuti jenis pejabat dan tidak bisa diubah di sini.";
 
 const GROUP_REF = /^grup\.([a-z][a-z0-9_]{0,29})\.(\d{1,3})\.([a-z][a-z0-9_]{0,29})$/;
 
-/** Id elemen input yang cocok dengan isian di kertas (`data-ref`). */
-export function refToTarget(ref: string): FieldTarget {
+/** Id elemen input yang cocok dengan isian di kertas (`data-ref`). `numberingMode` menentukan apakah nomor bisa diisi. */
+export function refToTarget(ref: string, numberingMode: "auto" | "manual" | "none" = "auto"): FieldTarget {
   const g = GROUP_REF.exec(ref);
   if (g) return { kind: "input", id: `group-${g[1]}-${g[2]}-${g[3]}`, fallbackId: `group-${g[1]}-${g[2]}-cari` };
   const p = parseRef(ref);
@@ -275,9 +318,19 @@ export function refToTarget(ref: string): FieldTarget {
   switch (p.kind) {
     case "person": return { kind: "input", id: `person-${p.role}-${p.field}`, fallbackId: `person-${p.role}-cari` };
     case "isian": return { kind: "input", id: `field-${p.id}` };
-    case "desa":
-    case "pejabat": return { kind: "auto", message: MSG_AUTO_DESA };
-    case "surat": return { kind: "auto", message: MSG_AUTO_SURAT };
+    case "desa": return { kind: "auto", message: MSG_AUTO_DESA };
+    case "pejabat":
+      return p.field === "nama" || p.field === "nip"
+        ? { kind: "input", id: `official-${p.official}-${p.field}` }
+        : { kind: "auto", message: MSG_AUTO_JABATAN };
+    case "surat":
+      if (p.field === "nomor") {
+        if (numberingMode === "manual") return { kind: "input", id: "letter-number" };
+        return { kind: "auto", message: numberingMode === "none" ? MSG_NO_NOMOR : MSG_AUTO_NOMOR };
+      }
+      if (p.field === "tempat") return { kind: "auto", message: MSG_AUTO_DESA };
+      // tanggal, hari, bulan Romawi, dan tahun semuanya turun dari tanggal surat.
+      return { kind: "input", id: "letter-date" };
   }
 }
 
@@ -319,6 +372,7 @@ export function stateSignature(state: ComposerState): string {
     p: Object.entries(state.people).map(([k, v]) => [k, v.mode, v.residentId, v.values]),
     f: state.fields,
     g: Object.entries(state.groups).map(([k, rows]) => [k, rows.map((r) => [r.residentId, r.values])]),
+    o: Object.entries(state.officials).map(([k, v]) => [k, v.nama, v.nip]),
     d: state.date,
     n: state.number,
   });

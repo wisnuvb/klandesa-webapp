@@ -13,6 +13,7 @@ import { FieldError, FormErrorSummary, fieldA11y } from "@/components/app/FormEr
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { FormationView } from "@/lib/coop/formation";
+import { AttachmentDisclosure } from "@/components/app/attachments/AttachmentsSection";
 
 interface Resp {
   formation: FormationView;
@@ -115,6 +116,7 @@ export function PembentukanView() {
             </section>
           ) : null}
           {f.notes ? <p className="text-sm text-muted-foreground">{f.notes}</p> : null}
+          <AttachmentDisclosure type="COOP_FORMATION" id={f.id} title="Berkas pembentukan" hint="Berita acara musdesus, akta pendirian, SK pengesahan, NPWP, dan surat komitmen modal (PDF atau pindaian)." />
         </>
       ) : null}
 

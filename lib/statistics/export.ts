@@ -109,6 +109,7 @@ export function buildStatisticTables(data: StatisticsData): StatTable[] {
     distribution("Perkawinan", "Status perkawinan", "Status perkawinan", data.perkawinan.map((x) => [x.status, x.jumlah] as const)),
     distribution("Agama", "Agama", "Agama", data.agama.map((x) => [x.agama, x.jumlah] as const)),
     distribution("Golongan Darah", "Golongan darah", "Golongan darah", data.golonganDarah.map((x) => [x.golongan, x.jumlah] as const)),
+    distribution("Suku", "Suku / etnis", "Suku", data.suku.map((x) => [x.suku, x.jumlah] as const)),
     distribution("Dusun", "Wilayah / dusun", "Dusun", data.wilayah.map((x) => [x.wilayah, x.jumlah] as const)),
     distribution("Kesehatan", "Kesehatan", "Kategori", data.kesehatan.map((x) => [x.kategori, x.jumlah] as const), {
       total: false,
@@ -228,4 +229,5 @@ export const RESIDENT_EXPORT_HEADER = [
   "Dusun",
   "RT",
   "RW",
+  "Suku",
 ] as const;

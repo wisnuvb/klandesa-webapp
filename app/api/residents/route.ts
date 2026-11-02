@@ -18,6 +18,7 @@ import {
 } from "@/lib/subscription";
 import { emitWebhookEvent } from "@/lib/webhooks/deliver";
 import { parseExtraFields } from "@/lib/residents/extra-fields";
+import { normalizeGender } from "@/lib/residents/gender";
 
 function mapReligionId(id: string) {
   const map: Record<string, string> = {
@@ -60,6 +61,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const gender = normalizeGender(body.gender);
+    if (!gender) {
+      return NextResponse.json({ error: "Jenis kelamin harus Laki-laki atau Perempuan" }, { status: 400 });
+    }
+
     const nik: string = String(body.id_number);
     // Check resident conflict within village
     const existingResident = await prisma.resident.findFirst({
@@ -80,7 +86,7 @@ export async function POST(req: NextRequest) {
       name: String(body.name),
       birthplace: String(body.birthplace),
       birthDate: new Date(body.date_of_birth),
-      gender: String(body.gender),
+      gender,
       bloodType: body.blood_type_id || null,
       religion: mapReligionId(String(body.religion_id ?? "")),
       maritalStatus: getMaritalStatus(String(body.marital_status ?? "")),
@@ -162,6 +168,7 @@ export async function GET(req: NextRequest) {
     const gender = url.searchParams.get("gender") ?? undefined;
     const status = url.searchParams.get("status") ?? undefined;
     const religion = url.searchParams.get("religion") ?? undefined;
+    const ethnicity = url.searchParams.get("ethnicity") ?? undefined;
     const education = url.searchParams.get("education") ?? undefined;
     const occupation = url.searchParams.get("occupation") ?? undefined;
     const familyRole = url.searchParams.get("familyRole") ?? undefined;
@@ -197,6 +204,7 @@ export async function GET(req: NextRequest) {
       where.maritalStatus = status;
     }
     if (religion) where.religion = religion;
+    if (ethnicity) where.ethnicity = ethnicity;
     if (education) where.education = education;
     if (occupation) where.occupation = occupation;
     if (familyRole) where.familyRole = familyRole;

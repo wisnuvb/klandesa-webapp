@@ -83,6 +83,8 @@ const EMPTY = Object.fromEntries([...DATE_FIELDS, ...Object.keys(TEXT_FIELDS), "
 export function serializeFormation(r: Row | null) {
   const row = (r ?? EMPTY) as Row;
   return {
+    /** null selama data pembentukan belum pernah disimpan. */
+    id: r?.id ?? null,
     musdesusAt: isoDay(row.musdesusAt ?? null),
     musdesusRef: row.musdesusRef ?? null,
     musdesusNotes: row.musdesusNotes ?? null,

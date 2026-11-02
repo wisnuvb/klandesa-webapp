@@ -1,7 +1,7 @@
 "use client";
 
-import { useId, useRef } from "react";
-import { FileText, ImageIcon, Loader2, Paperclip, X } from "lucide-react";
+import { useId, useRef, useState } from "react";
+import { ChevronDown, FileText, ImageIcon, Loader2, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppDialogsSafe } from "@/components/providers/AppDialogProvider";
 import { ATTACHMENT_ACCEPT, type AttachmentEntityType } from "@/lib/attachments/catalog";
@@ -167,4 +167,76 @@ export function AttachmentsSection({ att, title = "Lampiran", hint, readOnly = f
 export function LiveAttachments({ type, id, title, hint, readOnly }: { type: AttachmentEntityType; id: number; title?: string; hint?: string; readOnly?: boolean }) {
   const att = useAttachments(type, id);
   return <AttachmentsSection att={att} title={title} hint={hint} readOnly={readOnly} />;
+}
+
+/**
+ * Penanda "N lampiran" pada baris daftar; menekannya membuka daftar berkas (baca-saja) langsung di baris itu.
+ * Tidak menampilkan apa pun bila rekaman belum punya lampiran. Menambah/melepas dilakukan dari form ubah.
+ */
+export function AttachmentToggle({ type, id, count }: { type: AttachmentEntityType; id: number | string; count: number }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  if (count <= 0) return null;
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Paperclip aria-hidden="true" className="size-4" />
+        {count} lampiran
+        <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+        <div id={panelId} className="pt-2">
+          <LiveAttachments type={type} id={Number(id)} title="Lampiran" readOnly />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Penanda ringkas jumlah lampiran (tidak interaktif) untuk tempat yang sudah berupa tautan/tabel. */
+export function AttachmentCountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" role="img" aria-label={`${count} lampiran`} title={`${count} lampiran`}>
+      <Paperclip aria-hidden="true" className="size-3.5" />
+      {count}
+    </span>
+  );
+}
+
+/**
+ * Lampiran yang dibuka-tutup di dalam kartu/baris (bisa menambah dan melepas sesuai izin). Dipakai di daftar yang
+ * barisnya sudah penuh isi. `id` null = rekaman tunggal yang belum pernah disimpan, jadi belum bisa dilampiri.
+ */
+export function AttachmentDisclosure({ type, id, title = "Lampiran", hint, count, readOnly }: { type: AttachmentEntityType; id: number | string | null; title?: string; hint?: string; count?: number; readOnly?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  if (id === null) return <p className="text-sm text-muted-foreground">Simpan datanya terlebih dahulu untuk menambahkan lampiran.</p>;
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Paperclip aria-hidden="true" className="size-4" />
+        {title}
+        {count && count > 0 ? ` (${count})` : ""}
+        <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+        <div id={panelId} className="pt-2">
+          <LiveAttachments type={type} id={Number(id)} title={title} hint={hint} readOnly={readOnly} />
+        </div>
+      ) : null}
+    </div>
+  );
 }

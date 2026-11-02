@@ -30,10 +30,18 @@ Agama "Kepercayaan" sudah ada di `RELIGION_OPTIONS`, jadi tidak ditambah kolom.
 - Ekspor: kolom Suku ditambahkan pada `/api/residents/export`.
 - Privasi: nomor akta, paspor, KITAS, dan alamat asal dimasker di log audit (`RESIDENT_AUDIT_MASKED`).
 
+## Tambahan sesudah rilis awal (2026-11-02)
+
+- Statistik per suku: kartu "Distribusi Suku" di halaman Statistik (klik = daftar warga), sheet "Suku" di ekspor Excel statistik, dimensi `ethnicity` pada daftar/ekspor warga per kategori (kolom "Suku" ditambahkan di akhir ekspor). Kosong dihitung "Tidak Diketahui".
+- Filter Suku di modal filter Data Warga (`GET /api/residents?ethnicity=`).
+- Keputusan privasi: suku TIDAK ditampilkan di API publik v1, MCP, webhook, maupun aplikasi mobile (semuanya memakai `select` eksplisit yang sengaja minimal dan menyamarkan NIK). Buka hanya bila ada kebutuhan dan dasar izin yang jelas.
+
+## Perbaikan bug jenis kelamin (ditemukan 2026-11-02)
+
+`AddResidentModal` dan `EditResidentModal` mengirim `"M"`/`"F"`, dan API menyimpannya apa adanya, padahal statistik, filter, surat, dan tampilan membaca `"Laki-laki"`/`"Perempuan"`. Akibatnya warga yang ditambah/diubah lewat form itu tidak terhitung di statistik jenis kelamin, dan kolom jenis kelamin di form ubah tampak kosong untuk data normal. Diperbaiki: API menormalkan lewat `lib/residents/gender.ts` (menerima M/F/L/P/varian, menolak yang lain), modal mengirim nilai baku, dan form ubah menampilkan nilai lama "M"/"F" sebagai nilai baku. Data lama yang terlanjur "M"/"F" dikoreksi dengan `PHASE6_GENDER_FIX.sql` (opsional; periksa dulu dengan SELECT di berkas itu).
+
 ## Belum dikerjakan (sengaja)
 
-- Statistik per suku (halaman Statistik, modal daftar, ekspor): wiring dimensi baru menyentuh banyak berkas.
-- Filter/kolom tabel Data Warga untuk suku.
-- Form tambah warga satu orang (`AddResidentModal` tidak terpasang di mana pun); digantikan wizard "Tambah Keluarga".
-- Penyaringan field ini di API publik v1, MCP, webhook, dan aplikasi mobile: belum diperiksa (belum ada yang memetakan kolom baru).
-- Uji di browser: hanya tes render server, belum dicoba di peramban.
+- Kolom Suku di tabel Data Warga (tabel sudah padat; suku terlihat di Detail dan bisa disaring).
+- Form tambah warga satu orang (`AddResidentModal`) tetap ada untuk satu orang; wizard "Tambah Keluarga" (PHASE8) untuk satu KK beserta anggotanya.
+- Uji di peramban: hanya tes render server, belum dicoba di peramban.

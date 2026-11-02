@@ -29,15 +29,23 @@ export async function GET(req: NextRequest) {
     if (search) {
       where.OR = [
         { kk: { contains: search } },
-        { name: { contains: search, mode: "insensitive" } },
+        { name: { contains: search } },
       ];
     }
 
-    const grouped = await prisma.resident.groupBy({
+    let grouped = await prisma.resident.groupBy({
       by: ["kk"],
       where,
       _count: { _all: true },
     });
+    // Dicari lewat nama: hitungan di atas hanya anggota yang cocok, jadi hitung ulang seluruh anggota tiap KK.
+    if (search && grouped.length > 0) {
+      grouped = await prisma.resident.groupBy({
+        by: ["kk"],
+        where: { villageId: village.id, kk: { in: grouped.map((g) => g.kk as string) } },
+        _count: { _all: true },
+      });
+    }
 
     const summaries = await Promise.all(
       grouped.map(async (g) => {

@@ -9,6 +9,8 @@ import { DIRECTION_LABEL, NATURE_LABEL, type Direction, type Nature } from "@/li
 import type { RegisterView as Row } from "@/lib/tata-kelola/register";
 import { MailFormDialog } from "./MailFormDialog";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentToggle } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
 
 interface ListResponse {
   items: Row[];
@@ -38,6 +40,7 @@ export function RegisterView() {
   if (search) qs.set("search", search);
   const list = useApiGet<ListResponse>(`/api/tata-kelola/surat?${qs}`);
   const d = list.data;
+  const counts = useAttachmentCounts("MAIL_REGISTER", d?.items.map((i) => i.id) ?? []);
   const pages = d ? Math.max(1, Math.ceil(d.total / d.pageSize)) : 1;
   const countOf = (dir: Direction) => (d ? d.counts.filter((c) => c.direction === dir && (!year || String(c.year) === year)).reduce((a, c) => a + c.count, 0) : null);
 
@@ -136,6 +139,7 @@ export function RegisterView() {
               </dl>
               {i.disposition ? <p className="mt-2 rounded-md bg-muted p-3 text-sm"><strong>Disposisi:</strong> {i.disposition}</p> : null}
               {i.notes ? <p className="mt-2 text-sm text-muted-foreground">{i.notes}</p> : null}
+              <AttachmentToggle type="MAIL_REGISTER" id={i.id} count={counts[i.id] ?? 0} />
             </li>
           ))}
         </ul>

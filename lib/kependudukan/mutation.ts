@@ -10,7 +10,8 @@ import { KK_HEAD_ROLE, normalizeKk } from "./household";
 
 export type MutationType = "BIRTH" | "DEATH" | "MOVE_OUT" | "MOVE_IN" | "KK_CHANGE";
 export type MutationStatus = "PENDING" | "APPLIED" | "REJECTED" | "CANCELLED";
-export type MutationSource = "web" | "mobile" | "import" | "legacy_edit";
+/** `letter` = diajukan otomatis saat surat pindah/datang diterbitkan (kolom `source` VarChar(20), tanpa migrasi). */
+export type MutationSource = "web" | "mobile" | "import" | "legacy_edit" | "letter";
 
 export const MUTATION_LABEL: Record<MutationType, string> = {
   BIRTH: "Kelahiran",

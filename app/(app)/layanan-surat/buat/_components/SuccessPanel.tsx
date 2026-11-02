@@ -1,11 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle2, FileText, ListChecks, Plus, Printer } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, CheckCircle2, ClipboardCheck, FileText, Info, ListChecks, Plus, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LetterPaper, letterPrintCss } from "@/components/letters/LetterPaper";
 import { ScaledPaper } from "./ScaledPaper";
 import { printPaperElement } from "@/components/letters/print-paper";
+import { describeMutationOutcome } from "@/lib/letters/mutation-plan";
 import type { IssuedLetter } from "../_hooks/useLetterComposer";
 
 /** Cadangan bila iframe cetak tidak tersedia: sembunyikan semuanya kecuali kertas. */
@@ -27,6 +29,7 @@ export function SuccessPanel({
   const printRef = useRef<HTMLDivElement>(null);
   const [printHelp, setPrintHelp] = useState("");
   const hasNumber = issued.letterNumber && !/^(DRAFT-|TANPA-NOMOR-)/.test(issued.letterNumber);
+  const mutation = issued.mutation ? describeMutationOutcome(issued.mutation) : null;
 
   const print = async () => {
     setPrintHelp("");
@@ -58,6 +61,31 @@ export function SuccessPanel({
             {issued.wasAlready ? <p className="mt-1 text-sm text-muted-foreground">Surat yang sudah terbit tidak bisa diubah. Buat surat baru bila ada kesalahan.</p> : null}
           </div>
         </div>
+        {mutation ? (
+          <section role="status" aria-labelledby="mutation-heading" className="space-y-2 rounded-md border bg-muted/50 p-4">
+            <div className="flex items-start gap-3">
+              {mutation.tone === "success" ? (
+                <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+              ) : (
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              )}
+              <div className="min-w-0 space-y-1">
+                <h3 id="mutation-heading" className="text-sm font-semibold">{mutation.title}</h3>
+                <ul className="list-disc space-y-1 pl-4 text-sm text-muted-foreground">
+                  {mutation.lines.map((line) => <li key={line}>{line}</li>)}
+                </ul>
+              </div>
+            </div>
+            {mutation.showLink ? (
+              <Button asChild variant="outline" size="sm" className="min-h-9 gap-2 pointer-coarse:min-h-11">
+                <Link href="/data-warga/mutasi">
+                  <BookOpen className="h-4 w-4" aria-hidden="true" />
+                  Buka Buku Mutasi
+                </Link>
+              </Button>
+            ) : null}
+          </section>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <Button type="button" className="min-h-10 gap-2 pointer-coarse:min-h-11" onClick={print}>
             <Printer className="h-4 w-4" aria-hidden="true" />

@@ -1,192 +1,80 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
-import { notifyMailRequestStatus } from "@/lib/mobile/notify";
+import { getQueueStats, listMailRequests, parseQueueParams } from "@/lib/mail/request-queue";
+import { decideMailRequest, normalizeNote } from "@/lib/mail/request-decision";
 
+/** Daftar antrean + statistik (dari seluruh data, bukan halaman aktif). `?stats=0` melewatkan statistik. */
 export async function GET(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);
     if (!loaded.ok) return loaded.response;
     const { village } = loaded.ctx;
+    if (!isVillageSubscriptionActive(village)) return subscriptionBlockedResponse(village);
 
     const url = new URL(req.url);
-    const search = url.searchParams.get("search") ?? undefined;
-    const status = url.searchParams.get("status") ?? undefined;
-    const page = Number(url.searchParams.get("page") ?? 1);
-    const pageSize = Number(url.searchParams.get("pageSize") ?? 10);
-
-    if (!isVillageSubscriptionActive(village)) {
-      return subscriptionBlockedResponse(village);
-    }
-
-    const where: any = { villageId: village.id };
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { nik: { contains: search } },
-        { mailType: { contains: search } },
-        { requestNumber: { contains: search } },
-      ];
-    }
-
-    if (status && status !== "all") {
-      const statusMap: Record<string, string> = {
-        PENDING: "pending",
-        DIPROSES: "pending",
-        SELESAI: "approved",
-        DITOLAK: "rejected",
-      };
-      const dbStatus = statusMap[status];
-      if (dbStatus) {
-        where.status = dbStatus;
-      }
-    }
-
-    const total = await prisma.mailRequest.count({ where });
-
-    const rows = await prisma.mailRequest.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: Math.max(0, (page - 1) * pageSize),
-      take: Math.max(1, pageSize),
-    });
-
-    const mappedRows = rows.map((row) => ({
-      id: Number(row.id),
-      pemohon_name: row.name,
-      pemohon_nik: row.nik,
-      pemohon_phone: "",
-      jenis_surat: row.mailType,
-      keperluan: row.purpose,
-      status:
-        row.status === "approved"
-          ? "SELESAI"
-          : row.status === "rejected"
-            ? "DITOLAK"
-            : "PENDING",
-      created_at: row.requestDate.toISOString(),
-      lampiran: [],
-      catatan: row.notes || row.rejectionReason || undefined,
-      requestNumber: row.requestNumber,
-      processedDate: row.processedDate?.toISOString(),
-      rtStatus: row.rtStatus ?? null,
-      rtNote: row.rtNote ?? undefined,
-      rtLabel: row.applicantRt ? `RT ${row.applicantRt}${row.applicantRw ? `/RW ${row.applicantRw}` : ""}` : undefined,
-    }));
+    const filters = parseQueueParams(url.searchParams);
+    const [list, stats] = await Promise.all([
+      listMailRequests(village.id, filters),
+      url.searchParams.get("stats") === "0" ? Promise.resolve(null) : getQueueStats(village.id),
+    ]);
 
     return NextResponse.json({
-      rows: mappedRows,
-      total,
-      page,
-      pageSize,
+      rows: list.rows,
+      total: list.total,
+      page: filters.page,
+      pageSize: filters.pageSize,
+      stats,
     });
   } catch (err) {
     console.error("GET /api/mail-requests error:", err);
-    return NextResponse.json(
-      { error: "Terjadi kesalahan server" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
   }
 }
 
+/**
+ * Putuskan satu permohonan. Body: { id, decision: "approve" | "reject", note? }.
+ * Bentuk lama { id, status: "SELESAI" | "DITOLAK", notes? } tetap diterima. Status "DIPROSES"/"PENDING" tidak bisa
+ * ditetapkan (tidak ada di DB; permohonan otomatis pending sampai diputuskan).
+ */
 export async function PUT(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);
     if (!loaded.ok) return loaded.response;
     const { village } = loaded.ctx;
+    if (!isVillageSubscriptionActive(village)) return subscriptionBlockedResponse(village);
 
-    if (!isVillageSubscriptionActive(village)) {
-      return subscriptionBlockedResponse(village);
+    const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+    const idRaw = body?.id;
+    const decision =
+      body?.decision === "approve" || body?.status === "SELESAI"
+        ? "approve"
+        : body?.decision === "reject" || body?.status === "DITOLAK"
+          ? "reject"
+          : null;
+    if (typeof idRaw !== "number" && typeof idRaw !== "string") {
+      return NextResponse.json({ error: "ID permohonan harus diisi" }, { status: 400 });
+    }
+    if (!/^\d{1,18}$/.test(String(idRaw))) return NextResponse.json({ error: "ID tidak valid" }, { status: 400 });
+    if (!decision) {
+      return NextResponse.json({ error: "Keputusan harus 'setujui' atau 'tolak'" }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { id, status, notes } = body;
-
-    if (!id || !status) {
-      return NextResponse.json(
-        { error: "ID dan status harus diisi" },
-        { status: 400 },
-      );
-    }
-
-    const statusMap: Record<string, string> = {
-      PENDING: "pending",
-      DIPROSES: "pending",
-      SELESAI: "approved",
-      DITOLAK: "rejected",
-    };
-
-    const dbStatus = statusMap[status];
-    if (!dbStatus) {
-      return NextResponse.json(
-        { error: "Status tidak valid" },
-        { status: 400 },
-      );
-    }
-
-    const existing = await prisma.mailRequest.findFirst({
-      where: { id: BigInt(id), villageId: village.id },
-      select: { id: true, status: true },
-    });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Permohonan tidak ditemukan" },
-        { status: 404 },
-      );
-    }
-
-    const updateData: any = {
-      status: dbStatus,
-      processedDate: new Date(),
-    };
-
-    if (notes) {
-      if (dbStatus === "rejected") {
-        updateData.rejectionReason = notes;
-      } else {
-        updateData.notes = notes;
-      }
-    }
-
-    const updated = await prisma.mailRequest.update({
-      where: { id: BigInt(id) },
-      data: updateData,
-    });
+    const note = normalizeNote(body?.note ?? body?.notes);
+    const result = await decideMailRequest({ villageId: village.id, id: BigInt(String(idRaw)), decision, note });
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
     // Catatan/alasan penolakan (teks bebas) dan data pemohon tidak dicatat.
-    await auditWeb(
-      req,
-      loaded.ctx,
-      dbStatus === "approved" || dbStatus === "rejected" ? "decision" : "update",
-      "mail_requests",
-      String(updated.id),
-      {
-        status: { from: existing.status, to: updated.status },
-        requestNumber: updated.requestNumber,
-        rejected: dbStatus === "rejected",
-        noteProvided: Boolean(notes),
-      },
-    );
-
-    // Beri tahu warga pemilik akun mobile (tidak menunggu; gagal tidak mengubah hasil).
-    if (dbStatus === "approved" || dbStatus === "rejected") void notifyMailRequestStatus(updated.id);
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: Number(updated.id),
-        status: updated.status,
-      },
+    await auditWeb(req, loaded.ctx, "decision", "mail_requests", String(idRaw), {
+      requestNumber: result.requestNumber,
+      decision,
+      noteProvided: note.length > 0,
     });
-  } catch (err: any) {
+
+    return NextResponse.json({ success: true, data: { id: Number(idRaw), status: decision === "approve" ? "approved" : "rejected" } });
+  } catch (err) {
     console.error("PUT /api/mail-requests error:", err);
-    return NextResponse.json(
-      { error: err?.message || "Gagal memperbarui permohonan" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Gagal memperbarui permohonan" }, { status: 500 });
   }
 }

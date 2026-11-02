@@ -14,54 +14,63 @@ const OPTIONS: ComboboxOption[] = [
   { value: OTHER, label: "Lainnya (ketik sendiri)" },
 ];
 
+/**
+ * Pemilih suku tanpa react-hook-form: pilih dari daftar baku (bisa dicari); suku di luar daftar diketik sendiri
+ * supaya ejaan tetap terkendali. Dipakai form Ubah Warga (lewat EthnicityField) dan wizard Tambah Keluarga.
+ */
+export function EthnicitySelect({ value, onChange, onBlur, id }: { value: string; onChange: (v: string) => void; onBlur?: () => void; id?: string }) {
+  const [customMode, setCustomMode] = useState(false);
+  const custom = customMode || (value !== "" && !isKnownEthnicity(value));
+  return (
+    <>
+      <Combobox
+        id={id}
+        value={custom ? OTHER : value}
+        onValueChange={(next) => {
+          if (next === OTHER) {
+            setCustomMode(true);
+            if (isKnownEthnicity(value)) onChange("");
+          } else {
+            setCustomMode(false);
+            onChange(next);
+          }
+        }}
+        options={OPTIONS}
+        placeholder="Pilih suku"
+        searchPlaceholder="Cari suku..."
+        allowClear
+      />
+      {custom ? (
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          maxLength={ETHNICITY_MAX_LENGTH}
+          placeholder="Tulis nama suku"
+          aria-label="Nama suku"
+          autoFocus={customMode && value === ""}
+        />
+      ) : null}
+    </>
+  );
+}
+
 interface Props<T extends FieldValues> {
   name: Path<T>;
   control: Control<T>;
   label?: string;
 }
 
-/** Suku: pilih dari daftar baku (bisa dicari); suku di luar daftar diketik sendiri supaya ejaan tetap terkendali. */
 export function EthnicityField<T extends FieldValues>({ name, control, label = "Suku" }: Props<T>) {
-  const [customMode, setCustomMode] = useState(false);
   return (
     <Controller
       name={name}
       control={control}
-      render={({ field, fieldState }) => {
-        const value = typeof field.value === "string" ? field.value : "";
-        const custom = customMode || (value !== "" && !isKnownEthnicity(value));
-        return (
-          <FormFieldWrapper label={label} error={fieldState.error?.message}>
-            <Combobox
-              value={custom ? OTHER : value}
-              onValueChange={(next) => {
-                if (next === OTHER) {
-                  setCustomMode(true);
-                  if (isKnownEthnicity(value)) field.onChange("");
-                } else {
-                  setCustomMode(false);
-                  field.onChange(next);
-                }
-              }}
-              options={OPTIONS}
-              placeholder="Pilih suku"
-              searchPlaceholder="Cari suku..."
-              allowClear
-            />
-            {custom ? (
-              <Input
-                value={value}
-                onChange={(e) => field.onChange(e.target.value)}
-                onBlur={field.onBlur}
-                maxLength={ETHNICITY_MAX_LENGTH}
-                placeholder="Tulis nama suku"
-                aria-label="Nama suku"
-                autoFocus={customMode && value === ""}
-              />
-            ) : null}
-          </FormFieldWrapper>
-        );
-      }}
+      render={({ field, fieldState }) => (
+        <FormFieldWrapper label={label} error={fieldState.error?.message}>
+          <EthnicitySelect value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} onBlur={field.onBlur} />
+        </FormFieldWrapper>
+      )}
     />
   );
 }

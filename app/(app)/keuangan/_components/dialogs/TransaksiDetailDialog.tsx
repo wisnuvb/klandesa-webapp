@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import type { TransaksiKasItem } from "../../_lib/types";
 import { formatRupiah, formatTanggalLong } from "../../_lib/formatting";
+import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 
 type TransaksiDetailDialogProps = {
   open: boolean;
@@ -191,6 +192,8 @@ export function TransaksiDetailDialog(props: TransaksiDetailDialogProps) {
                 </div>
               </CardContent>
             </Card>
+
+            <LiveAttachments type="TRANSACTION" id={selectedTransaksi.id} title="Bukti transaksi" hint="Kuitansi, nota, atau bukti transfer (PDF, pindaian, atau foto)." />
 
             <div className="flex gap-2 pt-4 border-t">
               <Button

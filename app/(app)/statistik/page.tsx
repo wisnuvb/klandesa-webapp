@@ -144,6 +144,7 @@ export function Statistik() {
     perkawinan,
     agama,
     golonganDarah,
+    suku,
     wilayah,
     kesehatan,
     perubahanPenduduk,
@@ -991,6 +992,43 @@ export function Statistik() {
                       </button>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Suku */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribusi Suku</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {suku.length === 1 && suku[0].suku === "Tidak Diketahui" ? (
+                    <p className="text-sm text-muted-foreground">
+                      Suku belum diisi pada data warga. Isi lewat Ubah Data Warga atau kolom &quot;Suku&quot; pada impor Excel.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {suku.map((item) => (
+                        <button
+                          key={item.suku}
+                          type="button"
+                          className="group flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() => openResidentList("ethnicity", item.suku)}
+                          aria-label={`Lihat penduduk bersuku ${item.suku}`}
+                        >
+                          <span className="font-medium text-primary underline-offset-4 group-hover:underline">
+                            {item.suku}
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2 text-right">
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-lg font-semibold">{item.jumlah}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({((item.jumlah / totalPenduduk) * 100).toFixed(1)}%)
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

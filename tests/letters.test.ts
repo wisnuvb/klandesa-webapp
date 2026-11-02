@@ -372,3 +372,48 @@ describe("server: baris grup dari data warga", async () => {
     assert.equal(run([{ residentId: 7, values: { pekerjaan: "Guru" } }]).pekerjaan, "Guru");
   });
 });
+
+describe("server: penandatangan manual", async () => {
+  const { parseLetterInput, assembleValues } = await import("../lib/letters/server/input.ts");
+  const { deriveFormSpec } = await import("../lib/letters/document/form-spec.ts");
+  const doc = (validateDocument(FIXTURES.ahliWaris) as { ok: true; doc: any }).doc;
+  const spec = deriveFormSpec(doc);
+  const pejabat = {
+    kades: { nama: "Sofwan", nip: "1970", jabatan: "Kepala Desa" },
+    sekdes: { nama: "", nip: "", jabatan: "Sekretaris Desa" },
+    camat: { nama: "Camat Lama", nip: "", jabatan: "Camat" },
+  };
+  const base = {
+    people: { pemohon: { manual: { nama: "P" } }, almarhum: { manual: { nama: "A" } } },
+    fields: { keperluan: "x" },
+    groups: { ahli_waris: [{ values: { nama: "W" } }], saksi: [{ values: { nama: "S1" } }, { values: { nama: "S2" } }] },
+  };
+  const parse = (officials: unknown) => parseLetterInput({ ...base, officials }, doc, spec, "completed");
+
+  it("tanpa officials: nilai tetap dari konteks desa", () => {
+    const p = parseLetterInput(base, doc, spec, "completed");
+    assert.ok(p.ok);
+    const r = assembleValues({ input: p.value, residents: new Map(), doc, context: { desa: {}, pejabat }, date: new Date(2026, 9, 29), nomor: "" });
+    assert.ok(r.ok);
+    assert.equal(r.value.pejabat.kades.nama, "Sofwan");
+  });
+  it("menimpa nama/NIP; yang kosong tetap bawaan; konteks tidak termutasi", () => {
+    const p = parse({ kades: { nama: "  Budi\u0000 ", nip: "" }, camat: { nip: "1999" } });
+    assert.ok(p.ok, JSON.stringify(p));
+    const r = assembleValues({ input: p.value, residents: new Map(), doc, context: { desa: {}, pejabat }, date: new Date(2026, 9, 29), nomor: "" });
+    assert.ok(r.ok);
+    assert.equal(r.value.pejabat.kades.nama, "Budi");
+    assert.equal(r.value.pejabat.kades.nip, "1970");
+    assert.equal(r.value.pejabat.camat.nama, "Camat Lama");
+    assert.equal(r.value.pejabat.camat.nip, "1999");
+    assert.equal(pejabat.kades.nama, "Sofwan");
+  });
+  it("menolak pejabat yang tidak tampil, isian asing, dan nilai terlalu panjang", () => {
+    assert.equal(parse({ sekdes: { nama: "X" } }).ok, false);
+    assert.equal(parse({ kades: { jabatan: "Raja" } }).ok, false);
+    assert.equal(parse({ kades: { nama: "x".repeat(256) } }).ok, false);
+    assert.equal(parse({ kades: { nama: 5 } }).ok, false);
+    assert.equal(parse("kades").ok, false);
+    assert.equal(parse({ kades: "Budi" }).ok, false);
+  });
+});

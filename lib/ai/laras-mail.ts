@@ -74,7 +74,7 @@ export function evaluateMailRequest(
   return { ready: blocking.length === 0, blocking, warnings, approvalBlockers };
 }
 
-type PendingRow = {
+export type PendingRow = {
   id: bigint;
   requestNumber: string;
   mailType: string;
@@ -87,7 +87,7 @@ type PendingRow = {
   requestDate: Date;
 };
 
-async function evalContexts(villageId: number, rows: PendingRow[]) {
+export async function evalContexts(villageId: number, rows: PendingRow[]) {
   const niks = Array.from(new Set(rows.map((r) => r.nik)));
   const [residents, pendingAll] = await Promise.all([
     prisma.resident.findMany({
@@ -116,7 +116,7 @@ async function evalContexts(villageId: number, rows: PendingRow[]) {
   };
 }
 
-const PENDING_SELECT = {
+export const PENDING_SELECT = {
   id: true,
   requestNumber: true,
   mailType: true,

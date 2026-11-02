@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const where: any = { villageId: village.id };
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
+        { name: { contains: search } },
         { nik: { contains: search } },
       ];
     }

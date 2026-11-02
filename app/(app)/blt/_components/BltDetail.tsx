@@ -12,6 +12,7 @@ import { BeneficiariesTab } from "./BeneficiariesTab";
 import { PaymentsTab } from "./PaymentsTab";
 import { ProgramTab } from "./ProgramTab";
 import type { DetailResponse } from "./types";
+import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 
 type Tab = "program" | "penerima" | "pembayaran";
 const TONE: Record<string, string> = { DRAFT: "open", DITETAPKAN: "info", SELESAI: "done" };
@@ -145,6 +146,7 @@ export function BltDetail({ id }: { id: number }) {
           </Button>
         </div>
       ) : null}
+      <LiveAttachments type="BLT_PROGRAM" id={id} title="Dokumen program BLT" hint="SK penetapan penerima, berita acara musdes, tanda terima pembayaran, dan laporan ke kabupaten (PDF atau pindaian)." />
     </div>
   );
 }

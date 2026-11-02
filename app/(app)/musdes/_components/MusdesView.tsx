@@ -11,6 +11,8 @@ import { useApiGet } from "@/hooks/useApiGet";
 import { KIND_KEYS, KINDS, STATUS } from "@/lib/musdes/catalog";
 import { MeetingFormDialog } from "./MeetingFormDialog";
 import type { ListResponse } from "./types";
+import { AttachmentCountBadge } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
 
 const PAGE_SIZE = 20;
 const TONE: Record<string, string> = { PLANNED: "info", HELD: "soon", FINAL: "done", CANCELLED: "neutral" };
@@ -28,6 +30,7 @@ export function MusdesView() {
   if (status) qs.set("status", status);
   if (year) qs.set("year", year);
   const list = useApiGet<ListResponse>(`/api/musdes?${qs}`);
+  const counts = useAttachmentCounts("MEETING", list.data?.meetings.map((m) => m.id) ?? []);
   const d = list.data;
   const pages = d ? Math.max(1, Math.ceil(d.total / d.pageSize)) : 1;
   const thisYear = new Date().getFullYear();
@@ -132,6 +135,7 @@ export function MusdesView() {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {m.attendeeCount} peserta · {m.decisionCount} keputusan
+                    {counts[m.id] ? <> · <AttachmentCountBadge count={counts[m.id]} /></> : null}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

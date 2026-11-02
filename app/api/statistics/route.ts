@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
         maritalStatus: true,
         religion: true,
         bloodType: true,
+        ethnicity: true,
         hamlet: true,
         rt: true,
         rw: true,
@@ -184,6 +185,17 @@ export async function GET(req: NextRequest) {
       .map(([golongan, jumlah]) => ({ golongan, jumlah }))
       .sort((a, b) => b.jumlah - a.jumlah);
 
+    // 7b. Statistik Suku (teks bebas yang sudah dibakukan saat disimpan; kosong = Tidak Diketahui)
+    const ethnicityStats = residents.reduce((acc, r) => {
+      const suku = r.ethnicity || "Tidak Diketahui";
+      acc[suku] = (acc[suku] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const dataSuku = Object.entries(ethnicityStats)
+      .map(([suku, jumlah]) => ({ suku, jumlah }))
+      .sort((a, b) => b.jumlah - a.jumlah);
+
     // 8. Statistik Wilayah (Dusun)
     const hamletStats = residents.reduce((acc, r) => {
       const dusun = r.hamlet || "Tidak Diketahui";
@@ -255,6 +267,7 @@ export async function GET(req: NextRequest) {
       perkawinan: dataPerkawinan,
       agama: dataAgama,
       golonganDarah: dataGolonganDarah,
+      suku: dataSuku,
       wilayah: dataWilayah,
       kesehatan: dataKesehatan,
       perubahanPenduduk,

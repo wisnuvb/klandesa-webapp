@@ -11,6 +11,8 @@ import { INSTITUTION_TYPE_LABEL, ROLE_LABEL, type InstitutionType, type MemberRo
 import type { InstitutionView, MemberView } from "@/lib/tata-kelola/institutions";
 import { InstitutionFormDialog } from "./InstitutionFormDialog";
 import { MemberFormDialog } from "./MemberFormDialog";
+import { AttachmentToggle } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
 
 interface ListResponse {
   institutions: InstitutionView[];
@@ -25,6 +27,7 @@ export function LembagaView() {
   const list = useApiGet<ListResponse>("/api/tata-kelola/lembaga");
   const [target, setTarget] = useState<Target | null>(null);
   const d = list.data;
+  const counts = useAttachmentCounts("INSTITUTION", d?.institutions.map((i) => i.id) ?? []);
   const done = () => { setTarget(null); list.reload(); };
 
   return (
@@ -82,6 +85,7 @@ export function LembagaView() {
                 </p>
               ) : null}
               {inst.description ? <p className="text-sm text-muted-foreground">{inst.description}</p> : null}
+              <AttachmentToggle type="INSTITUTION" id={inst.id} count={counts[inst.id] ?? 0} />
             </div>
             <div className="flex flex-wrap gap-2">
               {d.can.create ? (

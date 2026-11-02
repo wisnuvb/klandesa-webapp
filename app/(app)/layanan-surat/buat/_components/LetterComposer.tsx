@@ -17,6 +17,7 @@ import { CheckPanel } from "./CheckPanel";
 import { FieldsSection } from "./FieldsSection";
 import { GroupsSection } from "./GroupsSection";
 import { LetterComposerTour } from "./LetterComposerTour";
+import { OfficialsSection } from "./OfficialsSection";
 import { PaperPane } from "./PaperPane";
 import { PeopleSection } from "./PeopleSection";
 import { SuccessPanel } from "./SuccessPanel";
@@ -69,7 +70,7 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
   const pendingFocus = useRef<{ id: string; fallbackId?: string } | null>(null);
   const onFieldClick = useCallback(
     (ref: string) => {
-      const target = refToTarget(ref);
+      const target = refToTarget(ref, numberingMode);
       if (!target) return;
       if (target.kind === "auto") {
         setNotice(target.message);
@@ -79,7 +80,7 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
       pendingFocus.current = { id: target.id, fallbackId: target.fallbackId };
       setTab("isi");
     },
-    [setNotice],
+    [setNotice, numberingMode],
   );
   // Jalankan fokus setelah tab "Isi" tampil (di layar kecil pratinjau menyembunyikan formulir).
   useEffect(() => {
@@ -224,6 +225,8 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
 
             <GroupsSection spec={spec} groups={state.groups} loadingKeys={c.loadingKeys} actions={a} />
 
+            <OfficialsSection officials={spec.officials} values={state.officials} defaults={context.pejabat} onChange={a.setOfficial} />
+
             <CheckPanel missing={missing} warnings={warnings} />
 
             {/* ---- aksi: satu tombol utama + satu sekunder ---- */}
@@ -255,7 +258,7 @@ export function LetterComposer({ templateId, suratId }: { templateId: number | n
           id="panel-pratinjau"
           role="tabpanel"
           aria-labelledby="tab-pratinjau"
-          className={`${tab === "pratinjau" ? "block" : "hidden"} lg:block relative h-full min-h-0 overflow-y-auto`}
+          className={`${tab === "pratinjau" ? "block" : "hidden"} lg:block relative h-full min-h-0 overflow-y-auto [scrollbar-gutter:stable]`}
         >
           <PaperPane doc={doc} values={deferredValues} onFieldClick={onFieldClick} notice={c.notice && !c.submitError ? c.notice : ""} />
         </div>

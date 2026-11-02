@@ -21,7 +21,7 @@ import {
   type OfficialValues,
   type PersonValues,
 } from "../values";
-import type { OfficialId } from "../registry";
+import { OFFICIAL_LABELS, type OfficialId } from "../registry";
 
 export const INPUT_LIMITS = {
   requestBytes: 300_000,
@@ -30,6 +30,7 @@ export const INPUT_LIMITS = {
   personValue: 500,
   personLongValue: 1_000,
   numberDigits: 15,
+  officialNip: 40,
 } as const;
 
 export type Strictness = "draft" | "completed";
@@ -79,9 +80,13 @@ export function normalizeFieldValue(field: Pick<CustomField, "label" | "type" | 
 
 export type PersonInput = { residentId?: number; manual: boolean; overrides: PersonValues };
 export type GroupRowInput = { residentId?: number; values: Record<string, string> };
+/** Penimpa nama/NIP pejabat penandatangan; hanya yang diisi operator (kosong = pakai Pengaturan Desa). */
+export type OfficialOverride = { nama?: string; nip?: string };
+export type OfficialsInput = Partial<Record<OfficialId, OfficialOverride>>;
 export type LetterInput = {
   letterDate: Date | null;
   number: string | null;
+  officials: OfficialsInput;
   people: Record<string, PersonInput>;
   fields: Record<string, string>;
   groups: Record<string, GroupRowInput[]>;
@@ -99,6 +104,33 @@ function parsePersonValues(raw: unknown, where: string): Result<PersonValues> {
     if (val.length > max) return { ok: false, error: `${where}: isian ${k} terlalu panjang` };
     if (DATE_PERSON_KEYS.has(k) && val !== "" && !isRealIsoDate(val)) return { ok: false, error: `${where}: tanggal ${k} tidak valid` };
     out[k] = val;
+  }
+  return { ok: true, value: out };
+}
+
+function parseOfficials(raw: unknown, spec: FormSpec): Result<OfficialsInput> {
+  if (raw == null) return { ok: true, value: {} };
+  if (!isObj(raw)) return { ok: false, error: "officials harus berupa objek" };
+  const out: OfficialsInput = {};
+  for (const id of Object.keys(raw)) {
+    if (!spec.officials.includes(id as OfficialId)) return { ok: false, error: `Penandatangan "${id.slice(0, 30)}" tidak ada pada surat ini` };
+  }
+  for (const id of spec.officials) {
+    const entry = raw[id];
+    if (entry == null) continue;
+    const label = OFFICIAL_LABELS[id];
+    if (!isObj(entry)) return { ok: false, error: `${label}: format tidak valid` };
+    for (const k of Object.keys(entry)) if (k !== "nama" && k !== "nip") return { ok: false, error: `${label}: isian "${k.slice(0, 30)}" tidak dikenal` };
+    const o: OfficialOverride = {};
+    for (const [key, max, name] of [["nama", INPUT_LIMITS.text, "nama"], ["nip", INPUT_LIMITS.officialNip, "NIP"]] as const) {
+      const v = entry[key];
+      if (v == null) continue;
+      if (typeof v !== "string") return { ok: false, error: `${label}: ${name} harus teks` };
+      const t = clean(v);
+      if (t.length > max) return { ok: false, error: `${label}: ${name} maksimal ${max} karakter` };
+      if (t !== "") o[key] = t;
+    }
+    if (o.nama || o.nip) out[id] = o;
   }
   return { ok: true, value: out };
 }
@@ -212,7 +244,10 @@ export function parseLetterInput(
     number = clean(body.number);
     if (number.length === 0 || number.length > 255) return { ok: false, error: "Nomor surat tidak valid" };
   }
-  return { ok: true, value: { letterDate, number, people, fields, groups } };
+
+  const officials = parseOfficials(body.officials, spec);
+  if (!officials.ok) return officials;
+  return { ok: true, value: { letterDate, number, officials: officials.value, people, fields, groups } };
 }
 
 /** Lengkapi isian turunan untuk orang yang diisi manual (ttl, umur, alamat lengkap). */
@@ -237,6 +272,18 @@ export type LetterContext = {
   pejabat: Record<OfficialId, OfficialValues>;
   logoUrl?: string;
 };
+
+/** Timpa nama/NIP pejabat dengan isian operator; yang tidak diisi tetap dari konteks desa. */
+export function applyOfficialOverrides(base: Record<OfficialId, OfficialValues>, overrides: OfficialsInput | undefined): Record<OfficialId, OfficialValues> {
+  const out = { kades: { ...base.kades }, sekdes: { ...base.sekdes }, camat: { ...base.camat } };
+  for (const id of Object.keys(overrides ?? {}) as OfficialId[]) {
+    const o = overrides?.[id];
+    if (!o || !(id in out)) continue;
+    if (o.nama) out[id].nama = o.nama;
+    if (o.nip) out[id].nip = o.nip;
+  }
+  return out;
+}
 
 /** Gabungkan input tervalidasi + data warga dari DB + konteks desa menjadi nilai surat lengkap. */
 export function assembleValues(args: {
@@ -281,7 +328,7 @@ export function assembleValues(args: {
     }
   }
   v.desa = { ...context.desa };
-  v.pejabat = context.pejabat;
+  v.pejabat = applyOfficialOverrides(context.pejabat, input.officials);
   v.logoUrl = context.logoUrl;
   v.surat = buildSuratValues({ date, nomor, tempat: context.desa.nama ?? "" });
   return { ok: true, value: v };

@@ -17,6 +17,9 @@ function paperWidthPx(doc: LetterDocument): number {
 /**
  * Menampilkan kertas (lebar mm sebenarnya) dalam panel yang lebih sempit lewat `transform: scale`.
  * Tinggi pembungkus disesuaikan agar gulir panel tetap benar.
+ *
+ * Panel pemilik gulir harus memakai `scrollbar-gutter: stable`. Tanpa itu scrollbar vertikal yang muncul/hilang
+ * mengubah lebar panel, skala ikut berubah, tinggi kertas berubah, scrollbar muncul/hilang lagi, dan kertas bergetar.
  */
 export function ScaledPaper({ doc, zoom, children }: { doc: LetterDocument; zoom: ZoomMode; children: React.ReactNode }) {
   const host = useRef<HTMLDivElement>(null);
@@ -30,14 +33,15 @@ export function ScaledPaper({ doc, zoom, children }: { doc: LetterDocument; zoom
     const h = host.current;
     const i = inner.current;
     if (!h || !i) return undefined;
-    const ro = new ResizeObserver(() => {
-      setHostW(h.clientWidth);
-      setInnerH(i.offsetHeight);
-    });
+    const measure = () => {
+      // Selisih di bawah 1px diabaikan: tidak ada gunanya menghitung ulang skala, dan bisa memicu putaran ukur-ulang.
+      setHostW((p) => (Math.abs(p - h.clientWidth) < 1 ? p : h.clientWidth));
+      setInnerH((p) => (Math.abs(p - i.offsetHeight) < 1 ? p : i.offsetHeight));
+    };
+    const ro = new ResizeObserver(measure);
     ro.observe(h);
     ro.observe(i);
-    setHostW(h.clientWidth);
-    setInnerH(i.offsetHeight);
+    measure();
     return () => ro.disconnect();
   }, []);
 

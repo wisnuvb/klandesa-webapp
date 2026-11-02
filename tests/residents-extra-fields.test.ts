@@ -153,3 +153,22 @@ describe("privasi", () => {
     for (const k of ["birthCertNo", "marriageCertNo", "passportNo", "kitasNo", "originAddress"]) assert.ok(RESIDENT_AUDIT_MASKED.has(k), k);
   });
 });
+
+import { normalizeGender } from "../lib/residents/gender.ts";
+import { readFileSync } from "node:fs";
+
+describe("jenis kelamin baku", () => {
+  it("memetakan singkatan lama (M/F) dan varian ke nilai baku", () => {
+    for (const v of ["M", "m", "L", "lk", "Laki-laki", " laki laki ", "pria", "LAKI-LAKI"]) assert.equal(normalizeGender(v), "Laki-laki", v);
+    for (const v of ["F", "f", "P", "Perempuan", "wanita", "PEREMPUAN"]) assert.equal(normalizeGender(v), "Perempuan", v);
+    for (const v of ["", "x", "lainnya", null, undefined, 1]) assert.equal(normalizeGender(v), null, String(v));
+  });
+  it("rute tulis warga menormalkan jenis kelamin dan modal tidak lagi mengirim M/F", () => {
+    for (const f of ["app/api/residents/route.ts", "app/api/residents/[id]/route.ts"]) assert.match(readFileSync(f, "utf8"), /normalizeGender\(/, f);
+    for (const f of ["components/app/data-warga/AddResidentModal.tsx", "components/app/data-warga/EditResidentModal.tsx"]) {
+      const src = readFileSync(f, "utf8");
+      assert.doesNotMatch(src, /value: "M"|value: "F"/, f);
+      assert.match(src, /value: "Laki-laki"/, f);
+    }
+  });
+});

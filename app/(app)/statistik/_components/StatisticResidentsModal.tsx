@@ -41,6 +41,7 @@ export type StatisticListDimension =
   | "religion"
   | "education"
   | "blood_type"
+  | "ethnicity"
   | "gender"
   | "hamlet"
   | "age_range"
@@ -58,6 +59,7 @@ export type StatisticResidentRow = {
   religion: string | null;
   education: string | null;
   bloodType: string | null;
+  ethnicity: string | null;
   hamlet: string | null;
   rt: string | null;
   rw: string | null;
@@ -69,6 +71,7 @@ const DIMENSION_TITLE: Record<StatisticListDimension, string> = {
   religion: "Agama",
   education: "Pendidikan",
   blood_type: "Golongan darah",
+  ethnicity: "Suku",
   gender: "Jenis kelamin",
   hamlet: "Wilayah / dusun",
   age_range: "Kelompok usia",
@@ -81,6 +84,7 @@ const DIMENSION_DETAIL_HEADER: Record<StatisticListDimension, string> = {
   religion: "Agama",
   education: "Pendidikan",
   blood_type: "Golongan darah",
+  ethnicity: "Suku",
   gender: "Jenis kelamin",
   hamlet: "Dusun",
   age_range: "Usia",
@@ -98,6 +102,8 @@ const DIMENSION_DESCRIPTION: Record<StatisticListDimension, string> = {
     "Tingkat pendidikan mengikuti normalisasi yang sama dengan grafik statistik.",
   blood_type:
     "Golongan darah sesuai data (kosong ditampilkan sebagai Tidak Diketahui).",
+  ethnicity:
+    "Suku sesuai data kependudukan (kosong ditampilkan sebagai Tidak Diketahui).",
   gender: "Filter berdasarkan jenis kelamin di data registrasi.",
   hamlet:
     "Wilayah mengikuti field dusun (kosong ditampilkan sebagai Tidak Diketahui).",
@@ -178,7 +184,9 @@ export function StatisticResidentsModal({
               ? "education"
               : dimension === "blood_type"
                 ? "bloodType"
-                : dimension === "gender"
+                : dimension === "ethnicity"
+                  ? "ethnicity"
+                  : dimension === "gender"
                   ? "gender"
                   : dimension === "hamlet"
                     ? "hamlet"
@@ -207,6 +215,8 @@ export function StatisticResidentsModal({
           return row.education ?? "-";
         case "blood_type":
           return row.bloodType ?? "-";
+        case "ethnicity":
+          return row.ethnicity ?? "-";
         case "gender":
           return row.gender;
         case "hamlet":

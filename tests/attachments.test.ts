@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { ATTACHMENT_ENTITIES, ATTACHMENT_ENTITY_TYPES, ATTACHMENT_LIMITS, isAttachmentEntityType } from "../lib/attachments/catalog.ts";
-import { parseAttachInput, parseEntityId, parseRef } from "../lib/attachments/service.ts";
+import { COUNT_MAX_IDS, parseAttachInput, parseEntityId, parseIdList, parseRef } from "../lib/attachments/service.ts";
 import { validateAttachmentFile } from "../lib/attachments/client.ts";
+import { summarizeUsageBySource, usageSourceOf, USAGE_MAX_LINES } from "../lib/digitalArchive/usage.ts";
 import { isPermissionResource } from "../lib/permissions/resources.ts";
 import { roleCan } from "../lib/permissions/matrix.ts";
 
@@ -19,7 +20,8 @@ describe("katalog lampiran", () => {
       subs.add(e.archiveSub);
       assert.ok(e.archiveSub.length <= 60);
     }
-    assert.equal(ATTACHMENT_ENTITY_TYPES.length, 6);
+    assert.equal(ATTACHMENT_ENTITY_TYPES.length, 20);
+    for (const t of ATTACHMENT_ENTITY_TYPES) assert.ok(t.length <= 30, `${t} melebihi VARCHAR(30)`);
   });
   it("peran baca-saja boleh melihat tetapi tidak melampirkan; operator boleh keduanya", () => {
     // produk hukum: staf hanya membaca; sekretaris mengelola.
@@ -42,6 +44,12 @@ describe("parsing masukan lampiran", () => {
     assert.equal(parseEntityId("12"), 12n);
     assert.equal(parseEntityId(7), 7n);
     for (const v of ["0", "-1", "1.5", "abc", "", " 3", "1".repeat(16), null, undefined, {}]) assert.equal(parseEntityId(v), null, String(v));
+  });
+  it("parseIdList: membuang yang tak valid, menggabung duplikat, dan dibatasi", () => {
+    assert.deepEqual(parseIdList("1,2, 3 ,x,-4,2"), [1n, 2n, 3n]);
+    assert.deepEqual(parseIdList(""), []);
+    assert.deepEqual(parseIdList(null), []);
+    assert.equal(parseIdList(Array.from({ length: COUNT_MAX_IDS + 50 }, (_, i) => i + 1).join(",")).length, COUNT_MAX_IDS);
   });
   it("parseRef", () => {
     const ok = parseRef("OFFICIAL", "5");
@@ -126,9 +134,36 @@ describe("pemakaian komponen Lampiran", () => {
     for (const f of [...walk("app"), ...walk("components")]) {
       const src = read(f);
       for (const m of src.matchAll(/useAttachments\("([A-Z_]+)"/g)) used.add(m[1]);
-      for (const m of src.matchAll(/LiveAttachments type="([A-Z_]+)"/g)) used.add(m[1]);
+      for (const m of src.matchAll(/(?:LiveAttachments|AttachmentDisclosure) type="([A-Z_]+)"/g)) used.add(m[1]);
     }
     for (const t of used) assert.ok(isAttachmentEntityType(t), `jenis tak dikenal: ${t}`);
     for (const t of ATTACHMENT_ENTITY_TYPES) assert.ok(used.has(t), `jenis ${t} belum dipasang di UI mana pun`);
+  });
+});
+
+describe("pemakaian storage per sumber", () => {
+  const e = (category: string, subCategory: string | null, fileSize: number) => ({ category, subCategory, fileSize });
+  it("lampiran dirinci per modul, kategori lain apa adanya", () => {
+    assert.equal(usageSourceOf(e("Lampiran", "Register Surat", 1)), "Lampiran · Register Surat");
+    assert.equal(usageSourceOf(e("Lampiran", null, 1)), "Lampiran");
+    assert.equal(usageSourceOf(e("Surat", "Masuk", 1)), "Surat");
+    assert.equal(usageSourceOf(e("  ", null, 1)), "Tanpa kategori");
+  });
+  it("menjumlah, mengurutkan dari terbesar, dan mengabaikan ukuran tak wajar", () => {
+    const r = summarizeUsageBySource([e("Lampiran", "Produk Hukum", 300), e("Umum", null, 100), e("Lampiran", "Produk Hukum", 200), e("Umum", null, -5), e("Umum", null, Number.NaN)]);
+    assert.deepEqual(r, [
+      { label: "Lampiran · Produk Hukum", bytes: 500, count: 2 },
+      { label: "Umum", bytes: 100, count: 3 },
+    ]);
+  });
+  it("sumber di luar batas digabung ke 'Lainnya' tanpa mengubah total", () => {
+    const entries = Array.from({ length: 12 }, (_, i) => e(`K${i}`, null, (i + 1) * 10));
+    const total = entries.reduce((a, x) => a + x.fileSize, 0);
+    const r = summarizeUsageBySource(entries);
+    assert.equal(r.length, USAGE_MAX_LINES);
+    assert.equal(r.at(-1)?.label, "Lainnya");
+    assert.equal(r.reduce((a, x) => a + x.bytes, 0), total);
+    assert.equal(r.reduce((a, x) => a + x.count, 0), 12);
+    assert.deepEqual(summarizeUsageBySource([]), []);
   });
 });

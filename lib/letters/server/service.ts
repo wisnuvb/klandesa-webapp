@@ -17,8 +17,11 @@ import { renderLetterHtml } from "../render-html";
 import { assembleValues, parseLetterInput, type LetterInput } from "./input";
 import { buildLetterContext } from "./context";
 import { allocateLetterNumber, withLockRetry } from "./numbering";
+import { proposeLetterMutations, type LetterMutationOutcome } from "./mutation-link";
 
 export type ServiceResult<T> = { ok: true; value: T } | { ok: false; status: number; error: string };
+/** `mutation` hanya ada untuk surat pindah/datang yang baru terbit (pengajuan Buku Mutasi, atau alasan tidak dibuat). */
+export type SavedLetter = { id: number; letterNumber: string; status: string; mutation?: LetterMutationOutcome };
 const fail = (status: number, error: string): { ok: false; status: number; error: string } => ({ ok: false, status, error });
 
 const short = () => randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
@@ -104,18 +107,37 @@ function applicantOf(doc: LetterDocument, values: LetterValues): { name: string;
 
 const asJson = (v: unknown) => v as Prisma.InputJsonValue;
 
+/** Surat pindah/datang yang baru terbit → ajukan mutasi PENDING. Tidak pernah melempar: surat sudah terbit. */
+async function withMutation(
+  saved: SavedLetter,
+  village: Village,
+  userId: number,
+  template: { catalogKey?: string | null; inheritsCatalogKey?: string | null },
+  p: Prepared,
+): Promise<SavedLetter> {
+  try {
+    const assembled = assembleValues({ input: p.input, residents: p.residents, doc: p.doc, context: p.context, date: p.date, nomor: saved.letterNumber });
+    if (!assembled.ok) return saved;
+    const mutation = await proposeLetterMutations({ village, userId, template, input: p.input, values: assembled.value });
+    return mutation ? { ...saved, mutation } : saved;
+  } catch (err) {
+    console.error("letters: mutasi dari surat gagal disiapkan:", err);
+    return saved;
+  }
+}
+
 export async function createLetter(args: {
   village: Village;
   userId: number;
   body: Record<string, unknown>;
-}): Promise<ServiceResult<{ id: number; letterNumber: string; status: string }>> {
+}): Promise<ServiceResult<SavedLetter>> {
   const { village, userId, body } = args;
   const templateId = Number(body.templateId);
   if (!Number.isInteger(templateId) || templateId <= 0) return fail(400, "Pilih jenis surat");
 
   const template = await prisma.mailTemplate.findFirst({
     where: { id: templateId, isActive: true, ...villageTemplateScope(village.id) },
-    select: { id: true, name: true, category: true, templateStructure: true },
+    select: { id: true, name: true, category: true, templateStructure: true, catalogKey: true, inheritsCatalogKey: true },
   });
   if (!template) return fail(404, "Jenis surat tidak tersedia");
 
@@ -170,7 +192,8 @@ export async function createLetter(args: {
         return { ok: true as const, value: { id: Number(mail.id), letterNumber, status: p.status } };
       }),
     );
-    return created;
+    if (!created.ok || p.status !== "completed") return created;
+    return { ok: true, value: await withMutation(created.value, village, userId, template, p) };
   } catch (err) {
     if ((err as { code?: string })?.code === "P2002") {
       return fail(409, "Nomor surat ini sudah dipakai untuk surat dengan jenis dan tanggal yang sama");
@@ -184,7 +207,7 @@ export async function updateLetter(args: {
   userId: number;
   id: bigint;
   body: Record<string, unknown>;
-}): Promise<ServiceResult<{ id: number; letterNumber: string; status: string }>> {
+}): Promise<ServiceResult<SavedLetter>> {
   const { village, userId, id, body } = args;
   const existing = await prisma.mailService.findFirst({ where: { id, villageId: village.id } });
   if (!existing) return fail(404, "Surat tidak ditemukan");
@@ -209,7 +232,7 @@ export async function updateLetter(args: {
   const p = prepared.value;
 
   try {
-    return await withLockRetry(() =>
+    const updated = await withLockRetry(() =>
       prisma.$transaction(async (tx) => {
         const num = await resolveNumber(tx, p, village.id);
         if (!num.ok) return num;
@@ -246,6 +269,9 @@ export async function updateLetter(args: {
         return { ok: true as const, value: { id: Number(id), letterNumber, status: p.status } };
       }),
     );
+    if (!updated.ok || p.status !== "completed") return updated;
+    const template = await prisma.mailTemplate.findUnique({ where: { id: existing.templateId }, select: { catalogKey: true, inheritsCatalogKey: true } });
+    return { ok: true, value: template ? await withMutation(updated.value, village, userId, template, p) : updated.value };
   } catch (err) {
     if ((err as { code?: string })?.code === "P2002") {
       return fail(409, "Nomor surat ini sudah dipakai untuk surat dengan jenis dan tanggal yang sama");

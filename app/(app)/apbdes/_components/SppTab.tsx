@@ -12,6 +12,7 @@ import type { ActivityPlanView } from "@/lib/apbdes/dpa";
 import type { PanjarView, SppView } from "@/lib/apbdes/spp";
 import { PanjarDialog, SppActionDialog, SppFormDialog, type SppActionKind } from "./SppDialogs";
 import { dateId, money, type Overview } from "./shared";
+import { AttachmentDisclosure } from "@/components/app/attachments/AttachmentsSection";
 
 type Dlg = { kind: "form" } | { kind: "act"; id: number; label: string; action: SppActionKind } | { kind: "panjar"; panjar: PanjarView; mode: "spj" | "kembali" };
 
@@ -57,6 +58,7 @@ export function SppTab({ o, reload }: { o: Overview; reload: () => void }) {
                   {s.mode === "PENYEDIA" ? <Button asChild variant="ghost" className="min-h-11"><Link href={`/apbdes/cetak?kind=ptjb&year=${o.year}&id=${s.id}`}>Pernyataan</Link></Button> : null}
                 </div>
               </div>
+              <AttachmentDisclosure type="PAY_REQUEST" id={s.id} title="Bukti dan lampiran SPP" hint="Kuitansi, nota, kontrak, dan bukti pendukung SPP (PDF, pindaian, atau foto)." />
             </li>
           ))}
         </ul>

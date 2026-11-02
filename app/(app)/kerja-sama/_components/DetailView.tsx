@@ -20,6 +20,7 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import { BudgetSection, PartiesSection } from "./PartiesBudget";
 import { STATUS_TONE, type DetailResp } from "./types";
+import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 
 type Group = "isi" | "proses" | "pelaporan";
 type Dlg = "sign" | "end" | "cancel";
@@ -340,6 +341,7 @@ export function DetailView({ id }: { id: number }) {
       {dlg === "sign" ? <ActionDialog d={d} kind="sign" onClose={() => setDlg(null)} onDone={() => { setDlg(null); reload(); }} /> : null}
       {dlg === "end" ? <ActionDialog d={d} kind="end" onClose={() => setDlg(null)} onDone={() => { setDlg(null); reload(); }} /> : null}
       {dlg === "cancel" ? <ActionDialog d={d} kind="cancel" onClose={() => setDlg(null)} onDone={() => { setDlg(null); reload(); }} /> : null}
+      <LiveAttachments type="AGREEMENT" id={d.id} title="Naskah dan dokumen kerja sama" hint="Naskah perjanjian bertanda tangan, persetujuan, dan berita acara pendukung (PDF atau pindaian)." />
     </div>
   );
 }

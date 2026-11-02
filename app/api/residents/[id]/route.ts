@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { residentLeavesVillage } from "@/lib/mobile/citizen-status-logic";
 import { parseExtraFields } from "@/lib/residents/extra-fields";
+import { normalizeGender } from "@/lib/residents/gender";
 import { archiveResident, isKependudukanV2, runKependudukanSync, syncAfterResidentUpdate, syncResidents } from "@/lib/kependudukan/sync";
 
 type AuditCtx = Parameters<typeof auditWeb>[1];
@@ -161,7 +162,7 @@ export async function PUT(
         name: body.name.trim(),
         nik: body.nik.trim(),
         kk: body.kk?.trim() || null,
-        gender: body.gender,
+        gender: normalizeGender(body.gender) ?? existing.gender,
         birthplace: body.birthplace.trim(),
         birthDate: new Date(body.birthDate),
         bloodType: body.bloodType || null,
@@ -363,7 +364,7 @@ export async function PATCH(
         nik: body.nik !== undefined ? String(body.nik).trim() : existing.nik,
         kk:
           body.kk !== undefined ? String(body.kk).trim() || null : existing.kk,
-        gender: body.gender !== undefined ? body.gender : existing.gender,
+        gender: body.gender !== undefined ? (normalizeGender(body.gender) ?? existing.gender) : existing.gender,
         birthplace:
           body.birthplace !== undefined
             ? String(body.birthplace).trim()

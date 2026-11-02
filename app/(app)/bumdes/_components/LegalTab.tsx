@@ -19,6 +19,8 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { LEGAL_STATUS, OFFICER_ROLE, RANKING_LEVEL } from "@/lib/bumdes/catalog";
 import type { LegalOverview, OfficerView } from "@/lib/bumdes/service";
 import { Busy, EmptyNote, Findings, INPUT_CLASS, SELECT_CLASS } from "./shared";
+import { AttachmentDisclosure, AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachments } from "@/components/app/attachments/useAttachments";
 
 type Resp = LegalOverview & { canManage: boolean };
 
@@ -62,6 +64,10 @@ export function LegalTab() {
       </section>
 
       <LegalForm key={JSON.stringify(p)} data={data} onSaved={reload} />
+
+      <section aria-label="Berkas legalitas" className="min-w-0 rounded-lg border p-4">
+        <AttachmentDisclosure type="BUMDES_PROFILE" id={p.id} title="Berkas legalitas" hint="Perdes pendirian, AD/ART, sertifikat badan hukum, NIB, dan NPWP (PDF atau pindaian)." />
+      </section>
 
       <section aria-labelledby="lg-off" className="min-w-0 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -261,10 +267,15 @@ function LegalForm({ data, onSaved }: { data: Resp; onSaved: () => void }) {
 function OfficerDialog({ officer, onClose, onDone }: { officer: OfficerView | null; onClose: () => void; onDone: () => void }) {
   const [f, setF] = useState({ role: officer?.role ?? "", name: officer?.name ?? "", skNumber: officer?.skNumber ?? "", skDate: officer?.skDate ?? "", startOn: officer?.startOn ?? "", endOn: officer?.endOn ?? "", note: officer?.note ?? "" });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
-  const { busy, errors, general, summaryRef, submit } = useFormSubmit();
+  const { busy: saving, errors, general, summaryRef, submit } = useFormSubmit();
+  const att = useAttachments("BUMDES_OFFICER", officer?.id ?? null);
+  const busy = saving || att.flushing;
   async function go(e: React.FormEvent) {
     e.preventDefault();
-    if (await submit(officer ? `/api/bumdes/pengurus/${officer.id}` : "/api/bumdes/pengurus", officer ? "PATCH" : "POST", f)) onDone();
+    const res = await submit<{ id?: number }>(officer ? `/api/bumdes/pengurus/${officer.id}` : "/api/bumdes/pengurus", officer ? "PATCH" : "POST", f);
+    if (!res) return;
+    if (!officer && res.id) await att.flushAndNotify(res.id);
+    onDone();
   }
   return (
     <Dialog open onOpenChange={(o) => (!o && !busy ? onClose() : undefined)}>
@@ -312,6 +323,7 @@ function OfficerDialog({ officer, onClose, onDone }: { officer: OfficerView | nu
             <Label htmlFor="of-note">Catatan</Label>
             <Input id="of-note" className={INPUT_CLASS} maxLength={300} value={f.note} onChange={set("note")} />
           </div>
+          <AttachmentsSection att={att} title="Berkas SK pengurus" hint="Salinan SK pengangkatan pengurus (PDF atau pindaian). Disimpan di Arsip Digital." />
           <DialogFooter>
             <Button type="button" variant="outline" className="min-h-11" onClick={onClose} disabled={busy}>
               Batal

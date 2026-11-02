@@ -13,6 +13,8 @@ import { LEGAL_TYPE_LABEL, LEGAL_TYPES, type LegalType } from "@/lib/tata-kelola
 import type { LegalView } from "@/lib/tata-kelola/legal";
 import { LegalFormDialog, SELECT_CLASS } from "./LegalFormDialog";
 import { SearchSelect } from "@/components/ui/search-select";
+import { AttachmentToggle } from "@/components/app/attachments/AttachmentsSection";
+import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
 
 interface ListResponse {
   items: LegalView[];
@@ -45,6 +47,7 @@ export function ProdukHukumView() {
   if (search) qs.set("search", search);
   const list = useApiGet<ListResponse>(`/api/tata-kelola/produk-hukum?${qs}`);
   const d = list.data;
+  const counts = useAttachmentCounts("LEGAL_DOCUMENT", d?.items.map((i) => i.id) ?? []);
   const pages = d ? Math.max(1, Math.ceil(d.total / d.pageSize)) : 1;
   const reset = () => setPage(1);
 
@@ -181,6 +184,7 @@ export function ProdukHukumView() {
                   {i.revokedByRef ? ` dengan ${i.revokedByRef}` : ""}.
                 </p>
               ) : null}
+              <AttachmentToggle type="LEGAL_DOCUMENT" id={i.id} count={counts[i.id] ?? 0} />
             </li>
           ))}
         </ul>

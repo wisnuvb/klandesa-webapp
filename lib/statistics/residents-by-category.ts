@@ -13,6 +13,7 @@ export const DIMENSIONS = new Set([
   "religion",
   "education",
   "blood_type",
+  "ethnicity",
   "gender",
   "hamlet",
   "age_range",
@@ -31,6 +32,7 @@ export type ResidentDb = {
   religion: string | null;
   education: string | null;
   bloodType: string | null;
+  ethnicity: string | null;
   hamlet: string | null;
   rt: string | null;
   rw: string | null;
@@ -53,6 +55,7 @@ export type StatisticResidentRow = {
   religion: string | null;
   education: string | null;
   bloodType: string | null;
+  ethnicity: string | null;
   hamlet: string | null;
   rt: string | null;
   rw: string | null;
@@ -101,6 +104,8 @@ export function matchesDimension(
       return normalizeEducation(r.education) === category;
     case "blood_type":
       return (r.bloodType || "Tidak Diketahui") === category;
+    case "ethnicity":
+      return (r.ethnicity || "Tidak Diketahui") === category;
     case "gender":
       return r.gender === category;
     case "hamlet":
@@ -147,6 +152,9 @@ export function compareResidents(
   if (key === "education") {
     return (a.education ?? "").localeCompare(b.education ?? "", "id") * dir;
   }
+  if (key === "ethnicity") {
+    return (a.ethnicity ?? "").localeCompare(b.ethnicity ?? "", "id") * dir;
+  }
   if (key === "bloodType") {
     return (a.bloodType ?? "").localeCompare(b.bloodType ?? "", "id") * dir;
   }
@@ -166,6 +174,7 @@ export const RESIDENT_SELECT = {
   religion: true,
   education: true,
   bloodType: true,
+  ethnicity: true,
   hamlet: true,
   rt: true,
   rw: true,
@@ -189,6 +198,7 @@ export function toStatisticRow(r: ResidentDb): StatisticResidentRow {
     religion: r.religion,
     education: r.education,
     bloodType: r.bloodType,
+    ethnicity: r.ethnicity,
     hamlet: r.hamlet,
     rt: r.rt,
     rw: r.rw,
@@ -241,5 +251,6 @@ export function residentExportRow(r: ResidentDb, no: number): Array<string | num
     r.hamlet ?? "",
     r.rt ?? "",
     r.rw ?? "",
+    r.ethnicity ?? "",
   ];
 }

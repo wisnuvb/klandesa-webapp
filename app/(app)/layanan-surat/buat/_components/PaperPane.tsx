@@ -38,7 +38,7 @@ export function PaperPane({
   return (
     <section aria-label="Pratinjau surat" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">Klik bagian kuning di kertas untuk mengisinya.</p>
+        <p className="text-sm text-muted-foreground">Klik bagian kuning di kertas untuk mengisinya. Bagian yang terisi otomatis akan dijelaskan di bawah.</p>
         <div className="flex gap-2" role="group" aria-label="Ukuran pratinjau">
           <Button type="button" size="sm" variant={zoom === "fit" ? "default" : "outline"} aria-pressed={zoom === "fit"}
             className="min-h-9 gap-1 pointer-coarse:min-h-11" onClick={() => setZoom("fit")}>

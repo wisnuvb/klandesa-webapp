@@ -42,6 +42,29 @@ describe("lampiran generik (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_D
     const mut = await prisma.residentMutation.create({ data: { villageId, type: "BIRTH", effectiveDate: new Date("2026-10-05") } });
     Object.assign(ent, { MAIL_REGISTER: reg.id, LEGAL_DOCUMENT: legal.id, OFFICIAL: off.id, INSTITUTION: inst.id, MEETING: meet.id });
     ent.MUTATION = Number(mut.id);
+
+    // Gelombang 2
+    const d = new Date("2026-10-10");
+    const proc = await prisma.procurementPackage.create({ data: { villageId, year: 2026, number: 1, activityCode: "01.01", title: "Paket", mode: "PENYEDIA", hpsCents: 1000n } });
+    const agr = await prisma.villageAgreement.create({ data: { villageId, year: 2026, kind: "KERJA_SAMA", title: "Kerja sama", field: "Ekonomi" } });
+    const blt = await prisma.bltProgram.create({ data: { villageId, year: 2026, title: "BLT", monthlyCents: 30000000n, totalMonths: 12 } });
+    const pktd = await prisma.pktdActivity.create({ data: { villageId, year: 2026, title: "PKTD", costCents: 1000n } });
+    const inv = await prisma.inventoryItem.create({ data: { villageId, name: "Meja", category: "KIB_B", origin: "BELI", acquiredYear: 2020 } });
+    const dts = await prisma.dtsenProposal.create({ data: { villageId, residentName: "Warga", kind: "USULAN", source: "WARGA", reason: "Alasan" } });
+    const ev = await prisma.incidentEvent.create({ data: { villageId, domain: "KEAMANAN", kind: "SENGKETA", title: "Kejadian", occurredAt: d } });
+    const med = await prisma.securityMediation.create({ data: { villageId, eventId: ev.id, scheduledAt: d, place: "Balai", mediator: "Kasi" } });
+    const res = await prisma.resident.create({ data: { villageId, nik: "3508000000009999", name: "Anggota", birthplace: "L", birthDate: new Date("1985-01-01"), gender: "Laki-laki", religion: "Islam", maritalStatus: "Menikah", familyRole: "Anak", address: "a" } });
+    const mem = await prisma.securityMember.create({ data: { villageId, residentId: res.id, role: "ANGGOTA" } });
+    const rep = await prisma.villageReport.create({ data: { villageId, kind: "LKPPD", year: 2026 } });
+    const trx = await prisma.transaction.create({ data: { villageId, transactionNumber: `T${t}`, transactionDate: d, type: "income", category: "Lain", description: "Kas", amount: 1000 } });
+    const spp = await prisma.apbdesPayRequest.create({ data: { villageId, year: 2026, number: 1, activityCode: "01.01", mode: "PENYEDIA" } });
+    const bum = await prisma.bumdes.create({ data: { villageId, name: "BUMDes" } });
+    const prof = await prisma.bumdesLegalProfile.create({ data: { bumdesId: bum.id } });
+    const off2 = await prisma.bumdesOfficer.create({ data: { bumdesId: bum.id, role: "DIREKTUR", name: "Direktur" } });
+    const coop = await prisma.cooperative.create({ data: { villageId, name: "Koperasi" } });
+    const form = await prisma.cooperativeFormation.create({ data: { cooperativeId: coop.id } });
+    Object.assign(ent, { PROCUREMENT: proc.id, AGREEMENT: agr.id, BLT_PROGRAM: blt.id, PKTD_ACTIVITY: pktd.id, INVENTORY_ITEM: inv.id, DTSEN_PROPOSAL: dts.id, SECURITY_MEDIATION: med.id, SECURITY_MEMBER: mem.id, VILLAGE_REPORT: rep.id, PAY_REQUEST: spp.id, BUMDES_PROFILE: prof.id, BUMDES_OFFICER: off2.id, COOP_FORMATION: form.id });
+    ent.TRANSACTION = Number(trx.id);
     arch.a = (await archive(villageId, "a.pdf")).id;
     arch.b = (await archive(villageId, "b.pdf")).id;
     arch.foreign = (await archive(otherVillageId, "foreign.pdf")).id;
@@ -142,6 +165,29 @@ describe("lampiran generik (MySQL nyata)", { skip: enabled ? false : "KEP_TEST_D
     const list = await svc.listAttachments(prisma, villageId, ref("MEETING"));
     const orphan = list.find((x) => x.label === "Sementara");
     assert.ok(orphan && orphan.missing && orphan.fileName === null && orphan.fileSize === null);
+  });
+
+  it("ringkasan jumlah: per rekaman, hanya desa sendiri, dan jenis lain tidak tercampur", async () => {
+    const reg = BigInt(ent.LEGAL_DOCUMENT);
+    const counts = await svc.countAttachments(prisma, villageId, "LEGAL_DOCUMENT", [reg, 999999999n]);
+    assert.equal(counts[String(reg)], 1);
+    assert.equal(counts["999999999"], undefined, "tanpa lampiran tidak muncul");
+    assert.deepEqual(await svc.countAttachments(prisma, otherVillageId, "LEGAL_DOCUMENT", [reg]), {});
+    const meetingRows = await prisma.recordAttachment.count({ where: { villageId, entityType: "MEETING", entityId: reg } });
+    const meetingCounts = await svc.countAttachments(prisma, villageId, "MEETING", [reg]);
+    assert.equal(meetingCounts[String(reg)] ?? 0, meetingRows, "jumlah suatu jenis hanya dihitung dari jenisnya sendiri, walau id rekaman sama");
+    assert.deepEqual(await svc.countAttachments(prisma, villageId, "LEGAL_DOCUMENT", []), {});
+  });
+
+  it("gelombang 2: berkas bisa dilampirkan ke tiap jenis baru, termasuk tabel anak BUMDes/koperasi", async () => {
+    const wave2 = catalog.ATTACHMENT_ENTITY_TYPES.slice(6);
+    assert.equal(wave2.length, 14);
+    for (const t of wave2) {
+      const r = await svc.attach(prisma, { villageId, userId: 5, input: input(t as keyof typeof ent, arch.a) });
+      assert.ok(r.ok, `${t}: ${r.ok ? "" : r.errors[0]}`);
+      const cross = await svc.attach(prisma, { villageId: otherVillageId, userId: 5, input: input(t as keyof typeof ent, arch.foreign) });
+      assert.ok(!cross.ok && cross.status === 404, `${t} bocor lintas desa`);
+    }
   });
 
   it("menghapus desa ikut menghapus tautan lampirannya (cascade)", async () => {

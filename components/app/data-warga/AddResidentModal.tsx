@@ -42,7 +42,7 @@ type AddResidentFormValues = {
   name: string;
   id_number: string;
   family_card_number: string;
-  gender: "M" | "F";
+  gender: "Laki-laki" | "Perempuan";
   birthplace: string;
   date_of_birth: string;
   blood_type_id: string;
@@ -75,7 +75,7 @@ export const AddResidentModal: React.FC<AddResidentModalProps> = ({
       name: "",
       id_number: "",
       family_card_number: "",
-      gender: "M",
+      gender: "Laki-laki",
       birthplace: "",
       date_of_birth: "",
       blood_type_id: "",
@@ -194,8 +194,8 @@ export const AddResidentModal: React.FC<AddResidentModalProps> = ({
                 label="Jenis Kelamin"
                 placeholder="Pilih jenis kelamin"
                 options={[
-                  { value: "M", label: "Laki-laki" },
-                  { value: "F", label: "Perempuan" },
+                  { value: "Laki-laki", label: "Laki-laki" },
+                  { value: "Perempuan", label: "Perempuan" },
                 ]}
                 required
               />

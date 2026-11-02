@@ -38,6 +38,7 @@ export interface StatisticsData {
   perkawinan: Array<{ status: string; jumlah: number }>;
   agama: Array<{ agama: string; jumlah: number }>;
   golonganDarah: Array<{ golongan: string; jumlah: number }>;
+  suku: Array<{ suku: string; jumlah: number }>;
   wilayah: Array<{ wilayah: string; jumlah: number }>;
   kesehatan: Array<{ kategori: string; jumlah: number }>;
   /** Hanya untuk desa dengan Kependudukan v2 (mutasi tercatat); null bila belum aktif. */

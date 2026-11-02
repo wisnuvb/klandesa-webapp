@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, TextInput, View } from 'react-native';
 import { Text } from '@/components/text';
 import { useFontScale } from '@/state/font-scale';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +12,7 @@ import { Avatar, EmptyState, InfoBox, SectionHeader } from '@/components/cards';
 import { CommentRow } from '@/components/comment-row';
 import { PostCard } from '@/components/post-card';
 import { PostSkeleton } from '@/components/skeleton';
-import { Button, ErrorBanner, useKeyboardVisible } from '@/components/ui';
+import { Button, ErrorBanner, KeyboardAvoider, useKeyboardVisible } from '@/components/ui';
 import { ApiError, api, post } from '@/lib/api';
 import { useInvalidateSocial, useSocialComments, useSocialConfig, useSocialPost, type SocialComment } from '@/lib/queries';
 import { colors, spacing } from '@/theme';
@@ -83,7 +83,7 @@ export default function PostDetail() {
   return (
     // Android edge-to-edge tidak menyusutkan layar saat keyboard muncul, jadi 'padding' dipakai di kedua platform (sama seperti Screen).
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }} edges={keyboard ? [] : ['bottom']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <KeyboardAvoider>
         <FlatList
           ref={listRef}
           data={comments.data?.items ?? []}
@@ -119,7 +119,7 @@ export default function PostDetail() {
             </View>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
       <ActionSheet
         visible={!!menuFor} title={menuFor?.author.mine ? 'Komentar Anda' : menuFor?.author.name} actions={menuFor ? commentActions(menuFor) : []}
         onClose={() => setMenuFor(null)}

@@ -14,6 +14,8 @@ const validYear = (y: number): boolean => Number.isInteger(y) && y >= 2000 && y 
 
 export interface ReportView {
   kind: ReportKind;
+  /** null selama laporan belum pernah disimpan (baris dibuat saat simpan pertama). */
+  id: number | null;
   year: number;
   status: "DRAFT" | "DISERAHKAN";
   sections: Record<string, string>;
@@ -49,6 +51,7 @@ export async function getReport(db: Db, villageId: number, kind: ReportKind, yea
   return {
     ok: true,
     data: {
+      id: row?.id ?? null,
       kind,
       year,
       status: (row?.status as ReportView["status"] | undefined) ?? "DRAFT",
