@@ -86,7 +86,7 @@ export function MobileAppSection() {
     <section
       id="aplikasi-seluler"
       aria-labelledby="aplikasi-seluler-judul"
-      className="py-20 md:py-28 bg-white border-y border-gray-100"
+      className="scroll-mt-16 py-20 md:py-28 bg-white border-y border-gray-100"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mb-12">

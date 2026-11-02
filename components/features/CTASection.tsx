@@ -14,7 +14,7 @@ export function CTASection({
   return (
     <section
       id="kontak"
-      className="relative py-20 md:py-32 bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] overflow-hidden"
+      className="relative scroll-mt-16 py-20 md:py-32 bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#0d9488] overflow-hidden"
     >
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob" />

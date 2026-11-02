@@ -47,7 +47,7 @@ export function AboutSection({ moduleCountLabel }: { moduleCountLabel: string })
   return (
     <section
       id="tentang"
-      className="relative py-20 md:py-32 bg-gradient-to-b from-white via-gray-50 to-white overflow-hidden"
+      className="relative scroll-mt-16 py-20 md:py-32 bg-gradient-to-b from-white via-gray-50 to-white overflow-hidden"
     >
       <div className="absolute top-0 right-0 w-96 h-96 bg-[#0d9488]/5 rounded-full blur-3xl" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#6366f1]/5 rounded-full blur-3xl" />
