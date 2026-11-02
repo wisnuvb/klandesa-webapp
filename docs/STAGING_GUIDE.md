@@ -65,6 +65,11 @@ Setelah itu cek: tabel `fee_schedules`, `fee_charges`, `fee_payments`, `cash_ent
   ```cron
   0 20 * * *  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/notification-retention
   ```
+- **Job cermin data pangan (SP2KP Kemendag)**: panggil `POST /api/cron/sync-pangan` dengan header yang sama, **3× sehari** (mis. 06:00, 12:00, 18:00 WIB). Menyalin daftar kab/kota (514 baris, sekali seminggu) dan harga/HET ke tabel `pangan_wilayah` dan `pangan_harga_snapshots`, supaya `/api/pangan/*` dan `/api/pertanian/harga` dilayani dari database sendiri dan tidak lagi 502 saat jalur ke Kemendag terputus-putus. Butuh migrasi `docs/PHASE5_PANGAN_MIGRATION.sql` (aditif; rollback `PHASE5_PANGAN_ROLLBACK.sql`). Yang di-prefetch: kab/kota milik desa terdaftar (kode di `settings.wilayah`, atau dicocokkan dari teks profil), ditambah `PANGAN_PREFETCH_EXTRA` (opsional, kode 4 digit dipisah koma); kab/kota lain tetap otomatis tersimpan saat pertama diakses. Tanggal yang diambil adalah **tanggal terbaru yang sudah punya data** (SP2KP biasa tertinggal beberapa hari, akhir pekan kosong), bukan "kemarin". Idempoten dan bisa dilanjutkan: hanya baris yang kedaluwarsa yang diambil ulang, dan satu panggilan berhenti rapi di `deadline` detik (default 45, maks 240; di bawah batas waktu proxy) lalu dilanjutkan run berikutnya. Query opsional: `scope=all|wilayah|harga`, `force=1`, `deadline=<detik>`. Respons memuat `incomplete`, jumlah `refreshed/fresh/failed`, dan `latestDataDate`. Isi awal setelah migrasi: `tsx scripts/sync-pangan.ts --force` (±3 detik untuk wilayah). Riwayat lebih dari 400 hari dibuang oleh job yang sama.
+  ```cron
+  0 23,5,11 * * *  curl -fsS -m 60 -X POST -H "Authorization: Bearer $CRON_SECRET" https://STAGING/api/cron/sync-pangan
+  ```
+  (Zona waktu crontab server = UTC: 23:00, 05:00, 11:00 UTC = 06:00, 12:00, 18:00 WIB.)
 - **Nginx**: teruskan IP asli (`X-Real-IP` / `X-Forwarded-For`) supaya pembatas laju per IP tidak menghitung semua orang sebagai satu IP;
   naikkan `client_max_body_size` agar unggahan foto tidak ditolak (foto diunggah langsung ke Spaces, tetapi tetap longgarkan batasnya).
 - Pastikan `https://STAGING/api/mobile/v1/config` terbuka dari HP (tanpa login) dan mengembalikan JSON.
@@ -143,5 +148,6 @@ Hal yang masih di luar panduan ini: keystore dan upload key Play Store, Sentry/C
 - [ ] `POST /api/cron/ai-retention` tanpa header → 401; dengan secret benar → `{ ok, threadsDeleted }`; dijalankan dua kali → panggilan kedua menghapus 0.
 - [ ] Laras: kirim pertanyaan yang memanggil tool (mis. "ringkasan keuangan bulan ini") dari UI → label langkah muncul ("Memeriksa data keuangan…") lalu jawaban; `curl -N -H 'Accept: application/x-ndjson'` ke `/api/ai/village-assistant` → baris `progress` lalu `done`; tanpa header Accept → satu JSON seperti biasa. Cek `audit_logs` (`ai_query`) memuat `tokens`.
 - [ ] `POST /api/cron/notification-retention` tanpa header → 401; dengan secret benar → `{ ok, adminDeleted, mobileDeleted }`; dijalankan dua kali → panggilan kedua menghapus 0.
+- [ ] `POST /api/cron/sync-pangan` tanpa header → 401; dengan secret benar → `{ ok, latestDataDate, wilayah, harga }`; dijalankan dua kali → run kedua `refreshed: 0`. `GET /api/pangan/kab-kota/35` → 38 baris dengan header `x-data-source: db`; `POST /api/pangan/harga` untuk tanggal terbaru → `meta.source: db`; tanggal masa depan atau kab/kota tak dikenal → 400.
 - [ ] Lonceng desa: klik notifikasi atau "Tandai semua dibaca" → badge hilang dan tetap hilang setelah muat ulang halaman (untuk semua peran, termasuk staf, dan saat trial/grace).
 - [ ] `POST /api/cron/subscription-reminders` tanpa header → 401; email uji terkirim ke admin desa; dijalankan dua kali → tidak ada email ganda.

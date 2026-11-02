@@ -32,26 +32,6 @@ export function findKabKotaByCode(
   return list.find((k) => k.kode_kab_kota === kode.trim()) ?? null;
 }
 
-export async function fetchKabKotaList(
-  kodeProvinsi: string,
-): Promise<KabKotaRow[]> {
-  const kode = kodeProvinsi.trim();
-  if (!isWilayahCode(kode, "provinsi")) return [];
-
-  const url = `https://api-sp2kp.kemendag.go.id/master/api/wilayah/kab-kota/${encodeURIComponent(
-    kode,
-  )}?`;
-
-  try {
-    const upstream = await fetch(url, { method: "GET", cache: "no-store" });
-    if (!upstream.ok) return [];
-    const json = (await upstream.json().catch(() => null)) as unknown;
-    return extractArray<KabKotaRow>(json);
-  } catch {
-    return [];
-  }
-}
-
 /** Kode Kemendag (4 digit, mis. 3273) → kode wilayah.id (32.73). */
 export function kemendagKabKotaToWilayahId(kodeKabKota: string): string | null {
   const c = kodeKabKota.trim();

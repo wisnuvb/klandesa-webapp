@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { resolveWilayahCodesForVillage } from "@/lib/village/wilayah-settings";
+import { toMirrorError } from "@/lib/pangan/mirror";
+import { mirror } from "@/lib/pangan/service";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -73,25 +75,22 @@ export async function GET(req: NextRequest) {
     const tanggalPembanding =
       req.nextUrl.searchParams.get("tanggal_pembanding") ?? addDays(tanggal, -7);
 
-    const form = new FormData();
-    form.append("tanggal", tanggal);
-    form.append("tanggal_pembanding", tanggalPembanding);
-    form.append("kode_provinsi", kodeProvinsi);
-    form.append("kode_kab_kota", kodeKabKota);
-
-    const upstream = await fetch(
-      "https://api-sp2kp.kemendag.go.id/report/api/average-price/generate-perbandingan-harga",
-      { method: "POST", body: form },
-    );
-
-    if (!upstream.ok) {
+    let raw: unknown;
+    try {
+      const result = await mirror.getHarga({
+        tanggal,
+        tanggalPembanding,
+        kodeProvinsi,
+        kodeKabKota,
+      });
+      raw = result.payload;
+    } catch (e) {
+      const err = toMirrorError(e);
       return NextResponse.json(
         { error: "Gagal mengambil harga dari Kemendag" },
-        { status: 502 },
+        { status: err.status, headers: { "Retry-After": "5" } },
       );
     }
-
-    const raw = await upstream.json();
     const allRows = extractHargaRows(raw);
     const rows = allRows.filter((r) => {
       const name = String(r.variant_nama ?? "").toLowerCase();

@@ -1,27 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRegionalRateLimit } from "@/lib/regional-rate-limit";
+import { clientIp, corsHeaders, metaOf, mirrorErrorResponse, successHeaders } from "@/lib/pangan/http";
+import { isDateInWindow } from "@/lib/pangan/mirror-policy";
+import { mirror } from "@/lib/pangan/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
-}
-
-const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Max-Age": "86400",
-};
-
-function isDateString(v: string): boolean {
-  return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(v);
-}
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
@@ -51,45 +35,21 @@ export async function POST(req: NextRequest) {
     } | null;
     tanggal = String(body?.tanggal ?? "").trim();
   }
-  if (!isDateString(tanggal)) {
+  if (!isDateInWindow(tanggal)) {
     return NextResponse.json(
-      { error: "tanggal wajib format YYYY-MM-DD" },
+      { error: "tanggal wajib format YYYY-MM-DD, tidak di masa depan, maksimal 400 hari ke belakang" },
       { status: 400, headers: corsHeaders },
     );
   }
 
-  const url =
-    "https://api-sp2kp.kemendag.go.id/report/api/average-price/generate-perbandingan-harga-het-ha";
-
-  const form = new FormData();
-  form.append("tanggal", tanggal);
-
   try {
-    const upstream = await fetch(url, { method: "POST", body: form });
-    const text = await upstream.text();
-
-    if (!upstream.ok) {
-      return NextResponse.json(
-        { error: "Gagal mengambil data HET", upstream_status: upstream.status },
-        { status: 502, headers: corsHeaders },
-      );
-    }
-
-    let data: unknown = null;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
-
+    const result = await mirror.getHet(tanggal);
+    const meta = metaOf(result);
     return NextResponse.json(
-      { input: { tanggal }, data },
-      { headers: corsHeaders },
+      { input: { tanggal }, data: result.payload, meta },
+      { headers: successHeaders(meta) },
     );
-  } catch {
-    return NextResponse.json(
-      { error: "Gagal terhubung ke server sumber" },
-      { status: 502, headers: corsHeaders },
-    );
+  } catch (e) {
+    return mirrorErrorResponse(e, "Gagal mengambil data HET");
   }
 }

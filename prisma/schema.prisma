@@ -6841,3 +6841,45 @@ model SecurityContact {
 }
 
 // >>> models:keamanan (sisipkan model tepat di atas baris ini)
+
+// ============================================
+// CERMIN DATA PANGAN (SP2KP Kemendag)
+// ============================================
+
+/// Cermin daftar kab/kota Kemendag (kode 4 digit) per provinsi. Diisi cron `sync-pangan`; baris yang hilang dari sumber hanya dinonaktifkan.
+model PanganWilayah {
+  id           Int      @id @default(autoincrement())
+  kodeProvinsi String   @db.VarChar(2)
+  kodeKabKota  String   @db.VarChar(4)
+  nama         String   @db.VarChar(160)
+  isActive     Boolean  @default(true)
+  fetchedAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([kodeProvinsi, kodeKabKota], map: "pangan_wilayah_unique")
+  @@index([kodeProvinsi, isActive])
+  @@map("pangan_wilayah")
+}
+
+/// Cermin respons harga (`harga`, per kab/kota + sepasang tanggal) dan HET (`het`, nasional per tanggal) dari SP2KP. `payload` = JSON mentah sumber, jadi bentuk respons API tidak berubah. Satu baris per kunci = sekaligus riwayat harga.
+model PanganHargaSnapshot {
+  id                Int       @id @default(autoincrement())
+  kind              String    @db.VarChar(8)
+  kodeProvinsi      String    @default("") @db.VarChar(2)
+  kodeKabKota       String    @default("") @db.VarChar(4)
+  tanggal           String    @db.VarChar(10)
+  tanggalPembanding String    @default("") @db.VarChar(10)
+  payload           Json
+  hasData           Boolean   @default(false)
+  fetchedAt         DateTime
+  lastAttemptAt     DateTime?
+  lastError         String?   @db.VarChar(300)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([kind, kodeProvinsi, kodeKabKota, tanggal, tanggalPembanding], map: "pangan_snapshot_unique")
+  @@index([kind, kodeKabKota, tanggal])
+  @@index([tanggal])
+  @@map("pangan_harga_snapshots")
+}

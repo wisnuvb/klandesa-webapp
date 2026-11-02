@@ -1,27 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRegionalRateLimit } from "@/lib/regional-rate-limit";
+import { clientIp, corsHeaders, metaOf, mirrorErrorResponse, successHeaders } from "@/lib/pangan/http";
+import { isDateInWindow } from "@/lib/pangan/mirror-policy";
+import { mirror } from "@/lib/pangan/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
-}
-
-const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Max-Age": "86400",
-};
-
-function isDateString(v: string): boolean {
-  return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(v);
-}
 
 function isCode(v: string): boolean {
   return /^[0-9]{2,4}$/.test(v);
@@ -78,9 +62,9 @@ export async function POST(req: NextRequest) {
   const kode_provinsi = input.kode_provinsi;
   const kode_kab_kota = input.kode_kab_kota;
 
-  if (!isDateString(tanggal) || !isDateString(tanggal_pembanding)) {
+  if (!isDateInWindow(tanggal) || !isDateInWindow(tanggal_pembanding)) {
     return NextResponse.json(
-      { error: "tanggal dan tanggal_pembanding wajib format YYYY-MM-DD" },
+      { error: "tanggal dan tanggal_pembanding wajib format YYYY-MM-DD, tidak di masa depan, maksimal 400 hari ke belakang" },
       { status: 400, headers: corsHeaders },
     );
   }
@@ -97,47 +81,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const url =
-    "https://api-sp2kp.kemendag.go.id/report/api/average-price/generate-perbandingan-harga";
-
-  const form = new FormData();
-  form.append("tanggal", tanggal);
-  form.append("tanggal_pembanding", tanggal_pembanding);
-  form.append("kode_provinsi", kode_provinsi);
-  form.append("kode_kab_kota", kode_kab_kota);
+  if (!(await mirror.isKnownKabKota(kode_provinsi, kode_kab_kota))) {
+    return NextResponse.json(
+      { error: "kode_kab_kota tidak dikenal untuk provinsi ini" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
 
   try {
-    const upstream = await fetch(url, { method: "POST", body: form });
-    const text = await upstream.text();
-
-    if (!upstream.ok) {
-      return NextResponse.json(
-        {
-          error: "Gagal mengambil data harga",
-          upstream_status: upstream.status,
-        },
-        { status: 502, headers: corsHeaders },
-      );
-    }
-
-    let data: unknown = null;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
-
+    const result = await mirror.getHarga({
+      tanggal,
+      tanggalPembanding: tanggal_pembanding,
+      kodeProvinsi: kode_provinsi,
+      kodeKabKota: kode_kab_kota,
+    });
+    const meta = metaOf(result);
     return NextResponse.json(
       {
         input: { tanggal, tanggal_pembanding, kode_provinsi, kode_kab_kota },
-        data,
+        data: result.payload,
+        meta,
       },
-      { headers: corsHeaders },
+      { headers: successHeaders(meta) },
     );
-  } catch {
-    return NextResponse.json(
-      { error: "Gagal terhubung ke server sumber" },
-      { status: 502, headers: corsHeaders },
-    );
+  } catch (e) {
+    return mirrorErrorResponse(e, "Gagal mengambil data harga");
   }
 }

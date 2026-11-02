@@ -1,6 +1,6 @@
 import type { Village } from "@prisma/client";
+import { fetchKabKotaList } from "@/lib/pangan/region-server";
 import {
-  fetchKabKotaList,
   findKabKotaByCode,
   findProvinsiByCode,
   isWilayahCode,
