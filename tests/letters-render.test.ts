@@ -370,7 +370,7 @@ describe("renderer: perilaku blok", () => {
     assert.ok(o1.includes("KECAMATAN GONDANGWETAN"));
     assert.ok(o1.includes("DESA BRAMBANG"));
     assert.ok(!o1.includes("DESA DESA") && !o1.includes("KABUPATEN KABUPATEN"));
-    assert.ok(o1.includes("Jl. Raya 1, Email: a@b.id, Kode Pos 67174"));
+    assert.ok(o1.replace(/<[^>]+>/g, "").includes("Jl. Raya 1, Email: a@b.id, Kode Pos 67174"));
     assert.ok(!o1.includes("Telp."));
 
     base.letterhead = "garuda";

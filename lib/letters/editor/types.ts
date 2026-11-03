@@ -74,7 +74,7 @@ export interface EditorApi {
   // ---- halaman, penomoran, meta
   setPage(patch: Partial<LetterDocument["page"]>): void;
   setNumbering(patch: Partial<LetterDocument["numbering"]>): void;
-  setMeta(patch: Partial<Pick<LetterDocument, "kind" | "audience" | "letterhead" | "garudaStyle">>): void;
+  setMeta(patch: Partial<Pick<LetterDocument, "kind" | "audience" | "letterhead" | "garudaStyle" | "letterheadStyle">>): void;
 
   // ---- orang berperan, isian tambahan, daftar berulang
   addPerson(label: string, opts?: Partial<Omit<PersonRole, "id" | "label">>): string;

@@ -10,9 +10,12 @@ import type { LetterDocument } from "../lib/letters/document/schema.ts";
 import {
   DEFAULT_LETTERHEAD_STYLE,
   LOGO_SIZE_MM,
+  kopAddressLines,
+  kopHeadingLines,
   mergeLetterheadStyleIntoSettings,
   normalizeLetterheadStyle,
   parseLetterheadStyle,
+  parseRegency,
 } from "../lib/letters/letterhead.ts";
 import { applyDraft, draftFromContext, isDirty, patchFromDraft, validateDraft } from "../lib/letters/letterhead-draft.ts";
 import { sampleLetterValues, withVillageContext, type LetterValues, type VillagePreviewContext } from "../lib/letters/values.ts";
@@ -36,7 +39,7 @@ const CTX: VillagePreviewContext = {
     camat: { nama: "Drs. Hadi", nip: "", jabatan: "Camat" },
   },
   logoUrl: "https://cdn.example.com/logo.png",
-  kop: { layout: "kiri", rule: "ganda", logoSize: "sedang" },
+  kop: DEFAULT_LETTERHEAD_STYLE,
 };
 
 function render(doc: LetterDocument, values: LetterValues, mode: "preview" | "print" = "print", extra: Record<string, unknown> = {}) {
@@ -48,16 +51,16 @@ describe("gaya kop: normalisasi & penyimpanan", () => {
     assert.deepEqual(normalizeLetterheadStyle(undefined), DEFAULT_LETTERHEAD_STYLE);
     assert.deepEqual(normalizeLetterheadStyle("x"), DEFAULT_LETTERHEAD_STYLE);
     assert.deepEqual(normalizeLetterheadStyle({ layout: "melayang", rule: 3, logoSize: null }), DEFAULT_LETTERHEAD_STYLE);
-    assert.deepEqual(normalizeLetterheadStyle({ layout: "atas", rule: "tanpa" }), { layout: "atas", rule: "tanpa", logoSize: "sedang" });
+    assert.deepEqual(normalizeLetterheadStyle({ layout: "atas", rule: "tanpa" }), { ...DEFAULT_LETTERHEAD_STYLE, layout: "atas", rule: "tanpa" });
   });
 
   it("merge menjaga kunci settings lain dan hanya mengubah yang dikirim", () => {
     const merged = mergeLetterheadStyleIntoSettings({ mail: { kepalaDesaNama: "A" }, integrations: { x: 1 } }, { layout: "atas" });
     assert.deepEqual(merged.mail, { kepalaDesaNama: "A" });
     assert.deepEqual(merged.integrations, { x: 1 });
-    assert.deepEqual(parseLetterheadStyle(merged), { layout: "atas", rule: "ganda", logoSize: "sedang" });
+    assert.deepEqual(parseLetterheadStyle(merged), { ...DEFAULT_LETTERHEAD_STYLE, layout: "atas" });
     const again = mergeLetterheadStyleIntoSettings(merged, { rule: "tunggal" });
-    assert.deepEqual(parseLetterheadStyle(again), { layout: "atas", rule: "tunggal", logoSize: "sedang" });
+    assert.deepEqual(parseLetterheadStyle(again), { ...DEFAULT_LETTERHEAD_STYLE, layout: "atas", rule: "tunggal" });
     assert.deepEqual(parseLetterheadStyle(null), DEFAULT_LETTERHEAD_STYLE);
   });
 });
@@ -74,7 +77,7 @@ describe("kop di kertas", () => {
   });
 
   it("logo di atas: kolom, teks di bawah logo", () => {
-    const out = render(doc, { ...base, kop: { layout: "atas", rule: "tunggal", logoSize: "besar" } });
+    const out = render(doc, { ...base, kop: { ...DEFAULT_LETTERHEAD_STYLE, layout: "atas", rule: "tunggal", logoSize: "besar" } });
     assert.ok(out.includes('data-kop-layout="atas"'));
     assert.ok(out.includes("flex-direction:column"));
     assert.ok(out.indexOf("<img") < out.indexOf("DESA YOSOWILANGUN LOR"));
@@ -83,7 +86,7 @@ describe("kop di kertas", () => {
   });
 
   it("logo di kanan: teks lebih dulu, logo sesudahnya", () => {
-    const out = render(doc, { ...base, kop: { layout: "kanan", rule: "tanpa", logoSize: "kecil" } });
+    const out = render(doc, { ...base, kop: { ...DEFAULT_LETTERHEAD_STYLE, layout: "kanan", rule: "tanpa", logoSize: "kecil" } });
     assert.ok(out.includes('data-kop-layout="kanan"'));
     assert.ok(out.indexOf("DESA YOSOWILANGUN LOR") < out.indexOf("<img"));
     assert.ok(out.includes("border-bottom:none"));
@@ -113,6 +116,87 @@ describe("kop di kertas", () => {
   it("kop tanpa kop / garuda tidak terpengaruh gaya desa", () => {
     const none = docOf({ ...(FIXTURES.keteranganDomisili as any), letterhead: "none" });
     assert.ok(!render(none, base).includes("data-kop-layout"));
+  });
+});
+
+describe("gaya kop: ukuran huruf, nama, tata alamat", () => {
+  it("ukuran huruf dibatasi 8–24 pt, dibulatkan 0,5; nilai rusak jatuh ke bawaan; patch sebagian tidak menghapus kunci lain", () => {
+    const n = normalizeLetterheadStyle({ fontSizes: { instansi: 99, desa: "17,3", alamat: "x" } });
+    assert.deepEqual(n.fontSizes, { instansi: 24, desa: 17.5, alamat: DEFAULT_LETTERHEAD_STYLE.fontSizes.alamat });
+    assert.equal(normalizeLetterheadStyle({ fontSizes: { desa: 1 } }).fontSizes.desa, 8);
+    const merged = mergeLetterheadStyleIntoSettings({}, { fontSizes: { desa: 18 }, names: { desa: "DESA X" } });
+    const again = parseLetterheadStyle(mergeLetterheadStyleIntoSettings(merged, { fontSizes: { alamat: 9 } }));
+    assert.deepEqual(again.fontSizes, { instansi: 13, desa: 18, alamat: 9 });
+    assert.equal(again.names.desa, "DESA X");
+  });
+
+  it("nama pengganti dirapikan (spasi, karakter kontrol, panjang)", () => {
+    const n = normalizeLetterheadStyle({ names: { pemerintah: "  PEMKAB \n  X\u0000Y ", kecamatan: 5, desa: "a".repeat(500) } });
+    assert.equal(n.names.pemerintah, "PEMKAB X Y");
+    assert.equal(n.names.kecamatan, "");
+    assert.equal(n.names.desa.length, 120);
+  });
+
+  it("'Kab.' di data tidak menggandakan 'Kabupaten' di kop; Kota memakai PEMERINTAH KOTA", () => {
+    for (const raw of ["Kab. Kutai Kartanegara", "Kabupaten Kutai Kartanegara", "Kab Kutai Kartanegara", "Kutai Kartanegara"]) {
+      assert.deepEqual(parseRegency(raw), { jenis: "KABUPATEN", nama: "Kutai Kartanegara" }, raw);
+    }
+    assert.deepEqual(parseRegency("Kota Balikpapan"), { jenis: "KOTA", nama: "Balikpapan" });
+    assert.deepEqual(parseRegency("Kota Administrasi Jakarta Barat"), { jenis: "KOTA ADMINISTRASI", nama: "Jakarta Barat" });
+    const lines = kopHeadingLines({ nama: "Desa Sumber Sari", kecamatan: "Kec. Loa Kulu", kabupaten: "Kab. Kutai Kartanegara" }, DEFAULT_LETTERHEAD_STYLE.names);
+    assert.deepEqual(lines.map((l) => l.text), ["PEMERINTAH KABUPATEN KUTAI KARTANEGARA", "KECAMATAN LOA KULU", "DESA SUMBER SARI"]);
+  });
+
+  it("nama pengganti menggantikan seluruh barisnya; kosong tetap otomatis", () => {
+    const lines = kopHeadingLines(
+      { nama: "Sumber Sari", kecamatan: "Loa Kulu", kabupaten: "Kab. Kutai Kartanegara" },
+      { pemerintah: "Pemerintah Kabupaten Kukar", kecamatan: "", desa: "" },
+    );
+    assert.equal(lines[0].text, "PEMERINTAH KABUPATEN KUKAR");
+    assert.equal(lines[1].text, "KECAMATAN LOA KULU");
+  });
+
+  const D = { alamat: "Jl. Mawar 5", kode_pos: "75571", telepon: "0823", email: "a@b.id" };
+  const flat = (l: ReturnType<typeof kopAddressLines>) => l.map((x) => x.map((s) => s.text));
+
+  it("tata alamat: mengalir (urutan lama), dua baris, satu per baris; bagian kosong dilewati", () => {
+    assert.deepEqual(flat(kopAddressLines(D, "alir")), [["Jl. Mawar 5", "Telp. 0823", "Email: a@b.id", "Kode Pos 75571"]]);
+    assert.deepEqual(flat(kopAddressLines(D, "dua")), [["Jl. Mawar 5", "Kode Pos 75571"], ["Telp. 0823", "Email: a@b.id"]]);
+    assert.deepEqual(flat(kopAddressLines(D, "per")), [["Jl. Mawar 5"], ["Kode Pos 75571"], ["Telp. 0823"], ["Email: a@b.id"]]);
+    assert.deepEqual(flat(kopAddressLines({ alamat: "X", telepon: "", email: "" }, "dua")), [["X"]]);
+    assert.deepEqual(kopAddressLines({}, "per"), []);
+  });
+
+  const doc = docOf(FIXTURES.keteranganDomisili);
+  const base = withVillageContext(sampleLetterValues(doc), CTX);
+
+  it("kertas memakai ukuran huruf kop dari gaya; kontak tidak dipatahkan di tengah", () => {
+    const out = render(doc, { ...base, kop: normalizeLetterheadStyle({ fontSizes: { instansi: 14, desa: 18, alamat: 9 } }) });
+    assert.ok(out.includes("font-size:18pt"));
+    assert.ok(out.includes("font-size:9pt"));
+    assert.ok(out.includes("white-space:nowrap"));
+  });
+
+  it("gaya khusus surat (doc.letterheadStyle) menggantikan gaya desa; tanpa itu ikut desa", () => {
+    const own = { ...doc, letterheadStyle: normalizeLetterheadStyle({ layout: "kanan", names: { desa: "Desa Kustom" } }) } as LetterDocument;
+    const out = render(own, base);
+    assert.ok(out.includes('data-kop-layout="kanan"'));
+    assert.ok(out.includes("DESA KUSTOM"));
+    assert.ok(render(doc, base).includes('data-kop-layout="kiri"'));
+  });
+
+  it("dokumen: letterheadStyle opsional, dirapikan saat divalidasi, dan tidak muncul bila kosong", () => {
+    assert.equal(docOf(FIXTURES.keteranganDomisili).letterheadStyle, undefined);
+    const withStyle = docOf({ ...(FIXTURES.keteranganDomisili as any), letterheadStyle: { layout: "atas", fontSizes: { desa: 99 } } });
+    assert.equal(withStyle.letterheadStyle?.layout, "atas");
+    assert.equal(withStyle.letterheadStyle?.fontSizes.desa, 24);
+  });
+
+  it("kop Garuda tidak menggandakan 'Kab.'", () => {
+    const g = docOf({ ...(FIXTURES.keteranganDomisili as any), letterhead: "garuda" });
+    const out = render(g, { ...base, desa: { ...base.desa, kabupaten: "Kab. Kutai Kartanegara" } });
+    assert.ok(out.includes("KABUPATEN KUTAI KARTANEGARA"));
+    assert.ok(!out.includes("KAB. KUTAI"));
   });
 });
 
@@ -152,7 +236,7 @@ describe("draf kop: validasi & perubahan", () => {
     assert.deepEqual(patchFromDraft(saved, next), {
       phone: "(0343) 555 123",
       officials: { kepalaDesaNama: "Budi" },
-      style: { layout: "atas", rule: "ganda", logoSize: "sedang" },
+      style: { ...DEFAULT_LETTERHEAD_STYLE, layout: "atas" },
     });
     assert.deepEqual(patchFromDraft(saved, { ...saved, logoUrl: "" }), { logoUrl: "" });
   });

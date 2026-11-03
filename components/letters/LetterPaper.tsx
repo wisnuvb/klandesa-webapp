@@ -4,13 +4,21 @@
  * (escape otomatis) — tidak ada penyisipan HTML mentah; semua gaya berasal dari enum/angka
  * tervalidasi, tidak pernah dari string bebas.
  */
-import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from "react";
+import { Fragment, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { isSafeSrc } from "@/lib/letters/document/schema";
 import { GARUDA_IMAGE } from "@/lib/letters/garuda";
 import type { Block, CustomField, Inline, LeafBlock, LetterDocument } from "@/lib/letters/document/schema";
 import { applyFormat } from "@/lib/letters/format";
 import { formatNip } from "@/lib/letters/nip";
-import { DEFAULT_LETTERHEAD_STYLE, LOGO_SIZE_MM, normalizeLetterheadStyle } from "@/lib/letters/letterhead";
+import {
+  DEFAULT_LETTERHEAD_STYLE,
+  LOGO_SIZE_MM,
+  kopAddressLines,
+  kopHeadingLines,
+  normalizeLetterheadStyle,
+  parseRegency,
+  type KopSegment,
+} from "@/lib/letters/letterhead";
 import { FONTS, LINE_HEIGHTS, PAPER_SIZES } from "@/lib/letters/paper";
 import {
   DESA_FIELDS,
@@ -187,6 +195,20 @@ function plain(list: readonly Inline[] | undefined, ctx: Ctx): string {
 const stripPrefix = (s: string | undefined, word: string) =>
   (s ?? "").trim().replace(new RegExp(`^${word}\\s+`, "i"), "").trim();
 
+/** Alamat & kontak: baris baru hanya muncul di antara potongan, tidak di tengah "Telp. …" atau "Email: …". */
+function addressLine(segments: KopSegment[], key: number, size: number): ReactNode {
+  return (
+    <div key={key} style={{ fontWeight: 400, fontSize: `${size}pt` }}>
+      {segments.map((seg, i) => (
+        <Fragment key={i}>
+          <span style={seg.keep ? { whiteSpace: "nowrap" } : undefined}>{seg.text}</span>
+          {i < segments.length - 1 ? ", " : ""}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
 function safeLogo(url: string | undefined): string | null {
   return url && isSafeSrc(url) ? url : null;
 }
@@ -195,15 +217,15 @@ function Kop(ctx: Ctx): ReactNode {
   const { doc, values, mode } = ctx;
   if (doc.letterhead === "none") return null;
   const d = values.desa;
-  const kab = stripPrefix(d.kabupaten, "kabupaten");
-  const kec = stripPrefix(d.kecamatan, "kecamatan");
-  const desa = stripPrefix(d.nama, "desa");
 
   if (doc.letterhead === "garuda") {
+    const reg = parseRegency(d.kabupaten);
+    const kec = stripPrefix(d.kecamatan, "kecamatan");
+    const desa = stripPrefix(d.nama, "desa");
     const lines = [
       desa ? `KEPALA DESA ${desa.toUpperCase()}` : "",
       kec ? `KECAMATAN ${kec.toUpperCase()}` : "",
-      kab ? `KABUPATEN ${kab.toUpperCase()}` : "",
+      reg.nama ? `${reg.jenis} ${reg.nama.toUpperCase()}` : "",
     ].filter(Boolean);
     return (
       <div className="lp-kop" style={{ textAlign: "center", marginBottom: "5mm" }}>
@@ -222,22 +244,17 @@ function Kop(ctx: Ctx): ReactNode {
     );
   }
 
-  const style = values.kop ? normalizeLetterheadStyle(values.kop) : DEFAULT_LETTERHEAD_STYLE;
+  // Gaya khusus surat ini (doc.letterheadStyle) menggantikan gaya desa seluruhnya; tanpa itu, pakai gaya desa.
+  const style = normalizeLetterheadStyle(doc.letterheadStyle ?? values.kop ?? DEFAULT_LETTERHEAD_STYLE);
   const preview = mode === "preview";
   const clickable = preview && !!ctx.onKopClick;
   const logo = safeLogo(values.logoUrl);
-  const alamat = [d.alamat, d.telepon ? `Telp. ${d.telepon}` : "", d.email ? `Email: ${d.email}` : "", d.kode_pos ? `Kode Pos ${d.kode_pos}` : ""]
-    .map((s) => (s ?? "").trim())
-    .filter(Boolean)
-    .join(", ");
-  const lines: Array<{ text: string; size: string }> = [
-    kab && { text: `PEMERINTAH KABUPATEN ${kab.toUpperCase()}`, size: "1.1em" },
-    kec && { text: `KECAMATAN ${kec.toUpperCase()}`, size: "1.1em" },
-    desa && { text: `DESA ${desa.toUpperCase()}`, size: "1.3em" },
-    alamat && { text: alamat, size: "0.85em" },
-  ].filter(Boolean) as Array<{ text: string; size: string }>;
+  const headings = kopHeadingLines(d, style.names);
+  const addressLines = kopAddressLines(d, style.addressLayout);
+  const hasAlamat = addressLines.length > 0;
+  const lines = headings;
   // Cetak tanpa isi sama sekali → tanpa kop. Pratinjau tetap tampil agar operator bisa mengisinya.
-  if (lines.length === 0 && !logo && !clickable) return null;
+  if (lines.length === 0 && !hasAlamat && !logo && !clickable) return null;
 
   const stacked = style.layout === "atas";
   const logoMm = LOGO_SIZE_MM[style.logoSize];
@@ -272,16 +289,17 @@ function Kop(ctx: Ctx): ReactNode {
 
   const textNode = (
     <div style={{ flex: stacked ? "none" : 1, minWidth: 0, width: stacked ? "100%" : undefined, textAlign: "center" }}>
-      {lines.length === 0 && preview ? (
+      {lines.length === 0 && !hasAlamat && preview ? (
         <div className="lp-deco" style={{ color: "#777", fontFamily: "sans-serif", fontSize: "0.85em" }}>
           Kop surat belum diisi — klik untuk mengisi
         </div>
       ) : null}
       {lines.map((l, i) => (
-        <div key={i} style={{ fontWeight: i === lines.length - 1 && alamat ? 400 : 700, fontSize: l.size }}>
+        <div key={i} style={{ fontWeight: 700, fontSize: `${style.fontSizes[l.role]}pt` }}>
           {l.text}
         </div>
       ))}
+      {addressLines.map((seg, i) => addressLine(seg, i, style.fontSizes.alamat))}
     </div>
   );
   const spacer = logoNode ? <div aria-hidden="true" style={{ width: `${logoMm}mm`, flexShrink: 0 }} /> : null;

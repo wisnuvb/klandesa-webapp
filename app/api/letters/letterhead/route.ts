@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { mergeMailSectionIntoVillageSettings, type VillageMailSettingsFields } from "@/lib/mail/letterFormSnapshot";
 import { isSafeSrc } from "@/lib/letters/document/schema";
-import { mergeLetterheadStyleIntoSettings, normalizeLetterheadStyle } from "@/lib/letters/letterhead";
+import { mergeLetterheadStyleIntoSettings, type LetterheadStylePatch } from "@/lib/letters/letterhead";
 import { buildLetterContext } from "@/lib/letters/server/context";
 import { KOP_MESSAGES, KOP_PATTERNS } from "@/lib/letters/letterhead-draft";
 import { normalizeNip, validateNip } from "@/lib/letters/nip";
@@ -25,7 +25,7 @@ const bad = (error: string): Bad => ({ error });
  * (diturunkan dari kode wilayah resmi di Pengaturan Desa).
  *
  * Body: { logoUrl?, address?, postalCode?, phone?, email?, officials?: { kepalaDesaNama?, kepalaDesaNip?,
- *         sekretarisNama?, camatNama?, camatNip?, camatGolongan? }, style?: { layout?, rule?, logoSize? } }
+ *         sekretarisNama?, camatNama?, camatNip?, camatGolongan? }, style?: { layout?, rule?, logoSize?, fontSizes?, addressLayout?, names? } }
  */
 export async function PATCH(req: NextRequest) {
   try {
@@ -103,8 +103,8 @@ export async function PATCH(req: NextRequest) {
 
     if (has("style")) {
       if (!isObj(body.style)) return NextResponse.json(bad("Tata letak kop tidak valid"), { status: 400 });
-      const style = normalizeLetterheadStyle(body.style);
-      settings = mergeLetterheadStyleIntoSettings(settings ?? village.settings, style);
+      // Hanya kunci yang dikirim yang berubah; nilai di luar batas dirapikan/dikembalikan ke bawaan oleh normalisasi.
+      settings = mergeLetterheadStyleIntoSettings(settings ?? village.settings, body.style as LetterheadStylePatch);
     }
     if (settings) data.settings = settings as Prisma.InputJsonValue;
 

@@ -17,6 +17,7 @@ import { FORMAT_IDS } from "../format";
 import { FONT_IDS, PAPER_SIZE_IDS } from "../paper";
 import { NUMBER_PATTERN_MAX, DEFAULT_NUMBER_PATTERN } from "../numbering";
 import { REF_PATTERN } from "../registry";
+import { normalizeLetterheadStyle, type LetterheadStyle } from "../letterhead";
 
 export const LIMITS = {
   blocks: 400,
@@ -333,6 +334,14 @@ export const DocumentSchema = z.object({
   letterhead: z.enum(["desa", "garuda", "none"]).default("desa"),
   /** Hanya untuk kop `garuda`: lambang hitam-putih (hemat tinta, aman difotokopi) atau berwarna. */
   garudaStyle: z.enum(["hitam_putih", "warna"]).default("hitam_putih"),
+  /**
+   * Gaya kop khusus jenis surat ini (tata letak, ukuran huruf, tata alamat, nama baris). Kosong = ikut gaya kop desa
+   * (`Village.settings.letterhead`). Bila ada, dipakai utuh menggantikan gaya desa; data desa (alamat, logo) tetap dari profil desa.
+   */
+  letterheadStyle: z
+    .unknown()
+    .transform((v): LetterheadStyle | undefined => (v === undefined || v === null ? undefined : normalizeLetterheadStyle(v)))
+    .optional(),
   numbering: NumberingSchema.default(() => NumberingSchema.parse({})),
   people: z.array(PersonRoleSchema).max(LIMITS.people).default([]),
   fields: z.array(CustomFieldSchema).max(LIMITS.fields).default([]),

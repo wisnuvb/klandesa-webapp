@@ -9,6 +9,7 @@ import {
   type KopDraft,
   type KopErrors,
 } from "@/lib/letters/letterhead-draft";
+import { patchLetterheadStyle, type LetterheadStylePatch } from "@/lib/letters/letterhead";
 import type { VillagePreviewContext } from "@/lib/letters/values";
 
 export type LetterheadController = {
@@ -24,7 +25,7 @@ export type LetterheadController = {
   desaNama: string;
   kecamatan: string;
   kabupaten: string;
-  change(patch: Partial<Omit<KopDraft, "style">> & { style?: Partial<KopDraft["style"]> }): void;
+  change(patch: Partial<Omit<KopDraft, "style">> & { style?: LetterheadStylePatch }): void;
   /** `true` bila tersimpan. Gagal validasi/jaringan mengembalikan `false` dan mengisi `saveError`/`errors`. */
   save(): Promise<boolean>;
   discard(): void;
@@ -88,7 +89,7 @@ export function useVillageLetterhead(): { controller: LetterheadController; prev
     const d = draftRef.current;
     if (!d) return;
     const { style, ...rest } = patch;
-    const next: KopDraft = { ...d, ...rest, style: style ? { ...d.style, ...style } : d.style };
+    const next: KopDraft = { ...d, ...rest, style: style ? patchLetterheadStyle(d.style, style) : d.style };
     draftRef.current = next;
     setDraft(next);
     setSaveError(null);

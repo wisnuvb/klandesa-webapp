@@ -4,7 +4,7 @@
  */
 import { isSafeSrc } from "./document/schema";
 import { validateNip } from "./nip";
-import { DEFAULT_LETTERHEAD_STYLE, normalizeLetterheadStyle, type LetterheadStyle } from "./letterhead";
+import { DEFAULT_LETTERHEAD_STYLE, normalizeLetterheadStyle, sameLetterheadStyle, type LetterheadStyle } from "./letterhead";
 import type { VillagePreviewContext } from "./values";
 
 export type KopDraft = {
@@ -42,7 +42,7 @@ export const KOP_MESSAGES = {
 export function draftFromContext(ctx: VillagePreviewContext): KopDraft {
   const d = ctx.desa;
   return {
-    style: ctx.kop ? normalizeLetterheadStyle(ctx.kop) : { ...DEFAULT_LETTERHEAD_STYLE },
+    style: normalizeLetterheadStyle(ctx.kop ?? DEFAULT_LETTERHEAD_STYLE),
     logoUrl: ctx.logoUrl ?? "",
     alamat: d.alamat ?? "",
     kodePos: d.kode_pos ?? "",
@@ -96,9 +96,6 @@ export function validateDraft(d: KopDraft): KopErrors {
   return e;
 }
 
-const sameStyle = (a: LetterheadStyle, b: LetterheadStyle) =>
-  a.layout === b.layout && a.rule === b.rule && a.logoSize === b.logoSize;
-
 export function isDirty(saved: KopDraft, draft: KopDraft): boolean {
   return patchFromDraft(saved, draft) !== null;
 }
@@ -122,6 +119,6 @@ export function patchFromDraft(saved: KopDraft, draft: KopDraft): Record<string,
   if (t(draft.camatNip) !== t(saved.camatNip)) officials.camatNip = t(draft.camatNip);
   if (Object.keys(officials).length) body.officials = officials;
 
-  if (!sameStyle(draft.style, saved.style)) body.style = draft.style;
+  if (!sameLetterheadStyle(draft.style, saved.style)) body.style = draft.style;
   return Object.keys(body).length ? body : null;
 }
