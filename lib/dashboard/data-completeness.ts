@@ -24,8 +24,10 @@ function readIdmVillageCode(settings: unknown): string {
  * tampil cacat/kosong. Dipakai untuk alert dashboard, bukan gate blocking seperti /onboarding.
  */
 export async function getDataCompleteness(village: Village): Promise<CompletenessItem[]> {
-  const [residentCount, kepalaDesaOfficialCount] = await Promise.all([
+  const [residentCount, positionCount, officialCount, kepalaDesaOfficialCount] = await Promise.all([
     prisma.resident.count({ where: { villageId: village.id } }),
+    prisma.position.count({ where: { villageId: village.id, isActive: true } }),
+    prisma.official.count({ where: { villageId: village.id, status: "active" } }),
     prisma.official.count({
       where: { villageId: village.id, status: "active", position: { name: { contains: "kepala desa" } } },
     }),
@@ -55,6 +57,22 @@ export async function getDataCompleteness(village: Village): Promise<Completenes
       impact: "Logo tampil di kop surat dan halaman login warga.",
       href: "/pengaturan-desa",
       cta: "Unggah logo",
+    },
+    {
+      key: "position",
+      label: "Data jabatan",
+      done: positionCount > 0,
+      impact: "Layanan surat butuh struktur jabatan untuk menentukan siapa yang berhak menandatangani.",
+      href: "/data-jabatan",
+      cta: "Lengkapi data jabatan",
+    },
+    {
+      key: "official",
+      label: "Data perangkat desa",
+      done: officialCount > 0,
+      impact: "Tanpa perangkat desa aktif, surat tidak punya penanda tangan dan proses layanan surat terhambat.",
+      href: "/data-perangkat",
+      cta: "Lengkapi data perangkat",
     },
     {
       key: "kepalaDesa",
