@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Loader2, Plus, Users } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, CheckCircle2, Loader2, Plus, ScanText, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppDialogsSafe } from "@/components/providers/AppDialogProvider";
 import {
@@ -11,6 +12,9 @@ import {
 } from "@/lib/kependudukan/family";
 import type { ExistingHousehold } from "@/lib/kependudukan/family-service";
 import { KK_HEAD_ROLE } from "@/lib/kependudukan/household";
+import { draftToFamily } from "@/lib/kependudukan/kk-ocr/apply";
+import type { KkDraft } from "@/lib/kependudukan/kk-ocr/parse";
+import { KkOcrDialog } from "./KkOcrDialog";
 import { MemberCard, memberFieldId } from "./MemberCard";
 import { StepKeluarga } from "./StepKeluarga";
 import { StepPeriksa, type DerivedParents } from "./StepPeriksa";
@@ -67,6 +71,9 @@ export function TambahKeluargaView() {
   const [existing, setExisting] = useState<ExistingHousehold | null>(null);
   const [parents, setParents] = useState<DerivedParents[]>([]);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [ocrOpen, setOcrOpen] = useState(false);
+  /** Catatan "periksa" hasil baca foto KK, sejajar dengan `members`. */
+  const [ocrNotes, setOcrNotes] = useState<string[][]>([]);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ created: Array<{ id: number; name: string }>; mutations: number } | null>(null);
@@ -162,6 +169,7 @@ export function TambahKeluargaView() {
       if (!ok) return;
     }
     setMembers((ms) => ms.filter((_, idx) => idx !== i));
+    setOcrNotes((n) => n.filter((_, idx) => idx !== i));
     setIssues(NO_ISSUES(members.length - 1));
   }
 
@@ -236,7 +244,28 @@ export function TambahKeluargaView() {
     }
   }
 
+  async function applyOcr(draft: KkDraft) {
+    const hasData = members.some((m) => m.name.trim() || m.nik.trim());
+    if (hasData) {
+      const ok = await appConfirm({ title: "Ganti anggota yang sudah diisi?", description: "Daftar anggota yang sedang diisi akan diganti dengan hasil bacaan foto KK.", confirmLabel: "Ganti", tone: "destructive" });
+      if (!ok) return;
+    }
+    const applied = draftToFamily(draft, { arrival: header.arrival.enabled });
+    const take = (cur: string, next: string) => next || cur;
+    setHeader((h) => ({ ...h, kk: take(h.kk, applied.header.kk), address: take(h.address, applied.header.address), rt: take(h.rt, applied.header.rt), rw: take(h.rw, applied.header.rw), hamlet: take(h.hamlet, applied.header.hamlet) }));
+    if (applied.members.length) {
+      setMembers(applied.members.slice(0, FAMILY_LIMITS.maxMembers));
+      setOcrNotes(applied.notes.slice(0, FAMILY_LIMITS.maxMembers));
+      setIssues(NO_ISSUES(Math.min(applied.members.length, FAMILY_LIMITS.maxMembers)));
+    }
+    setAcknowledged(false);
+    setProblem(null);
+    setStep(1);
+    toast.success(`Hasil bacaan diterapkan (${applied.members.length} anggota). Periksa setiap isian sebelum menyimpan.`);
+  }
+
   function reset() {
+    setOcrNotes([]);
     setHeader(emptyHeader());
     setMembers([emptyMember({ familyRole: KK_HEAD_ROLE })]);
     setIssues(NO_ISSUES(1));
@@ -252,7 +281,7 @@ export function TambahKeluargaView() {
   const canSave = step === 3 && !busy && !hasBlockingIssues(issues) && (!hasWarnings || acknowledged);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <header className="space-y-2">
         <Link href="/data-warga" className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground underline-offset-2 hover:underline">
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -342,6 +371,23 @@ export function TambahKeluargaView() {
             </div>
           ) : null}
 
+          {step === 1 ? (
+            <section aria-label="Isi cepat dari foto KK" className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-3">
+                <ScanText aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
+                <p className="text-sm">
+                  <span className="font-semibold">Isi cepat dari foto KK</span> <span className="rounded bg-muted px-1.5 py-0.5 text-xs">percobaan</span>
+                  <br />
+                  <span className="text-muted-foreground">Foto dibaca di perangkat ini, tidak dikirim ke mana pun. Hasilnya draf yang tetap Anda periksa.</span>
+                </p>
+              </div>
+              <Button type="button" variant="outline" className="min-h-11 shrink-0" onClick={() => setOcrOpen(true)}>
+                <ScanText aria-hidden="true" />
+                Baca dari foto
+              </Button>
+            </section>
+          ) : null}
+
           {step === 1 ? <StepKeluarga header={header} errors={issues.header} existing={existing} onChange={updateHeader} /> : null}
 
           {step === 2 ? (
@@ -354,6 +400,7 @@ export function TambahKeluargaView() {
                   errors={issues.members[i] ?? {}}
                   canRemove={members.length > 1}
                   arrivalEnabled={header.arrival.enabled}
+                  ocrNotes={ocrNotes[i]}
                   onChange={(patch) => updateMember(i, patch)}
                   onRemove={() => void removeMember(i)}
                 />
@@ -398,6 +445,8 @@ export function TambahKeluargaView() {
           </div>
         </form>
       )}
+
+      {ocrOpen ? <KkOcrDialog open onOpenChange={setOcrOpen} onApply={(d) => void applyOcr(d)} /> : null}
     </div>
   );
 }

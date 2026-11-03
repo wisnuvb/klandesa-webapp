@@ -9,6 +9,7 @@ import { useDocumentEditor } from "@/lib/letters/editor";
 import type { LetterDocument } from "@/lib/letters/document/schema";
 import { Canvas } from "@/components/letters/editor/canvas";
 import { SidePanel, checkSummary } from "@/components/letters/editor/panels";
+import { useVillageLetterhead } from "@/components/letters/editor/useVillageLetterhead";
 import { V2TemplatePreviewDialog } from "../../_components/V2Views";
 import type { UseTemplateDocument } from "../_hooks/useTemplateDocument";
 import { ConflictBanner, TopBar } from "./TopBar";
@@ -20,6 +21,9 @@ export function EditorWorkspace({ tpl, initialDoc }: { tpl: UseTemplateDocument;
   const [previewOpen, setPreviewOpen] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const { controller: letterhead, previewContext } = useVillageLetterhead();
+  const [openKop, setOpenKop] = useState(0);
+  const onKopClick = useCallback(() => setOpenKop((n) => n + 1), []);
 
   const { onDocumentChange } = tpl;
   // Pengubah di `editor` stabil antar render (objek `editor` sendiri baru tiap render): jangan jadikan dependensi.
@@ -54,6 +58,11 @@ export function EditorWorkspace({ tpl, initialDoc }: { tpl: UseTemplateDocument;
 
   const onDone = async () => {
     setLeaveError(null);
+    if (letterhead.dirty) {
+      setOpenKop((n) => n + 1);
+      setLeaveError('Perubahan kop surat belum disimpan. Tekan "Simpan ke profil desa" atau "Batalkan" di tab Kop surat.');
+      return;
+    }
     if (summary.errors > 0) {
       setLeaveError(`Masih ada ${summary.errors} hal yang perlu diperbaiki sebelum jenis surat ini bisa dipakai. Lihat tab "Cek surat".`);
       return;
@@ -104,13 +113,13 @@ export function EditorWorkspace({ tpl, initialDoc }: { tpl: UseTemplateDocument;
 
       <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start">
         <div className="h-[70dvh] min-h-96 min-w-0 flex-1 lg:h-[calc(100dvh-11rem)]">
-          <Canvas editor={editor} />
+          <Canvas editor={editor} village={previewContext} onKopClick={onKopClick} />
         </div>
         <aside
           aria-label="Pengaturan surat"
           className="lg:sticky lg:top-24 lg:h-[calc(100dvh-11rem)] lg:w-[360px] lg:shrink-0"
         >
-          <SidePanel editor={editor} onReveal={reveal} />
+          <SidePanel editor={editor} onReveal={reveal} letterhead={letterhead} openKop={openKop} />
         </aside>
       </div>
 
@@ -118,6 +127,7 @@ export function EditorWorkspace({ tpl, initialDoc }: { tpl: UseTemplateDocument;
         template={previewOpen ? { name: tpl.template.name || "Jenis surat", document: doc } : null}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
+        village={previewContext}
       />
     </div>
   );

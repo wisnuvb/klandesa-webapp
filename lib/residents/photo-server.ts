@@ -2,8 +2,8 @@ import { PutObjectCommand, type PutObjectCommandInput } from "@aws-sdk/client-s3
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "@/lib/prisma";
 import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/mobile/report-logic";
-import { MOBILE_MEDIA_QUOTA_BYTES, mediaQuotaFullMessage } from "@/lib/mobile/media-quota";
-import { releaseMobileMedia, reserveMobileMedia } from "@/lib/mobile/media-usage";
+import { archiveQuotaFullMessage, mediaQuotaFullMessage } from "@/lib/mobile/media-quota";
+import { reserveUpload } from "@/lib/mobile/media-usage";
 import { deleteMobilePhotos } from "@/lib/mobile/storage";
 import { buildSpacesPublicUrl, getSpacesClient, getSpacesConfig } from "@/lib/spaces";
 import { parsePhotoPair, residentPhotoKey, RESIDENT_PHOTO_FOLDER, type PhotoPairResult } from "./photo";
@@ -21,16 +21,13 @@ export async function presignResidentPhoto(village: Village, residentId: number,
   const size = Number(fileSize);
   if (!Number.isFinite(size) || size <= 0 || size > MAX_PHOTO_BYTES) return { ok: false, status: 400, message: "Ukuran foto terlalu besar. Maksimal 2,5 MB." };
 
-  // Kuota foto per desa; gagal terbuka bila penghitung tidak bisa dipakai (sama dengan unggahan mobile lain).
+  // Foto profil memakai kuota Arsip Digital desa (di luar foto Warga yang gratis) dan pengaman biaya foto seluler.
   const cfg = getSpacesConfig();
-  let reserved = false;
-  try {
-    if (!(await reserveMobileMedia(village, cfg.bucket, size, MOBILE_MEDIA_QUOTA_BYTES))) {
-      return { ok: false, status: 403, message: mediaQuotaFullMessage(), reason: "MEDIA_QUOTA_FULL" };
-    }
-    reserved = true;
-  } catch (e) {
-    console.error("[resident photo] gagal memeriksa kuota foto", e);
+  const reservation = await reserveUpload(village, cfg.bucket, size, RESIDENT_PHOTO_FOLDER);
+  if (!reservation.ok) {
+    return reservation.reason === "ARCHIVE_QUOTA_FULL"
+      ? { ok: false, status: 403, message: archiveQuotaFullMessage(), reason: "ARCHIVE_QUOTA_FULL" }
+      : { ok: false, status: 403, message: mediaQuotaFullMessage(), reason: "MEDIA_QUOTA_FULL" };
   }
 
   const key = residentPhotoKey(village.code, residentId, globalThis.crypto.randomUUID(), ext);
@@ -46,7 +43,7 @@ export async function presignResidentPhoto(village: Village, residentId: number,
   try {
     uploadUrl = await getSignedUrl(getSpacesClient(), new PutObjectCommand(input), { expiresIn: 120 });
   } catch (e) {
-    if (reserved) await releaseMobileMedia(village.id, size).catch(() => undefined);
+    await reservation.release();
     throw e;
   }
   const uploadHeaders: Record<string, string> = { "Content-Type": contentType };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Trash2 } from "lucide-react";
+import { ChevronDown, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EthnicitySelect } from "@/components/app/data-warga/EthnicityField";
 import { Field, SelectField, TextField, entries } from "./fields";
@@ -14,12 +14,14 @@ const EXTRA_KEYS = ["education", "occupation", "bloodType", "nationality", "ethn
 
 export const memberFieldId = (index: number, key: string) => `m${index}-${key}`;
 
-export function MemberCard({ index, member, errors, canRemove, arrivalEnabled, onChange, onRemove }: {
+export function MemberCard({ index, member, errors, canRemove, arrivalEnabled, ocrNotes, onChange, onRemove }: {
   index: number;
   member: FamilyMemberInput;
   errors: Record<string, string>;
   canRemove: boolean;
   arrivalEnabled: boolean;
+  /** Hal yang meragukan dari hasil baca foto KK. */
+  ocrNotes?: string[];
   onChange: (patch: Partial<FamilyMemberInput>) => void;
   onRemove: () => void;
 }) {
@@ -52,6 +54,19 @@ export function MemberCard({ index, member, errors, canRemove, arrivalEnabled, o
   return (
     <fieldset className="min-w-0 space-y-4 rounded-lg border bg-card p-4">
       <legend className="sr-only">Anggota {index + 1}: {title}</legend>
+      {ocrNotes?.length ? (
+        <div role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-50">
+          <p className="flex items-center gap-2 font-medium">
+            <TriangleAlert aria-hidden="true" className="size-4" />
+            Dari foto KK, periksa:
+          </p>
+          <ul className="list-disc pl-6">
+            {ocrNotes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">Anggota {index + 1}</p>

@@ -29,7 +29,7 @@ export default async function VerifikasiSuratPage({ params }: { params: Promise<
     : null;
 
   return (
-    <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col gap-6 px-4 py-16">
+    <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col gap-6 px-4 pb-16 pt-32 sm:px-6">
       {letter ? (
         <>
           <div className="flex items-center gap-3 text-emerald-700">

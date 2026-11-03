@@ -258,7 +258,7 @@ export function StorageSidebar(props: Props) {
             <HardDrive className="w-4 h-4 text-teal-600" />
             Pemakaian per Sumber
           </h3>
-          <p className="text-xs text-gray-500 mb-4">Lampiran surat, SK, dan dokumen modul lain dihitung terpisah per modul.</p>
+          <p className="text-xs text-gray-500 mb-4">Lampiran surat, SK, dan dokumen modul lain dihitung terpisah per modul. Foto aplikasi warga (profil, laporan, iuran, UKM) ikut memakai kuota ini; foto di Warga gratis.</p>
           <ul className="space-y-3">
             {usageBySource.map((line) => {
               const percentage = usedBytes > 0 ? (line.bytes / usedBytes) * 100 : 0;
@@ -266,7 +266,8 @@ export function StorageSidebar(props: Props) {
                 <li key={line.label}>
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <span className="text-xs text-gray-700 break-words min-w-0">
-                      {line.label} <span className="text-gray-500">({line.count} berkas)</span>
+                      {line.label}
+                      {line.count > 0 ? <span className="text-gray-500"> ({line.count} berkas)</span> : null}
                     </span>
                     <span className="text-xs font-medium text-gray-900 shrink-0 tabular-nums">{formatFileSize(line.bytes)}</span>
                   </div>

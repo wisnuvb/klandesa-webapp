@@ -40,16 +40,30 @@ export type QuotaMeta = {
   incomingBytes: number;
 };
 
-export async function getArchiveUsedBytes(
-  villageId: number,
-  tx?: Prisma.TransactionClient,
-): Promise<number> {
+/** Jumlah ukuran berkas Arsip Digital saja. */
+export async function getArchiveFilesBytes(villageId: number, tx?: Prisma.TransactionClient): Promise<number> {
   const db = tx ?? prisma;
   const agg = await db.digitalArchive.aggregate({
     where: { villageId },
     _sum: { fileSize: true },
   });
   return Number(agg._sum.fileSize || 0);
+}
+
+/** Foto seluler berbayar (profil warga, laporan, bukti iuran, UKM); foto Warga/media sosial gratis dan tidak dihitung. */
+export async function getChargedMediaBytes(villageId: number, tx?: Prisma.TransactionClient): Promise<number> {
+  const db = tx ?? prisma;
+  const row = await db.villageMediaUsage.findUnique({ where: { villageId }, select: { chargedBytes: true } });
+  return Number(row?.chargedBytes ?? 0);
+}
+
+/** Pemakaian kuota Arsip Digital: berkas arsip + foto seluler berbayar (satu kuota). */
+export async function getArchiveUsedBytes(
+  villageId: number,
+  tx?: Prisma.TransactionClient,
+): Promise<number> {
+  const [files, charged] = await Promise.all([getArchiveFilesBytes(villageId, tx), getChargedMediaBytes(villageId, tx)]);
+  return files + charged;
 }
 
 export function getVillageStorageLimitBytes(storageLimitGb: number): number {

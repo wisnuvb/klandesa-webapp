@@ -22,6 +22,7 @@ import {
   type PersonValues,
 } from "../values";
 import { OFFICIAL_LABELS, type OfficialId } from "../registry";
+import type { LetterheadStyle } from "../letterhead";
 
 export const INPUT_LIMITS = {
   requestBytes: 300_000,
@@ -271,6 +272,7 @@ export type LetterContext = {
   desa: Record<string, string>;
   pejabat: Record<OfficialId, OfficialValues>;
   logoUrl?: string;
+  kop?: LetterheadStyle;
 };
 
 /** Timpa nama/NIP pejabat dengan isian operator; yang tidak diisi tetap dari konteks desa. */
@@ -330,6 +332,7 @@ export function assembleValues(args: {
   v.desa = { ...context.desa };
   v.pejabat = applyOfficialOverrides(context.pejabat, input.officials);
   v.logoUrl = context.logoUrl;
+  v.kop = context.kop;
   v.surat = buildSuratValues({ date, nomor, tempat: context.desa.nama ?? "" });
   return { ok: true, value: v };
 }

@@ -215,6 +215,8 @@ model VillageMediaUsage {
   villageId   Int      @id
   village     Village  @relation(fields: [villageId], references: [id], onDelete: Cascade)
   mobileBytes BigInt   @default(0)
+  /// Bagian dari mobileBytes yang dihitung ke kuota Arsip Digital (semua foto seluler kecuali Warga/media sosial).
+  chargedBytes BigInt  @default(0)
   updatedAt   DateTime @updatedAt
 
   @@map("village_media_usage")

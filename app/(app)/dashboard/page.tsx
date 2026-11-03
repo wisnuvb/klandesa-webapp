@@ -5,6 +5,8 @@ import Link from "next/link";
 import { DashboardTour } from "@/components/app/DashboardTour";
 import { RecentActivity } from "@/components/app/RecentActivity";
 import { StatsCard } from "@/components/app/StatsCard";
+import { StorageQuotaNotice } from "@/components/app/StorageQuotaNotice";
+import type { StorageUsageSummary } from "@/lib/digitalArchive/quota-level";
 import { LarasDashboardCard } from "@/components/ai/LarasDashboardCard";
 import { RegionalNewsCard } from "@/components/regional-news/RegionalNewsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +33,7 @@ import {
 } from "recharts";
 
 type DashboardStats = {
+  storage?: StorageUsageSummary | null;
   totals: {
     residents: number;
     households: number;
@@ -209,6 +212,8 @@ export default function AppDashboard() {
   return (
     <div className="space-y-6">
       <DashboardTour />
+
+      <StorageQuotaNotice storage={stats?.storage} />
 
       <div data-tour="laras-card">
         <LarasDashboardCard />

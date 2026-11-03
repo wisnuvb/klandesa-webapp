@@ -15,11 +15,13 @@ import {
   type PersonValues,
 } from "@/lib/letters/values";
 import type { OfficialId } from "@/lib/letters/registry";
+import type { LetterheadStyle } from "@/lib/letters/letterhead";
 
 export type PreviewContext = {
   desa: Record<string, string>;
   pejabat: Record<OfficialId, OfficialValues>;
   logoUrl?: string | null;
+  kop?: LetterheadStyle;
 };
 
 /** Satu orang berperan. `db` = nilai dari database (hanya mode resident); `values` = yang tampil/diedit. */
@@ -143,6 +145,7 @@ export function buildPreviewValues(args: {
   v.desa = { ...context.desa };
   v.pejabat = applyOfficialOverrides(context.pejabat, officialOverrides(state.officials));
   v.logoUrl = context.logoUrl ?? undefined;
+  v.kop = context.kop;
   v.surat = buildSuratValues({ date, nomor, tempat: context.desa.nama ?? "" });
   return v;
 }

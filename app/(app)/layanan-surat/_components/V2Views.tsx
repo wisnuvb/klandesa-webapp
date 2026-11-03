@@ -15,7 +15,7 @@ import { LetterPaper } from "@/components/letters/LetterPaper";
 import type { LetterDocument } from "@/lib/letters/document/schema";
 import { validateDocument } from "@/lib/letters/document/validate";
 import { PAPER_SIZES } from "@/lib/letters/paper";
-import { sampleLetterValues, type LetterValues } from "@/lib/letters/values";
+import { sampleLetterValues, withVillageContext, type LetterValues, type VillagePreviewContext } from "@/lib/letters/values";
 import { printPaperElement } from "@/components/letters/print-paper";
 
 /** Kertas dengan skala agar muat lebar kontainer (pratinjau), tetap tajam saat dicetak lewat iframe. */
@@ -153,10 +153,13 @@ export function V2TemplatePreviewDialog({
   template,
   open,
   onOpenChange,
+  village,
 }: {
   template: { id?: number; name: string; document?: unknown } | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  /** Data desa untuk kop & tanda tangan (editor memberi yang belum tersimpan). Tanpa ini, dibaca dari server saat dibuka. */
+  village?: VillagePreviewContext | null;
 }) {
   const paperRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState<{ id: number; doc: LetterDocument | null } | null>(null);
@@ -183,6 +186,23 @@ export function V2TemplatePreviewDialog({
     };
   }, [open, templateId]);
 
+  // Data desa nyata supaya kop dan tanda tangan di pratinjau sama dengan hasil cetak (bukan contoh).
+  const [fetchedVillage, setFetchedVillage] = useState<VillagePreviewContext | null>(null);
+  useEffect(() => {
+    if (!open || village !== undefined) return;
+    let cancelled = false;
+    fetch("/api/letters/context")
+      .then(async (res) => (res.ok ? ((await res.json()) as VillagePreviewContext) : null))
+      .then((ctx) => {
+        if (!cancelled) setFetchedVillage(ctx);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, village]);
+  const villageCtx = village !== undefined ? village : fetchedVillage;
+
   const fetched = loaded && loaded.id === templateId ? loaded : null;
   const given = useMemo(() => {
     if (!hasDocument) return null;
@@ -191,14 +211,18 @@ export function V2TemplatePreviewDialog({
   }, [hasDocument, template?.document]);
   const current = given ?? fetched;
   const doc = current?.doc ?? null;
-  const values = useMemo(() => (doc ? sampleLetterValues(doc) : null), [doc]);
+  const values = useMemo(() => {
+    if (!doc) return null;
+    const sample = sampleLetterValues(doc);
+    return villageCtx ? withVillageContext(sample, villageCtx) : sample;
+  }, [doc, villageCtx]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[94vh] w-[96vw] max-w-[96vw] overflow-y-auto sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>Pratinjau — {template?.name}</DialogTitle>
-          <DialogDescription>Tampilan dengan data contoh. Data asli terisi saat surat dibuat.</DialogDescription>
+          <DialogDescription>Kop dan tanda tangan memakai data desa Anda; isian warga memakai contoh dan terisi data asli saat surat dibuat.</DialogDescription>
         </DialogHeader>
         {!current ? (
           <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground" role="status">

@@ -1,6 +1,7 @@
 import type { Village } from "@prisma/client";
 import { buildLetterFormSnapshot } from "@/lib/mail/letterFormSnapshot";
 import { isSafeSrc } from "../document/schema";
+import { parseLetterheadStyle } from "../letterhead";
 import { OFFICIAL_LABELS } from "../registry";
 import type { LetterContext } from "./input";
 
@@ -30,5 +31,6 @@ export async function buildLetterContext(village: Village): Promise<LetterContex
       camat: { nama: snap.CAMAT_NAMA ?? "", nip: "", jabatan: OFFICIAL_LABELS.camat },
     },
     logoUrl: logo && isSafeSrc(logo) ? logo : undefined,
+    kop: parseLetterheadStyle(village.settings),
   };
 }

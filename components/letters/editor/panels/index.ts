@@ -6,3 +6,4 @@ export { InsertPanel } from "./InsertPanel";
 export { BlockInspector } from "./BlockInspector";
 export { SidePanel, type SidePanelProps } from "./SidePanel";
 export { checkSummary, type CheckSummary } from "./helpers";
+export { LetterheadPanel } from "./LetterheadPanel";

@@ -13,7 +13,7 @@ const EPSILON_GB = 0.001;
 /**
  * Job harian: `village.storageUsed` ditambah manual setiap kali arsip baru dicatat
  * (lihat POST /api/digital-archives). Job ini menghitung ulang dari jumlah nyata
- * `SUM(DigitalArchive.fileSize)` agar drift (transaksi gagal sebagian, migrasi data, dll)
+ * `SUM(DigitalArchive.fileSize)` + foto seluler berbayar (`village_media_usage.chargedBytes`; foto Warga gratis) agar drift (transaksi gagal sebagian, migrasi data, dll)
  * tidak menumpuk. Dijalankan dengan `Authorization: Bearer $CRON_SECRET`.
  */
 export async function POST(req: NextRequest) {
@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
   const realUsedGbByVillage = new Map<number, number>(
     sums.map((s) => [s.villageId, Number(s._sum.fileSize || 0) / GB]),
   );
+  const charged = await prisma.villageMediaUsage.findMany({ select: { villageId: true, chargedBytes: true } });
+  for (const c of charged) {
+    realUsedGbByVillage.set(c.villageId, (realUsedGbByVillage.get(c.villageId) ?? 0) + Number(c.chargedBytes) / GB);
+  }
 
   const villages = await prisma.village.findMany({
     select: { id: true, storageUsed: true },

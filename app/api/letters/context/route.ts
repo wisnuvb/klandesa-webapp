@@ -11,8 +11,8 @@ export async function GET(req: NextRequest) {
     const { village } = loaded.ctx;
     if (!isVillageSubscriptionActive(village)) return subscriptionBlockedResponse(village);
 
-    const { desa, pejabat, logoUrl } = await buildLetterContext(village);
-    return NextResponse.json({ desa, pejabat, logoUrl: logoUrl ?? null });
+    const { desa, pejabat, logoUrl, kop } = await buildLetterContext(village);
+    return NextResponse.json({ desa, pejabat, logoUrl: logoUrl ?? null, kop });
   } catch (err) {
     console.error("GET /api/letters/context error:", err);
     return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });

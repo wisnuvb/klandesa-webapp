@@ -87,6 +87,8 @@ export interface PlanDetail {
 export interface VillageStorageInfo {
   subscriptionPlan: string;
   storageLimitGb: number;
+  /** Foto seluler berbayar (profil warga, laporan, iuran, UKM) yang ikut memakai kuota arsip; foto Warga gratis. */
+  chargedMediaBytes: number;
   /** ISO; add-on kapasitas arsip berlangganan yang masih aktif (null bila tidak ada). */
   addonExpiry?: string | null;
 }

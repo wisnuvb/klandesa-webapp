@@ -5,8 +5,8 @@ import { mobileError, requireMobileContext } from "@/lib/mobile/context";
 import { checkMobileRateLimit, checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/mobile/report-logic";
 import { buildSpacesPublicUrl, getSpacesClient, getSpacesConfig } from "@/lib/spaces";
-import { MOBILE_MEDIA_QUOTA_BYTES, mediaQuotaFullMessage } from "@/lib/mobile/media-quota";
-import { releaseMobileMedia, reserveMobileMedia } from "@/lib/mobile/media-usage";
+import { archiveQuotaFullMessage, mediaQuotaFullMessage } from "@/lib/mobile/media-quota";
+import { reserveUpload } from "@/lib/mobile/media-usage";
 import { getCitizenResident } from "@/lib/mobile/citizen-data";
 import { presignResidentPhoto } from "@/lib/residents/photo-server";
 import { UKM_PHOTO_FOLDER } from "@/lib/mobile/ukm-logic";
@@ -42,17 +42,14 @@ export async function POST(req: NextRequest) {
     return mobileError("INVALID_REQUEST", "Ukuran foto terlalu besar. Maksimal 2,5 MB.", 400);
   }
 
-  // Kuota foto per desa (pengaman biaya penyimpanan), dibaca dari penghitung di database, bukan dari bucket.
-  // Gagal terbuka: bila penghitung tidak bisa dipakai, unggahan tetap jalan.
+  // Pengaman biaya foto seluler (5 GB) untuk semua folder; folder berbayar juga memakai kuota Arsip Digital desa (hanya Warga yang gratis).
+  // Dibaca dari penghitung di database, bukan dari bucket. Gagal terbuka: bila penghitung tidak bisa dipakai, unggahan tetap jalan.
   const cfg = getSpacesConfig();
-  let reserved = false;
-  try {
-    if (!(await reserveMobileMedia(ctx.village, cfg.bucket, size, MOBILE_MEDIA_QUOTA_BYTES))) {
-      return mobileError("FORBIDDEN", mediaQuotaFullMessage(), 403, { reason: "MEDIA_QUOTA_FULL" });
-    }
-    reserved = true;
-  } catch (e) {
-    console.error("[mobile presign] gagal memeriksa kuota foto", e);
+  const reservation = await reserveUpload(ctx.village, cfg.bucket, size, folder);
+  if (!reservation.ok) {
+    return reservation.reason === "ARCHIVE_QUOTA_FULL"
+      ? mobileError("FORBIDDEN", archiveQuotaFullMessage(), 403, { reason: "ARCHIVE_QUOTA_FULL" })
+      : mobileError("FORBIDDEN", mediaQuotaFullMessage(), 403, { reason: "MEDIA_QUOTA_FULL" });
   }
 
   const now = new Date();
@@ -73,7 +70,7 @@ export async function POST(req: NextRequest) {
   try {
     uploadUrl = await getSignedUrl(getSpacesClient(), new PutObjectCommand(input), { expiresIn: 120 });
   } catch (e) {
-    if (reserved) await releaseMobileMedia(ctx.village.id, size).catch(() => undefined);
+    await reservation.release();
     throw e;
   }
   const uploadHeaders: Record<string, string> = { "Content-Type": contentType };

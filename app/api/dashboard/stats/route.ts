@@ -6,6 +6,8 @@ import {
 } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { aggregateResidents } from "@/lib/dashboard/resident-stats";
+import { getArchiveFilesBytes, getChargedMediaBytes, getEffectiveStorageLimitGb, getVillageStorageLimitBytes } from "@/lib/digitalArchive/quota";
+import { summarizeStorage } from "@/lib/digitalArchive/quota-level";
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,7 +29,17 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
+    // Peringatan kuota di dashboard tidak boleh menggagalkan kartu lain.
+    const storage = await Promise.all([
+      getArchiveFilesBytes(village.id),
+      getChargedMediaBytes(village.id),
+      getEffectiveStorageLimitGb(village),
+    ])
+      .then(([files, charged, limitGb]) => summarizeStorage(files, charged, getVillageStorageLimitBytes(limitGb)))
+      .catch(() => null);
+
     return NextResponse.json({
+      storage,
       totals: {
         residents: residents.total,
         households: residents.households,

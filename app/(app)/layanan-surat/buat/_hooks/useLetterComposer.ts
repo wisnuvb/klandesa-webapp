@@ -94,7 +94,7 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
     (async () => {
       try {
         if (suratId == null && tid == null) throw new Error("Pilih jenis surat dari daftar terlebih dahulu.");
-        const ctxPromise = json<{ desa: Record<string, string>; pejabat: PreviewContext["pejabat"]; logoUrl: string | null }>(
+        const ctxPromise = json<{ desa: Record<string, string>; pejabat: PreviewContext["pejabat"]; logoUrl: string | null; kop?: PreviewContext["kop"] }>(
           "/api/letters/context",
           "Gagal memuat data desa",
         );

@@ -181,7 +181,13 @@ function CropDialog({
     };
     el.onerror = () => setLoadFailed(true);
     el.src = url;
-    return () => URL.revokeObjectURL(url);
+    return () => {
+      // Lepas handler sebelum me-revoke: pada StrictMode (dev) effect berjalan dua kali, dan galat dari
+      // URL yang sudah dicabut tidak boleh menandai foto sebagai gagal dibuka.
+      el.onload = null;
+      el.onerror = null;
+      URL.revokeObjectURL(url);
+    };
   }, [file]);
 
   const rect = useMemo(

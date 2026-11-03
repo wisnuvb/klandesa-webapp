@@ -24,7 +24,7 @@ const MARGIN_SIDES: Array<{ key: keyof MarginMm; label: string }> = [
   { key: "right", label: "Kanan" },
 ];
 
-export const PagePanel = memo(function PagePanel({ editor }: { editor: EditorApi }) {
+export const PagePanel = memo(function PagePanel({ editor, hideLetterhead = false }: { editor: EditorApi; hideLetterhead?: boolean }) {
   const { doc, setPage, setMeta, addPerson } = editor;
   const { page } = doc;
   const [pendingInternal, setPendingInternal] = useState(false);
@@ -102,14 +102,16 @@ export const PagePanel = memo(function PagePanel({ editor }: { editor: EditorApi
         </div>
       </Section>
 
-      <Section title="Kop surat">
-        <RadioCards
-          legend="Kop yang dipakai"
-          value={doc.letterhead}
-          onChange={(letterhead) => setMeta({ letterhead })}
-          options={LETTERHEAD_OPTIONS}
-        />
-      </Section>
+      {!hideLetterhead && (
+        <Section title="Kop surat">
+          <RadioCards
+            legend="Kop yang dipakai"
+            value={doc.letterhead}
+            onChange={(letterhead) => setMeta({ letterhead })}
+            options={LETTERHEAD_OPTIONS}
+          />
+        </Section>
+      )}
 
       <Section title="Jenis surat">
         <SelectField label="Jenis" value={doc.kind} options={KIND_OPTIONS} onChange={(kind) => setMeta({ kind })} />

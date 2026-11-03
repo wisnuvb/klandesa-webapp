@@ -130,10 +130,15 @@ export function ArsipDigitalClient(props: Props) {
   );
 
   const stats = useMemo(() => calculateFileStats(files), [files]);
-  const usageBySource = useMemo(() => summarizeUsageBySource(entries), [entries]);
+  const chargedMediaBytes = villageStorage.chargedMediaBytes;
+  const usageBySource = useMemo(() => {
+    const lines = summarizeUsageBySource(entries);
+    if (chargedMediaBytes <= 0) return lines;
+    return [...lines, { label: "Foto aplikasi warga", bytes: chargedMediaBytes, count: 0 }].sort((a, b) => b.bytes - a.bytes);
+  }, [entries, chargedMediaBytes]);
 
   const totalQuotaBytes = villageStorage.storageLimitGb * 1024 * 1024 * 1024;
-  const usedBytes = stats.usedBytes;
+  const usedBytes = stats.usedBytes + chargedMediaBytes;
   const remainingBytes = totalQuotaBytes - usedBytes;
   const usagePercentage =
     totalQuotaBytes > 0 ? (usedBytes / totalQuotaBytes) * 100 : 0;

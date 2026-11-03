@@ -1,6 +1,15 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mediaQuotaFullMessage, MOBILE_MEDIA_QUOTA_BYTES, mobileMediaPrefix, reserveCeiling } from "../lib/mobile/media-quota.ts";
+import {
+  archiveQuotaFullMessage,
+  chargedCeiling,
+  isChargedFolder,
+  mediaQuotaFullMessage,
+  MOBILE_MEDIA_QUOTA_BYTES,
+  mobileFolderOfKey,
+  mobileMediaPrefix,
+  reserveCeiling,
+} from "../lib/mobile/media-quota.ts";
 
 describe("kuota foto seluler per desa", () => {
   it("kuota 5 GB dan prefix mencakup semua folder unggahan seluler", () => {
@@ -23,5 +32,30 @@ describe("kuota foto seluler per desa", () => {
   });
   it("pesan untuk warga menunjuk ke perangkat desa, bukan ke Klandesa langsung", () => {
     assert.match(mediaQuotaFullMessage(), /perangkat desa/);
+  });
+
+  it("hanya foto Warga (media sosial) yang gratis; folder seluler lain memakai kuota Arsip Digital", () => {
+    assert.equal(isChargedFolder("mobile-social"), false);
+    for (const f of ["mobile-profile", "mobile-reports", "mobile-fees", "mobile-ukm"]) assert.equal(isChargedFolder(f), true, f);
+    assert.equal(isChargedFolder("digital-archive"), false); // bukan folder seluler: dihitung lewat DigitalArchive
+  });
+  it("folder dibaca dari kunci objek milik desa itu saja", () => {
+    assert.equal(mobileFolderOfKey("villages/abc/mobile-profile/12/x.jpg", "abc"), "mobile-profile");
+    assert.equal(mobileFolderOfKey("villages/abc/mobile-social/2026/11/x.jpg", "abc"), "mobile-social");
+    assert.equal(mobileFolderOfKey("villages/xyz/mobile-profile/12/x.jpg", "abc"), null);
+    assert.equal(mobileFolderOfKey("villages/abc/archives/x.pdf", "abc"), null);
+  });
+  it("batas pemesanan kuota arsip bersama: berkas arsip + foto berbayar + foto baru tidak boleh melewati batas", () => {
+    const GB = 1024 ** 3;
+    const fits = (charged: number, incoming: number, archive: number, limit: number) => charged <= chargedCeiling(incoming, limit, archive);
+    assert.equal(fits(0, 300_000, 5 * GB - 300_000, 5 * GB), true);
+    assert.equal(fits(0, 300_001, 5 * GB - 300_000, 5 * GB), false);
+    assert.equal(fits(1 * GB, 1_000, 4 * GB - 1_000, 5 * GB), true);
+    assert.equal(fits(1 * GB + 1, 1_000, 4 * GB - 1_000, 5 * GB), false);
+    assert.ok(chargedCeiling(1, 5 * GB, 5 * GB) < 0);
+  });
+  it("pesan kuota arsip penuh menyebut Arsip Digital dan perangkat desa", () => {
+    assert.match(archiveQuotaFullMessage(), /Arsip Digital/);
+    assert.match(archiveQuotaFullMessage(), /perangkat desa/);
   });
 });

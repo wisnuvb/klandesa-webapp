@@ -4,10 +4,11 @@
  * (escape otomatis) — tidak ada penyisipan HTML mentah; semua gaya berasal dari enum/angka
  * tervalidasi, tidak pernah dari string bebas.
  */
-import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { isSafeSrc } from "@/lib/letters/document/schema";
 import type { Block, CustomField, Inline, LeafBlock, LetterDocument } from "@/lib/letters/document/schema";
 import { applyFormat } from "@/lib/letters/format";
+import { DEFAULT_LETTERHEAD_STYLE, LOGO_SIZE_MM, normalizeLetterheadStyle } from "@/lib/letters/letterhead";
 import { FONTS, LINE_HEIGHTS, PAPER_SIZES } from "@/lib/letters/paper";
 import {
   DESA_FIELDS,
@@ -36,6 +37,8 @@ export type LetterPaperProps = {
   qrSrc?: string;
   /** Dipanggil saat isian di kertas diklik/Enter (hanya mode preview). */
   onFieldClick?: (ref: string) => void;
+  /** Dipanggil saat kop surat diklik/Enter (hanya mode preview); editor memakainya untuk membuka pengaturan kop. */
+  onKopClick?: () => void;
   className?: string;
 };
 
@@ -45,6 +48,7 @@ type Ctx = {
   mode: LetterPaperMode;
   qrSrc?: string;
   onFieldClick?: (ref: string) => void;
+  onKopClick?: () => void;
 };
 
 // ------------------------------------------------------------------ ukuran kertas
@@ -219,6 +223,9 @@ function Kop(ctx: Ctx): ReactNode {
     );
   }
 
+  const style = values.kop ? normalizeLetterheadStyle(values.kop) : DEFAULT_LETTERHEAD_STYLE;
+  const preview = mode === "preview";
+  const clickable = preview && !!ctx.onKopClick;
   const logo = safeLogo(values.logoUrl);
   const alamat = [d.alamat, d.telepon ? `Telp. ${d.telepon}` : "", d.email ? `Email: ${d.email}` : "", d.kode_pos ? `Kode Pos ${d.kode_pos}` : ""]
     .map((s) => (s ?? "").trim())
@@ -230,25 +237,95 @@ function Kop(ctx: Ctx): ReactNode {
     desa && { text: `DESA ${desa.toUpperCase()}`, size: "1.3em" },
     alamat && { text: alamat, size: "0.85em" },
   ].filter(Boolean) as Array<{ text: string; size: string }>;
-  if (lines.length === 0 && !logo) return null;
+  // Cetak tanpa isi sama sekali → tanpa kop. Pratinjau tetap tampil agar operator bisa mengisinya.
+  if (lines.length === 0 && !logo && !clickable) return null;
 
+  const stacked = style.layout === "atas";
+  const logoMm = LOGO_SIZE_MM[style.logoSize];
+  // Pratinjau tanpa logo menampilkan kotak putus-putus (hilang saat cetak) supaya letak logo terlihat dan bisa diklik.
+  const showSlot = !!logo || preview;
+  const logoNode: ReactNode = !showSlot ? null : logo ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={logo} alt="" style={{ width: `${logoMm}mm`, height: `${logoMm}mm`, objectFit: "contain", flexShrink: 0 }} />
+  ) : (
+    <div
+      className="lp-deco"
+      aria-hidden="true"
+      style={{
+        width: `${logoMm}mm`,
+        height: `${logoMm}mm`,
+        flexShrink: 0,
+        boxSizing: "border-box",
+        border: "1px dashed #999",
+        color: "#777",
+        fontSize: "0.7em",
+        lineHeight: 1.2,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        fontFamily: "sans-serif",
+      }}
+    >
+      Logo
+    </div>
+  );
+
+  const textNode = (
+    <div style={{ flex: stacked ? "none" : 1, minWidth: 0, width: stacked ? "100%" : undefined, textAlign: "center" }}>
+      {lines.length === 0 && preview ? (
+        <div className="lp-deco" style={{ color: "#777", fontFamily: "sans-serif", fontSize: "0.85em" }}>
+          Kop surat belum diisi — klik untuk mengisi
+        </div>
+      ) : null}
+      {lines.map((l, i) => (
+        <div key={i} style={{ fontWeight: i === lines.length - 1 && alamat ? 400 : 700, fontSize: l.size }}>
+          {l.text}
+        </div>
+      ))}
+    </div>
+  );
+  const spacer = logoNode ? <div aria-hidden="true" style={{ width: `${logoMm}mm`, flexShrink: 0 }} /> : null;
+
+  const rule =
+    style.rule === "ganda" ? "3px double #000" : style.rule === "tunggal" ? "2px solid #000" : "none";
+
+  const fire = () => ctx.onKopClick?.();
   return (
     <div
       className="lp-kop"
-      style={{ display: "flex", alignItems: "center", gap: "4mm", paddingBottom: "3mm", marginBottom: "5mm", borderBottom: "3px double #000" }}
+      data-kop-layout={style.layout}
+      style={{
+        display: "flex",
+        flexDirection: stacked ? "column" : "row",
+        alignItems: "center",
+        gap: stacked ? "2mm" : "4mm",
+        paddingBottom: style.rule === "tanpa" ? 0 : "3mm",
+        marginBottom: "5mm",
+        borderBottom: rule,
+        ...(clickable ? { cursor: "pointer" } : null),
+      }}
+      {...(clickable
+        ? {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": "Kop surat. Tekan Enter untuk mengubah logo, alamat, dan tata letak kop.",
+            onClick: (e: MouseEvent<HTMLDivElement>) => {
+              e.stopPropagation();
+              fire();
+            },
+            onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fire();
+              }
+            },
+          }
+        : null)}
     >
-      {logo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo} alt="" style={{ width: "22mm", height: "22mm", objectFit: "contain" }} />
-      ) : null}
-      <div style={{ flex: 1, textAlign: "center" }}>
-        {lines.map((l, i) => (
-          <div key={i} style={{ fontWeight: i === lines.length - 1 && alamat ? 400 : 700, fontSize: l.size }}>
-            {l.text}
-          </div>
-        ))}
-      </div>
-      {logo ? <div aria-hidden="true" style={{ width: "22mm" }} /> : null}
+      {style.layout === "kanan" ? spacer : logoNode}
+      {textNode}
+      {style.layout === "kanan" ? logoNode : style.layout === "kiri" ? spacer : null}
     </div>
   );
 }
@@ -792,8 +869,8 @@ function renderSignature(b: Extract<LeafBlock, { type: "signature" }>, ctx: Ctx)
 export type LetterPaperFrameProps = LetterPaperProps & { children?: ReactNode };
 
 /** Bingkai kertas (ukuran, margin, font) + kop; isi diberikan pemanggil. Dipakai juga oleh editor kanvas. */
-export function LetterPaperFrame({ doc, values, mode = "preview", qrSrc, onFieldClick, className, children }: LetterPaperFrameProps) {
-  const ctx: Ctx = { doc, values, mode, qrSrc, onFieldClick };
+export function LetterPaperFrame({ doc, values, mode = "preview", qrSrc, onFieldClick, onKopClick, className, children }: LetterPaperFrameProps) {
+  const ctx: Ctx = { doc, values, mode, qrSrc, onFieldClick, onKopClick };
   const { w, h } = paperMm(doc);
   const m = doc.page.margin;
   const font = FONTS[doc.page.font] ?? FONTS.times;

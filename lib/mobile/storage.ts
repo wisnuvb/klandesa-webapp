@@ -1,6 +1,7 @@
 import { DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { prisma } from "@/lib/prisma";
 import { getSpacesClient, getSpacesConfig } from "@/lib/spaces";
+import { isChargedFolder } from "./media-quota";
 import { releaseMobileMedia } from "./media-usage";
 
 /**
@@ -15,17 +16,26 @@ export async function deleteMobilePhotos(urls: string[], villageCode: string, fo
     const client = getSpacesClient();
     let n = 0;
     let freed = 0;
+    let freedCharged = 0;
     for (const url of urls.slice(0, 200)) {
       if (typeof url !== "string" || !url.startsWith(base)) continue;
       const key = url.slice(base.length);
       if (key.includes("..") || !folders.some((f) => key.startsWith(`villages/${villageCode}/${f}/`))) continue;
       // Bila ukuran tidak terbaca, penghitung tidak dikurangi (condong ke arah aman); rekonsiliasi akan memperbaikinya.
       const size = await client.send(new HeadObjectCommand({ Bucket: cfg.bucket, Key: key })).then((h) => h.ContentLength ?? 0).catch(() => 0);
-      await client.send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key })).then(() => { n += 1; freed += size; }).catch(() => undefined);
+      const folder = key.slice(`villages/${villageCode}/`.length).split("/")[0];
+      await client
+        .send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }))
+        .then(() => {
+          n += 1;
+          freed += size;
+          if (isChargedFolder(folder)) freedCharged += size;
+        })
+        .catch(() => undefined);
     }
     if (freed > 0) {
       const v = await prisma.village.findUnique({ where: { code: villageCode }, select: { id: true } });
-      if (v) await releaseMobileMedia(v.id, freed);
+      if (v) await releaseMobileMedia(v.id, freed, freedCharged);
     }
     return n;
   } catch (e) {

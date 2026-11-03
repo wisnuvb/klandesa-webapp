@@ -19,7 +19,7 @@ import { Undo2 } from "lucide-react";
 import { LetterPaperFrame } from "@/components/letters/LetterPaper";
 import type { Block } from "@/lib/letters/document/schema";
 import type { EditorApi, PresetId } from "@/lib/letters/editor";
-import { sampleLetterValues, type LetterValues } from "@/lib/letters/values";
+import { sampleLetterValues, withVillageContext, type LetterValues, type VillagePreviewContext } from "@/lib/letters/values";
 import type { CanvasOps } from "./BlockContent";
 import type { FocusPoint } from "./BlockEditSurface";
 import { InsertMenuButton } from "./InsertMenu";
@@ -44,6 +44,10 @@ export type CanvasProps = {
   editor: EditorApi;
   /** Nilai contoh yang mengisi kertas; bila kosong dipakai data contoh dari registry. */
   values?: LetterValues;
+  /** Data desa & pejabat nyata untuk kop dan tanda tangan; menimpa data contoh. Kosong = data contoh murni. */
+  village?: VillagePreviewContext | null;
+  /** Dipanggil saat kop surat di kertas diklik; editor memakainya untuk membuka pengaturan kop. */
+  onKopClick?: () => void;
   /** Gambar QR contoh untuk bagian Kode QR. */
   qrSrc?: string;
   className?: string;
@@ -62,7 +66,7 @@ const CANVAS_CSS = `
  * sebagai pratinjau (memo per bagian); bagian terpilih berubah menjadi penyunting teks di tempat.
  * Komponen ini mengisi tinggi induknya (induk harus punya tinggi: `flex-1 min-h-0` atau tinggi tetap).
  */
-export function Canvas({ editor, values, qrSrc, className }: CanvasProps) {
+export function Canvas({ editor, values, village, onKopClick, qrSrc, className }: CanvasProps) {
   const {
     doc, selectedId, select, updateBlock, addBlock, removeBlock, moveBlock, moveBlockBy, duplicateBlock,
     addField, undo, redo, issues,
@@ -71,7 +75,7 @@ export function Canvas({ editor, values, qrSrc, className }: CanvasProps) {
   // ---- nilai contoh
   const { people, fields, groups } = doc;
   const sample = useMemo(() => sampleLetterValues({ people, fields, groups }), [people, fields, groups]);
-  const vals = values ?? sample;
+  const vals = useMemo(() => values ?? (village ? withVillageContext(sample, village) : sample), [values, village, sample]);
 
   // ---- ukuran & skala kertas
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -276,7 +280,7 @@ export function Canvas({ editor, values, qrSrc, className }: CanvasProps) {
                 transformOrigin: "top left",
               }}
             >
-              <LetterPaperFrame doc={doc} values={vals} mode="preview" qrSrc={qrSrc}>
+              <LetterPaperFrame doc={doc} values={vals} mode="preview" qrSrc={qrSrc} onKopClick={onKopClick}>
                 {doc.body.length === 0 ? (
                   <Unscaled flow>
                     <div

@@ -1,29 +1,36 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { ChevronUp, Layers, Settings2, Users, ListChecks, X } from "lucide-react";
+import { ChevronUp, Layers, Settings2, Stamp, Users, ListChecks, X } from "lucide-react";
 import type { EditorApi } from "@/lib/letters/editor";
 import { cn } from "@/components/ui/utils";
 import { BlockInspector } from "./BlockInspector";
 import { CheckPanel } from "./CheckPanel";
 import { InsertPanel } from "./InsertPanel";
+import { LetterheadPanel } from "./LetterheadPanel";
+import type { LetterheadController } from "../useVillageLetterhead";
 import { NumberingPanel } from "./NumberingPanel";
 import { PagePanel } from "./PagePanel";
 import { PeoplePanel } from "./PeoplePanel";
 import { checkSummary } from "./helpers";
 
-type TabId = "bagian" | "orang" | "halaman" | "cek";
+type TabId = "bagian" | "orang" | "halaman" | "kop" | "cek";
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Layers }> = [
   { id: "bagian", label: "Bagian", icon: Layers },
   { id: "orang", label: "Orang & isian", icon: Users },
   { id: "halaman", label: "Halaman", icon: Settings2 },
+  { id: "kop", label: "Kop surat", icon: Stamp },
   { id: "cek", label: "Cek surat", icon: ListChecks },
 ];
 
 export type SidePanelProps = {
   editor: EditorApi;
   onReveal?: (blockId: string) => void;
+  /** Data kop & pejabat desa yang bisa diedit di tab "Kop surat". Tanpa ini, tab tersebut tidak ditampilkan. */
+  letterhead?: LetterheadController;
+  /** Naikkan `nonce` untuk membuka tab Kop surat (mis. saat kop di kertas diklik). */
+  openKop?: number;
   className?: string;
   /** Hanya untuk layar sempit (laci dari bawah). Tanpa prop ini, status buka/tutup dikelola sendiri. */
   open?: boolean;
@@ -34,7 +41,8 @@ export type SidePanelProps = {
  * Panel samping: tab Bagian / Orang & isian / Halaman / Cek surat. Di layar lebar menjadi kolom ±360 px;
  * di layar sempit menjadi laci dari bawah dengan tombol buka/tutup.
  */
-export function SidePanel({ editor, onReveal, className, open: openProp, onOpenChange }: SidePanelProps) {
+export function SidePanel({ editor, onReveal, letterhead, openKop = 0, className, open: openProp, onOpenChange }: SidePanelProps) {
+  const tabs = letterhead ? TABS : TABS.filter((t) => t.id !== "kop");
   const [tab, setTab] = useState<TabId>("bagian");
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
@@ -44,13 +52,23 @@ export function SidePanel({ editor, onReveal, className, open: openProp, onOpenC
   };
   const baseId = useId();
   const panelRef = useRef<HTMLElement>(null);
-  const tabRefs = useRef<Record<TabId, HTMLButtonElement | null>>({ bagian: null, orang: null, halaman: null, cek: null });
+  const tabRefs = useRef<Record<TabId, HTMLButtonElement | null>>({ bagian: null, orang: null, halaman: null, kop: null, cek: null });
 
   // Bagian dipilih dari kertas → tampilkan pengaturannya.
   const [prevSelected, setPrevSelected] = useState(editor.selectedId);
   if (editor.selectedId !== prevSelected) {
     setPrevSelected(editor.selectedId);
     if (editor.selectedId) setTab("bagian");
+  }
+
+  // Kop di kertas diklik → buka tab Kop surat (dan laci di layar sempit).
+  const [prevOpenKop, setPrevOpenKop] = useState(openKop);
+  if (openKop !== prevOpenKop) {
+    setPrevOpenKop(openKop);
+    if (letterhead) {
+      setTab("kop");
+      if (openProp === undefined) setOpenState(true);
+    }
   }
 
   // Escape menutup laci di layar sempit.
@@ -70,14 +88,14 @@ export function SidePanel({ editor, onReveal, className, open: openProp, onOpenC
 
   const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let next = index;
-    if (e.key === "ArrowRight") next = (index + 1) % TABS.length;
-    else if (e.key === "ArrowLeft") next = (index - 1 + TABS.length) % TABS.length;
+    if (e.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
     else if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = TABS.length - 1;
+    else if (e.key === "End") next = tabs.length - 1;
     else return;
     e.preventDefault();
-    setTab(TABS[next].id);
-    tabRefs.current[TABS[next].id]?.focus();
+    setTab(tabs[next].id);
+    tabRefs.current[tabs[next].id]?.focus();
   };
 
   const badge =
@@ -120,8 +138,8 @@ export function SidePanel({ editor, onReveal, className, open: openProp, onOpenC
         )}
       >
         <div className="flex items-center gap-1 border-b px-2 pt-2 lg:pt-0">
-          <div role="tablist" aria-label="Bagian panel" className="grid min-w-0 flex-1 grid-cols-4 gap-1" aria-orientation="horizontal">
-            {TABS.map((t, i) => {
+          <div role="tablist" aria-label="Bagian panel" className={cn("grid min-w-0 flex-1 gap-1", letterhead ? "grid-cols-5" : "grid-cols-4")} aria-orientation="horizontal">
+            {tabs.map((t, i) => {
               const selected = tab === t.id;
               const Icon = t.icon;
               return (
@@ -181,11 +199,12 @@ export function SidePanel({ editor, onReveal, className, open: openProp, onOpenC
           {tab === "orang" && <PeoplePanel editor={editor} onReveal={onReveal} />}
           {tab === "halaman" && (
             <>
-              <PagePanel editor={editor} />
+              <PagePanel editor={editor} hideLetterhead={!!letterhead} />
               <hr className="border-input" />
               <NumberingPanel editor={editor} />
             </>
           )}
+          {tab === "kop" && letterhead && <LetterheadPanel editor={editor} kop={letterhead} />}
           {tab === "cek" && <CheckPanel editor={editor} onReveal={onReveal} />}
         </div>
       </aside>

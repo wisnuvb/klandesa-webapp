@@ -16,6 +16,7 @@ import {
   type PersonFieldKey,
 } from "./registry";
 import type { Inline, LetterDocument } from "./document/schema";
+import type { LetterheadStyle } from "./letterhead";
 
 export type PersonValues = Partial<Record<PersonFieldKey, string>>;
 export type OfficialValues = { nama: string; nip: string; jabatan: string };
@@ -32,6 +33,8 @@ export type LetterValues = {
   surat: Record<string, string>;
   /** Logo desa untuk kop (path relatif atau https). */
   logoUrl?: string;
+  /** Gaya kop desa (posisi logo, garis, ukuran). Kosong = bawaan. */
+  kop?: LetterheadStyle;
 };
 
 const blankOfficial = (jabatan: string): OfficialValues => ({ nama: "", nip: "", jabatan });
@@ -87,6 +90,42 @@ export function sampleLetterValues(doc: Pick<LetterDocument, "people" | "fields"
   v.surat = Object.fromEntries(SURAT_FIELDS.map((f) => [f.key, f.example]));
   v.surat.tanggal = "2026-10-29";
   return v;
+}
+
+/** Data desa nyata untuk pratinjau (bentuk sama dengan `GET /api/letters/context`). */
+export type VillagePreviewContext = {
+  desa: Record<string, string>;
+  pejabat: Record<OfficialId, OfficialValues>;
+  logoUrl?: string | null;
+  kop?: LetterheadStyle;
+};
+
+/**
+ * Timpa data contoh dengan data desa yang SUNGGUHAN (kop, nama pejabat, tempat surat) supaya
+ * operator tidak menyangka kop contoh adalah data mereka. Kolom desa/pejabat yang belum diisi
+ * dibiarkan kosong (kertas menampilkannya sebagai isian kuning), BUKAN diisi contoh.
+ * Isian warga, grup, dan isian tambahan tetap contoh.
+ */
+export function withVillageContext(sample: LetterValues, ctx: VillagePreviewContext): LetterValues {
+  const kodeContoh = DESA_FIELDS.find((f) => f.key === "kode")?.example ?? "";
+  const nomorContoh = sample.surat.nomor ?? "";
+  const kode = ctx.desa.kode ?? "";
+  return {
+    ...sample,
+    desa: { ...ctx.desa },
+    pejabat: {
+      kades: { ...ctx.pejabat.kades },
+      sekdes: { ...ctx.pejabat.sekdes },
+      camat: { ...ctx.pejabat.camat },
+    },
+    logoUrl: ctx.logoUrl ?? undefined,
+    kop: ctx.kop,
+    surat: {
+      ...sample.surat,
+      tempat: ctx.desa.nama ?? "",
+      nomor: kode && kodeContoh ? nomorContoh.replace(kodeContoh, kode) : nomorContoh,
+    },
+  };
 }
 
 /** Nilai mentah suatu rujukan; "" bila tidak ada. Tidak pernah melempar. */

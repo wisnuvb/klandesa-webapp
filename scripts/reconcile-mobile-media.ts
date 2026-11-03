@@ -1,5 +1,5 @@
 /**
- * Samakan penghitung kuota foto seluler (village_media_usage) dengan isi bucket yang sebenarnya.
+ * Samakan penghitung foto seluler (village_media_usage: mobileBytes = semua foto seluler, chargedBytes = bagian yang dihitung ke kuota Arsip Digital) dengan isi bucket yang sebenarnya.
  * Perlu dijalankan sesekali: penghitung bisa sedikit lebih tinggi dari kenyataan (unggahan yang dibatalkan, foto yatim).
  *
  * Jalankan: npx tsx scripts/reconcile-mobile-media.ts [kodeDesa]
@@ -24,7 +24,7 @@ async function main() {
   for (const v of villages) {
     try {
       const r = await reconcileMobileMedia(v, bucket);
-      console.log(`OK  ${v.code}: ${mb(r.before)} -> ${mb(r.after)}`);
+      console.log(`OK  ${v.code}: ${mb(r.before)} -> ${mb(r.after)}; berbayar ${mb(r.chargedBefore)} -> ${mb(r.chargedAfter)}`);
     } catch (e) {
       console.error(`ERR ${v.code}:`, e instanceof Error ? e.message : e);
     }
