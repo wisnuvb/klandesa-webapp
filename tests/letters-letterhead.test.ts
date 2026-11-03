@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { LetterPaper } from "../components/letters/LetterPaper.tsx";
@@ -15,6 +16,7 @@ import {
 } from "../lib/letters/letterhead.ts";
 import { applyDraft, draftFromContext, isDirty, patchFromDraft, validateDraft } from "../lib/letters/letterhead-draft.ts";
 import { sampleLetterValues, withVillageContext, type LetterValues, type VillagePreviewContext } from "../lib/letters/values.ts";
+import { SelectField } from "../components/letters/editor/panels/ui.tsx";
 import { FIXTURES } from "./letters-fixtures.ts";
 
 function docOf(input: unknown): LetterDocument {
@@ -167,5 +169,26 @@ describe("draf kop: validasi & perubahan", () => {
     assert.equal(ctx.pejabat.kades.nama, "Budi");
     assert.equal(ctx.logoUrl, null);
     assert.equal(ctx.desa.nama, "Yosowilangun Lor");
+  });
+});
+
+describe("panel samping", () => {
+  it("kontainer scroll tab panel berposisi (relative) agar elemen sr-only tidak memanjangkan halaman", () => {
+    const src = readFileSync("components/letters/editor/panels/SidePanel.tsx", "utf8");
+    const m = src.match(/role="tabpanel"[\s\S]*?className="([^"]*)"/);
+    assert.ok(m, "tabpanel tidak ditemukan");
+    const classes = m[1].split(/\s+/);
+    assert.ok(classes.includes("relative") && classes.includes("overflow-y-auto"));
+  });
+
+  it("dropdown di panel tidak memakai display:block yang menimpa flex tombol (ikon panah turun ke bawah teks)", () => {
+    const html = renderToStaticMarkup(
+      createElement(SelectField, { label: "Ukuran kertas", value: "a", options: [{ value: "a", label: "F4 / Folio" }], onChange: () => {} }),
+    );
+    const trigger = html.match(/<button[^>]*data-slot="select-trigger"[^>]*>/)?.[0];
+    assert.ok(trigger, "tombol dropdown tidak ditemukan");
+    const classes = (trigger.match(/class="([^"]*)"/)?.[1] ?? "").split(/\s+/);
+    assert.ok(classes.includes("flex") && classes.includes("justify-between"));
+    assert.ok(!classes.includes("block"));
   });
 });

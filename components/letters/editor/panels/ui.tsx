@@ -29,8 +29,16 @@ import { cn } from "@/components/ui/utils";
 import { clampNum } from "./helpers";
 import { SearchSelect } from "@/components/ui/search-select";
 
-export const controlClass =
-  "block w-full min-h-11 rounded-md border border-input bg-input-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive";
+const fieldClass =
+  "w-full min-h-11 rounded-md border border-input bg-input-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive";
+
+export const controlClass = `block ${fieldClass}`;
+
+/**
+ * Untuk tombol dropdown (`SearchSelect`). TIDAK boleh memuat `block`: tombolnya `flex justify-between`, dan
+ * `block` menimpanya sehingga teks dan ikon panah bertumpuk ke bawah.
+ */
+export const selectControlClass = fieldClass;
 
 export const labelClass = "mb-1 block text-sm font-medium text-foreground";
 export const hintClass = "mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]";
@@ -247,7 +255,7 @@ export function SelectField<V extends string | number>({
         disabled={disabled}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className={controlClass}
+        className={selectControlClass}
         onChange={(e) => {
           const picked = options.find((o) => String(o.value) === e.target.value);
           if (picked) onChange(picked.value);

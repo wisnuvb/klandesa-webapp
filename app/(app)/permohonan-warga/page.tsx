@@ -52,34 +52,40 @@ export function PermohonanWarga() {
     return p.toString();
   }, [filters, search, page]);
 
+  // `isStale` = hasil permintaan ini sudah tidak dibutuhkan (filter berganti atau halaman ditinggalkan).
+  // Sengaja TIDAK memakai AbortController: `abort()` di cleanup efek memunculkan "AbortError: signal is
+  // aborted without reason" di overlay galat Next saat pindah halaman. Respons basi cukup diabaikan.
   const fetchData = useCallback(
-    async (signal?: AbortSignal) => {
+    async (isStale: () => boolean = () => false) => {
       setLoading(true);
       setError(null);
       // Statistik berlaku untuk seluruh data, jadi cukup diminta saat awal dan setelah ada keputusan; pindah halaman/filter tidak.
       const withStats = needStats.current;
       try {
-        const res = await fetch(`/api/mail-requests?${query}${withStats ? "" : "&stats=0"}`, { signal });
+        const res = await fetch(`/api/mail-requests?${query}${withStats ? "" : "&stats=0"}`);
         if (!res.ok) throw new Error(await readApiError(res, "Gagal memuat data"));
         const data = (await res.json()) as { rows: QueueRow[]; total: number; stats: QueueStats | null };
+        if (isStale()) return;
         setRows(data.rows);
         setTotal(data.total);
         if (data.stats) setStats(data.stats);
         if (withStats && data.stats) needStats.current = false;
       } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
+        if (isStale()) return;
         setError(e instanceof Error ? e.message : "Terjadi kesalahan");
       } finally {
-        if (!signal?.aborted) setLoading(false);
+        if (!isStale()) setLoading(false);
       }
     },
     [query],
   );
 
   useEffect(() => {
-    const ac = new AbortController();
-    void fetchData(ac.signal);
-    return () => ac.abort();
+    let stale = false;
+    void fetchData(() => stale);
+    return () => {
+      stale = true;
+    };
   }, [fetchData]);
 
   const patchFilters = useCallback((patch: Partial<FilterState>) => {

@@ -18,7 +18,7 @@ type TabId = "bagian" | "orang" | "halaman" | "kop" | "cek";
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Layers }> = [
   { id: "bagian", label: "Bagian", icon: Layers },
-  { id: "orang", label: "Orang & isian", icon: Users },
+  { id: "orang", label: "Konten", icon: Users },
   { id: "halaman", label: "Halaman", icon: Settings2 },
   { id: "kop", label: "Kop surat", icon: Stamp },
   { id: "cek", label: "Cek surat", icon: ListChecks },
@@ -179,13 +179,15 @@ export function SidePanel({ editor, onReveal, letterhead, openKop = 0, className
           </button>
         </div>
 
-        {/* Hanya panel aktif yang dirender agar mengetik di kertas tidak ikut merender panel lain. */}
+        {/* Hanya panel aktif yang dirender agar mengetik di kertas tidak ikut merender panel lain.
+            `relative` wajib: elemen `sr-only` (position:absolute) tanpa leluhur berposisi di dalam panel akan
+            terikat ke <aside> sticky di luar area scroll, tidak ikut ter-scroll, dan memanjangkan seluruh halaman. */}
         <div
           role="tabpanel"
           id={`${baseId}-tabpanel-${tab}`}
           aria-labelledby={`${baseId}-tab-${tab}`}
           tabIndex={0}
-          className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          className="relative min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           {tab === "bagian" && (
             <>

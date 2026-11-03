@@ -184,7 +184,7 @@ export function MeetingDetail({ id }: { id: number }) {
             </Button>
           ) : null}
         </div>
-        {actionError ? (
+        {actionError && dialog === null ? (
           <div role="alert" className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
             {actionError}
           </div>
@@ -240,8 +240,8 @@ export function MeetingDetail({ id }: { id: number }) {
       {dialog === "reopen" ? (
         <ReasonDialog title="Buka kembali berita acara" description="Berita acara akan dapat dikoreksi lagi dan harus difinalkan ulang. Alasan dicatat dalam jejak audit." label="Alasan membuka kembali" confirm="Buka kembali" url={aksi} build={(t) => ({ action: "reopen", reason: t })} onClose={() => setDialog(null)} onDone={() => { setDialog(null); reload(); }} />
       ) : null}
-      {dialog === "finalize" ? <FinalizeDialog warnings={warnings.length} onClose={() => setDialog(null)} onConfirm={async () => { if (await post(aksi, { action: "finalize" })) setDialog(null); }} busy={busy} /> : null}
-      {dialog === "delete" ? <DeleteDialog onClose={() => setDialog(null)} onConfirm={async () => { if (await post(`/api/musdes/${m.id}`, undefined, "DELETE")) router.push("/musdes"); }} busy={busy} /> : null}
+      {dialog === "finalize" ? <FinalizeDialog warnings={warnings.length} error={actionError} onClose={() => { setDialog(null); setActionError(null); }} onConfirm={async () => { if (await post(aksi, { action: "finalize" })) setDialog(null); }} busy={busy} /> : null}
+      {dialog === "delete" ? <DeleteDialog error={actionError} onClose={() => { setDialog(null); setActionError(null); }} onConfirm={async () => { if (await post(`/api/musdes/${m.id}`, undefined, "DELETE")) router.push("/musdes"); }} busy={busy} /> : null}
       {dialog === "bulk" ? <BulkDialog meetingId={m.id} onClose={() => setDialog(null)} onDone={() => { setDialog(null); reload(); }} /> : null}
     </div>
   );
@@ -540,13 +540,26 @@ function MinutesPanel({ meeting, editable, onSaved, onFinalize }: { meeting: Det
   const [saved, setSaved] = useState(false);
   const { busy, errors, general, summaryRef, submit } = useFormSubmit();
 
+  // Isian yang diketik tetapi belum tersimpan di server (server memfinalkan berdasarkan isi yang TERSIMPAN).
+  const dirty = no !== (meeting.minutesNo ?? "") || heldOn !== (meeting.heldOn ?? "") || text !== (meeting.minutesText ?? "");
+
+  async function persist(): Promise<boolean> {
+    const r = await submit(`/api/musdes/${meeting.id}/aksi`, "POST", { action: "minutes", minutesNo: no, minutesText: text, heldOn: heldOn || null });
+    if (!r) return false;
+    setSaved(true);
+    onSaved();
+    return true;
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    const r = await submit(`/api/musdes/${meeting.id}/aksi`, "POST", { action: "minutes", minutesNo: no, minutesText: text, heldOn: heldOn || null });
-    if (r) {
-      setSaved(true);
-      onSaved();
-    }
+    await persist();
+  }
+
+  /** Finalkan selalu memakai isian terbaru: simpan dulu bila ada perubahan, lalu buka dialog konfirmasi. */
+  async function finalize() {
+    if (dirty && !(await persist())) return;
+    onFinalize();
   }
   if (!editable) {
     return (
@@ -581,11 +594,11 @@ function MinutesPanel({ meeting, editable, onSaved, onFinalize }: { meeting: Det
           {busy ? <Loader2 aria-hidden="true" className="animate-spin" /> : null}
           Simpan berita acara
         </Button>
-        <Button type="button" className="min-h-11" onClick={onFinalize} disabled={busy}>
+        <Button type="button" className="min-h-11" onClick={finalize} disabled={busy}>
           <Lock aria-hidden="true" />
-          Finalkan berita acara
+          {dirty ? "Simpan & finalkan" : "Finalkan berita acara"}
         </Button>
-        {saved ? <span role="status" className="text-sm text-muted-foreground">Tersimpan.</span> : null}
+        {dirty ? <span role="status" className="text-sm text-muted-foreground">Perubahan belum disimpan.</span> : saved ? <span role="status" className="text-sm text-muted-foreground">Tersimpan.</span> : null}
       </div>
     </form>
   );
@@ -629,7 +642,7 @@ function HeldDialog({ url, defaultDate, onClose, onDone }: { url: string; defaul
   );
 }
 
-function FinalizeDialog({ warnings, onClose, onConfirm, busy }: { warnings: number; onClose: () => void; onConfirm: () => void; busy: boolean }) {
+function FinalizeDialog({ warnings, error, onClose, onConfirm, busy }: { warnings: number; error: string | null; onClose: () => void; onConfirm: () => void; busy: boolean }) {
   return (
     <Dialog open onOpenChange={(o) => (!o && !busy ? onClose() : undefined)}>
       <DialogContent className="sm:max-w-md">
@@ -642,6 +655,12 @@ function FinalizeDialog({ warnings, onClose, onConfirm, busy }: { warnings: numb
             <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             Masih ada {warnings} catatan keterwakilan peserta. Anda tetap dapat memfinalkan; catatan ini tidak memblokir.
           </p>
+        ) : null}
+        {error ? (
+          <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
         ) : null}
         <DialogFooter>
           <Button type="button" variant="outline" className="min-h-11" onClick={onClose} disabled={busy}>
@@ -657,7 +676,7 @@ function FinalizeDialog({ warnings, onClose, onConfirm, busy }: { warnings: numb
   );
 }
 
-function DeleteDialog({ onClose, onConfirm, busy }: { onClose: () => void; onConfirm: () => void; busy: boolean }) {
+function DeleteDialog({ error, onClose, onConfirm, busy }: { error: string | null; onClose: () => void; onConfirm: () => void; busy: boolean }) {
   return (
     <Dialog open onOpenChange={(o) => (!o && !busy ? onClose() : undefined)}>
       <DialogContent className="sm:max-w-md">
@@ -665,6 +684,12 @@ function DeleteDialog({ onClose, onConfirm, busy }: { onClose: () => void; onCon
           <DialogTitle>Hapus musyawarah?</DialogTitle>
           <DialogDescription>Musyawarah beserta daftar undangannya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.</DialogDescription>
         </DialogHeader>
+        {error ? (
+          <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : null}
         <DialogFooter>
           <Button type="button" variant="outline" className="min-h-11" onClick={onClose} disabled={busy}>
             Batal
