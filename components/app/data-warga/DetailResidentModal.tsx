@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { calculateAge } from "@/utils";
 import { DISABILITY_OPTIONS } from "@/utils/constants/user";
+import { normalizeGender } from "@/lib/residents/gender";
 import { Resident } from "@prisma/client";
 import {
   KTP_STATUS_LABEL,
@@ -134,7 +135,8 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
   if (!resident) return null;
 
   const age = calculateAge(resident.birthDate);
-  const isFemale = resident.gender === "Perempuan";
+  const genderLabel = normalizeGender(resident.gender) ?? resident.gender;
+  const isFemale = genderLabel === "Perempuan";
   const disability = resident.disabilityId
     ? (DISABILITY_OPTIONS[String(resident.disabilityId)] ??
       `Kode ${resident.disabilityId}`)
@@ -195,12 +197,8 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
                 {resident.kk || "-"}
               </Field>
               <Field label="Jenis Kelamin">
-                <Badge
-                  variant={
-                    resident.gender === "Laki-laki" ? "default" : "secondary"
-                  }
-                >
-                  {resident.gender}
+                <Badge variant={isFemale ? "secondary" : "default"}>
+                  {genderLabel}
                 </Badge>
               </Field>
               <Field label="Tempat Lahir">{resident.birthplace}</Field>
@@ -266,7 +264,7 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
                     <div>
                       <p className="text-sm font-medium">{m.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {m.familyRole} · {m.gender} ·{" "}
+                        {m.familyRole} · {normalizeGender(m.gender) ?? m.gender} ·{" "}
                         {calculateAge(m.birthDate)} Tahun
                       </p>
                     </div>

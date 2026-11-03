@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { type DataTableColumn } from "@/components/ui/data-table";
 import { Edit, Eye, Trash2 } from "lucide-react";
 import { calculateAge } from "@/utils";
+import { normalizeGender } from "@/lib/residents/gender";
 import { Resident } from "@prisma/client";
 
 interface CreateColumnsParams {
@@ -57,11 +58,14 @@ export const createDataWargaColumns = ({
     key: "gender",
     header: "Jenis Kelamin",
     sortable: true,
-    cell: ({ gender }) => (
-      <Badge variant={gender === "Laki-laki" ? "default" : "secondary"}>
-        {gender === "Laki-laki" ? "Laki-laki" : "Perempuan"}
-      </Badge>
-    ),
+    cell: ({ gender }) => {
+      const label = normalizeGender(gender) ?? gender;
+      return (
+        <Badge variant={label === "Laki-laki" ? "default" : "secondary"}>
+          {label}
+        </Badge>
+      );
+    },
   },
   {
     key: "birthDate",

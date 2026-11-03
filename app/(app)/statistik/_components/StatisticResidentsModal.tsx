@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePermissions } from "@/hooks/use-permissions";
 import { downloadBlob, filenameFromDisposition } from "@/lib/statistics/download";
+import { normalizeGender } from "@/lib/residents/gender";
 import {
   Select,
   SelectContent,
@@ -260,11 +261,14 @@ export function StatisticResidentsModal({
         key: "gender",
         header: "Jenis Kelamin",
         sortable: true,
-        cell: ({ gender }) => (
-          <Badge variant={gender === "Laki-laki" ? "default" : "secondary"}>
-            {gender === "Laki-laki" ? "Laki-laki" : "Perempuan"}
-          </Badge>
-        ),
+        cell: ({ gender }) => {
+          const label = normalizeGender(gender) ?? gender;
+          return (
+            <Badge variant={label === "Laki-laki" ? "default" : "secondary"}>
+              {label}
+            </Badge>
+          );
+        },
       });
     }
 
