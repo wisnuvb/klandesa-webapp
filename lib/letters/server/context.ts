@@ -1,8 +1,8 @@
 import type { Village } from "@prisma/client";
-import { buildLetterFormSnapshot } from "@/lib/mail/letterFormSnapshot";
+import { buildLetterFormSnapshot, parseMailSettings } from "@/lib/mail/letterFormSnapshot";
 import { isSafeSrc } from "../document/schema";
 import { parseLetterheadStyle } from "../letterhead";
-import { OFFICIAL_LABELS } from "../registry";
+import { OFFICIAL_LABELS, officialJabatan } from "../registry";
 import type { LetterContext } from "./input";
 
 /**
@@ -11,6 +11,7 @@ import type { LetterContext } from "./input";
  */
 export async function buildLetterContext(village: Village): Promise<LetterContext & { kodeDesa: string }> {
   const snap = await buildLetterFormSnapshot(village.id, village);
+  const mail = parseMailSettings(village.settings);
   const logo = village.logoUrl?.trim();
   return {
     kodeDesa: village.code,
@@ -28,7 +29,7 @@ export async function buildLetterContext(village: Village): Promise<LetterContex
     pejabat: {
       kades: { nama: snap.KEPALA_DESA_NAMA ?? "", nip: snap.KEPALA_DESA_NIP ?? "", jabatan: OFFICIAL_LABELS.kades },
       sekdes: { nama: snap.SEKRETARIS_NAMA ?? "", nip: "", jabatan: OFFICIAL_LABELS.sekdes },
-      camat: { nama: snap.CAMAT_NAMA ?? "", nip: "", jabatan: OFFICIAL_LABELS.camat },
+      camat: { nama: snap.CAMAT_NAMA ?? "", nip: mail.camatNip, golongan: mail.camatGolongan, jabatan: officialJabatan("camat", village.district) },
     },
     logoUrl: logo && isSafeSrc(logo) ? logo : undefined,
     kop: parseLetterheadStyle(village.settings),

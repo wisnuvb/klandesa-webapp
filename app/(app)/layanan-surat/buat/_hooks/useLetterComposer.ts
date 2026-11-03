@@ -12,6 +12,7 @@ import { personRowFromPerson, type LetterValues, type PersonValues } from "@/lib
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import {
   buildPayload,
+  emptyOfficial,
   emptyPerson,
   emptyRow,
   initialState,
@@ -296,8 +297,8 @@ export function useLetterComposer(templateParam: number | null, suratParam: numb
   const setDate = useCallback((date: string) => update((s) => ({ ...s, date })), [update]);
   const setNumber = useCallback((number: string) => update((s) => ({ ...s, number })), [update]);
   const setOfficial = useCallback(
-    (id: OfficialId, key: "nama" | "nip", value: string) =>
-      update((s) => ({ ...s, officials: { ...s.officials, [id]: { ...(s.officials[id] ?? { nama: "", nip: "" }), [key]: value } } })),
+    (id: OfficialId, key: "nama" | "golongan" | "nip", value: string) =>
+      update((s) => ({ ...s, officials: { ...s.officials, [id]: { ...(s.officials[id] ?? emptyOfficial()), [key]: value } } })),
     [update],
   );
 

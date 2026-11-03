@@ -398,14 +398,14 @@ describe("server: penandatangan manual", async () => {
     assert.equal(r.value.pejabat.kades.nama, "Sofwan");
   });
   it("menimpa nama/NIP; yang kosong tetap bawaan; konteks tidak termutasi", () => {
-    const p = parse({ kades: { nama: "  Budi\u0000 ", nip: "" }, camat: { nip: "1999" } });
+    const p = parse({ kades: { nama: "  Budi\u0000 ", nip: "" }, camat: { nip: "19700101 200003 1 001" } });
     assert.ok(p.ok, JSON.stringify(p));
     const r = assembleValues({ input: p.value, residents: new Map(), doc, context: { desa: {}, pejabat }, date: new Date(2026, 9, 29), nomor: "" });
     assert.ok(r.ok);
     assert.equal(r.value.pejabat.kades.nama, "Budi");
     assert.equal(r.value.pejabat.kades.nip, "1970");
     assert.equal(r.value.pejabat.camat.nama, "Camat Lama");
-    assert.equal(r.value.pejabat.camat.nip, "1999");
+    assert.equal(r.value.pejabat.camat.nip, "197001012000031001");
     assert.equal(pejabat.kades.nama, "Sofwan");
   });
   it("menolak pejabat yang tidak tampil, isian asing, dan nilai terlalu panjang", () => {

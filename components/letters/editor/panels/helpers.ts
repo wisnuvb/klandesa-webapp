@@ -50,13 +50,14 @@ export const KIND_LABELS = {
 
 export const LETTERHEAD_LABELS = {
   desa: { label: "Kop desa", hint: "Logo dan alamat desa dari profil desa." },
-  garuda: { label: "Kop Garuda", hint: "Lambang Garuda, untuk keputusan." },
+  garuda: { label: "Kop Garuda", hint: "Lambang Garuda Pancasila untuk keputusan; pilih hitam-putih atau warna." },
   none: { label: "Tanpa kop", hint: "Kertas polos, tanpa kepala surat." },
 } as const satisfies Record<LetterDocument["letterhead"], { label: string; hint: string }>;
 
 export const FIELD_TYPE_LABELS = {
   text: "Teks pendek",
   longtext: "Teks panjang",
+  richtext: "Teks berformat (daftar, tebal, miring)",
   number: "Angka",
   money: "Rupiah",
   date: "Tanggal",
@@ -464,7 +465,7 @@ export function addSlot(b: B<"signature">, who: Who = { kind: "pejabat", officia
   if (b.slots.length >= LIMITS.signatureSlots) return b;
   const slot: Slot = {
     id: uniqueSlotId(b.slots, "ttd"),
-    who, prefix: "none", showName: true, showNip: false, stamp: false, materai: false, align: "center", gapMm: 25,
+    who, prefix: "none", showName: true, showNip: false, showGolongan: false, showRegister: false, stamp: false, materai: false, align: "center", gapMm: 25,
   };
   return { ...b, slots: [...b.slots, slot] };
 }

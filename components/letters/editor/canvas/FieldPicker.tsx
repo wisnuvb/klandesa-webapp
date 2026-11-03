@@ -23,7 +23,7 @@ export type FieldPickerProps = {
 };
 
 const CREATE_VALUE = "__buat_isian_baru__";
-const CREATABLE_TYPES: FieldType[] = ["text", "longtext", "number", "money", "date", "choice"];
+const CREATABLE_TYPES: FieldType[] = ["text", "longtext", "richtext", "number", "money", "date", "choice"];
 
 /**
  * Pemilih isian: kolom cari + daftar bergrup (combobox ARIA lewat cmdk, navigasi panah/Enter/Esc)

@@ -473,7 +473,7 @@ function SlotEditor({
       )}
       <SelectField label="Awalan jabatan" value={slot.prefix} options={Object.entries(H.PREFIX_LABELS).map(([value, label]) => ({ value: value as Slot["prefix"], label }))} onChange={(prefix) => onPatch({ prefix })} />
       {caption.simple ? (
-        <TextField label="Tulisan di atas jabatan (opsional)" hint="Mis. “Mengetahui, Camat” atau “Yang menyatakan,”" value={caption.text.replace(/\n/g, " ")} onCommit={(t) => onPatch({ caption: t.trim() ? H.textToInlines(t) : undefined })} />
+        <TextField label="Tulisan di atas jabatan (opsional)" hint="Mis. “Mengetahui,” atau “Yang menyatakan,”" value={caption.text.replace(/\n/g, " ")} onCommit={(t) => onPatch({ caption: t.trim() ? H.textToInlines(t) : undefined })} />
       ) : (
         <p className="text-xs text-muted-foreground">Tulisan di atas jabatan memuat isian data; ubah langsung di kertas.</p>
       )}
@@ -481,9 +481,22 @@ function SlotEditor({
         <CheckField label="Stempel" checked={slot.stamp} onChange={(stamp) => onPatch({ stamp })} />
         <CheckField label="Materai" checked={slot.materai} onChange={(materai) => onPatch({ materai })} />
       </div>
+      {slot.who.kind === "pejabat" && (
+        <fieldset className="space-y-1">
+          <legend className="mb-1 text-sm font-medium text-foreground">Data di bawah nama</legend>
+          <CheckField label="Pangkat/golongan" checked={slot.showGolongan} onChange={(showGolongan) => onPatch({ showGolongan })} />
+          <CheckField label="NIP" checked={slot.showNip} onChange={(showNip) => onPatch({ showNip })} />
+          <CheckField
+            label="Nomor register (diisi kecamatan)"
+            hint="Tercetak sebagai “No. Register : ……” di bawah jabatan, untuk ditulis tangan oleh kantor kecamatan."
+            checked={slot.showRegister}
+            onChange={(showRegister) => onPatch({ showRegister })}
+          />
+        </fieldset>
+      )}
       <Disclosure>
         <CheckField label="Tampilkan nama" checked={slot.showName} onChange={(showName) => onPatch({ showName })} />
-        <CheckField label="Tampilkan NIP" checked={slot.showNip} onChange={(showNip) => onPatch({ showNip })} />
+        {slot.who.kind !== "pejabat" && <CheckField label="Tampilkan NIP" checked={slot.showNip} onChange={(showNip) => onPatch({ showNip })} />}
         {!spreadActive && (
           <SelectField
             label="Letak di halaman"

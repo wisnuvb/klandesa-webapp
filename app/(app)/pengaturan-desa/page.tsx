@@ -26,6 +26,8 @@ import { Combobox } from "@/components/ui/combobox";
 import type { VillageMailSettingsFields } from "@/lib/mail/letterFormSnapshot";
 import { PROVINSI_CODES } from "@/lib/pangan/match-region";
 import { extractArray } from "@/lib/pangan/region-master";
+import { GolonganSelect } from "@/components/app/GolonganSelect";
+import { validateNip } from "@/lib/letters/nip";
 import { Field } from "./_components/Field";
 import { LogoField } from "./_components/LogoField";
 
@@ -68,6 +70,8 @@ type FormValues = {
   kepalaDesaNip: string;
   sekretarisNama: string;
   camatNama: string;
+  camatNip: string;
+  camatGolongan: string;
 };
 
 type FieldKey = keyof FormValues;
@@ -89,6 +93,8 @@ const EMPTY: FormValues = {
   kepalaDesaNip: "",
   sekretarisNama: "",
   camatNama: "",
+  camatNip: "",
+  camatGolongan: "",
 };
 
 /** Urutan tampil di layar: dipakai untuk memfokuskan isian pertama yang salah. */
@@ -104,6 +110,8 @@ const FIELD_ORDER: FieldKey[] = [
   "phone",
   "email",
   "website",
+  "kepalaDesaNip",
+  "camatNip",
 ];
 
 function toValues(data: VillageProfilePayload): FormValues {
@@ -123,6 +131,8 @@ function toValues(data: VillageProfilePayload): FormValues {
     kepalaDesaNip: data.mail?.kepalaDesaNip ?? "",
     sekretarisNama: data.mail?.sekretarisNama ?? "",
     camatNama: data.mail?.camatNama ?? "",
+    camatNip: data.mail?.camatNip ?? "",
+    camatGolongan: data.mail?.camatGolongan ?? "",
   };
 }
 
@@ -152,6 +162,10 @@ function validate(v: FormValues): FormErrors {
   if (tel && !/^[0-9+()\-.\s]{6,20}$/.test(tel)) e.phone = "Nomor telepon tidak valid.";
   const mail = v.email.trim();
   if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) e.email = "Format email tidak valid.";
+  const kadesNip = validateNip(v.kepalaDesaNip);
+  if (kadesNip) e.kepalaDesaNip = kadesNip;
+  const camatNip = validateNip(v.camatNip);
+  if (camatNip) e.camatNip = camatNip;
   const web = v.website.trim();
   if (web && !isHttpUrl(web)) e.website = "Awali dengan http:// atau https://.";
   const logo = v.logoUrl.trim();
@@ -357,6 +371,8 @@ export default function PengaturanDesaPage() {
             kepalaDesaNip: form.kepalaDesaNip,
             sekretarisNama: form.sekretarisNama,
             camatNama: form.camatNama,
+            camatNip: form.camatNip,
+            camatGolongan: form.camatGolongan,
           },
           integrations: { idmVillageCode: form.idmVillageCode },
         }),
@@ -610,7 +626,7 @@ export default function PengaturanDesaPage() {
               <div>
                 <CardTitle>Pengaturan surat & penandatangan</CardTitle>
                 <CardDescription>
-                  Nama dan NIP yang tercetak di kop dan variabel template surat.
+                  Nama, pangkat/golongan, dan NIP penandatangan yang tercetak di surat.
                 </CardDescription>
               </div>
             </div>
@@ -631,48 +647,101 @@ export default function PengaturanDesaPage() {
                 (jabatan Kepala Desa / Sekretaris yang aktif).
               </AlertDescription>
             </Alert>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="kepalaDesaNama" label="Nama Kepala Desa (isi manual)" optional>
-                {(c) => (
-                  <Input
-                    {...c}
-                    value={form.kepalaDesaNama}
-                    onChange={(e) => update("kepalaDesaNama", e.target.value)}
-                    placeholder="Kosongkan = dari Data Perangkat"
-                  />
-                )}
-              </Field>
-              <Field id="kepalaDesaNip" label="NIP Kepala Desa" optional>
-                {(c) => (
-                  <Input
-                    {...c}
-                    value={form.kepalaDesaNip}
-                    onChange={(e) => update("kepalaDesaNip", e.target.value)}
-                    inputMode="numeric"
-                    placeholder="18 angka, bagi yang berstatus ASN"
-                  />
-                )}
-              </Field>
-              <Field id="sekretarisNama" label="Nama Sekretaris Desa (isi manual)" optional>
-                {(c) => (
-                  <Input
-                    {...c}
-                    value={form.sekretarisNama}
-                    onChange={(e) => update("sekretarisNama", e.target.value)}
-                    placeholder="Kosongkan = dari Data Perangkat"
-                  />
-                )}
-              </Field>
-              <Field id="camatNama" label="Nama Camat" optional hint="Dipakai sebagai variabel di template surat.">
-                {(c) => (
-                  <Input
-                    {...c}
-                    value={form.camatNama}
-                    onChange={(e) => update("camatNama", e.target.value)}
-                  />
-                )}
-              </Field>
-            </div>
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-semibold">Kepala Desa</legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field id="kepalaDesaNama" label="Nama Kepala Desa (isi manual)" optional>
+                  {(c) => (
+                    <Input
+                      {...c}
+                      value={form.kepalaDesaNama}
+                      onChange={(e) => update("kepalaDesaNama", e.target.value)}
+                      placeholder="Kosongkan = dari Data Perangkat"
+                    />
+                  )}
+                </Field>
+                <Field id="kepalaDesaNip" label="NIP Kepala Desa" optional hint="18 angka; spasi pemisah boleh." error={errors.kepalaDesaNip}>
+                  {(c) => (
+                    <Input
+                      {...c}
+                      value={form.kepalaDesaNip}
+                      onChange={(e) => update("kepalaDesaNip", e.target.value)}
+                      inputMode="numeric"
+                      maxLength={40}
+                      placeholder="Bagi yang berstatus ASN"
+                    />
+                  )}
+                </Field>
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-3 border-t pt-4">
+              <legend className="text-sm font-semibold">Sekretaris Desa</legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field id="sekretarisNama" label="Nama Sekretaris Desa (isi manual)" optional>
+                  {(c) => (
+                    <Input
+                      {...c}
+                      value={form.sekretarisNama}
+                      onChange={(e) => update("sekretarisNama", e.target.value)}
+                      placeholder="Kosongkan = dari Data Perangkat"
+                    />
+                  )}
+                </Field>
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-3 border-t pt-4">
+              <legend className="text-sm font-semibold">Camat</legend>
+              <p className="text-sm text-muted-foreground">
+                Dipakai di blok “Mengetahui, Camat” pada surat, jadi tidak perlu diketik ulang di setiap surat.{" "}
+                {form.district.trim() ? (
+                  <>
+                    Jabatan tercetak sebagai <strong className="font-medium text-foreground">Camat {form.district.trim().replace(/^kec(amatan|\.)?\s+/i, "")}</strong>
+                  </>
+                ) : (
+                  "Isi nama kecamatan di bagian Identitas & wilayah agar tercetak di jabatan Camat"
+                )}{" "}
+                (kecamatan diatur di{" "}
+                <a href="#district" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Identitas &amp; wilayah
+                </a>
+                ).
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field id="camatNama" label="Nama Camat" optional hint="Lengkap dengan gelar, sesuai penulisan di surat dinas.">
+                  {(c) => (
+                    <Input
+                      {...c}
+                      value={form.camatNama}
+                      onChange={(e) => update("camatNama", e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field id="camatGolongan" label="Pangkat/golongan Camat" optional hint="Pilih dari daftar atau tulis sendiri.">
+                  {(c) => (
+                    <GolonganSelect
+                      id={c.id}
+                      aria-describedby={c["aria-describedby"]}
+                      aria-invalid={c["aria-invalid"]}
+                      value={form.camatGolongan}
+                      onChange={(next) => update("camatGolongan", next)}
+                    />
+                  )}
+                </Field>
+                <Field id="camatNip" label="NIP Camat" optional hint="18 angka; spasi pemisah boleh." error={errors.camatNip}>
+                  {(c) => (
+                    <Input
+                      {...c}
+                      inputMode="numeric"
+                      maxLength={40}
+                      value={form.camatNip}
+                      onChange={(e) => update("camatNip", e.target.value)}
+                    />
+                  )}
+                </Field>
+              </div>
+            </fieldset>
           </CardContent>
         </Card>
 

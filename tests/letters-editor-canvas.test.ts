@@ -85,7 +85,8 @@ describe("pilihan isian", () => {
 
   it("memuat orang, isian tambahan, pejabat, desa, dan surat", () => {
     assert.deepEqual(groups.map((g) => g.id), ["orang:pemohon", "isian", "pejabat", "desa", "surat"]);
-    assert.equal(groups.find((g) => g.id === "pejabat")!.options.length, 9);
+    // 3 pejabat × 4 isian (nama, pangkat/golongan, NIP, jabatan)
+    assert.equal(groups.find((g) => g.id === "pejabat")!.options.length, 12);
   });
   it("semua rujukan sah menurut registry dan unik", () => {
     for (const o of all) assert.ok(parseRef(o.ref), o.ref);

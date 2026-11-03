@@ -94,6 +94,10 @@ const SignatureSlot = z.object({
   caption: Inlines.max(20).optional(),
   showName: z.boolean().default(true),
   showNip: z.boolean().default(false),
+  /** Pangkat/golongan di antara nama dan NIP (hanya penanda tangan `pejabat`; lazim untuk Camat/PNS). */
+  showGolongan: z.boolean().default(false),
+  /** Baris "No. Register" bertitik-titik di atas ruang tanda tangan, untuk diisi kantor kecamatan secara manual. */
+  showRegister: z.boolean().default(false),
   stamp: z.boolean().default(false),
   materai: z.boolean().default(false),
   /** Rata tulisan di dalam blok tanda tangan. */
@@ -254,7 +258,7 @@ export type Block = z.infer<typeof BlockSchema>;
 
 // ------------------------------------------------------------ isian & orang
 
-export const FieldTypeSchema = z.enum(["text", "longtext", "number", "money", "date", "choice"]);
+export const FieldTypeSchema = z.enum(["text", "longtext", "richtext", "number", "money", "date", "choice"]);
 
 export const CustomFieldSchema = z.object({
   id: SnakeId,
@@ -327,6 +331,8 @@ export const DocumentSchema = z.object({
   page: PageSchema.default(() => PageSchema.parse({})),
   /** `desa`: kop dari Profil Tata Naskah Desa; `garuda`: kop keputusan; `none`: tanpa kop. */
   letterhead: z.enum(["desa", "garuda", "none"]).default("desa"),
+  /** Hanya untuk kop `garuda`: lambang hitam-putih (hemat tinta, aman difotokopi) atau berwarna. */
+  garudaStyle: z.enum(["hitam_putih", "warna"]).default("hitam_putih"),
   numbering: NumberingSchema.default(() => NumberingSchema.parse({})),
   people: z.array(PersonRoleSchema).max(LIMITS.people).default([]),
   fields: z.array(CustomFieldSchema).max(LIMITS.fields).default([]),

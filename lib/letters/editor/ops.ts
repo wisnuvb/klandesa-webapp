@@ -221,7 +221,7 @@ export const patchNumbering = (doc: LetterDocument, patch: Partial<LetterDocumen
 });
 export const patchMeta = (
   doc: LetterDocument,
-  patch: Partial<Pick<LetterDocument, "kind" | "audience" | "letterhead">>,
+  patch: Partial<Pick<LetterDocument, "kind" | "audience" | "letterhead" | "garudaStyle">>,
 ): LetterDocument => ({ ...doc, ...patch });
 
 // ------------------------------------------------- orang, isian, daftar berulang

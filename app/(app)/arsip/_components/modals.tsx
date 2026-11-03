@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Download,
   Lightbulb,
+  Loader2,
   Sparkles,
   Star,
   Upload,
@@ -37,6 +38,7 @@ import { STORAGE_PLANS } from "../_data/storagePlans";
 import {
   archiveThumbnailNeedsUnoptimized,
   formatFileSize,
+  getExtensionFromFileName,
   getFileIcon,
 } from "../_utils/fileUtils";
 import { SearchSelect } from "@/components/ui/search-select";
@@ -807,58 +809,385 @@ interface PreviewModalProps {
   onClose: () => void;
 }
 
+const PREVIEW_TEXT_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+const PREVIEW_SPREADSHEET_MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+const PREVIEW_SPREADSHEET_MAX_ROWS = 500;
+
+function PreviewLoading() {
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-3 text-gray-500">
+      <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" />
+      <p className="text-sm">Memuat pratinjau...</p>
+    </div>
+  );
+}
+
+function PreviewMessage({ text, downloadUrl }: { text: string; downloadUrl?: string }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-4">
+      <AlertCircle className="w-8 h-8 text-gray-400" aria-hidden="true" />
+      <p className="text-gray-500">{text}</p>
+      {downloadUrl && (
+        <a
+          href={downloadUrl}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+        >
+          <Download className="w-4 h-4" aria-hidden="true" />
+          Unduh File
+        </a>
+      )}
+    </div>
+  );
+}
+
+function UnsupportedPreview({ file }: { file: FileItem }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-center p-6">
+      <div className="flex justify-center mb-4">{getFileIcon(file)}</div>
+      <p className="text-gray-500 mt-4">
+        Pratinjau tidak tersedia untuk tipe file ini
+      </p>
+      {file.archiveId ? (
+        <a
+          href={`/api/digital-archives/${file.archiveId}/file?download=1`}
+          className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+        >
+          <Download className="w-4 h-4" aria-hidden="true" />
+          Unduh File
+        </a>
+      ) : (
+        <button
+          type="button"
+          className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors opacity-50 cursor-not-allowed"
+          disabled
+        >
+          <Download className="w-4 h-4" aria-hidden="true" />
+          Download File
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ImagePreview({ file }: { file: FileItem }) {
+  return (
+    <div className="relative w-full h-full min-h-[320px]">
+      <Image
+        src={file.thumbnail_url!}
+        alt={file.name}
+        fill
+        sizes="(max-width: 1024px) 100vw, 1024px"
+        className="object-contain rounded-lg"
+        unoptimized={archiveThumbnailNeedsUnoptimized(file.thumbnail_url!)}
+      />
+    </div>
+  );
+}
+
+function PdfPreview({ url, fileName }: { url: string; fileName: string }) {
+  return (
+    <object
+      data={url}
+      type="application/pdf"
+      className="w-full h-full rounded-lg border border-gray-200 bg-white"
+      aria-label={`Pratinjau PDF ${fileName}`}
+    >
+      <PreviewMessage
+        text="Peramban ini tidak dapat menampilkan pratinjau PDF langsung."
+        downloadUrl={url}
+      />
+    </object>
+  );
+}
+
+function AudioPreview({ url, fileName }: { url: string; fileName: string }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-4 p-6">
+      <audio controls className="w-full max-w-md" src={url}>
+        Peramban Anda tidak mendukung pemutaran audio.
+      </audio>
+      <p className="text-sm text-gray-500 break-all text-center">{fileName}</p>
+    </div>
+  );
+}
+
+function VideoPreview({ url, fileName }: { url: string; fileName: string }) {
+  return (
+    <div className="h-full flex items-center justify-center p-4">
+      <video controls className="max-w-full max-h-full rounded-lg bg-black" src={url}>
+        <track kind="captions" />
+        Peramban Anda tidak mendukung pemutaran video {fileName}.
+      </video>
+    </div>
+  );
+}
+
+type TextPreviewState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; text: string };
+
+function TextPreview({ url, size }: { url: string; size: number }) {
+  const tooLarge = size > PREVIEW_TEXT_MAX_BYTES;
+  const [state, setState] = useState<TextPreviewState>({ status: "loading" });
+
+  useEffect(() => {
+    if (tooLarge) return;
+    let cancelled = false;
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then((text) => {
+        if (!cancelled) setState({ status: "ready", text });
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setState({
+            status: "error",
+            message: e instanceof Error ? e.message : "Gagal memuat pratinjau",
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url, tooLarge]);
+
+  if (tooLarge) {
+    return (
+      <PreviewMessage
+        text="Berkas terlalu besar untuk pratinjau teks. Unduh untuk melihat isinya."
+        downloadUrl={url}
+      />
+    );
+  }
+  if (state.status === "loading") return <PreviewLoading />;
+  if (state.status === "error") {
+    return (
+      <PreviewMessage
+        text={`Gagal memuat pratinjau: ${state.message}`}
+        downloadUrl={url}
+      />
+    );
+  }
+
+  return (
+    <pre className="w-full h-full overflow-auto whitespace-pre-wrap break-words text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg p-4">
+      {state.text}
+    </pre>
+  );
+}
+
+type SpreadsheetPreviewState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; sheetNames: string[]; rowsBySheet: Record<string, unknown[][]> };
+
+function SpreadsheetPreview({
+  url,
+  size,
+}: {
+  url: string;
+  fileName: string;
+  size: number;
+}) {
+  const tooLarge = size > PREVIEW_SPREADSHEET_MAX_BYTES;
+  const [state, setState] = useState<SpreadsheetPreviewState>({ status: "loading" });
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tooLarge) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buf = await res.arrayBuffer();
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.read(buf, { type: "array" });
+        const rowsBySheet: Record<string, unknown[][]> = {};
+        for (const name of workbook.SheetNames) {
+          const sheet = workbook.Sheets[name];
+          const data = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+            header: 1,
+            blankrows: false,
+          }) as unknown[][];
+          rowsBySheet[name] = data.slice(0, PREVIEW_SPREADSHEET_MAX_ROWS);
+        }
+        if (!cancelled) {
+          setState({ status: "ready", sheetNames: workbook.SheetNames, rowsBySheet });
+          setActiveSheet(workbook.SheetNames[0] ?? null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setState({
+            status: "error",
+            message: e instanceof Error ? e.message : "Gagal memuat spreadsheet",
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [url, tooLarge]);
+
+  if (tooLarge) {
+    return (
+      <PreviewMessage
+        text="Berkas terlalu besar untuk pratinjau. Unduh untuk melihat isinya."
+        downloadUrl={url}
+      />
+    );
+  }
+  if (state.status === "loading") return <PreviewLoading />;
+  if (state.status === "error") {
+    return (
+      <PreviewMessage
+        text={`Gagal memuat pratinjau: ${state.message}`}
+        downloadUrl={url}
+      />
+    );
+  }
+
+  const activeRows = activeSheet ? state.rowsBySheet[activeSheet] ?? [] : [];
+  const maxCols = activeRows.reduce((m, r) => Math.max(m, r.length), 0);
+  const truncated = activeRows.length >= PREVIEW_SPREADSHEET_MAX_ROWS;
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      {state.sheetNames.length > 1 && (
+        <div className="flex gap-1 overflow-x-auto pb-2 mb-2 border-b border-gray-200 shrink-0">
+          {state.sheetNames.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setActiveSheet(name)}
+              className={`px-3 py-1.5 text-sm rounded-t-lg whitespace-nowrap transition-colors ${
+                activeSheet === name
+                  ? "bg-teal-50 text-teal-700 font-medium border-b-2 border-teal-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 min-h-0 overflow-auto border border-gray-200 rounded-lg">
+        <table className="min-w-full text-sm border-collapse">
+          <tbody>
+            {activeRows.length === 0 ? (
+              <tr>
+                <td className="px-3 py-6 text-center text-gray-500">
+                  Sheet kosong
+                </td>
+              </tr>
+            ) : (
+              activeRows.map((row, rIdx) => (
+                <tr
+                  key={rIdx}
+                  className={
+                    rIdx === 0
+                      ? "bg-gray-50 font-medium"
+                      : "odd:bg-white even:bg-gray-50/50"
+                  }
+                >
+                  {Array.from({ length: maxCols }).map((_, cIdx) => (
+                    <td
+                      key={cIdx}
+                      className="px-3 py-1.5 border-b border-gray-100 whitespace-nowrap text-gray-800"
+                    >
+                      {row[cIdx] != null ? String(row[cIdx]) : ""}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      {truncated && (
+        <p className="text-xs text-gray-500 mt-2 shrink-0">
+          Menampilkan {PREVIEW_SPREADSHEET_MAX_ROWS} baris pertama. Unduh berkas untuk melihat semuanya.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PreviewBody({ file }: { file: FileItem }) {
+  if (file.file_type === "IMAGE" && file.thumbnail_url) {
+    return <ImagePreview file={file} />;
+  }
+
+  const fileUrl = file.archiveId
+    ? `/api/digital-archives/${file.archiveId}/file`
+    : null;
+
+  if (!fileUrl) {
+    return <UnsupportedPreview file={file} />;
+  }
+
+  const ext = (file.extension || getExtensionFromFileName(file.name) || "").toLowerCase();
+
+  if (ext === "pdf") {
+    return <PdfPreview url={fileUrl} fileName={file.name} />;
+  }
+  if (["xls", "xlsx", "csv", "ods"].includes(ext)) {
+    return <SpreadsheetPreview url={fileUrl} fileName={file.name} size={file.size} />;
+  }
+  if (ext === "txt") {
+    return <TextPreview url={fileUrl} size={file.size} />;
+  }
+  if (ext === "mp3") {
+    return <AudioPreview url={fileUrl} fileName={file.name} />;
+  }
+  if (ext === "mp4") {
+    return <VideoPreview url={fileUrl} fileName={file.name} />;
+  }
+
+  return <UnsupportedPreview file={file} />;
+}
+
 export function PreviewModal(props: PreviewModalProps) {
   const { open, file, onClose } = props;
   if (!file) return null;
 
+  const downloadHref = file.archiveId
+    ? `/api/digital-archives/${file.archiveId}/file?download=1`
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent className="max-w-4xl sm:max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
-        <div className="px-6 py-4 border-b border-gray-200 shrink-0">
-          <DialogTitle className="text-lg font-semibold text-gray-900">{file.name}</DialogTitle>
-          <p className="text-sm text-gray-500 mt-1">
-            {formatFileSize(file.size)} • {file.uploaded_by}
-          </p>
+      <DialogContent className="max-w-5xl sm:max-w-5xl w-full h-[92vh] max-h-[92vh] flex flex-col overflow-hidden p-0 gap-0">
+        <div className="px-6 py-4 pr-12 border-b border-gray-200 shrink-0 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <DialogTitle
+              className="text-lg font-semibold text-gray-900 truncate"
+              title={file.name}
+            >
+              {file.name}
+            </DialogTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              {formatFileSize(file.size)} • {file.uploaded_by}
+            </p>
+          </div>
+          {downloadHref && (
+            <a
+              href={downloadHref}
+              className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 text-sm text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Download className="w-4 h-4" aria-hidden="true" />
+              Unduh
+            </a>
+          )}
         </div>
 
-        <div className="p-6 flex-1 min-h-0 overflow-y-auto">
-          {file.file_type === "IMAGE" && file.thumbnail_url ? (
-            <Image
-              src={file.thumbnail_url}
-              alt={file.name}
-              className="w-full rounded-lg"
-              width={800}
-              height={600}
-              unoptimized={archiveThumbnailNeedsUnoptimized(file.thumbnail_url)}
-            />
-          ) : (
-            <div className="text-center py-12">
-              <div className="flex justify-center mb-4">
-                {getFileIcon(file)}
-              </div>
-              <p className="text-gray-500 mt-4">
-                Preview tidak tersedia untuk tipe file ini
-              </p>
-              {file.archiveId ? (
-                <a
-                  href={`/api/digital-archives/${file.archiveId}/file?download=1`}
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Unduh File
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors opacity-50 cursor-not-allowed"
-                  disabled
-                >
-                  <Download className="w-4 h-4" />
-                  Download File
-                </button>
-              )}
-            </div>
-          )}
+        <div className="flex-1 min-h-0 p-4 sm:p-6">
+          <PreviewBody key={file.selectionKey} file={file} />
         </div>
       </DialogContent>
     </Dialog>

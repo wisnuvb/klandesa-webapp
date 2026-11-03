@@ -123,7 +123,7 @@ const BLANK: Record<StartKind, { title: string; description: string; category: s
       audience: "internal",
       fields: [
         { id: "agenda", label: "Agenda", type: "text" },
-        { id: "hasil", label: "Hasil / kesepakatan", type: "longtext" },
+        { id: "hasil", label: "Hasil / kesepakatan", type: "richtext" },
       ],
       groups: [
         {

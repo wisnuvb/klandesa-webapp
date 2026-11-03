@@ -18,11 +18,11 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const [residents, totalOfficials, totalMailServices, budgetSum] =
+    const [residents, totalOfficials, totalMailRequests, budgetSum] =
       await Promise.all([
         aggregateResidents(village.id),
         prisma.official.count({ where: { villageId: village.id } }),
-        prisma.mailService.count({ where: { villageId: village.id } }),
+        prisma.mailRequest.count({ where: { villageId: village.id } }),
         prisma.budget.aggregate({
           where: { villageId: village.id, status: "active" },
           _sum: { remainingAmount: true },
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         residents: residents.total,
         households: residents.households,
         officials: totalOfficials,
-        mailServices: totalMailServices,
+        mailServices: totalMailRequests,
         budgetAvailable: Number(budgetSum._sum.remainingAmount ?? 0),
       },
       charts: {

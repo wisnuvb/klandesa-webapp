@@ -378,6 +378,14 @@ describe("renderer: perilaku blok", () => {
     const o2 = html(d2, v(d2));
     assert.ok(o2.includes("KEPALA DESA BRAMBANG") && o2.includes("KABUPATEN PASURUAN"));
     assert.ok(!o2.includes("PEMERINTAH KABUPATEN"));
+    // Lambang sungguhan (bukan lingkaran penanda): bawaan hitam-putih, bisa dipilih warna; tanpa celah kosong di cetak.
+    assert.ok(o2.includes('src="/images/garuda-bw.webp"') && !o2.includes("garuda-c.webp"));
+    assert.ok(!html(d2, v(d2), "preview").includes(">Garuda<"));
+    base.garudaStyle = "warna";
+    const d2c = docOf(base);
+    const o2c = html(d2c, v(d2c), "print");
+    assert.ok(o2c.includes('src="/images/garuda-c.webp"') && !o2c.includes("garuda-bw.webp"));
+    base.garudaStyle = undefined;
 
     base.letterhead = "none";
     const d3 = docOf(base);

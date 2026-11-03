@@ -1,7 +1,9 @@
 "use client";
 
+import { GARUDA_STYLES, GARUDA_STYLE_LABELS } from "@/lib/letters/garuda";
 import { memo, useId, useState } from "react";
 import { Check, ExternalLink, ImageOff, ImagePlus, Info, Loader2, Trash2 } from "lucide-react";
+import { GolonganSelect } from "@/components/app/GolonganSelect";
 import { DigitalArchivePickerModal } from "@/components/digital-archive/DigitalArchivePickerModal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
@@ -18,6 +20,8 @@ import {
 import type { LetterheadController } from "../useVillageLetterhead";
 import { LETTERHEAD_LABELS } from "./helpers";
 import { FieldError, RadioCards, Section, TextField, labelClass } from "./ui";
+
+const GARUDA_OPTIONS = GARUDA_STYLES.map((value) => ({ value, label: GARUDA_STYLE_LABELS[value].label, hint: GARUDA_STYLE_LABELS[value].hint }));
 
 const KOP_OPTIONS = Object.entries(LETTERHEAD_LABELS).map(([value, v]) => ({
   value: value as keyof typeof LETTERHEAD_LABELS, label: v.label, hint: v.hint,
@@ -115,6 +119,15 @@ export const LetterheadPanel = memo(function LetterheadPanel({ editor, kop }: { 
           onChange={(letterhead) => setMeta({ letterhead })}
           options={KOP_OPTIONS}
         />
+        {doc.letterhead === "garuda" && (
+          <RadioCards
+            legend="Gambar lambang Garuda"
+            value={doc.garudaStyle}
+            onChange={(garudaStyle) => setMeta({ garudaStyle })}
+            options={GARUDA_OPTIONS}
+            columns={2}
+          />
+        )}
       </Section>
 
       {desa && (
@@ -229,9 +242,19 @@ export const LetterheadPanel = memo(function LetterheadPanel({ editor, kop }: { 
 
       <Section title="Nama di tanda tangan" description="Nama pejabat yang tercetak di bagian tanda tangan surat.">
         <TextField label="Nama Kepala Desa" value={draft.kadesNama} onCommit={(kadesNama) => kop.change({ kadesNama })} maxLength={120} />
-        <TextField label="NIP Kepala Desa (bila ada)" value={draft.kadesNip} onCommit={(kadesNip) => kop.change({ kadesNip })} maxLength={40} mono />
+        <TextField label="NIP Kepala Desa (bila ada)" value={draft.kadesNip} onCommit={(kadesNip) => kop.change({ kadesNip })} maxLength={40} mono error={errors.kadesNip} hint="18 angka; spasi pemisah boleh." />
         <TextField label="Nama Sekretaris Desa" value={draft.sekdesNama} onCommit={(sekdesNama) => kop.change({ sekdesNama })} maxLength={120} />
         <TextField label="Nama Camat" value={draft.camatNama} onCommit={(camatNama) => kop.change({ camatNama })} maxLength={120} />
+        <div>
+          <label htmlFor={`${layoutId}-camat-gol`} className={labelClass}>Pangkat/golongan Camat</label>
+          <GolonganSelect
+            id={`${layoutId}-camat-gol`}
+            variant="panel"
+            value={draft.camatGolongan}
+            onChange={(camatGolongan) => kop.change({ camatGolongan })}
+          />
+        </div>
+        <TextField label="NIP Camat" value={draft.camatNip} onCommit={(camatNip) => kop.change({ camatNip })} maxLength={40} mono error={errors.camatNip} hint="18 angka; spasi pemisah boleh." />
       </Section>
 
       {(kop.dirty || kop.saveError) && (

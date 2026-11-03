@@ -1,5 +1,6 @@
 "use client";
 
+import { GARUDA_STYLES, GARUDA_STYLE_LABELS } from "@/lib/letters/garuda";
 import { memo, useState } from "react";
 import { Info } from "lucide-react";
 import type { EditorApi } from "@/lib/letters/editor";
@@ -16,6 +17,8 @@ const KIND_OPTIONS = Object.entries(KIND_LABELS).map(([value, label]) => ({ valu
 const LETTERHEAD_OPTIONS = Object.entries(LETTERHEAD_LABELS).map(([value, v]) => ({
   value: value as keyof typeof LETTERHEAD_LABELS, label: v.label, hint: v.hint,
 }));
+
+const GARUDA_OPTIONS = GARUDA_STYLES.map((value) => ({ value, label: GARUDA_STYLE_LABELS[value].label, hint: GARUDA_STYLE_LABELS[value].hint }));
 
 const MARGIN_SIDES: Array<{ key: keyof MarginMm; label: string }> = [
   { key: "top", label: "Atas" },
@@ -110,6 +113,15 @@ export const PagePanel = memo(function PagePanel({ editor, hideLetterhead = fals
             onChange={(letterhead) => setMeta({ letterhead })}
             options={LETTERHEAD_OPTIONS}
           />
+          {doc.letterhead === "garuda" && (
+            <RadioCards
+              legend="Gambar lambang Garuda"
+              value={doc.garudaStyle}
+              onChange={(garudaStyle) => setMeta({ garudaStyle })}
+              options={GARUDA_OPTIONS}
+              columns={2}
+            />
+          )}
         </Section>
       )}
 

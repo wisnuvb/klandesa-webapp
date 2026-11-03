@@ -49,8 +49,12 @@ export function ScaledPaper({ doc, zoom, children }: { doc: LetterDocument; zoom
   const scale = zoom === "fit" ? fit : 1;
 
   return (
-    <div ref={host} className="w-full overflow-x-auto" style={hostW > 0 ? undefined : { visibility: "hidden" }}>
-      <div style={{ width: paperW * scale, height: innerH * scale, margin: "0 auto" }}>
+    // `overflow-x-auto` saja membuat overflow-y ikut `auto` (aturan CSS), sehingga pembungkus ini menjadi penggulir vertikal kedua
+    // di dalam panel yang sudah menggulir: selisih 1px akibat pembulatan tinggi (mis. 1114,5 → 1114) cukup memunculkan scrollbar.
+    // Gulir vertikal sepenuhnya milik panel; pembungkus ini hanya boleh menggulir mendatar (zoom 100%).
+    // `pb-2` memberi ruang agar bayangan kertas tidak terpotong oleh overflow-y-hidden.
+    <div ref={host} className="w-full overflow-x-auto overflow-y-hidden pb-2" style={hostW > 0 ? undefined : { visibility: "hidden" }}>
+      <div style={{ width: paperW * scale, height: Math.ceil(innerH * scale), margin: "0 auto" }}>
         <div
           ref={inner}
           className="lc-scale"

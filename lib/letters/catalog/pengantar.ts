@@ -235,7 +235,7 @@ export const PENGANTAR: CatalogEntry[] = [
         { id: "penerima", label: "Penerima kuasa" },
       ],
       fields: [
-        field("isi_kuasa", "Kuasa untuk", "longtext", { placeholder: "mis. mengambil dokumen kependudukan di kantor kecamatan" }),
+        field("isi_kuasa", "Kuasa untuk", "richtext", { placeholder: "mis. mengambil dokumen kependudukan di kantor kecamatan" }),
         field("masa_berlaku", "Masa berlaku", "text", { required: false, placeholder: "mis. sampai urusan selesai" }),
       ],
       body: [
@@ -270,7 +270,7 @@ export const PENGANTAR: CatalogEntry[] = [
       kind: "lainnya",
       klasifikasi: "474",
       fields: [
-        field("isi_pernyataan", "Isi pernyataan", "longtext", { placeholder: "mis. tanah yang saya garap adalah milik sendiri dan tidak dalam sengketa" }),
+        field("isi_pernyataan", "Isi pernyataan", "richtext", { placeholder: "mis. tanah yang saya garap adalah milik sendiri dan tidak dalam sengketa" }),
         KEPERLUAN,
       ],
       body: [

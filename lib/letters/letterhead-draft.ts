@@ -3,6 +3,7 @@
  * supaya validasi dan perbandingannya bisa diuji. Draf baru disimpan ke profil desa saat operator menekan Simpan.
  */
 import { isSafeSrc } from "./document/schema";
+import { validateNip } from "./nip";
 import { DEFAULT_LETTERHEAD_STYLE, normalizeLetterheadStyle, type LetterheadStyle } from "./letterhead";
 import type { VillagePreviewContext } from "./values";
 
@@ -17,6 +18,8 @@ export type KopDraft = {
   kadesNip: string;
   sekdesNama: string;
   camatNama: string;
+  camatGolongan: string;
+  camatNip: string;
 };
 
 export type KopErrors = Partial<Record<Exclude<keyof KopDraft, "style">, string>>;
@@ -49,6 +52,8 @@ export function draftFromContext(ctx: VillagePreviewContext): KopDraft {
     kadesNip: ctx.pejabat.kades.nip,
     sekdesNama: ctx.pejabat.sekdes.nama,
     camatNama: ctx.pejabat.camat.nama,
+    camatGolongan: ctx.pejabat.camat.golongan ?? "",
+    camatNip: ctx.pejabat.camat.nip,
   };
 }
 
@@ -66,7 +71,7 @@ export function applyDraft(ctx: VillagePreviewContext, draft: KopDraft): Village
     pejabat: {
       kades: { ...ctx.pejabat.kades, nama: draft.kadesNama.trim(), nip: draft.kadesNip.trim() },
       sekdes: { ...ctx.pejabat.sekdes, nama: draft.sekdesNama.trim() },
-      camat: { ...ctx.pejabat.camat, nama: draft.camatNama.trim() },
+      camat: { ...ctx.pejabat.camat, nama: draft.camatNama.trim(), golongan: draft.camatGolongan.trim(), nip: draft.camatNip.trim() },
     },
     logoUrl: draft.logoUrl.trim() && isSafeSrc(draft.logoUrl.trim()) ? draft.logoUrl.trim() : null,
     kop: draft.style,
@@ -84,6 +89,10 @@ export function validateDraft(d: KopDraft): KopErrors {
   if (mail && !KOP_PATTERNS.email.test(mail)) e.email = KOP_MESSAGES.email;
   const logo = d.logoUrl.trim();
   if (logo && !isSafeSrc(logo)) e.logoUrl = KOP_MESSAGES.logo;
+  const kadesNip = validateNip(d.kadesNip);
+  if (kadesNip) e.kadesNip = kadesNip;
+  const camatNip = validateNip(d.camatNip);
+  if (camatNip) e.camatNip = camatNip;
   return e;
 }
 
@@ -109,6 +118,8 @@ export function patchFromDraft(saved: KopDraft, draft: KopDraft): Record<string,
   if (t(draft.kadesNip) !== t(saved.kadesNip)) officials.kepalaDesaNip = t(draft.kadesNip);
   if (t(draft.sekdesNama) !== t(saved.sekdesNama)) officials.sekretarisNama = t(draft.sekdesNama);
   if (t(draft.camatNama) !== t(saved.camatNama)) officials.camatNama = t(draft.camatNama);
+  if (t(draft.camatGolongan) !== t(saved.camatGolongan)) officials.camatGolongan = t(draft.camatGolongan);
+  if (t(draft.camatNip) !== t(saved.camatNip)) officials.camatNip = t(draft.camatNip);
   if (Object.keys(officials).length) body.officials = officials;
 
   if (!sameStyle(draft.style, saved.style)) body.style = draft.style;

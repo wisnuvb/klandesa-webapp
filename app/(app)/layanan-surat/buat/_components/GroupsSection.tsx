@@ -84,7 +84,7 @@ const GroupRow = memo(function GroupRow({
 
       <div className="grid gap-3 sm:grid-cols-2">
         {g.fields.map((f) => (
-          <div key={f.id} className={f.type === "longtext" ? "sm:col-span-2" : undefined}>
+          <div key={f.id} className={f.type === "longtext" || f.type === "richtext" ? "sm:col-span-2" : undefined}>
             <CustomFieldInput
               id={`group-${g.id}-${i}-${f.id}`}
               field={f}

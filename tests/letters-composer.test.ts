@@ -218,7 +218,7 @@ describe("penandatangan (pejabat) manual", () => {
   it("initialState menyiapkan isian kosong per pejabat", () => {
     const { spec } = load("ahliWaris");
     const s = initialState(spec);
-    assert.deepEqual(s.officials, { kades: { nama: "", nip: "" }, camat: { nama: "", nip: "" } });
+    assert.deepEqual(s.officials, { kades: { nama: "", golongan: "", nip: "" }, camat: { nama: "", golongan: "", nip: "" } });
   });
   it("pratinjau: isian menimpa Pengaturan Desa, kosong memakai bawaan", () => {
     const { doc, spec } = load("ahliWaris");
@@ -237,7 +237,7 @@ describe("penandatangan (pejabat) manual", () => {
     const { spec } = load("ahliWaris");
     const s = initialState(spec);
     assert.equal(buildPayload({ spec, state: s, status: "draft", numberingMode: "auto" }).officials, undefined);
-    s.officials.kades = { nama: " Budi ", nip: "" };
+    s.officials.kades = { nama: " Budi ", golongan: "", nip: "" };
     assert.deepEqual(buildPayload({ spec, state: s, status: "draft", numberingMode: "auto" }).officials, { kades: { nama: "Budi" } });
   });
   it("draf dibuka: nama berbeda dari Pengaturan Desa dianggap penimpaan", () => {
@@ -246,8 +246,8 @@ describe("penandatangan (pejabat) manual", () => {
     values.pejabat.kades = { nama: "Budi Santoso", nip: "", jabatan: "Kepala Desa" };
     values.pejabat.camat = { nama: "", nip: "", jabatan: "Camat" };
     const s = stateFromValues({ doc, spec, values, letterDate: "2026-10-20", context });
-    assert.deepEqual(s.officials.kades, { nama: "Budi Santoso", nip: "" });
-    assert.deepEqual(s.officials.camat, { nama: "", nip: "" });
+    assert.deepEqual(s.officials.kades, { nama: "Budi Santoso", golongan: "", nip: "" });
+    assert.deepEqual(s.officials.camat, { nama: "", golongan: "", nip: "" });
     values.pejabat.kades.nama = "Sofwan";
     assert.equal(stateFromValues({ doc, spec, values, letterDate: "2026-10-20", context }).officials.kades.nama, "");
   });

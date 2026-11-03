@@ -28,7 +28,7 @@ export const ADMINISTRASI: CatalogEntry[] = [
         field("hari_tanggal", "Tanggal acara", "date"),
         field("waktu", "Waktu", "text", { placeholder: "mis. 09.00 WIB sampai selesai" }),
         field("tempat", "Tempat", "text", { placeholder: "mis. Balai Desa" }),
-        field("agenda", "Agenda", "longtext", { placeholder: "mis. pembahasan rencana kerja tahun depan" }),
+        field("agenda", "Agenda", "richtext", { placeholder: "mis. pembahasan rencana kerja tahun depan" }),
       ],
       body: [
         memo([f("isian.perihal")], [f("isian.tujuan")]),
@@ -88,7 +88,7 @@ export const ADMINISTRASI: CatalogEntry[] = [
       fields: [
         field("tentang", "Tentang", "text", { placeholder: "mis. kerja bakti dan kebersihan lingkungan" }),
         field("tujuan", "Ditujukan kepada", "text", { placeholder: "mis. Seluruh warga dan Ketua RT/RW" }),
-        field("isi_edaran", "Isi edaran", "longtext", { placeholder: "Tulis hal yang perlu diketahui dan dilaksanakan" }),
+        field("isi_edaran", "Isi edaran", "richtext", { placeholder: "Tulis hal yang perlu diketahui dan dilaksanakan" }),
       ],
       body: [
         judul("SURAT EDARAN"),
@@ -111,7 +111,7 @@ export const ADMINISTRASI: CatalogEntry[] = [
       fields: [
         field("tujuan", "Ditujukan kepada", "text", { placeholder: "mis. Ketua RT 02" }),
         field("perihal", "Perihal", "text", { placeholder: "mis. Pemberitahuan jadwal pelayanan" }),
-        field("isi_pemberitahuan", "Isi pemberitahuan", "longtext"),
+        field("isi_pemberitahuan", "Isi pemberitahuan", "richtext"),
       ],
       body: [
         memo([f("isian.perihal")], [f("isian.tujuan")]),
@@ -135,9 +135,9 @@ export const ADMINISTRASI: CatalogEntry[] = [
       numbering: { mode: "auto", pattern: "{URUT} TAHUN {TAHUN}", reset: "yearly", padding: 0, counterKey: "keputusan" },
       fields: [
         field("tentang", "Tentang", "text", { placeholder: "mis. pembentukan panitia peringatan hari kemerdekaan" }),
-        field("pertimbangan", "Pertimbangan (bahwa …)", "longtext", { placeholder: "mis. perlu dibentuk panitia agar kegiatan berjalan tertib" }),
-        field("dasar_hukum", "Dasar hukum lain", "longtext", { placeholder: "mis. Peraturan Daerah … dan Peraturan Desa …;" }),
-        field("isi_keputusan", "Isi keputusan (KESATU)", "longtext"),
+        field("pertimbangan", "Pertimbangan (bahwa …)", "richtext", { placeholder: "mis. perlu dibentuk panitia agar kegiatan berjalan tertib" }),
+        field("dasar_hukum", "Dasar hukum lain", "richtext", { placeholder: "mis. Peraturan Daerah … dan Peraturan Desa …;" }),
+        field("isi_keputusan", "Isi keputusan (KESATU)", "richtext"),
       ],
       body: [
         {
@@ -177,8 +177,8 @@ export const ADMINISTRASI: CatalogEntry[] = [
         field("kegiatan", "Kegiatan", "text", { placeholder: "mis. musyawarah desa tentang rencana pembangunan" }),
         field("hari_tanggal", "Tanggal kegiatan", "date"),
         field("tempat", "Tempat", "text", { placeholder: "mis. Balai Desa" }),
-        field("uraian", "Jalannya kegiatan", "longtext"),
-        field("hasil", "Hasil / kesepakatan", "longtext"),
+        field("uraian", "Jalannya kegiatan", "richtext"),
+        field("hasil", "Hasil / kesepakatan", "richtext"),
       ],
       body: [
         judul("BERITA ACARA"),
@@ -247,7 +247,7 @@ export const ADMINISTRASI: CatalogEntry[] = [
       fields: [
         field("tujuan", "Kepada", "text", { placeholder: "mis. Kepala Desa" }),
         field("perihal", "Perihal", "text", { placeholder: "mis. Usulan jadwal rapat" }),
-        field("isi", "Isi nota", "longtext"),
+        field("isi", "Isi nota", "richtext", { placeholder: "mis. 1. Rujukan / dasar …" }),
       ],
       body: [
         memo([f("isian.perihal")], [f("isian.tujuan")], "kepala", {

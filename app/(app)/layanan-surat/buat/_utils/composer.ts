@@ -5,7 +5,8 @@
  */
 import type { CustomField, LetterDocument } from "@/lib/letters/document/schema";
 import type { FormSpec } from "@/lib/letters/document/form-spec";
-import { OFFICIAL_IDS, isPersonField, parseRef, type PersonFieldKey } from "@/lib/letters/registry";
+import { OFFICIAL_IDS, OFFICIAL_LABELS, isPersonField, parseRef, type PersonFieldKey } from "@/lib/letters/registry";
+import { validateNip } from "@/lib/letters/nip";
 import { applyOfficialOverrides, completeManualPerson, isRealIsoDate, type OfficialsInput } from "@/lib/letters/server/input";
 import {
   buildSuratValues,
@@ -44,7 +45,7 @@ export type GroupRowState = {
 };
 
 /** Penimpa pejabat penandatangan; "" = pakai nilai dari Pengaturan Desa. */
-export type OfficialState = { nama: string; nip: string };
+export type OfficialState = { nama: string; golongan: string; nip: string };
 
 export type ComposerState = {
   people: Record<string, PersonState>;
@@ -87,7 +88,7 @@ export function emptyPerson(): PersonState {
 }
 
 export function emptyOfficial(): OfficialState {
-  return { nama: "", nip: "" };
+  return { nama: "", golongan: "", nip: "" };
 }
 
 export function emptyRow(): GroupRowState {
@@ -157,8 +158,9 @@ export function officialOverrides(officials: ComposerState["officials"]): Offici
     const o = officials[id];
     if (!o) continue;
     const nama = o.nama.trim();
+    const golongan = o.golongan.trim();
     const nip = o.nip.trim();
-    if (nama || nip) out[id] = { ...(nama ? { nama } : null), ...(nip ? { nip } : null) };
+    if (nama || golongan || nip) out[id] = { ...(nama ? { nama } : null), ...(golongan ? { golongan } : null), ...(nip ? { nip } : null) };
   }
   return out;
 }
@@ -277,6 +279,7 @@ export function stateFromValues(args: {
     if (!saved) continue;
     state.officials[id] = {
       nama: saved.nama && saved.nama !== (base?.nama ?? "") ? saved.nama : "",
+      golongan: saved.golongan && saved.golongan !== (base?.golongan ?? "") ? saved.golongan : "",
       nip: saved.nip && saved.nip !== (base?.nip ?? "") ? saved.nip : "",
     };
   }
@@ -365,6 +368,10 @@ export function missingForCompletion(spec: FormSpec, state: ComposerState, numbe
       }
     });
   }
+  for (const id of spec.officials) {
+    const err = validateNip(state.officials[id]?.nip ?? "");
+    if (err) out.push({ inputId: `official-${id}-nip`, message: `NIP ${OFFICIAL_LABELS[id]}: ${err}` });
+  }
   if (numberingMode === "manual" && state.number.trim() === "") out.push({ inputId: "letter-number", message: "Nomor surat belum diisi" });
   return out;
 }
@@ -375,7 +382,7 @@ export function stateSignature(state: ComposerState): string {
     p: Object.entries(state.people).map(([k, v]) => [k, v.mode, v.residentId, v.values]),
     f: state.fields,
     g: Object.entries(state.groups).map(([k, rows]) => [k, rows.map((r) => [r.residentId, r.values])]),
-    o: Object.entries(state.officials).map(([k, v]) => [k, v.nama, v.nip]),
+    o: Object.entries(state.officials).map(([k, v]) => [k, v.nama, v.golongan, v.nip]),
     d: state.date,
     n: state.number,
   });

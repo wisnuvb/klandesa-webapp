@@ -162,7 +162,7 @@ function build(doc: LetterDocument, preset: PresetId, id: string): Built {
         doc,
         block: {
           id, type: "signature", layout: "row", dateline: dateline(),
-          slots: [{ id: "kades", who: { kind: "pejabat", official: "kades" }, prefix: "none", showName: true, showNip: false, stamp: true, materai: false, align: "center", gapMm: 25 }],
+          slots: [{ id: "kades", who: { kind: "pejabat", official: "kades" }, prefix: "none", showName: true, showNip: false, showGolongan: false, showRegister: false, stamp: true, materai: false, align: "center", gapMm: 25 }],
         },
       };
     case "tanda_tangan_an_sekdes":
@@ -170,7 +170,7 @@ function build(doc: LetterDocument, preset: PresetId, id: string): Built {
         doc,
         block: {
           id, type: "signature", layout: "row", dateline: dateline(),
-          slots: [{ id: "sekdes", who: { kind: "pejabat", official: "sekdes" }, prefix: "an", caption: [t("Kepala Desa")], showName: true, showNip: false, stamp: true, materai: false, align: "center", gapMm: 25 }],
+          slots: [{ id: "sekdes", who: { kind: "pejabat", official: "sekdes" }, prefix: "an", caption: [t("Kepala Desa")], showName: true, showNip: false, showGolongan: false, showRegister: false, stamp: true, materai: false, align: "center", gapMm: 25 }],
         },
       };
     case "tanda_tangan_mengetahui":
@@ -179,8 +179,8 @@ function build(doc: LetterDocument, preset: PresetId, id: string): Built {
         block: {
           id, type: "signature", layout: "row", dateline: dateline(),
           slots: [
-            { id: "camat", who: { kind: "pejabat", official: "camat" }, prefix: "none", caption: [t("Mengetahui, Camat")], showName: true, showNip: false, stamp: true, materai: false, align: "center", gapMm: 25 },
-            { id: "kades", who: { kind: "pejabat", official: "kades" }, prefix: "none", showName: true, showNip: false, stamp: true, materai: false, align: "center", gapMm: 25 },
+            { id: "camat", who: { kind: "pejabat", official: "camat" }, prefix: "none", caption: [t("Mengetahui,")], showName: true, showNip: true, showGolongan: true, showRegister: true, stamp: true, materai: false, align: "center", gapMm: 25 },
+            { id: "kades", who: { kind: "pejabat", official: "kades" }, prefix: "none", showName: true, showNip: false, showGolongan: false, showRegister: false, stamp: true, materai: false, align: "center", gapMm: 25 },
           ],
         },
       };
@@ -194,8 +194,8 @@ function build(doc: LetterDocument, preset: PresetId, id: string): Built {
         block: {
           id, type: "signature", layout: "row", dateline: dateline(),
           slots: [
-            { id: "pemohon", who: { kind: "peran", role }, prefix: "none", caption: [t("Yang menyatakan,")], showName: true, showNip: false, stamp: false, materai: true, align: "center", gapMm: 25 },
-            { id: "saksi", who: { kind: "grup", group: saksi.id }, prefix: "none", caption: [t("Saksi,")], showName: true, showNip: false, stamp: false, materai: false, align: "center", gapMm: 25 },
+            { id: "pemohon", who: { kind: "peran", role }, prefix: "none", caption: [t("Yang menyatakan,")], showName: true, showNip: false, showGolongan: false, showRegister: false, stamp: false, materai: true, align: "center", gapMm: 25 },
+            { id: "saksi", who: { kind: "grup", group: saksi.id }, prefix: "none", caption: [t("Saksi,")], showName: true, showNip: false, showGolongan: false, showRegister: false, stamp: false, materai: false, align: "center", gapMm: 25 },
           ],
         },
       };

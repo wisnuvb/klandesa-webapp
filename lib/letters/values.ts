@@ -17,9 +17,11 @@ import {
 } from "./registry";
 import type { Inline, LetterDocument } from "./document/schema";
 import type { LetterheadStyle } from "./letterhead";
+import { richToPlain } from "./rich";
 
 export type PersonValues = Partial<Record<PersonFieldKey, string>>;
-export type OfficialValues = { nama: string; nip: string; jabatan: string };
+/** `golongan` = pangkat/golongan ruang (mis. "Pembina Tk. I (IV/b)"); kosong untuk pejabat non-PNS dan surat lama. */
+export type OfficialValues = { nama: string; nip: string; jabatan: string; golongan?: string };
 
 export type LetterValues = {
   /** peran → isian orang (`pemohon` → { nama, nik, … }) */
@@ -82,8 +84,9 @@ export function sampleLetterValues(doc: Pick<LetterDocument, "people" | "fields"
   v.desa = Object.fromEntries(DESA_FIELDS.map((f) => [f.key, f.example]));
   for (const id of OFFICIAL_IDS) {
     v.pejabat[id] = {
-      nama: OFFICIAL_FIELDS[0].example,
-      nip: OFFICIAL_FIELDS[1].example,
+      nama: OFFICIAL_FIELDS.find((f) => f.key === "nama")?.example ?? "",
+      golongan: OFFICIAL_FIELDS.find((f) => f.key === "golongan")?.example ?? "",
+      nip: OFFICIAL_FIELDS.find((f) => f.key === "nip")?.example ?? "",
       jabatan: v.pejabat[id].jabatan,
     };
   }
@@ -162,7 +165,10 @@ export function displayValue(
 ): string {
   const raw = resolveRef(ref, v);
   if (raw === "") return fallback ?? "";
-  const auto: FormatId | undefined = !format && refType(ref, doc) === "date" ? "tanggal" : format;
+  const type = refType(ref, doc);
+  // Teks berformat: bagian lain (ringkasan, verifikasi, isian di tengah kalimat) memakai teks polos tanpa penanda.
+  if (type === "richtext") return richToPlain(raw);
+  const auto: FormatId | undefined = !format && type === "date" ? "tanggal" : format;
   return applyFormat(raw, auto);
 }
 

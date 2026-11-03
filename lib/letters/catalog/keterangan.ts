@@ -187,7 +187,7 @@ export const KETERANGAN: CatalogEntry[] = [
           slots: [
             { id: "saksi", who: { kind: "grup", group: "saksi" }, caption: [t("Saksi,")] },
             { id: "kades", who: { kind: "pejabat", official: "kades" }, caption: [t("Mengetahui,")], stamp: true },
-            { id: "camat", who: { kind: "pejabat", official: "camat" }, caption: [t("Camat,")], stamp: true },
+            { id: "camat", who: { kind: "pejabat", official: "camat" }, stamp: true, showNip: true, showGolongan: true, showRegister: true },
           ],
         },
       ],
@@ -516,7 +516,7 @@ export const KETERANGAN: CatalogEntry[] = [
     document: letter({
       klasifikasi: "400",
       fields: [
-        field("maksud", "Isi rekomendasi", "longtext", { placeholder: "mis. mengikuti seleksi, mengajukan bantuan" }),
+        field("maksud", "Isi rekomendasi", "richtext", { placeholder: "mis. mengikuti seleksi, mengajukan bantuan" }),
         field("tujuan_rekomendasi", "Ditujukan kepada", "text", { required: false, placeholder: "mis. Panitia seleksi" }),
       ],
       body: [

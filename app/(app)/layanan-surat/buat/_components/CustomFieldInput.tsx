@@ -3,6 +3,7 @@
 import { ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextInput } from "@/components/app/RichTextInput";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -84,6 +85,8 @@ export function CustomFieldInput({
   );
 
   switch (field.type) {
+    case "richtext":
+      return shell(<RichTextInput id={id} value={value} placeholder={field.placeholder} aria-describedby={describedBy} onChange={onChange} />);
     case "longtext":
       return shell(
         <Textarea id={id} rows={3} value={value} placeholder={field.placeholder} aria-describedby={describedBy}

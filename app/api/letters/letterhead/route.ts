@@ -10,6 +10,7 @@ import { isSafeSrc } from "@/lib/letters/document/schema";
 import { mergeLetterheadStyleIntoSettings, normalizeLetterheadStyle } from "@/lib/letters/letterhead";
 import { buildLetterContext } from "@/lib/letters/server/context";
 import { KOP_MESSAGES, KOP_PATTERNS } from "@/lib/letters/letterhead-draft";
+import { normalizeNip, validateNip } from "@/lib/letters/nip";
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const CONTROL = /[\u0000-\u001F\u007F]/g;
@@ -24,7 +25,7 @@ const bad = (error: string): Bad => ({ error });
  * (diturunkan dari kode wilayah resmi di Pengaturan Desa).
  *
  * Body: { logoUrl?, address?, postalCode?, phone?, email?, officials?: { kepalaDesaNama?, kepalaDesaNip?,
- *         sekretarisNama?, camatNama? }, style?: { layout?, rule?, logoSize? } }
+ *         sekretarisNama?, camatNama?, camatNip?, camatGolongan? }, style?: { layout?, rule?, logoSize? } }
  */
 export async function PATCH(req: NextRequest) {
   try {
@@ -83,10 +84,18 @@ export async function PATCH(req: NextRequest) {
         ["kepalaDesaNip", 40],
         ["sekretarisNama", 120],
         ["camatNama", 120],
+        ["camatNip", 40],
+        ["camatGolongan", 80],
       ] as const) {
         if (!Object.prototype.hasOwnProperty.call(o, key)) continue;
         const v = clean(o[key]);
         if (v === null || v.length > max) return NextResponse.json(bad("Data pejabat tidak valid"), { status: 400 });
+        if (key === "kepalaDesaNip" || key === "camatNip") {
+          const err = validateNip(v);
+          if (err) return NextResponse.json(bad(`NIP ${key === "camatNip" ? "Camat" : "Kepala Desa"}: ${err}`), { status: 400 });
+          patch[key] = normalizeNip(v);
+          continue;
+        }
         patch[key] = v;
       }
       settings = mergeMailSectionIntoVillageSettings(settings ?? village.settings, patch);

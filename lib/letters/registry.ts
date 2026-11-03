@@ -13,7 +13,8 @@
  */
 import { formatTanggalId } from "./format";
 
-export type FieldType = "text" | "longtext" | "number" | "money" | "date" | "choice";
+/** `richtext` = teks panjang berformat (markdown aman: paragraf, daftar, tebal, miring); lihat lib/letters/rich.ts. */
+export type FieldType = "text" | "longtext" | "richtext" | "number" | "money" | "date" | "choice";
 
 export type RegistryField = {
   key: string;
@@ -75,8 +76,20 @@ export const OFFICIAL_LABELS: Record<OfficialId, string> = {
   sekdes: "Sekretaris Desa",
   camat: "Camat",
 };
+/**
+ * Jabatan yang tercetak di bawah tanda tangan. Camat menyertakan nama kecamatan ("Camat Sawangan"); `district` boleh
+ * berawalan "Kecamatan"/"Kec." seperti yang tersimpan di profil desa.
+ */
+export function officialJabatan(id: OfficialId, district?: string | null): string {
+  const base = OFFICIAL_LABELS[id];
+  if (id !== "camat") return base;
+  const name = (district ?? "").trim().replace(/^kec(amatan|\.)?\s+/i, "").trim();
+  return name ? `${base} ${name}` : base;
+}
+
 export const OFFICIAL_FIELDS = [
   { key: "nama", label: "Nama", group: "Pejabat", type: "text", example: "Moh. Sofwan Hadi" },
+  { key: "golongan", label: "Pangkat/golongan", group: "Pejabat", type: "text", example: "Pembina Tk. I (IV/b)" },
   { key: "nip", label: "NIP", group: "Pejabat", type: "text", example: "197001012000031001" },
   { key: "jabatan", label: "Jabatan", group: "Pejabat", type: "text", example: "Kepala Desa" },
 ] as const satisfies readonly RegistryField[];

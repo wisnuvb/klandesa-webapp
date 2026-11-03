@@ -22,16 +22,20 @@ import {
   type PersonValues,
 } from "../values";
 import { OFFICIAL_LABELS, type OfficialId } from "../registry";
+import { normalizeNip, validateNip } from "../nip";
+import { RICH_MAX_LENGTH } from "../rich";
 import type { LetterheadStyle } from "../letterhead";
 
 export const INPUT_LIMITS = {
   requestBytes: 300_000,
   text: 255,
   longtext: 2_000,
+  richtext: RICH_MAX_LENGTH,
   personValue: 500,
   personLongValue: 1_000,
   numberDigits: 15,
   officialNip: 40,
+  officialGolongan: 80,
 } as const;
 
 export type Strictness = "draft" | "completed";
@@ -64,6 +68,8 @@ export function normalizeFieldValue(field: Pick<CustomField, "label" | "type" | 
       return text.length > INPUT_LIMITS.text ? bad(`maksimal ${INPUT_LIMITS.text} karakter`) : { ok: true, value: text };
     case "longtext":
       return text.length > INPUT_LIMITS.longtext ? bad(`maksimal ${INPUT_LIMITS.longtext} karakter`) : { ok: true, value: text };
+    case "richtext":
+      return text.length > INPUT_LIMITS.richtext ? bad(`maksimal ${INPUT_LIMITS.richtext} karakter`) : { ok: true, value: text };
     case "number": {
       const t = text.replace(/\s/g, "");
       return /^\d{1,15}([.,]\d{1,4})?$/.test(t) ? { ok: true, value: t } : bad("harus berupa angka");
@@ -81,8 +87,8 @@ export function normalizeFieldValue(field: Pick<CustomField, "label" | "type" | 
 
 export type PersonInput = { residentId?: number; manual: boolean; overrides: PersonValues };
 export type GroupRowInput = { residentId?: number; values: Record<string, string> };
-/** Penimpa nama/NIP pejabat penandatangan; hanya yang diisi operator (kosong = pakai Pengaturan Desa). */
-export type OfficialOverride = { nama?: string; nip?: string };
+/** Penimpa nama/pangkat-golongan/NIP pejabat penandatangan; hanya yang diisi operator (kosong = pakai Pengaturan Desa). */
+export type OfficialOverride = { nama?: string; nip?: string; golongan?: string };
 export type OfficialsInput = Partial<Record<OfficialId, OfficialOverride>>;
 export type LetterInput = {
   letterDate: Date | null;
@@ -109,7 +115,7 @@ function parsePersonValues(raw: unknown, where: string): Result<PersonValues> {
   return { ok: true, value: out };
 }
 
-function parseOfficials(raw: unknown, spec: FormSpec): Result<OfficialsInput> {
+function parseOfficials(raw: unknown, spec: FormSpec, strict: boolean): Result<OfficialsInput> {
   if (raw == null) return { ok: true, value: {} };
   if (!isObj(raw)) return { ok: false, error: "officials harus berupa objek" };
   const out: OfficialsInput = {};
@@ -121,17 +127,24 @@ function parseOfficials(raw: unknown, spec: FormSpec): Result<OfficialsInput> {
     if (entry == null) continue;
     const label = OFFICIAL_LABELS[id];
     if (!isObj(entry)) return { ok: false, error: `${label}: format tidak valid` };
-    for (const k of Object.keys(entry)) if (k !== "nama" && k !== "nip") return { ok: false, error: `${label}: isian "${k.slice(0, 30)}" tidak dikenal` };
+    for (const k of Object.keys(entry)) if (k !== "nama" && k !== "nip" && k !== "golongan") return { ok: false, error: `${label}: isian "${k.slice(0, 30)}" tidak dikenal` };
     const o: OfficialOverride = {};
-    for (const [key, max, name] of [["nama", INPUT_LIMITS.text, "nama"], ["nip", INPUT_LIMITS.officialNip, "NIP"]] as const) {
+    for (const [key, max, name] of [["nama", INPUT_LIMITS.text, "nama"], ["golongan", INPUT_LIMITS.officialGolongan, "pangkat/golongan"], ["nip", INPUT_LIMITS.officialNip, "NIP"]] as const) {
       const v = entry[key];
       if (v == null) continue;
       if (typeof v !== "string") return { ok: false, error: `${label}: ${name} harus teks` };
       const t = clean(v);
       if (t.length > max) return { ok: false, error: `${label}: ${name} maksimal ${max} karakter` };
+      if (key === "nip" && t !== "") {
+        // Draf boleh menyimpan NIP yang belum rampung; surat yang diterbitkan harus NIP yang sah.
+        const err = validateNip(t);
+        if (err && strict) return { ok: false, error: `NIP ${label}: ${err}` };
+        o.nip = err ? t : normalizeNip(t);
+        continue;
+      }
       if (t !== "") o[key] = t;
     }
-    if (o.nama || o.nip) out[id] = o;
+    if (o.nama || o.nip || o.golongan) out[id] = o;
   }
   return { ok: true, value: out };
 }
@@ -246,7 +259,7 @@ export function parseLetterInput(
     if (number.length === 0 || number.length > 255) return { ok: false, error: "Nomor surat tidak valid" };
   }
 
-  const officials = parseOfficials(body.officials, spec);
+  const officials = parseOfficials(body.officials, spec, strict);
   if (!officials.ok) return officials;
   return { ok: true, value: { letterDate, number, officials: officials.value, people, fields, groups } };
 }
@@ -275,7 +288,7 @@ export type LetterContext = {
   kop?: LetterheadStyle;
 };
 
-/** Timpa nama/NIP pejabat dengan isian operator; yang tidak diisi tetap dari konteks desa. */
+/** Timpa nama/golongan/NIP pejabat dengan isian operator; yang tidak diisi tetap dari konteks desa. */
 export function applyOfficialOverrides(base: Record<OfficialId, OfficialValues>, overrides: OfficialsInput | undefined): Record<OfficialId, OfficialValues> {
   const out = { kades: { ...base.kades }, sekdes: { ...base.sekdes }, camat: { ...base.camat } };
   for (const id of Object.keys(overrides ?? {}) as OfficialId[]) {
@@ -283,6 +296,7 @@ export function applyOfficialOverrides(base: Record<OfficialId, OfficialValues>,
     if (!o || !(id in out)) continue;
     if (o.nama) out[id].nama = o.nama;
     if (o.nip) out[id].nip = o.nip;
+    if (o.golongan) out[id].golongan = o.golongan;
   }
   return out;
 }

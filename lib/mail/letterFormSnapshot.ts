@@ -9,6 +9,9 @@ export type VillageMailSettingsFields = {
   kepalaDesaNip: string;
   sekretarisNama: string;
   camatNama: string;
+  /** NIP dan pangkat/golongan Camat (untuk blok tanda tangan Camat); opsional. */
+  camatNip: string;
+  camatGolongan: string;
 };
 
 export function parseMailSettings(settings: unknown): VillageMailSettingsFields {
@@ -18,6 +21,8 @@ export function parseMailSettings(settings: unknown): VillageMailSettingsFields 
       kepalaDesaNip: "",
       sekretarisNama: "",
       camatNama: "",
+      camatNip: "",
+      camatGolongan: "",
     };
   }
   const o = settings as Record<string, unknown>;
@@ -33,6 +38,8 @@ export function parseMailSettings(settings: unknown): VillageMailSettingsFields 
     kepalaDesaNip: str(o.kepalaDesaNip) || str(mail?.kepalaDesaNip),
     sekretarisNama: str(o.sekretarisNama) || str(mail?.sekretarisNama),
     camatNama: str(o.camatNama) || str(mail?.camatNama),
+    camatNip: str(o.camatNip) || str(mail?.camatNip),
+    camatGolongan: str(o.camatGolongan) || str(mail?.camatGolongan),
   };
 }
 
@@ -147,6 +154,8 @@ export function mergeMailSectionIntoVillageSettings(
     kepalaDesaNip: mail.kepalaDesaNip ?? prev.kepalaDesaNip,
     sekretarisNama: mail.sekretarisNama ?? prev.sekretarisNama,
     camatNama: mail.camatNama ?? prev.camatNama,
+    camatNip: mail.camatNip ?? prev.camatNip,
+    camatGolongan: mail.camatGolongan ?? prev.camatGolongan,
   };
   return {
     ...base,
@@ -155,6 +164,8 @@ export function mergeMailSectionIntoVillageSettings(
       kepalaDesaNip: next.kepalaDesaNip,
       sekretarisNama: next.sekretarisNama,
       camatNama: next.camatNama,
+      camatNip: next.camatNip,
+      camatGolongan: next.camatGolongan,
     },
   };
 }

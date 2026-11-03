@@ -56,6 +56,7 @@ export const FORMAT_LABELS: Record<FormatId, string> = {
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   text: "Teks pendek",
   longtext: "Teks panjang",
+  richtext: "Teks berformat",
   number: "Angka",
   money: "Nominal rupiah",
   date: "Tanggal",

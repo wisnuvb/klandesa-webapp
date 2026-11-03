@@ -114,7 +114,7 @@ export function useDocumentEditor(initial: LetterDocument): EditorApi {
       setPage: (patch: Partial<LetterDocument["page"]>) => apply(patchPage(cur(), patch), { coalesceKey: "page" }),
       setNumbering: (patch: Partial<LetterDocument["numbering"]>) =>
         apply(patchNumbering(cur(), patch), { coalesceKey: "numbering" }),
-      setMeta: (patch: Partial<Pick<LetterDocument, "kind" | "audience" | "letterhead">>) =>
+      setMeta: (patch: Partial<Pick<LetterDocument, "kind" | "audience" | "letterhead" | "garudaStyle">>) =>
         apply(patchMeta(cur(), patch)),
 
       addPerson(label: string, opts?: Parameters<typeof addPersonRole>[2]): string {

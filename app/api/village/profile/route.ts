@@ -4,6 +4,7 @@ import { diffRecord } from "@/lib/audit/diff";
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeNip, validateNip } from "@/lib/letters/nip";
 import {
   mergeMailSectionIntoVillageSettings,
   parseMailSettings,
@@ -199,11 +200,18 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    for (const [key, label] of [["kepalaDesaNip", "Kepala Desa"], ["camatNip", "Camat"]] as const) {
+      const err = typeof mail[key] === "string" ? validateNip(mail[key]) : null;
+      if (err) return NextResponse.json({ error: `NIP ${label}: ${err}`, fieldErrors: { [key]: err } }, { status: 400 });
+    }
+
     const newSettings = mergeMailSectionIntoVillageSettings(village.settings, {
       kepalaDesaNama: String(mail.kepalaDesaNama ?? "").trim(),
-      kepalaDesaNip: String(mail.kepalaDesaNip ?? "").trim(),
+      kepalaDesaNip: normalizeNip(String(mail.kepalaDesaNip ?? "")),
       sekretarisNama: String(mail.sekretarisNama ?? "").trim(),
       camatNama: String(mail.camatNama ?? "").trim(),
+      ...(typeof mail.camatNip === "string" ? { camatNip: normalizeNip(mail.camatNip) } : null),
+      ...(typeof mail.camatGolongan === "string" ? { camatGolongan: mail.camatGolongan.trim().slice(0, 80) } : null),
     });
 
     const withIntegrations =

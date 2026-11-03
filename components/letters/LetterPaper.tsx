@@ -6,8 +6,10 @@
  */
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { isSafeSrc } from "@/lib/letters/document/schema";
+import { GARUDA_IMAGE } from "@/lib/letters/garuda";
 import type { Block, CustomField, Inline, LeafBlock, LetterDocument } from "@/lib/letters/document/schema";
 import { applyFormat } from "@/lib/letters/format";
+import { formatNip } from "@/lib/letters/nip";
 import { DEFAULT_LETTERHEAD_STYLE, LOGO_SIZE_MM, normalizeLetterheadStyle } from "@/lib/letters/letterhead";
 import { FONTS, LINE_HEIGHTS, PAPER_SIZES } from "@/lib/letters/paper";
 import {
@@ -20,9 +22,11 @@ import {
   personFieldLabel,
   type OfficialId,
 } from "@/lib/letters/registry";
+import { parseRich, type RichLines } from "@/lib/letters/rich";
 import {
   displayValue,
   evaluateCondition,
+  refType,
   resolveRef,
   type LetterValues,
 } from "@/lib/letters/values";
@@ -112,7 +116,7 @@ const PLACEHOLDER_STYLE: CSSProperties = {
 };
 
 /** Satu isian di kertas: `data-ref` untuk pengait klik, `data-empty` untuk gaya/uji. */
-function FieldSpan(ctx: Ctx, key: string, ref: string, text: string, rawEmpty: boolean): ReactNode {
+function FieldSpan(ctx: Ctx, key: string, ref: string, text: string, rawEmpty: boolean, content?: ReactNode): ReactNode {
   const preview = ctx.mode === "preview";
   const showPlaceholder = preview && text === "";
   const clickable = preview && !!ctx.onFieldClick;
@@ -126,6 +130,8 @@ function FieldSpan(ctx: Ctx, key: string, ref: string, text: string, rawEmpty: b
       style={{
         ...(showPlaceholder ? PLACEHOLDER_STYLE : null),
         ...(clickable ? { cursor: "pointer" } : null),
+        // Isian panjang bisa memuat baris baru; tanpa ini semuanya melebur jadi satu baris.
+        ...(text.includes("\n") ? { whiteSpace: "pre-line" as const } : null),
       }}
       {...(clickable
         ? {
@@ -141,7 +147,7 @@ function FieldSpan(ctx: Ctx, key: string, ref: string, text: string, rawEmpty: b
           }
         : null)}
     >
-      {showPlaceholder ? `«${fieldLabel(ref, ctx)}»` : text}
+      {showPlaceholder ? `«${fieldLabel(ref, ctx)}»` : (content ?? text)}
     </span>
   );
 }
@@ -152,7 +158,10 @@ function renderInlines(list: readonly Inline[] | undefined, ctx: Ctx, keyPrefix:
     if (n.type === "br") return <br key={key} />;
     if (n.type === "field") {
       const text = displayValue(n.ref, ctx.values, ctx.doc, n.format, n.fallback);
-      return FieldSpan(ctx, key, n.ref, text, resolveRef(n.ref, ctx.values).trim() === "");
+      const raw = resolveRef(n.ref, ctx.values);
+      // Isian teks berformat di dalam kalimat: tebal/miring/garis bawah tetap tampil; daftar diratakan jadi baris.
+      const rich = raw.trim() !== "" && !n.format && refType(n.ref, ctx.doc) === "richtext" ? richInline(raw, key) : undefined;
+      return FieldSpan(ctx, key, n.ref, text, raw.trim() === "", rich);
     }
     let node: ReactNode = n.text;
     if (n.marks?.includes("u")) node = <u>{node}</u>;
@@ -198,22 +207,12 @@ function Kop(ctx: Ctx): ReactNode {
     ].filter(Boolean);
     return (
       <div className="lp-kop" style={{ textAlign: "center", marginBottom: "5mm" }}>
-        <div
-          className="lp-deco"
-          aria-hidden="true"
-          style={{
-            width: "22mm",
-            height: "22mm",
-            margin: "0 auto 2mm",
-            border: mode === "preview" ? "1px dashed #999" : "1px solid transparent",
-            borderRadius: "50%",
-            color: "#999",
-            fontSize: "0.7em",
-            lineHeight: "22mm",
-          }}
-        >
-          {mode === "preview" ? "Garuda" : ""}
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={GARUDA_IMAGE[doc.garudaStyle ?? "hitam_putih"]}
+          alt="Lambang Garuda Pancasila"
+          style={{ display: "block", height: "24mm", width: "auto", margin: "0 auto 2mm" }}
+        />
         {lines.map((l, i) => (
           <div key={i} style={{ fontWeight: 700, fontSize: i === 0 ? "1.15em" : "1em" }}>
             {l}
@@ -360,9 +359,91 @@ function blockKey(b: Block | LeafBlock) {
   return b.id;
 }
 
+/** Baris-baris tampilan (hasil parse markdown aman) → elemen React; tebal/miring lewat <strong>/<em>, tanpa HTML mentah. */
+function richLines(lines: RichLines, keyPrefix: string): ReactNode[] {
+  return lines.flatMap((runs, li) => {
+    const nodes = runs.map((r, ri) => {
+      let n: ReactNode = r.text;
+      if (r.underline) n = <u>{n}</u>;
+      if (r.italic) n = <em>{n}</em>;
+      if (r.bold) n = <strong>{n}</strong>;
+      return <span key={`${keyPrefix}-${li}-${ri}`}>{n}</span>;
+    });
+    return li === 0 ? nodes : [<br key={`${keyPrefix}-${li}-br`} />, ...nodes];
+  });
+}
+
+/** Teks berformat untuk disisipkan di tengah kalimat: blok dipisah pindah-baris, butir daftar diberi nomor/poin. */
+function richInline(raw: string, keyPrefix: string): ReactNode[] {
+  const rows: RichLines = [];
+  for (const b of parseRich(raw)) {
+    if (b.type === "p") rows.push(...b.lines);
+    else
+      b.items.forEach((item, i) => {
+        const [first, ...rest] = item;
+        rows.push([{ text: `${b.type === "ol" ? `${b.start + i}.` : "•"} ` }, ...first], ...rest);
+      });
+  }
+  return richLines(rows, keyPrefix);
+}
+
+/** Paragraf yang isinya hanya satu isian `richtext` terisi: dirender sebagai blok (paragraf, daftar bernomor/berpoin). */
+function renderRichParagraph(b: Extract<LeafBlock, { type: "paragraph" }>, ref: string, raw: string, ctx: Ctx): ReactNode {
+  const blocks = parseRich(raw);
+  const clickable = ctx.mode === "preview" && !!ctx.onFieldClick;
+  const gap = "2mm";
+  return (
+    <div
+      key={blockKey(b)}
+      data-ref={ref}
+      data-empty="false"
+      style={{ margin: `0 0 ${num(b.spaceAfterMm, 3)}mm`, textAlign: alignOf(b.align), ...(clickable ? { cursor: "pointer" } : null) }}
+      {...(clickable
+        ? {
+            role: "button",
+            tabIndex: 0,
+            onClick: () => ctx.onFieldClick?.(ref),
+            onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                ctx.onFieldClick?.(ref);
+              }
+            },
+          }
+        : null)}
+    >
+      {blocks.map((rb, i) => {
+        const last = i === blocks.length - 1;
+        const key = `${b.id}-rt${i}`;
+        const margin = last ? 0 : gap;
+        if (rb.type === "p") {
+          return (
+            <p key={key} style={{ margin: `0 0 ${margin}`, textIndent: b.indentFirst ? "12mm" : undefined }}>
+              {richLines(rb.lines, key)}
+            </p>
+          );
+        }
+        const List = rb.type === "ol" ? "ol" : "ul";
+        return (
+          <List key={key} {...(rb.type === "ol" ? { start: rb.start } : null)} style={{ margin: `0 0 ${margin}`, paddingLeft: "7mm", listStyleType: rb.type === "ol" ? "decimal" : "disc" }}>
+            {rb.items.map((item, ii) => (
+              <li key={`${key}-${ii}`}>{richLines(item, `${key}-${ii}`)}</li>
+            ))}
+          </List>
+        );
+      })}
+    </div>
+  );
+}
+
 function renderBlock(b: Block, ctx: Ctx): ReactNode {
   switch (b.type) {
-    case "paragraph":
+    case "paragraph": {
+      const only = b.content.length === 1 && b.content[0].type === "field" ? b.content[0] : null;
+      if (only && refType(only.ref, ctx.doc) === "richtext") {
+        const raw = resolveRef(only.ref, ctx.values);
+        if (raw.trim() !== "") return renderRichParagraph(b, only.ref, raw, ctx);
+      }
       return (
         <p
           key={blockKey(b)}
@@ -375,6 +456,7 @@ function renderBlock(b: Block, ctx: Ctx): ReactNode {
           {b.content.length ? renderInlines(b.content, ctx, b.id) : <br />}
         </p>
       );
+    }
 
     case "heading": {
       const size = b.level === 1 ? "1.3em" : b.level === 2 ? "1.15em" : "1em";
@@ -600,7 +682,7 @@ function renderBlock(b: Block, ctx: Ctx): ReactNode {
       return (
         <div key={blockKey(b)} style={{ margin: "0 0 3mm" }}>
           <div>{b.label}</div>
-          <ol style={{ margin: 0, paddingLeft: "7mm" }}>
+          <ol style={{ margin: 0, paddingLeft: "7mm", listStyleType: "decimal" }}>
             {b.items.map((it, i) => (
               <li key={i}>{renderInlines(it, ctx, `${b.id}-${i}`)}</li>
             ))}
@@ -693,7 +775,7 @@ function renderDictum(b: Extract<LeafBlock, { type: "dictum" }>, ctx: Ctx): Reac
     b.kind === "menetapkan" || single ? (
       b.items.map((it, i) => <div key={i}>{renderInlines(it, ctx, `${b.id}-${i}`)}</div>)
     ) : (
-      <ol type={b.kind === "menimbang" ? "a" : "1"} style={{ margin: 0, paddingLeft: "6mm" }}>
+      <ol type={b.kind === "menimbang" ? "a" : "1"} style={{ margin: 0, paddingLeft: "6mm", listStyleType: b.kind === "menimbang" ? "lower-alpha" : "decimal" }}>
         {b.items.map((it, i) => (
           <li key={i}>{renderInlines(it, ctx, `${b.id}-${i}`)}</li>
         ))}
@@ -729,7 +811,7 @@ function expandSlots(b: Extract<LeafBlock, { type: "signature" }>, ctx: Ctx): Si
 }
 
 /** `equalize`: penanda tangan berdampingan; blok diregangkan sehingga nama sejajar walau jabatan beda jumlah baris. */
-function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CSSProperties, equalize = false): ReactNode {
+function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CSSProperties, equalize = false, padBelow = 0): ReactNode {
   const { slot, row, rowIndex } = it;
   const who = slot.who;
   const caption = plain(slot.caption, ctx).trim();
@@ -741,13 +823,15 @@ function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CS
   const second = prefix ? (caption ? jabatan : "") : jabatan;
 
   let name: ReactNode = null;
+  let golonganLine: ReactNode = null;
   let nipLine: ReactNode = null;
   if (slot.showName) {
     if (who.kind === "pejabat") {
       const ref = `pejabat.${who.official}.nama`;
       name = FieldSpan(ctx, `${it.key}-nm`, ref, ctx.values.pejabat[who.official].nama, ctx.values.pejabat[who.official].nama.trim() === "");
-      const nip = ctx.values.pejabat[who.official].nip;
-      if (slot.showNip && nip) nipLine = <div>NIP. {nip}</div>;
+      const pj = ctx.values.pejabat[who.official];
+      if (slot.showGolongan && pj.golongan?.trim()) golonganLine = <div>{pj.golongan.trim()}</div>;
+      if (slot.showNip && pj.nip) nipLine = <div>NIP. {formatNip(pj.nip)}</div>;
     } else if (who.kind === "peran") {
       const ref = `${who.role}.nama`;
       const text = resolveRef(ref, ctx.values);
@@ -774,6 +858,14 @@ function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CS
     >
       {head ? <div>{head}</div> : null}
       {second ? <div>{second}</div> : null}
+      {slot.showRegister ? (
+        <div style={{ whiteSpace: "nowrap" }}>
+          No. Register :{" "}
+          <span aria-label="diisi oleh kantor kecamatan" style={{ display: "inline-block", minWidth: "32mm", borderBottom: "1px dotted #000" }}>
+            &nbsp;
+          </span>
+        </div>
+      ) : null}
       <div style={equalize ? { position: "relative", minHeight: gap, flexGrow: 1 } : { position: "relative", height: gap }}>
         {slot.stamp ? (
           <div
@@ -795,9 +887,24 @@ function renderSlot(it: SigItem, ctx: Ctx, width: string | undefined, margin: CS
         ) : null}
       </div>
       {name ? <div style={{ fontWeight: 700, textDecoration: who.kind === "pejabat" ? "underline" : undefined }}>{name}</div> : null}
+      {golonganLine}
       {nipLine}
+      {/* Baris kosong agar nama penanda tangan berdampingan tetap sejajar bila jumlah baris golongan/NIP-nya berbeda. */}
+      {Array.from({ length: padBelow }, (_, i) => (
+        <div key={`pad-${i}`} aria-hidden="true">
+          &nbsp;
+        </div>
+      ))}
     </div>
   );
+}
+
+/** Jumlah baris di bawah nama (pangkat/golongan, NIP) yang akan tercetak untuk satu penanda tangan. */
+function linesBelowName(it: SigItem, ctx: Ctx): number {
+  const { slot } = it;
+  if (slot.who.kind !== "pejabat" || !slot.showName) return 0;
+  const pj = ctx.values.pejabat[slot.who.official as OfficialId];
+  return (slot.showGolongan && pj?.golongan?.trim() ? 1 : 0) + (slot.showNip && pj?.nip ? 1 : 0);
 }
 
 /** Letak efektif blok tanda tangan; "fill" = selebar kolom (hanya susunan berdampingan). Dipakai juga oleh inspector. */
@@ -833,6 +940,10 @@ function renderSignature(b: Extract<LeafBlock, { type: "signature" }>, ctx: Ctx)
     a === "right" ? { marginLeft: "auto" } : a === "left" ? { marginRight: "auto" } : { margin: "0 auto" };
   const placeOf = (it: SigItem) => signaturePlace(b.layout, !single, it.slot);
   const spread = b.spread && b.spread !== "fill" ? b.spread : null;
+  const maxBelow = Math.max(0, ...items.map((it) => linesBelowName(it, ctx)));
+  const padOf = (it: SigItem) => (single ? 0 : maxBelow - linesBelowName(it, ctx));
+  // Berdampingan: blok dibuat sama tinggi (stretch) agar ruang tanda tangan menyerap selisih baris di atas nama
+  // dan nama-nama penanda tangan sejajar; selisih baris di bawah nama disamakan lewat `padOf`.
 
   return (
     <div key={b.id} className="lp-avoid-break" style={{ margin: "4mm 0" }}>
@@ -844,17 +955,17 @@ function renderSignature(b: Extract<LeafBlock, { type: "signature" }>, ctx: Ctx)
       {b.layout === "stack" ? (
         <div>{items.map((it) => renderSlot(it, ctx, "fit-content", { ...marginFor(placeOf(it) as "left" | "center" | "right"), maxWidth: SIG_MAX_WIDTH, marginBottom: "4mm" }))}</div>
       ) : (
-        <div style={{ display: single ? "block" : "flex", gap: "4mm", alignItems: "flex-start", ...(spread ? { justifyContent: SPREAD[spread] } : {}) }}>
+        <div style={{ display: single ? "block" : "flex", gap: "4mm", alignItems: single ? undefined : "stretch", ...(spread ? { justifyContent: SPREAD[spread] } : {}) }}>
           {items.map((it) => {
             // Sebaran flex: tiap penanda tangan selebar isinya; `place` tidak berlaku (tidak ada kolom).
-            if (!single && spread) return renderSlot(it, ctx, "fit-content", { flex: "0 1 auto", minWidth: 0 }, true);
+            if (!single && spread) return renderSlot(it, ctx, "fit-content", { flex: "0 1 auto", minWidth: 0 }, true, padOf(it));
             const place = placeOf(it);
             if (single) return renderSlot(it, ctx, "fit-content", { ...marginFor(place as "left" | "center" | "right"), maxWidth: SIG_MAX_WIDTH });
-            if (place === "fill") return renderSlot(it, ctx, undefined, { flex: "1 1 0", minWidth: 0 }, true);
+            if (place === "fill") return renderSlot(it, ctx, undefined, { flex: "1 1 0", minWidth: 0 }, true, padOf(it));
             // Berdampingan dengan letak eksplisit: kolom tetap sama lebar, blok diletakkan di dalamnya.
             return (
               <div key={it.key} style={{ flex: "1 1 0", minWidth: 0, display: "flex", justifyContent: JUSTIFY[place] }}>
-                {renderSlot(it, ctx, "fit-content", { maxWidth: "100%" }, true)}
+                {renderSlot(it, ctx, "fit-content", { maxWidth: "100%" }, true, padOf(it))}
               </div>
             );
           })}
