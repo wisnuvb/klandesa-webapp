@@ -13,6 +13,8 @@ import { ConfirmDelete } from "@/components/app/ConfirmDelete";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { Pill, SELECT_CLASS, WarningList, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { rkpdesFieldHelp } from "@/lib/guides/rkpdes";
 import type { ActivityView, DetailResponse } from "./types";
 
 export function ActivitiesTab({ data, editable, canDelete, reload }: { data: DetailResponse; editable: boolean; canDelete: boolean; reload: () => void }) {
@@ -228,8 +230,16 @@ function ActivityDialog({ data, activity, onClose, onSaved }: { data: DetailResp
     });
   }
   const err = (k: string) => errors[k];
-  const common = (k: keyof Form) => ({ id: `ac-${k}`, "aria-invalid": err(k) ? true : undefined, "aria-describedby": err(k) ? `ac-${k}-err` : undefined });
-  const errNode = (k: string) => (err(k) ? <p id={`ac-${k}-err`} className="text-sm text-destructive">{err(k)}</p> : null);
+  const common = (k: keyof Form) => ({ id: `ac-${k}`, "aria-invalid": err(k) ? true : undefined, "aria-describedby": [rkpdesFieldHelp(`ac-${k}`) ? `ac-${k}-hint` : "", err(k) ? `ac-${k}-err` : ""].filter(Boolean).join(" ") || undefined });
+  const errNode = (k: string) => {
+    const help = rkpdesFieldHelp(`ac-${k}`);
+    return (
+      <>
+        {err(k) ? <p id={`ac-${k}-err`} className="text-sm text-destructive">{err(k)}</p> : null}
+        {help ? <FieldHelpBlock id={`ac-${k}`} help={help} /> : null}
+      </>
+    );
+  };
   const text = (k: keyof Form, label: string, max: number, extra?: string) => (
     <div className="space-y-1.5">
       <Label htmlFor={`ac-${k}`}>{label}</Label>

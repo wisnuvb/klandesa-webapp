@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { AsyncState, MetricGrid, type MetricItem } from "@/components/app/patterns";
+import { FieldHelpBlock, FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
 import { SdgGoalBadges, SdgGoalPicker } from "@/components/app/sdgs/SdgGoalPicker";
 import { Can } from "@/components/permissions/Can";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
+import { RPJMDES_GUIDE, rpjmdesFieldHelp } from "@/lib/guides/rpjm";
 
 type PlanRow = {
   id: number;
@@ -372,18 +374,23 @@ export default function RpjmdesPage() {
   return (
     <AsyncState loading={loading} error={error} onRetry={loadAll} loadingMessage="Memuat RPJMDes...">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">RPJMDes</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Perencanaan pembangunan desa, usulan Musdes, dan prioritas berbasis skor SDGs.
-          </p>
-          <p className="text-sm mt-2">
-            <Link href="/rpjm" className="underline underline-offset-2">
-              Tahapan RPJM Desa
-            </Link>
-            : tim penyusun, pengkajian, rancangan per bidang dan tahun, Musdes, dan Perdes (isi dikunci setelah ditetapkan).
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">RPJMDes</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Perencanaan pembangunan desa, usulan Musdes, dan prioritas berbasis skor SDGs.
+            </p>
+            <p className="text-sm mt-2">
+              <Link href="/rpjm" className="underline underline-offset-2">
+                Tahapan RPJM Desa
+              </Link>
+              : tim penyusun, pengkajian, rancangan per bidang dan tahun, Musdes, dan Perdes (isi dikunci setelah ditetapkan).
+            </p>
+          </div>
+          <GuideButton guide={RPJMDES_GUIDE} />
         </div>
+
+        <FirstVisitBanner guide={RPJMDES_GUIDE} />
 
         <MetricGrid items={metrics} columns={4} />
 
@@ -618,12 +625,15 @@ export default function RpjmdesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Tahun akhir</Label>
+                  <Label htmlFor="rpjmdes-periodEnd">Tahun akhir</Label>
                   <Input
+                    id="rpjmdes-periodEnd"
+                    aria-describedby="rpjmdes-periodEnd-hint"
                     type="number"
                     value={planForm.periodEnd}
                     onChange={(e) => setPlanForm((f) => ({ ...f, periodEnd: e.target.value }))}
                   />
+                  <FieldHelpBlock id="rpjmdes-periodEnd" help={rpjmdesFieldHelp("periodEnd")} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -667,11 +677,14 @@ export default function RpjmdesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Tag SDGs</Label>
-                <SdgGoalPicker
-                  value={activityForm.sdgGoalIds}
-                  onChange={(ids) => setActivityForm((f) => ({ ...f, sdgGoalIds: ids }))}
-                />
+                <Label id="act-sdg-label">Tag SDGs</Label>
+                <div role="group" aria-labelledby="act-sdg-label" aria-describedby="act-sdg-hint">
+                  <SdgGoalPicker
+                    value={activityForm.sdgGoalIds}
+                    onChange={(ids) => setActivityForm((f) => ({ ...f, sdgGoalIds: ids }))}
+                  />
+                </div>
+                <FieldHelpBlock id="act-sdg" help={rpjmdesFieldHelp("sdgTags")} />
               </div>
             </div>
             <DialogFooter>
@@ -733,11 +746,14 @@ export default function RpjmdesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Tag SDGs</Label>
-                <SdgGoalPicker
-                  value={proposalForm.sdgGoalIds}
-                  onChange={(ids) => setProposalForm((f) => ({ ...f, sdgGoalIds: ids }))}
-                />
+                <Label id="prop-sdg-label">Tag SDGs</Label>
+                <div role="group" aria-labelledby="prop-sdg-label" aria-describedby="prop-sdg-hint">
+                  <SdgGoalPicker
+                    value={proposalForm.sdgGoalIds}
+                    onChange={(ids) => setProposalForm((f) => ({ ...f, sdgGoalIds: ids }))}
+                  />
+                </div>
+                <FieldHelpBlock id="prop-sdg" help={rpjmdesFieldHelp("sdgTags")} />
               </div>
             </div>
             <DialogFooter>

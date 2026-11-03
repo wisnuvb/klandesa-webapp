@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { DashboardTour } from "@/components/app/DashboardTour";
+import { DataCompletenessNotice } from "@/components/app/DataCompletenessNotice";
 import { RecentActivity } from "@/components/app/RecentActivity";
 import { StatsCard } from "@/components/app/StatsCard";
 import { StorageQuotaNotice } from "@/components/app/StorageQuotaNotice";
 import type { StorageUsageSummary } from "@/lib/digitalArchive/quota-level";
+import type { CompletenessItem } from "@/lib/dashboard/data-completeness";
 import { LarasDashboardCard } from "@/components/ai/LarasDashboardCard";
 import { RegionalNewsCard } from "@/components/regional-news/RegionalNewsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +36,7 @@ import {
 
 type DashboardStats = {
   storage?: StorageUsageSummary | null;
+  completeness?: CompletenessItem[];
   totals: {
     residents: number;
     households: number;
@@ -214,6 +217,7 @@ export default function AppDashboard() {
       <DashboardTour />
 
       <StorageQuotaNotice storage={stats?.storage} />
+      <DataCompletenessNotice items={stats?.completeness} />
 
       <div data-tour="laras-card">
         <LarasDashboardCard />

@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { DANA_DESA_FIELD_IDS, danaDesaFieldHelp } from "@/lib/guides/dana-desa";
 import { PengaduanCard } from "./PengaduanCard";
 import { useState } from "react";
 import type { TabProps } from "./types";
@@ -63,11 +65,13 @@ export function SummaryTab({ data, year, reload }: TabProps) {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="dd-regular">Pagu Dana Desa reguler</Label>
-                <CurrencyInput id="dd-regular" inputClassName="h-11" value={val(regular, data.setting.regular)} onValueChange={setRegular} aria-invalid={Boolean(form.errors.regular)} />
+                <FieldHelpBlock id={DANA_DESA_FIELD_IDS.regular} help={danaDesaFieldHelp("regular")} />
+                <CurrencyInput id="dd-regular" aria-describedby="dd-regular-hint" inputClassName="h-11" value={val(regular, data.setting.regular)} onValueChange={setRegular} aria-invalid={Boolean(form.errors.regular)} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="dd-kdmp">Pagu dukungan KDMP</Label>
-                <CurrencyInput id="dd-kdmp" inputClassName="h-11" value={val(kdmp, data.setting.kdmp)} onValueChange={setKdmp} aria-invalid={Boolean(form.errors.kdmp)} />
+                <FieldHelpBlock id={DANA_DESA_FIELD_IDS.kdmp} help={danaDesaFieldHelp("kdmp")} />
+                <CurrencyInput id="dd-kdmp" aria-describedby="dd-kdmp-hint" inputClassName="h-11" value={val(kdmp, data.setting.kdmp)} onValueChange={setKdmp} aria-invalid={Boolean(form.errors.kdmp)} />
               </div>
             </div>
             <label className="flex min-h-11 w-fit cursor-pointer items-center gap-2 text-sm">

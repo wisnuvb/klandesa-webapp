@@ -11,6 +11,8 @@ import { ConfirmDelete } from "@/components/app/ConfirmDelete";
 import { SELECT_CLASS, fmtDate } from "@/components/app/perencanaan/shared";
 import { StatusPill, VerificationTag, daysText } from "@/components/app/kepatuhan/shared";
 import { useApiGet } from "@/hooks/useApiGet";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
+import { KEPATUHAN_GUIDE } from "@/lib/guides/pengadaan";
 import { RecordDialog } from "./RecordDialog";
 import type { Resp, Row } from "./types";
 
@@ -26,9 +28,13 @@ export function KepatuhanView() {
   return (
     <div className="space-y-6 pb-24">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Kalender Kepatuhan</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Kalender Kepatuhan</h1>
+          <GuideButton guide={KEPATUHAN_GUIDE} />
+        </div>
         <p className="max-w-3xl text-muted-foreground">Laporan wajib desa menurut tahun anggaran, lengkap dengan tenggat, status, dan bukti kirim. Status dibaca otomatis dari APBDes, Perencanaan, Laporan Kepala Desa, dan Dana Desa bila datanya ada; yang lain dicatat petugas.</p>
       </header>
+      <FirstVisitBanner guide={KEPATUHAN_GUIDE} />
 
       <div className="space-y-1.5">
         <Label htmlFor="kp-year">Tahun anggaran</Label>

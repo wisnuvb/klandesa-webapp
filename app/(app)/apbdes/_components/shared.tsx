@@ -7,6 +7,8 @@ import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { CodeEntry } from "@/lib/apbdes/codes";
 import type { DocumentSummary, MonthStatus } from "@/lib/apbdes/service";
+import { apbdesFieldHelp } from "@/lib/guides/apbdes";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
 
 export const SELECT_CLASS =
   "flex h-11 w-full rounded-md border border-input bg-input-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm";
@@ -36,6 +38,18 @@ export interface Overview {
     expenseAccounts: CodeEntry[];
     financingAccounts: CodeEntry[];
   };
+}
+
+/** Petunjuk awam + contoh di bawah label kolom; tidak merender apa pun bila kolom itu tidak diberi petunjuk. */
+export function Hint({ id }: { id: string }) {
+  const help = apbdesFieldHelp(id);
+  return help ? <FieldHelpBlock id={id} help={help} /> : null;
+}
+
+/** `aria-describedby` kolom: petunjuk (bila ada) dan pesan galat (bila ada). Kembali undefined bila keduanya tak ada. */
+export function describedBy(id: string, error?: string): string | undefined {
+  const ids = [apbdesFieldHelp(id) ? `${id}-hint` : null, error ? `${id}-err` : null].filter(Boolean);
+  return ids.length ? ids.join(" ") : undefined;
 }
 
 export const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];

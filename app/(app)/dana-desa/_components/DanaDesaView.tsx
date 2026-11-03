@@ -13,6 +13,8 @@ import { PublicationTab } from "./PublicationTab";
 import { ReportsTab } from "./ReportsTab";
 import { DestanaCard } from "@/components/app/bencana/DestanaCard";
 import { SummaryTab } from "./SummaryTab";
+import { DANA_DESA_GUIDE } from "@/lib/guides/dana-desa";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
 import type { Resp } from "./types";
 
 type Tab = "ringkasan" | "fokus" | "larangan" | "publikasi" | "laporan";
@@ -32,9 +34,13 @@ export function DanaDesaView() {
   return (
     <div className="space-y-6 pb-24">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Dana Desa</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Dana Desa</h1>
+          <GuideButton guide={DANA_DESA_GUIDE} />
+        </div>
         <p className="text-muted-foreground">Memeriksa penggunaan Dana Desa terhadap APB Desa: fokus penggunaan, batas operasional, larangan, publikasi, dan kesiapan laporan penyaluran.</p>
       </header>
+      <FirstVisitBanner guide={DANA_DESA_GUIDE} />
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1.5">

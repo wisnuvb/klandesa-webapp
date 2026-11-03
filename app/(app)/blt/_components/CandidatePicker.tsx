@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/search-select";
 import { SELECT_CLASS } from "@/components/app/perencanaan/shared";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { bltFieldHelp } from "@/lib/guides/dana-desa";
 import type { Candidate } from "./types";
 
 export interface PickerValue {
@@ -106,14 +108,16 @@ export function CandidatePicker({ programId, idPrefix, criteria, value, onChange
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-src`}>Sumber data penerima *</Label>
-          <SearchSelect id={`${idPrefix}-src`} className={SELECT_CLASS} value={value.source} onChange={(e) => onChange({ ...value, source: e.target.value as PickerValue["source"], criteria: [] })}>
+          <FieldHelpBlock id={`${idPrefix}-src`} help={bltFieldHelp("source")} />
+          <SearchSelect id={`${idPrefix}-src`} aria-describedby={`${idPrefix}-src-hint`} className={SELECT_CLASS} value={value.source} onChange={(e) => onChange({ ...value, source: e.target.value as PickerValue["source"], criteria: [] })}>
             <option value="PEMERINTAH">Data Pemerintah sebagai acuan</option>
             <option value="DESA">Kriteria cadangan Kepala Desa</option>
           </SearchSelect>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-cat`}>Kategori penerima (hasil Musyawarah Desa) *</Label>
-          <Input id={`${idPrefix}-cat`} className="h-11" maxLength={100} value={value.category} onChange={(e) => onChange({ ...value, category: e.target.value })} aria-invalid={Boolean(errors.category)} />
+          <FieldHelpBlock id={`${idPrefix}-cat`} help={bltFieldHelp("category")} />
+          <Input id={`${idPrefix}-cat`} aria-describedby={`${idPrefix}-cat-hint`} className="h-11" maxLength={100} value={value.category} onChange={(e) => onChange({ ...value, category: e.target.value })} aria-invalid={Boolean(errors.category)} />
         </div>
       </div>
       {value.source === "DESA" ? (

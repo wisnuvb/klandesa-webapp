@@ -12,7 +12,7 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { EntryView, LineView } from "@/lib/apbdes/service";
 import { localToday } from "@/lib/form-input";
 import { MoneyInput } from "./MoneyInput";
-import { SELECT_CLASS, type Overview } from "./shared";
+import { Hint, SELECT_CLASS, describedBy, type Overview } from "./shared";
 import { SearchSelect } from "@/components/ui/search-select";
 
 const LABELS = { entryDate: "Tanggal", voucherNo: "Nomor bukti", type: "Jenis", channel: "Kas", accountCode: "Rekening", activityCode: "Kegiatan", description: "Uraian", amount: "Jumlah", taxAmount: "Pajak dipotong", taxKind: "Jenis pajak" };
@@ -84,7 +84,8 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={LABELS} />
           <div className="space-y-1.5">
             <Label htmlFor="en-type">Jenis *</Label>
-            <SearchSelect {...fieldA11y("en-type", errors.type)} className={SELECT_CLASS} value={f.type} onChange={(e) => set({ type: e.target.value, spendKey: "", accountCode: "", bankFee: false, taxAmount: "", taxKind: "" })}>
+            <Hint id="en-type" />
+            <SearchSelect {...fieldA11y("en-type", errors.type)} aria-describedby={describedBy("en-type", errors.type)} className={SELECT_CLASS} value={f.type} onChange={(e) => set({ type: e.target.value, spendKey: "", accountCode: "", bankFee: false, taxAmount: "", taxKind: "" })}>
               {Object.entries(o.terms.entryTypes).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
@@ -100,7 +101,8 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="en-voucher">Nomor bukti *</Label>
-              <Input {...fieldA11y("en-voucher", errors.voucherNo)} className="h-11" maxLength={60} value={f.voucherNo} onChange={(e) => set({ voucherNo: e.target.value })} />
+              <Hint id="en-voucher" />
+              <Input {...fieldA11y("en-voucher", errors.voucherNo)} aria-describedby={describedBy("en-voucher", errors.voucherNo)} className="h-11" maxLength={60} value={f.voucherNo} onChange={(e) => set({ voucherNo: e.target.value })} />
               <FieldError id="en-voucher" message={errors.voucherNo} />
             </div>
           </div>
@@ -138,8 +140,9 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
           {f.type === "PENGELUARAN" ? (
             <div className="space-y-1.5">
               <Label htmlFor="en-spend">Kegiatan dan rekening belanja *</Label>
+              <Hint id="en-spend" />
               {!o.activeDocumentId ? <p role="alert" className="text-sm text-destructive">APB Desa belum ditetapkan, belanja belum dapat dicatat.</p> : null}
-              <SearchSelect {...fieldA11y("en-spend", errors.accountCode ?? errors.activityCode)} className={SELECT_CLASS} value={f.spendKey} onChange={(e) => set({ spendKey: e.target.value })} disabled={!o.activeDocumentId || doc.loading}>
+              <SearchSelect {...fieldA11y("en-spend", errors.accountCode ?? errors.activityCode)} aria-describedby={describedBy("en-spend", errors.accountCode ?? errors.activityCode)} className={SELECT_CLASS} value={f.spendKey} onChange={(e) => set({ spendKey: e.target.value })} disabled={!o.activeDocumentId || doc.loading}>
                 <option value="">{doc.loading ? "Memuat anggaran…" : "Pilih dari APB Desa…"}</option>
                 {spendOptions.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
               </SearchSelect>
@@ -156,7 +159,8 @@ export function EntryDialog({ o, entry, defaultMonth, onClose, onSaved }: { o: O
 
           <div className="space-y-1.5">
             <Label htmlFor="en-amount">Jumlah {f.type === "PENGELUARAN" ? "(bruto, sebelum dipotong pajak) " : ""}*</Label>
-            <MoneyInput id="en-amount" value={f.amount} onChange={(d) => set({ amount: d })} invalid={Boolean(errors.amount)} describedBy={errors.amount ? "en-amount-err" : undefined} />
+            <Hint id="en-amount" />
+            <MoneyInput id="en-amount" value={f.amount} onChange={(d) => set({ amount: d })} invalid={Boolean(errors.amount)} describedBy={describedBy("en-amount", errors.amount)} />
             <FieldError id="en-amount" message={errors.amount} />
           </div>
 

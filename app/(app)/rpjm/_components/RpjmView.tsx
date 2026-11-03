@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
 import { Pill, STEP_STATE_LABEL, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { RPJM_GUIDE } from "@/lib/guides/rpjm";
 import type { ListResponse } from "./types";
 
 export function RpjmView() {
@@ -31,13 +33,18 @@ export function RpjmView() {
             Susun RPJM Desa bertahap: tim penyusun, pengkajian keadaan desa, Musyawarah Desa, rancangan (visi-misi, arah kebijakan, program per bidang per tahun dengan anggaran indikatif), pembahasan, lalu Peraturan Desa. Setelah Perdes dihubungkan, isi dikunci. RPJM Desa kini berjangka {data?.rules.termYears ?? 8} tahun.
           </p>
         </div>
-        {data?.can.create ? (
-          <Button type="button" size="lg" className="min-h-11" onClick={() => setCreating(true)}>
-            <Plus aria-hidden="true" />
-            Buat RPJM Desa
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <GuideButton guide={RPJM_GUIDE} />
+          {data?.can.create ? (
+            <Button type="button" size="lg" className="min-h-11" onClick={() => setCreating(true)}>
+              <Plus aria-hidden="true" />
+              Buat RPJM Desa
+            </Button>
+          ) : null}
+        </div>
       </header>
+
+      <FirstVisitBanner guide={RPJM_GUIDE} />
 
       {loading ? (
         <p role="status" className="flex items-center gap-2 text-muted-foreground">

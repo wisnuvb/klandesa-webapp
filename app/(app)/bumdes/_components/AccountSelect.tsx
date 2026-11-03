@@ -10,11 +10,11 @@ const ORDER: AccountClass[] = ["ASET", "KEWAJIBAN", "EKUITAS", "PENDAPATAN", "HP
 export const offeredAccounts = (includeCapital?: boolean) => ACCOUNTS.filter((a) => !FLOW_ONLY_ACCOUNTS.includes(a.code) || (includeCapital === true && a.code === EQUITY_VILLAGE_CAPITAL));
 
 /** Pilihan akun dari bagan akun Kepmendes 136/2022, dikelompokkan per golongan dan dapat dicari (kode atau nama). */
-export function AccountSelect({ id, value, onChange, invalid, only, placeholder, includeCapital }: { id: string; value: string; onChange: (v: string) => void; invalid?: boolean; only?: "cash"; placeholder?: string; /** hanya jurnal pembukaan: tawarkan juga Penyertaan Modal Desa (3.1.01.01) */ includeCapital?: boolean }) {
+export function AccountSelect({ id, value, onChange, invalid, only, placeholder, includeCapital, describedBy }: { id: string; value: string; onChange: (v: string) => void; invalid?: boolean; only?: "cash"; placeholder?: string; /** hanya jurnal pembukaan: tawarkan juga Penyertaan Modal Desa (3.1.01.01) */ includeCapital?: boolean; describedBy?: string }) {
   // Akun Penyertaan Modal/Bagi Hasil hanya digerakkan arus APB Desa; jalur kas/jurnal manual pasti menolaknya, jadi tidak ditawarkan.
   const offered = offeredAccounts(includeCapital);
   return (
-    <SearchSelect id={id} className={SELECT_CLASS} value={value} onChange={(e) => onChange(e.target.value)} aria-invalid={invalid} placeholder={placeholder ?? "Pilih akun"} searchPlaceholder="Cari kode atau nama akun">
+    <SearchSelect id={id} className={SELECT_CLASS} value={value} onChange={(e) => onChange(e.target.value)} aria-invalid={invalid} aria-describedby={describedBy} placeholder={placeholder ?? "Pilih akun"} searchPlaceholder="Cari kode atau nama akun">
       {only === "cash" ? (
         CASH_ACCOUNTS.map((a) => (
           <option key={a.code} value={a.code}>

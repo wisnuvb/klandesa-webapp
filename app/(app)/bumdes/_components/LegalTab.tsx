@@ -21,6 +21,8 @@ import type { LegalOverview, OfficerView } from "@/lib/bumdes/service";
 import { Busy, EmptyNote, Findings, INPUT_CLASS, SELECT_CLASS } from "./shared";
 import { AttachmentDisclosure, AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
 import { useAttachments } from "@/components/app/attachments/useAttachments";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { bumdesFieldHelp, type BumdesFieldKey } from "@/lib/guides/bumdes";
 
 type Resp = LegalOverview & { canManage: boolean };
 
@@ -135,11 +137,13 @@ export function LegalTab() {
 }
 
 type FormState = Record<string, string>;
-function Field({ f, set, errors, k, label, type = "text", max, hint, req }: { f: FormState; set: (k: string) => (e: { target: { value: string } }) => void; errors: Record<string, string>; k: string; label: string; type?: string; max?: number; hint?: string; req?: boolean }) {
+function Field({ f, set, errors, k, label, type = "text", max, hint, help, req }: { f: FormState; set: (k: string) => (e: { target: { value: string } }) => void; errors: Record<string, string>; k: string; label: string; type?: string; max?: number; hint?: string; help?: BumdesFieldKey; req?: boolean }) {
+  const describedBy = [errors[k] ? `lg-${k}-err` : null, help ? `lg-${k}-hint` : errors[k] ? null : hint ? `lg-${k}-h` : null].filter(Boolean).join(" ") || undefined;
   return (
     <div className="min-w-0 space-y-1.5">
       <Label htmlFor={`lg-${k}`}>{label}{req ? " *" : ""}</Label>
-      <Input id={`lg-${k}`} type={type} className={INPUT_CLASS} maxLength={max} value={f[k] ?? ""} onChange={set(k)} aria-invalid={Boolean(errors[k])} aria-describedby={errors[k] ? `lg-${k}-err` : hint ? `lg-${k}-h` : undefined} inputMode={k === "nib" || k === "npwp" ? "numeric" : undefined} />
+      {help ? <FieldHelpBlock id={`lg-${k}`} help={bumdesFieldHelp(help)} /> : null}
+      <Input id={`lg-${k}`} type={type} className={INPUT_CLASS} maxLength={max} value={f[k] ?? ""} onChange={set(k)} aria-invalid={Boolean(errors[k])} aria-describedby={describedBy} inputMode={k === "nib" || k === "npwp" ? "numeric" : undefined} />
       {errors[k] ? <p id={`lg-${k}-err`} className="text-sm text-destructive">{errors[k]}</p> : hint ? <p id={`lg-${k}-h`} className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
@@ -183,14 +187,14 @@ function LegalForm({ data, onSaved }: { data: Resp; onSaved: () => void }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="min-w-0 space-y-1.5">
           <Label htmlFor="lg-status">Status badan hukum</Label>
-          <SearchSelect id="lg-status" className={SELECT_CLASS} value={f.legalStatus} onChange={set("legalStatus")}>
+          <FieldHelpBlock id="lg-status" help={bumdesFieldHelp("legalStatus")} />
+          <SearchSelect id="lg-status" className={SELECT_CLASS} value={f.legalStatus} onChange={set("legalStatus")} aria-describedby="lg-status-hint">
             {Object.entries(LEGAL_STATUS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
             ))}
           </SearchSelect>
-          <p className="text-xs text-muted-foreground">Berbadan hukum sejak sertifikat pendaftaran elektronik terbit (PP 11/2021 Pasal 8).</p>
         </div>
         <div className="min-w-0 space-y-1.5">
           <Label htmlFor="lg-meet">Musyawarah Desa pendirian</Label>
@@ -210,16 +214,16 @@ function LegalForm({ data, onSaved }: { data: Resp; onSaved: () => void }) {
         <legend className="mb-1 text-sm font-semibold">Pendirian dan peraturan</legend>
         <Field f={f} set={set} errors={errors} k="establishedOn" label="Tanggal pendirian" type="date" />
         <div className="hidden sm:block" />
-        <Field f={f} set={set} errors={errors} k="perdesNumber" label="Nomor Peraturan Desa pendirian" max={100} hint="Memuat Anggaran Dasar (Pasal 7 ayat 6)." />
+        <Field f={f} set={set} errors={errors} k="perdesNumber" label="Nomor Peraturan Desa pendirian" max={100} help="perdesNumber" />
         <Field f={f} set={set} errors={errors} k="perdesDate" label="Tanggal Peraturan Desa" type="date" />
-        <Field f={f} set={set} errors={errors} k="artNumber" label="Nomor Peraturan Kepala Desa (ART)" max={100} hint="Anggaran Rumah Tangga (Pasal 13 ayat 3)." />
+        <Field f={f} set={set} errors={errors} k="artNumber" label="Nomor Peraturan Kepala Desa (ART)" max={100} help="artNumber" />
         <Field f={f} set={set} errors={errors} k="artDate" label="Tanggal Peraturan Kepala Desa" type="date" />
       </fieldset>
       <fieldset className="grid gap-3 sm:grid-cols-2">
         <legend className="mb-1 text-sm font-semibold">Pendaftaran dan identitas usaha</legend>
-        <Field f={f} set={set} errors={errors} k="nameApprovalNo" label="Nomor persetujuan nama" max={100} />
+        <Field f={f} set={set} errors={errors} k="nameApprovalNo" label="Nomor persetujuan nama" max={100} help="nameApprovalNo" />
         <Field f={f} set={set} errors={errors} k="nameApprovalDate" label="Tanggal persetujuan nama" type="date" />
-        <Field f={f} set={set} errors={errors} k="certificateNo" label="Nomor sertifikat pendaftaran" max={100} />
+        <Field f={f} set={set} errors={errors} k="certificateNo" label="Nomor sertifikat pendaftaran" max={100} help="certificateNo" />
         <Field f={f} set={set} errors={errors} k="certificateDate" label="Tanggal sertifikat" type="date" />
         <Field f={f} set={set} errors={errors} k="nib" label="NIB" max={20} hint="13 angka." />
         <Field f={f} set={set} errors={errors} k="npwp" label="NPWP" max={30} hint="15 atau 16 angka; titik dan strip boleh." />
@@ -232,7 +236,8 @@ function LegalForm({ data, onSaved }: { data: Resp; onSaved: () => void }) {
         </div>
         <div className="min-w-0 space-y-1.5">
           <Label htmlFor="lg-cap">Modal awal</Label>
-          <CurrencyInput id="lg-cap" inputClassName="h-11" value={f.initialCapital} onValueChange={(v) => setF((s) => ({ ...s, initialCapital: v }))} aria-invalid={Boolean(errors.initialCapital)} />
+          <FieldHelpBlock id="lg-cap" help={bumdesFieldHelp("initialCapital")} />
+          <CurrencyInput id="lg-cap" inputClassName="h-11" value={f.initialCapital} onValueChange={(v) => setF((s) => ({ ...s, initialCapital: v }))} aria-invalid={Boolean(errors.initialCapital)} aria-describedby="lg-cap-hint" />
         </div>
         <div className="hidden sm:block" />
         <Field f={f} set={set} errors={errors} k="rankingYear" label="Tahun pemeringkatan terakhir" hint="Hasil peringkat Kementerian dicatat apa adanya (Permendesa PDTT 3/2021 Pasal 22)." />

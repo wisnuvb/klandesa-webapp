@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { pengadaanFieldHelp } from "@/lib/guides/pengadaan";
 import { moneyRaw, type ListResp } from "./types";
 
 /** Ambang nilai antar-metode milik desa (dari Perbup kabupaten). Kosong = aplikasi tidak memberi saran. */
@@ -34,11 +36,13 @@ export function SettingDialog({ data, onClose, onDone }: { data: ListResp; onClo
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ directLimit: "Ambang pembelian langsung", offerLimit: "Ambang permintaan penawaran", basisNote: "Dasar" }} />
           <div className="space-y-1.5">
             <Label htmlFor="st-direct">Pembelian langsung sampai dengan</Label>
-            <CurrencyInput id="st-direct" inputClassName="h-11" value={direct} onValueChange={setDirect} aria-invalid={Boolean(errors.directLimit)} />
+            <FieldHelpBlock id="st-direct" help={pengadaanFieldHelp("st-direct")} />
+            <CurrencyInput id="st-direct" inputClassName="h-11" aria-describedby="st-direct-hint" value={direct} onValueChange={setDirect} aria-invalid={Boolean(errors.directLimit)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="st-offer">Permintaan penawaran sampai dengan (di atasnya lelang)</Label>
-            <CurrencyInput id="st-offer" inputClassName="h-11" value={offer} onValueChange={setOffer} aria-invalid={Boolean(errors.offerLimit)} />
+            <FieldHelpBlock id="st-offer" help={pengadaanFieldHelp("st-offer")} />
+            <CurrencyInput id="st-offer" inputClassName="h-11" aria-describedby="st-offer-hint" value={offer} onValueChange={setOffer} aria-invalid={Boolean(errors.offerLimit)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="st-note">Dasar (mis. nomor Perbup)</Label>

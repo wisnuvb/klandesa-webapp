@@ -12,6 +12,8 @@ import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { Pill, SELECT_CLASS, fmtDate } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { CandidatePicker, emptyPicker, type PickerValue } from "./CandidatePicker";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { bltFieldHelp } from "@/lib/guides/dana-desa";
 import type { TabProps } from "./types";
 
 type B = TabProps["data"]["program"]["beneficiaries"][number];
@@ -172,7 +174,8 @@ function ReplaceDialog({ data, target, onClose, onDone }: { data: TabProps["data
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="rp-reason">Alasan *</Label>
-            <Textarea id="rp-reason" rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} aria-invalid={Boolean(errors.reason)} />
+            <FieldHelpBlock id="rp-reason" help={bltFieldHelp("replaceReason")} />
+            <Textarea id="rp-reason" aria-describedby="rp-reason-hint" rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} aria-invalid={Boolean(errors.reason)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="rp-decree">Nomor Keputusan Kepala Desa tentang perubahan</Label>

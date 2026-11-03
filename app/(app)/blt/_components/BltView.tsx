@@ -13,6 +13,8 @@ import { Pill, rupiah } from "@/components/app/perencanaan/shared";
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { useRouter } from "next/navigation";
+import { BLT_GUIDE } from "@/lib/guides/dana-desa";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
 import type { Can, ProgramListItem } from "./types";
 
 interface ListResponse {
@@ -36,13 +38,17 @@ export function BltView() {
             Bantuan Langsung Tunai dari Dana Desa untuk keluarga miskin ekstrem: penetapan penerima lewat Musyawarah Desa, Keputusan Kepala Desa, pembayaran, dan penggantian penerima (Permendesa PDT 16/2025).
           </p>
         </div>
-        {data?.can.create ? (
-          <Button type="button" className="min-h-11" onClick={() => setCreating(true)}>
-            <Plus aria-hidden="true" />
-            Program BLT baru
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <GuideButton guide={BLT_GUIDE} />
+          {data?.can.create ? (
+            <Button type="button" className="min-h-11" onClick={() => setCreating(true)}>
+              <Plus aria-hidden="true" />
+              Program BLT baru
+            </Button>
+          ) : null}
+        </div>
       </header>
+      <FirstVisitBanner guide={BLT_GUIDE} />
 
       {loading ? (
         <p role="status" className="flex items-center gap-2 text-muted-foreground">

@@ -12,7 +12,7 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { ActivityPlanView } from "@/lib/apbdes/dpa";
 import { PLAN_STATUS } from "@/lib/apbdes/catalog";
 import { MoneyInput } from "./MoneyInput";
-import { ConfirmRequest, MONTHS, dateId, money, type Overview } from "./shared";
+import { ConfirmRequest, Hint, MONTHS, dateId, describedBy, money, type Overview } from "./shared";
 import { SearchSelect } from "@/components/ui/search-select";
 
 const RKK_LABELS: Record<string, string> = { executorName: "Pelaksana", location: "Lokasi", outputName: "Nama output", outputVolume: "Volume", outputUnit: "Satuan", target: "Sasaran", team: "Tim", startMonth: "Bulan mulai", endMonth: "Bulan selesai" };
@@ -79,7 +79,8 @@ export function DpaDialog({ o, plan, onClose, onChanged }: { o: Overview; plan: 
             {(["executorName", "location", "outputName", "target", "team"] as const).map((k) => (
               <div key={k} className="space-y-1.5">
                 <Label htmlFor={`rkk-${k}`}>{RKK_LABELS[k]}{k === "executorName" ? " (Kaur/Kasi) *" : ""}</Label>
-                <Input {...fieldA11y(`rkk-${k}`, rkk.errors[k])} className="h-11" value={f[k]} disabled={!editable} onChange={(e) => set(k, e.target.value)} />
+                <Hint id={`rkk-${k}`} />
+                <Input {...fieldA11y(`rkk-${k}`, rkk.errors[k])} aria-describedby={describedBy(`rkk-${k}`, rkk.errors[k])} className="h-11" value={f[k]} disabled={!editable} onChange={(e) => set(k, e.target.value)} />
                 <FieldError id={`rkk-${k}`} message={rkk.errors[k]} />
               </div>
             ))}
@@ -298,7 +299,8 @@ function RabSection({ o, plan, editable, onChanged }: { o: Overview; plan: Activ
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="rab-desc">Uraian *</Label>
-            <Input {...fieldA11y("rab-desc", add.errors.description)} className="h-11" maxLength={300} value={f.description} onChange={(e) => setF((p) => ({ ...p, description: e.target.value }))} />
+            <Hint id="rab-desc" />
+            <Input {...fieldA11y("rab-desc", add.errors.description)} aria-describedby={describedBy("rab-desc", add.errors.description)} className="h-11" maxLength={300} value={f.description} onChange={(e) => setF((p) => ({ ...p, description: e.target.value }))} />
             <FieldError id="rab-desc" message={add.errors.description} />
           </div>
           <div className="space-y-1.5">
@@ -308,7 +310,8 @@ function RabSection({ o, plan, editable, onChanged }: { o: Overview; plan: Activ
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="rab-unit">Satuan *</Label>
-            <Input {...fieldA11y("rab-unit", add.errors.unit)} className="h-11" maxLength={30} value={f.unit} onChange={(e) => setF((p) => ({ ...p, unit: e.target.value }))} />
+            <Hint id="rab-unit" />
+            <Input {...fieldA11y("rab-unit", add.errors.unit)} aria-describedby={describedBy("rab-unit", add.errors.unit)} className="h-11" maxLength={30} value={f.unit} onChange={(e) => setF((p) => ({ ...p, unit: e.target.value }))} />
             <FieldError id="rab-unit" message={add.errors.unit} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">

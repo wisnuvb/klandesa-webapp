@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
 import { Pill, WarningList, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { rpjmFieldHelp } from "@/lib/guides/rpjm";
 import { EVENT_KINDS } from "@/lib/rpjm/catalog";
 import type { DetailResponse } from "./types";
 
@@ -50,14 +52,18 @@ export function ContentTab({ data, reload }: { data: DetailResponse; reload: () 
   const err = (k: string) => errors[k];
   const common = (k: string) => ({ id: `ct-${k}`, "aria-invalid": err(k) ? true : undefined, "aria-describedby": err(k) ? `ct-${k}-err` : undefined });
   const errNode = (k: string) => (err(k) ? <p id={`ct-${k}-err`} className="text-sm text-destructive">{err(k)}</p> : null);
-  const area = (k: "vision" | "mission" | "policyDirection" | "reviewSummary", label: string, help: string, rows = 4) => (
-    <div className="space-y-1.5">
-      <Label htmlFor={`ct-${k}`}>{label}</Label>
-      <Textarea {...common(k)} rows={rows} maxLength={20000} value={f[k]} disabled={!editable} onChange={(e) => set({ [k]: e.target.value })} />
-      <p className="text-sm text-muted-foreground">{help}</p>
-      {errNode(k)}
-    </div>
-  );
+  const area = (k: "vision" | "mission" | "policyDirection" | "reviewSummary", label: string, help: string, rows = 4) => {
+    const guide = rpjmFieldHelp(k);
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor={`ct-${k}`}>{label}</Label>
+        <Textarea {...common(k)} aria-describedby={[`ct-${k}-hint`, err(k) ? `ct-${k}-err` : null].filter(Boolean).join(" ")} rows={rows} maxLength={20000} value={f[k]} disabled={!editable} onChange={(e) => set({ [k]: e.target.value })} />
+        {guide ? <FieldHelpBlock id={`ct-${k}`} help={guide} /> : <p id={`ct-${k}-hint`} className="text-sm text-muted-foreground">{help}</p>}
+        {guide ? <p className="text-xs text-muted-foreground">{help}</p> : null}
+        {errNode(k)}
+      </div>
+    );
+  };
 
   return (
     <form onSubmit={save} className="min-w-0 space-y-6" noValidate>

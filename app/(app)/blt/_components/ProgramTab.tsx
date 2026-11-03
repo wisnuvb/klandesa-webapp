@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { SELECT_CLASS, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { bltFieldHelp } from "@/lib/guides/dana-desa";
 import type { TabProps } from "./types";
 
 const ACTIONS = {
@@ -106,7 +108,8 @@ export function ProgramTab({ data, reload }: TabProps) {
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="pr-meeting">Musyawarah Desa penetapan penerima</Label>
-            <SearchSelect id="pr-meeting" className={SELECT_CLASS} disabled={!draft || !canEdit} value={meeting ?? String(p.musdes?.id ?? "")} onChange={(e) => setMeeting(e.target.value)}>
+            <FieldHelpBlock id="pr-meeting" help={bltFieldHelp("meeting")} />
+            <SearchSelect id="pr-meeting" aria-describedby="pr-meeting-hint" className={SELECT_CLASS} disabled={!draft || !canEdit} value={meeting ?? String(p.musdes?.id ?? "")} onChange={(e) => setMeeting(e.target.value)}>
               <option value="">— Belum dipilih —</option>
               {blt.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -118,7 +121,8 @@ export function ProgramTab({ data, reload }: TabProps) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pr-no">Nomor Keputusan Kepala Desa</Label>
-            <Input id="pr-no" className="h-11" maxLength={100} disabled={!draft || !canEdit} value={number ?? p.decreeNumber ?? ""} onChange={(e) => setNumber(e.target.value)} />
+            <FieldHelpBlock id="pr-no" help={bltFieldHelp("decreeNumber")} />
+            <Input id="pr-no" aria-describedby="pr-no-hint" className="h-11" maxLength={100} disabled={!draft || !canEdit} value={number ?? p.decreeNumber ?? ""} onChange={(e) => setNumber(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pr-date">Tanggal keputusan</Label>
@@ -126,7 +130,8 @@ export function ProgramTab({ data, reload }: TabProps) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pr-rep">Dilaporkan kepada bupati melalui camat pada</Label>
-            <Input id="pr-rep" type="date" className="h-11" disabled={!canEdit} value={reported ?? p.reportedToRegencyOn ?? ""} onChange={(e) => setReported(e.target.value)} />
+            <FieldHelpBlock id="pr-rep" help={bltFieldHelp("reported")} />
+            <Input id="pr-rep" aria-describedby="pr-rep-hint" type="date" className="h-11" disabled={!canEdit} value={reported ?? p.reportedToRegencyOn ?? ""} onChange={(e) => setReported(e.target.value)} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="pr-note">Catatan</Label>

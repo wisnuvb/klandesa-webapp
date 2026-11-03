@@ -19,6 +19,8 @@ import { DEFAULT_CASH_ACCOUNT, DEFAULT_EXPENSE_ACCOUNT, DEFAULT_INCOME_ACCOUNT, 
 import { fmtDate } from "@/components/app/perencanaan/shared";
 import type { useBumdes } from "../_hooks/useBumdes";
 import type { BumdesTransactionRow, BumdesUnitRow } from "../_lib/types";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { bumdesFieldHelp } from "@/lib/guides/bumdes";
 import { AccountSelect } from "./AccountSelect";
 import { BumdesUnitDialog } from "./BumdesUnitDialog";
 import { Busy, EmptyNote, INPUT_CLASS, ReasonDialog, SELECT_CLASS, StatusPill, rp } from "./shared";
@@ -300,7 +302,8 @@ function TxDialog({ tx, units, onClose, onDone }: { tx: BumdesTransactionRow | n
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bd-tx-acc">{direction === "income" ? "Akun pendapatan (kredit)" : "Akun beban (debit)"} *</Label>
-            <AccountSelect id="bd-tx-acc" value={accountCode} onChange={setAccountCode} invalid={Boolean(errors.accountCode)} />
+            <FieldHelpBlock id="bd-tx-acc" help={bumdesFieldHelp("txAccount")} />
+            <AccountSelect id="bd-tx-acc" value={accountCode} onChange={setAccountCode} invalid={Boolean(errors.accountCode)} describedBy="bd-tx-acc-hint" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bd-tx-cash">Akun kas atau bank *</Label>

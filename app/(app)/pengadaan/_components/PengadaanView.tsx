@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Pill, SELECT_CLASS, rupiah } from "@/components/app/perencanaan/shared";
 import { useApiGet } from "@/hooks/useApiGet";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
+import { PENGADAAN_GUIDE } from "@/lib/guides/pengadaan";
 import { PackageDialog } from "./PackageDialog";
 import { SettingDialog } from "./SettingDialog";
 import { STATUS_TONE, type ListResp } from "./types";
@@ -22,11 +24,15 @@ export function PengadaanView() {
   return (
     <div className="space-y-6 pb-24">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Pengadaan Barang/Jasa</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Pengadaan Barang/Jasa</h1>
+          <GuideButton guide={PENGADAAN_GUIDE} />
+        </div>
         <p className="max-w-3xl text-muted-foreground">
           Satu paket untuk tiap pengadaan atas kegiatan APB Desa: tim pelaksana (TPK), penawaran penyedia, berita acara negosiasi, SPK, dan serah terima (BAST). Pembayaran tetap lewat SPP di menu APBDes; di sini hanya terlihat tautan dan peringatannya.
         </p>
       </header>
+      <FirstVisitBanner guide={PENGADAAN_GUIDE} />
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1.5">

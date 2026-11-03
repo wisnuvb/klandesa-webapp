@@ -13,6 +13,8 @@ import { MeetingFormDialog } from "./MeetingFormDialog";
 import type { ListResponse } from "./types";
 import { AttachmentCountBadge } from "@/components/app/attachments/AttachmentsSection";
 import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
+import { MUSDES_GUIDE } from "@/lib/guides/musdes";
 
 const PAGE_SIZE = 20;
 const TONE: Record<string, string> = { PLANNED: "info", HELD: "soon", FINAL: "done", CANCELLED: "neutral" };
@@ -47,13 +49,17 @@ export function MusdesView() {
             Jadwalkan Musyawarah Desa dan Musrenbangdes, catat daftar hadir beserta unsur pesertanya, keputusan, dan berita acara. Berita acara yang sudah final menjadi dasar RKP Desa, penetapan penerima BLT Desa, dan keputusan strategis lain.
           </p>
         </div>
-        {d?.can.create ? (
-          <Button type="button" size="lg" className="min-h-11" onClick={() => setCreating(true)}>
-            <Plus aria-hidden="true" />
-            Jadwalkan musyawarah
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <GuideButton guide={MUSDES_GUIDE} />
+          {d?.can.create ? (
+            <Button type="button" size="lg" className="min-h-11" onClick={() => setCreating(true)}>
+              <Plus aria-hidden="true" />
+              Jadwalkan musyawarah
+            </Button>
+          ) : null}
+        </div>
       </header>
+      <FirstVisitBanner guide={MUSDES_GUIDE} />
 
       <section aria-label="Penyaring" className="grid gap-3 sm:grid-cols-3">
         <div>

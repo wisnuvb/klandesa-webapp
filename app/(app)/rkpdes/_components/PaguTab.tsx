@@ -10,6 +10,8 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { SELECT_CLASS, WarningList, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { rkpdesFieldHelp } from "@/lib/guides/rkpdes";
 import type { DetailResponse } from "./types";
 
 export function PaguTab({ data, editable, reload }: { data: DetailResponse; editable: boolean; reload: () => void }) {
@@ -57,6 +59,7 @@ export function PaguTab({ data, editable, reload }: { data: DetailResponse; edit
     setErr(typeof j?.error === "string" ? j.error : "Gagal menghapus.");
   }
 
+  const srcHelp = rkpdesFieldHelp("pg-src");
   const spend = d.activitySummary.bySource;
   const rows = Object.entries(data.terms.paguSources)
     .map(([k, label]) => ({ k, label, pagu: d.pagu.find((p) => p.source === k)?.amount ?? null, spent: spend[k] ?? null }))
@@ -120,13 +123,14 @@ export function PaguTab({ data, editable, reload }: { data: DetailResponse; edit
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label htmlFor="pg-src">Sumber dana *</Label>
-                <SearchSelect id="pg-src" className={SELECT_CLASS} value={source} onChange={(e) => setSource(e.target.value)}>
+                <SearchSelect id="pg-src" className={SELECT_CLASS} value={source} onChange={(e) => setSource(e.target.value)} aria-describedby={srcHelp ? "pg-src-hint" : undefined}>
                   {Object.entries(data.terms.paguSources).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
                     </option>
                   ))}
                 </SearchSelect>
+                {srcHelp ? <FieldHelpBlock id="pg-src" help={srcHelp} /> : null}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pg-amt">Jumlah pagu *</Label>

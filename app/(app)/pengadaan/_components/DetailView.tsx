@@ -20,6 +20,8 @@ import { PackageDialog } from "./PackageDialog";
 import { TeamSection } from "./TeamSection";
 import { STATUS_TONE, moneyRaw, type DetailResp } from "./types";
 import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
+import { GuideButton } from "@/components/app/guide/PageGuide";
+import { PENGADAAN_GUIDE } from "@/lib/guides/pengadaan";
 
 type Group = "rincian" | "negosiasi" | "spk" | "bast" | "pengumuman";
 const STAGES = ["PERSIAPAN", "PEMILIHAN", "PELAKSANAAN", "SELESAI"] as const;
@@ -128,6 +130,7 @@ export function DetailView({ id }: { id: number }) {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="min-w-0 break-words text-2xl font-semibold">{d.title}</h1>
           <Pill tone={STATUS_TONE[d.status]}>{d.statusLabel}</Pill>
+          <GuideButton guide={PENGADAAN_GUIDE} />
         </div>
         <p className="break-words text-sm text-muted-foreground">
           Paket {d.number}/{d.year} · {d.activityCode} {d.activityName}

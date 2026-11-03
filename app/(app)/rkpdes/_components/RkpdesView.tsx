@@ -13,6 +13,8 @@ import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { Pill, SELECT_CLASS, STEP_STATE_LABEL, WarningList, fmtDate } from "@/components/app/perencanaan/shared";
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { FieldHelpBlock, FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
+import { RKPDES_GUIDE, rkpdesFieldHelp } from "@/lib/guides/rkpdes";
 import type { ListResponse } from "./types";
 
 export function RkpdesView() {
@@ -32,13 +34,18 @@ export function RkpdesView() {
             Kelola tahapan penyusunan RKP Desa menurut Permendagri 114/2014: Musyawarah Desa, tim penyusun, pagu indikatif, rancangan, Musrenbangdes, Peraturan Desa, dan daftar usulan ke kabupaten. Tenggat tiap tahap dihitung otomatis.
           </p>
         </div>
-        {data?.can.create ? (
-          <Button type="button" size="lg" className="min-h-11" onClick={() => setCreating(true)}>
-            <Plus aria-hidden="true" />
-            Buat RKP Desa
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <GuideButton guide={RKPDES_GUIDE} />
+          {data?.can.create ? (
+            <Button type="button" size="lg" className="min-h-11" onClick={() => setCreating(true)}>
+              <Plus aria-hidden="true" />
+              Buat RKP Desa
+            </Button>
+          ) : null}
+        </div>
       </header>
+
+      <FirstVisitBanner guide={RKPDES_GUIDE} />
 
       {loading ? (
         <p role="status" className="flex items-center gap-2 text-muted-foreground">
@@ -151,6 +158,7 @@ function CreateDialog({ reasons, onClose, onCreated }: { reasons: Record<string,
   const [perubahan, setPerubahan] = useState(false);
   const [reason, setReason] = useState("");
   const { busy, errors, general, summaryRef, submit } = useFormSubmit();
+  const yearHelp = rkpdesFieldHelp("rk-year");
   async function go(e: React.FormEvent) {
     e.preventDefault();
     const r = await submit<{ id?: number }>("/api/perencanaan/rkpdes", "POST", { year: Number(year), perubahan, changeReason: perubahan ? reason : null });
@@ -167,7 +175,8 @@ function CreateDialog({ reasons, onClose, onCreated }: { reasons: Record<string,
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ year: "Tahun", changeReason: "Alasan perubahan" }} />
           <div className="space-y-1.5">
             <Label htmlFor="rk-year">Tahun RKP Desa *</Label>
-            <Input id="rk-year" className="h-11" type="number" inputMode="numeric" min={2000} max={2100} value={year} onChange={(e) => setYear(e.target.value)} />
+            <Input id="rk-year" className="h-11" type="number" inputMode="numeric" min={2000} max={2100} value={year} onChange={(e) => setYear(e.target.value)} aria-describedby={yearHelp ? "rk-year-hint" : undefined} />
+            {yearHelp ? <FieldHelpBlock id="rk-year" help={yearHelp} /> : null}
           </div>
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <input type="checkbox" className="size-5" checked={perubahan} onChange={(e) => setPerubahan(e.target.checked)} />

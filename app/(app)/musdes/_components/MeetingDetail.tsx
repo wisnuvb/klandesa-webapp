@@ -17,6 +17,8 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import { UNSUR, UNSUR_KEYS } from "@/lib/musdes/catalog";
 import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
+import { FieldHelpBlock, FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
+import { MUSDES_GUIDE, musdesFieldHelp } from "@/lib/guides/musdes";
 import { MeetingFormDialog } from "./MeetingFormDialog";
 import type { AttendeeView, DecisionView, DetailResponse } from "./types";
 
@@ -93,7 +95,10 @@ export function MeetingDetail({ id }: { id: number }) {
             </p>
             <p className="text-sm text-muted-foreground">Dasar: {m.basis}</p>
           </div>
-          <Pill tone={TONE[m.status]}>{m.statusLabel}</Pill>
+          <div className="flex flex-wrap items-center gap-2">
+            <GuideButton guide={MUSDES_GUIDE} />
+            <Pill tone={TONE[m.status]}>{m.statusLabel}</Pill>
+          </div>
         </div>
         <dl className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
           <div className="flex gap-2">
@@ -197,6 +202,8 @@ export function MeetingDetail({ id }: { id: number }) {
         ) : null}
       </header>
 
+      <FirstVisitBanner guide={MUSDES_GUIDE} />
+
       <WarningList title={m.status === "PLANNED" ? "Keterwakilan undangan belum lengkap" : "Keterwakilan peserta yang hadir belum lengkap"} items={warnings.map((w) => w.message)} />
 
       <section aria-labelledby="peserta-h" className="space-y-3">
@@ -283,7 +290,7 @@ function AttendeeAdd({ meetingId, onAdded, onBulk, onAllPresent, busy }: { meeti
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="pa-unsur">Unsur *</Label>
-          <SearchSelect id="pa-unsur" className={SELECT_CLASS} value={unsur} onChange={(e) => setUnsur(e.target.value)}>
+          <SearchSelect id="pa-unsur" aria-describedby="pa-unsur-hint" className={SELECT_CLASS} value={unsur} onChange={(e) => setUnsur(e.target.value)}>
             {UNSUR_KEYS.map((k) => (
               <option key={k} value={k}>
                 {UNSUR[k]}
@@ -299,6 +306,9 @@ function AttendeeAdd({ meetingId, onAdded, onBulk, onAllPresent, busy }: { meeti
             <option value="P">Perempuan</option>
           </SearchSelect>
         </div>
+      </div>
+      <div className="space-y-1.5">
+        <FieldHelpBlock id="pa-unsur" help={musdesFieldHelp("pa-unsur")!} />
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex min-h-11 items-center gap-2 text-sm">
@@ -521,7 +531,8 @@ function DecisionPanel({ meetingId, decisions, editable, onChanged }: { meetingI
       {editable ? (
         <form onSubmit={add} className="min-w-0 space-y-2" noValidate>
           <Label htmlFor="dec-new">Tambah keputusan</Label>
-          <Textarea id="dec-new" rows={2} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} placeholder="Contoh: Menyepakati rancangan RKP Desa tahun 2027" />
+          <FieldHelpBlock id="dec-new" help={musdesFieldHelp("dec-new")!} />
+          <Textarea id="dec-new" aria-describedby="dec-new-hint" rows={2} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} placeholder="Contoh: Menyepakati rancangan RKP Desa tahun 2027" />
           <Button type="submit" className="min-h-11" disabled={busy || !text.trim()}>
             Catat keputusan
           </Button>
@@ -586,8 +597,8 @@ function MinutesPanel({ meeting, editable, onSaved, onFinalize }: { meeting: Det
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="ba-text">Isi berita acara *</Label>
-        <Textarea id="ba-text" rows={10} maxLength={20000} value={text} onChange={(e) => { setText(e.target.value); setSaved(false); }} />
-        <p className="text-sm text-muted-foreground">Tuliskan jalannya musyawarah dan hal yang disepakati. Keputusan di atas ikut dicetak otomatis.</p>
+        <FieldHelpBlock id="ba-text" help={musdesFieldHelp("ba-text")!} />
+        <Textarea id="ba-text" aria-describedby="ba-text-hint" rows={10} maxLength={20000} value={text} onChange={(e) => { setText(e.target.value); setSaved(false); }} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" variant="outline" className="min-h-11" disabled={busy}>

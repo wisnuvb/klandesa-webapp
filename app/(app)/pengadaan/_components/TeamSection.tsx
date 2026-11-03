@@ -10,6 +10,8 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { ConfirmDelete } from "@/components/app/ConfirmDelete";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { SELECT_CLASS } from "@/components/app/perencanaan/shared";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { pengadaanFieldHelp } from "@/lib/guides/pengadaan";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import type { DetailResp } from "./types";
 
@@ -107,7 +109,8 @@ function MemberDialog({ packageId, catalog, member, onClose, onDone }: { package
           <div className="grid min-w-0 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="tm-role">Peran *</Label>
-              <SearchSelect id="tm-role" className={SELECT_CLASS} value={role} onChange={(e) => setRole(e.target.value)}>
+              <FieldHelpBlock id="tm-role" help={pengadaanFieldHelp("tm-role")} />
+              <SearchSelect id="tm-role" className={SELECT_CLASS} aria-describedby="tm-role-hint" value={role} onChange={(e) => setRole(e.target.value)}>
                 {Object.entries(catalog.roles).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -117,7 +120,8 @@ function MemberDialog({ packageId, catalog, member, onClose, onDone }: { package
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="tm-el">Unsur *</Label>
-              <SearchSelect id="tm-el" className={SELECT_CLASS} value={element} onChange={(e) => setElement(e.target.value)}>
+              <FieldHelpBlock id="tm-el" help={pengadaanFieldHelp("tm-el")} />
+              <SearchSelect id="tm-el" className={SELECT_CLASS} aria-describedby="tm-el-hint" value={element} onChange={(e) => setElement(e.target.value)}>
                 {Object.entries(catalog.elements).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}

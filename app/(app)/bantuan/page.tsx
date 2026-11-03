@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SUPPORT_EMAIL, supportWhatsAppHref } from "@/lib/support";
 import { ArrowRight, BookOpen, CreditCard, Mail, MessageCircle, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { GuideCatalog } from "@/components/app/guide/GuideCatalog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata = { title: "Bantuan | Klandesa" };
@@ -68,6 +69,16 @@ export default function BantuanPage() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Panduan per halaman</CardTitle>
+          <CardDescription>Tiap halaman di bawah ini punya tombol &quot;Panduan&quot; di bagian atas: langkah kerja, arti istilah, dan contoh isian.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GuideCatalog />
         </CardContent>
       </Card>
 

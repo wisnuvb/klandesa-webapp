@@ -11,11 +11,13 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
 import { ConfirmAction } from "./ConfirmAction";
 import { Pill, SELECT_CLASS, STEP_STATE_LABEL, WarningList, fmtDate } from "@/components/app/perencanaan/shared";
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
+import { RPJM_GUIDE } from "@/lib/guides/rpjm";
 import { AlignmentTab, ContentTab } from "./ContentTab";
 import { ProgramsTab } from "./ProgramsTab";
 import { TeamTab } from "./TeamTab";
@@ -72,6 +74,7 @@ export function RpjmDetail({ id }: { id: number }) {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <GuideButton guide={RPJM_GUIDE} />
             {p.locked ? (
               <Pill tone="done">
                 <Lock aria-hidden="true" className="mr-1 size-3" />
@@ -92,6 +95,8 @@ export function RpjmDetail({ id }: { id: number }) {
           ))}
         {p.locked ? <p className="text-sm text-muted-foreground">Isi dokumen terkunci karena Peraturan Desa sudah ditetapkan. Perubahan hanya karena peristiwa khusus atau perubahan kebijakan, dibahas dalam musyawarah, dan ditetapkan dengan Peraturan Desa (Permendagri 114/2014 Pasal 28; PP 16/2026 Pasal 148).</p> : null}
       </header>
+
+      <FirstVisitBanner guide={RPJM_GUIDE} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList className="h-auto flex-wrap">

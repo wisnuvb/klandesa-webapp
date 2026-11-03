@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldError, FormErrorSummary, fieldA11y } from "@/components/app/FormErrorSummary";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { Hint, describedBy } from "./shared";
 
 /** Penetapan dokumen (setelah Perdes disahkan) atau pembuatan perubahan; dua bentuk dengan isian berbeda. */
 export function AdoptDialog({ documentId, label, onClose, onDone }: { documentId: number; label: string; onClose: () => void; onDone: (warnings: string[]) => void }) {
@@ -33,7 +34,8 @@ export function AdoptDialog({ documentId, label, onClose, onDone }: { documentId
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ regulationNumber: "Nomor Peraturan Desa", regulationDate: "Tanggal penetapan" }} />
           <div className="space-y-1.5">
             <Label htmlFor="ad-num">Nomor Peraturan Desa *</Label>
-            <Input {...fieldA11y("ad-num", errors.regulationNumber)} className="h-11" maxLength={100} value={num} onChange={(e) => setNum(e.target.value)} placeholder="Contoh: 3 Tahun 2026" />
+            <Hint id="ad-num" />
+            <Input {...fieldA11y("ad-num", errors.regulationNumber)} aria-describedby={describedBy("ad-num", errors.regulationNumber)} className="h-11" maxLength={100} value={num} onChange={(e) => setNum(e.target.value)} placeholder="Contoh: 3 Tahun 2026" />
             <FieldError id="ad-num" message={errors.regulationNumber} />
           </div>
           <div className="space-y-1.5">
@@ -80,7 +82,8 @@ export function AmendmentDialog({ year, nextVersion, onClose, onDone }: { year: 
           {exceptional ? (
             <div className="space-y-1.5">
               <Label htmlFor="am-reason">Keadaan luar biasa *</Label>
-              <Input {...fieldA11y("am-reason", errors.exceptionalReason)} className="h-11" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+              <Hint id="am-reason" />
+              <Input {...fieldA11y("am-reason", errors.exceptionalReason)} aria-describedby={describedBy("am-reason", errors.exceptionalReason)} className="h-11" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
               <FieldError id="am-reason" message={errors.exceptionalReason} />
             </div>
           ) : null}

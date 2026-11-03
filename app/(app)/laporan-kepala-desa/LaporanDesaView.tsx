@@ -15,6 +15,8 @@ import { KINDS, type ReportKind, type SectionDef } from "@/lib/laporan-desa/cata
 import { localToday } from "@/lib/form-input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { AttachmentDisclosure } from "@/components/app/attachments/AttachmentsSection";
+import { laporanFieldHelp, laporanGuide } from "@/lib/laporan-desa/guide";
+import { FieldHelpBlock, FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
 
 interface Payload {
   report: {
@@ -47,11 +49,15 @@ export function LaporanDesaView() {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold"><ScrollText aria-hidden="true" className="size-6" />Laporan Kepala Desa</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold"><ScrollText aria-hidden="true" className="size-6" />Laporan Kepala Desa</h1>
+          <GuideButton guide={laporanGuide(kind)} />
+        </div>
         <p className="max-w-prose text-muted-foreground">
           LPPD, LKPPD, dan LPPD akhir masa jabatan menurut Permendagri 46/2016. Susunan bagiannya mengikuti pasal-pasalnya; Anda menulis uraiannya, sedangkan rincian APB Desa dan rekapitulasi penduduk dilampirkan otomatis dari data aplikasi.
         </p>
       </header>
+      <FirstVisitBanner guide={laporanGuide(kind)} />
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1">
           <label htmlFor="ld-kind" className="mb-1.5 block text-sm font-medium">Jenis laporan</label>
@@ -152,7 +158,10 @@ function Editor({ data, reload }: { data: Payload; reload: () => void }) {
           {sections.filter((s) => s.group === g).map((s) => (
             <div key={s.id} className="space-y-1.5">
               <Label htmlFor={`ld-${s.id}`}>{s.title}{s.required ? " *" : ""}</Label>
-              <p id={`ld-${s.id}-hint`} className="text-sm text-muted-foreground">{s.hint}</p>
+              {(() => {
+                const help = laporanFieldHelp(s.id, s.hint);
+                return help ? <FieldHelpBlock id={`ld-${s.id}`} help={help} /> : <p id={`ld-${s.id}-hint`} className="text-sm text-muted-foreground">{s.hint}</p>;
+              })()}
               <Textarea id={`ld-${s.id}`} aria-describedby={`ld-${s.id}-hint`} aria-invalid={save.errors[s.id] ? true : undefined} rows={5} maxLength={20000} disabled={!editable} value={vals[s.id] ?? ""} onChange={(e) => setVals((p) => ({ ...p, [s.id]: e.target.value }))} />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <FieldError id={`ld-${s.id}`} message={save.errors[s.id]} />

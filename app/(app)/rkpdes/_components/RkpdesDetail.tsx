@@ -15,6 +15,8 @@ import { Pill, SELECT_CLASS, STEP_STATE_LABEL, WarningList, fmtDate } from "@/co
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
+import { FieldHelpBlock, FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
+import { RKPDES_GUIDE, rkpdesFieldHelp } from "@/lib/guides/rkpdes";
 import { ActivitiesTab } from "./ActivitiesTab";
 import { AlignmentTab } from "./AlignmentTab";
 import { PaguTab } from "./PaguTab";
@@ -85,7 +87,8 @@ export function RkpdesDetail({ id }: { id: number }) {
               {d.changeReasonLabel ? ` · ${d.changeReasonLabel}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <GuideButton guide={RKPDES_GUIDE} />
             {d.locked ? (
               <Pill tone="done">
                 <Lock aria-hidden="true" className="mr-1 size-3" />
@@ -101,6 +104,8 @@ export function RkpdesDetail({ id }: { id: number }) {
         {d.plan?.termNote ? <WarningList title="Jangka waktu RPJM Desa" items={[d.plan.termNote]} /> : null}
         {d.locked ? <p className="text-sm text-muted-foreground">Isi dokumen terkunci karena Peraturan Desa sudah ditetapkan. Perubahan dilakukan lewat RKP Desa perubahan (Pasal 49–50); hanya data daftar usulan yang masih dapat dicatat.</p> : null}
       </header>
+
+      <FirstVisitBanner guide={RKPDES_GUIDE} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList className="h-auto flex-wrap">
@@ -218,12 +223,16 @@ function StepEditor({ step, data, editable, reload }: { step: Step; data: Detail
   };
   const meetingKind = step.key === "musdes" ? "MUSDES_PERENCANAAN" : d.revision > 0 ? "MUSDES_PERUBAHAN" : "MUSRENBANGDES";
   const errBox = <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{}} />;
-  const dateField = (k: string, label: string, current: string | null) => (
-    <div className="space-y-1.5">
-      <Label htmlFor={`st-${step.key}-${k}`}>{label}</Label>
-      <Input id={`st-${step.key}-${k}`} className="h-11" type="date" value={date || current || ""} onChange={(e) => setDate(e.target.value)} disabled={!editable} />
-    </div>
-  );
+  const dateField = (k: string, label: string, current: string | null) => {
+    const help = rkpdesFieldHelp(`st-${step.key}-${k}`);
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor={`st-${step.key}-${k}`}>{label}</Label>
+        <Input id={`st-${step.key}-${k}`} className="h-11" type="date" value={date || current || ""} onChange={(e) => setDate(e.target.value)} disabled={!editable} aria-describedby={help ? `st-${step.key}-${k}-hint` : undefined} />
+        {help ? <FieldHelpBlock id={`st-${step.key}-${k}`} help={help} /> : null}
+      </div>
+    );
+  };
   const refField = (k: string, label: string, current: string | null) => (
     <div className="space-y-1.5">
       <Label htmlFor={`st-${step.key}-${k}`}>{label}</Label>
@@ -402,6 +411,7 @@ function EvaluationTab({ data, reload }: { data: DetailResponse; reload: () => v
       reload();
     }
   }
+  const evHelp = rkpdesFieldHelp("ev-text");
   const proposed = d.activities.filter((a) => a.proposeToRegency);
   return (
     <>
@@ -409,8 +419,8 @@ function EvaluationTab({ data, reload }: { data: DetailResponse; reload: () => v
         <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ evaluationText: "Evaluasi" }} />
         <div className="space-y-1.5">
           <Label htmlFor="ev-text">Evaluasi pelaksanaan RKP Desa tahun sebelumnya</Label>
-          <Textarea id="ev-text" rows={10} maxLength={20000} value={text} disabled={!editable} onChange={(e) => { setText(e.target.value); setSaved(false); }} />
-          <p className="text-sm text-muted-foreground">Bagian wajib rancangan RKP Desa (Pasal 41 ayat 1 huruf a): kegiatan yang selesai, tertunda, dan pelajarannya.</p>
+          <Textarea id="ev-text" rows={10} maxLength={20000} value={text} disabled={!editable} onChange={(e) => { setText(e.target.value); setSaved(false); }} aria-describedby={evHelp ? "ev-text-hint" : undefined} />
+          {evHelp ? <FieldHelpBlock id="ev-text" help={evHelp} /> : null}
         </div>
         {editable ? (
           <div className="flex items-center gap-3">

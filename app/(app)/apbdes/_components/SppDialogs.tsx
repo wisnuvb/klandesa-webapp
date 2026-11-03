@@ -13,7 +13,7 @@ import type { ActivityPlanView } from "@/lib/apbdes/dpa";
 import type { PanjarView } from "@/lib/apbdes/spp";
 import { localToday } from "@/lib/form-input";
 import { MoneyInput } from "./MoneyInput";
-import { money, SELECT_CLASS, type Overview } from "./shared";
+import { Hint, describedBy, money, SELECT_CLASS, type Overview } from "./shared";
 import { SearchSelect } from "@/components/ui/search-select";
 
 interface Line {
@@ -62,19 +62,22 @@ export function SppFormDialog({ o, plans, onClose, onSaved }: { o: Overview; pla
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sp-mode">Pelaksanaan *</Label>
-              <SearchSelect {...fieldA11y("sp-mode", errors.mode)} className={SELECT_CLASS} value={f.mode} onChange={(e) => setF((x) => ({ ...x, mode: e.target.value }))}>
+              <Hint id="sp-mode" />
+              <SearchSelect {...fieldA11y("sp-mode", errors.mode)} aria-describedby={describedBy("sp-mode", errors.mode)} className={SELECT_CLASS} value={f.mode} onChange={(e) => setF((x) => ({ ...x, mode: e.target.value }))}>
                 {Object.entries(MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </SearchSelect>
               <FieldError id="sp-mode" message={errors.mode} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sp-exec">Kaur/Kasi pelaksana{f.mode === "SWAKELOLA" ? " (penerima panjar) *" : ""}</Label>
-              <Input {...fieldA11y("sp-exec", errors.executorName)} className="h-11" maxLength={150} value={f.executorName} onChange={(e) => setF((x) => ({ ...x, executorName: e.target.value }))} />
+              <Hint id="sp-exec" />
+              <Input {...fieldA11y("sp-exec", errors.executorName)} aria-describedby={describedBy("sp-exec", errors.executorName)} className="h-11" maxLength={150} value={f.executorName} onChange={(e) => setF((x) => ({ ...x, executorName: e.target.value }))} />
               <FieldError id="sp-exec" message={errors.executorName} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="sp-period">Waktu pelaksanaan</Label>
-              <Input {...fieldA11y("sp-period", errors.workPeriod)} className="h-11" maxLength={100} value={f.workPeriod} onChange={(e) => setF((x) => ({ ...x, workPeriod: e.target.value }))} placeholder="Contoh: Nov 2026" />
+              <Hint id="sp-period" />
+              <Input {...fieldA11y("sp-period", errors.workPeriod)} aria-describedby={describedBy("sp-period", errors.workPeriod)} className="h-11" maxLength={100} value={f.workPeriod} onChange={(e) => setF((x) => ({ ...x, workPeriod: e.target.value }))} placeholder="Contoh: Nov 2026" />
               <FieldError id="sp-period" message={errors.workPeriod} />
             </div>
           </div>
@@ -227,7 +230,8 @@ export function PanjarDialog({ o, panjar, mode, onClose, onSaved }: { o: Overvie
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pj-no">{isSpj ? "Nomor bukti *" : "Nomor bukti setor *"}</Label>
-            <Input {...fieldA11y("pj-no", errors.voucherNo)} className="h-11" maxLength={60} value={f.voucherNo} onChange={(e) => setF((x) => ({ ...x, voucherNo: e.target.value }))} />
+            <Hint id="pj-no" />
+            <Input {...fieldA11y("pj-no", errors.voucherNo)} aria-describedby={describedBy("pj-no", errors.voucherNo)} className="h-11" maxLength={60} value={f.voucherNo} onChange={(e) => setF((x) => ({ ...x, voucherNo: e.target.value }))} />
             <FieldError id="pj-no" message={errors.voucherNo} />
           </div>
           {isSpj ? (
@@ -240,7 +244,8 @@ export function PanjarDialog({ o, panjar, mode, onClose, onSaved }: { o: Overvie
             <>
               <div className="space-y-1.5">
                 <Label htmlFor="pj-acc">Rekening belanja yang dikurangi *</Label>
-                <SearchSelect {...fieldA11y("pj-acc", errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => setF((x) => ({ ...x, accountCode: e.target.value }))}>
+                <Hint id="pj-acc" />
+                <SearchSelect {...fieldA11y("pj-acc", errors.accountCode)} aria-describedby={describedBy("pj-acc", errors.accountCode)} className={SELECT_CLASS} value={f.accountCode} onChange={(e) => setF((x) => ({ ...x, accountCode: e.target.value }))}>
                   {panjar.accounts.map((a) => <option key={a.accountCode} value={a.accountCode}>{a.accountCode} {a.accountName} (bisa dikembalikan {money(a.returnable)})</option>)}
                 </SearchSelect>
                 <FieldError id="pj-acc" message={errors.accountCode} />

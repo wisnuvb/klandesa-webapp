@@ -12,6 +12,8 @@ import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { SELECT_CLASS } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { kepatuhanFieldHelp } from "@/lib/guides/pengadaan";
 import type { Row } from "./types";
 
 type Archive = { id: string; title: string; fileName: string; year: number | null };
@@ -76,14 +78,15 @@ export function RecordDialog({ row, year, onClose, onDone }: { row: Row; year: n
           {status === "TERKIRIM" ? (
             <div className="space-y-1.5">
               <Label htmlFor="kp-sent">Tanggal {row.doneLabel.toLowerCase()} *</Label>
-              <Input id="kp-sent" type="date" className="h-11 w-full sm:w-56" max={localToday()} value={sentOn} onChange={(e) => setSentOn(e.target.value)} aria-invalid={Boolean(errors.sentOn)} aria-describedby={errors.sentOn ? "kp-sent-err" : undefined} />
+              <FieldHelpBlock id="kp-sent" help={kepatuhanFieldHelp("kp-sent")} />
+              <Input id="kp-sent" type="date" className="h-11 w-full sm:w-56" max={localToday()} value={sentOn} onChange={(e) => setSentOn(e.target.value)} aria-invalid={Boolean(errors.sentOn)} aria-describedby={errors.sentOn ? "kp-sent-hint kp-sent-err" : "kp-sent-hint"} />
               {errors.sentOn ? <p id="kp-sent-err" className="text-sm text-destructive">{errors.sentOn}</p> : null}
             </div>
           ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="kp-ref">Nomor surat pengantar / tanda terima</Label>
-            <Input id="kp-ref" className="h-11" maxLength={150} value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} aria-describedby="kp-ref-help" />
-            <p id="kp-ref-help" className="text-xs text-muted-foreground">Contoh: 140/012/Des/2026. Boleh dikosongkan.</p>
+            <FieldHelpBlock id="kp-ref" help={kepatuhanFieldHelp("kp-ref")} />
+            <Input id="kp-ref" className="h-11" maxLength={150} value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} aria-describedby="kp-ref-hint" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="kp-note">Catatan</Label>
@@ -91,7 +94,8 @@ export function RecordDialog({ row, year, onClose, onDone }: { row: Row; year: n
           </div>
           <div className="min-w-0 space-y-1.5">
             <Label htmlFor="kp-q">Berkas bukti dari Arsip Digital</Label>
-            <Input id="kp-q" className="h-11" placeholder="Cari judul atau nama berkas" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+            <FieldHelpBlock id="kp-q" help={kepatuhanFieldHelp("kp-q")} />
+            <Input id="kp-q" className="h-11" placeholder="Cari judul atau nama berkas" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" aria-describedby="kp-q-hint" />
             <SearchSelect id="kp-archive" className={SELECT_CLASS} value={archiveId} onChange={(e) => setArchiveId(e.target.value)} aria-label="Pilih berkas bukti" placeholder={searching ? "Mencari…" : "Tanpa berkas"} emptyText="Tidak ada berkas">
               <option value="">Tanpa berkas</option>
               {archives.map((a) => (

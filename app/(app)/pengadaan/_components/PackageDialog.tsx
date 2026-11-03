@@ -12,6 +12,8 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Textarea } from "@/components/ui/textarea";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { SELECT_CLASS } from "@/components/app/perencanaan/shared";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { pengadaanFieldHelp } from "@/lib/guides/pengadaan";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { activityOptions, leafAccounts } from "@/lib/apbdes/catalog";
 import { moneyRaw, type Catalog } from "./types";
@@ -70,7 +72,8 @@ export function PackageDialog({ year, catalog, initial, onClose, onDone }: { yea
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={{ year: "Tahun", activityCode: "Kegiatan", accountCode: "Rekening", title: "Nama paket", scope: "Lingkup", location: "Lokasi", mode: "Cara pengadaan", method: "Metode", hps: mode === "SWAKELOLA" ? "RAB pengadaan" : "HPS", executorName: "Kasi/Kaur", executorTitle: "Jabatan" }} />
           <div className="min-w-0 space-y-1.5">
             <Label htmlFor="pg-act">Kegiatan APB Desa *</Label>
-            <SearchSelect id="pg-act" className={SELECT_CLASS} value={activity} onChange={(e) => setActivity(e.target.value)} placeholder="Cari kode atau nama kegiatan" aria-invalid={Boolean(errors.activityCode)}>
+            <FieldHelpBlock id="pg-act" help={pengadaanFieldHelp("pg-act")} />
+            <SearchSelect id="pg-act" className={SELECT_CLASS} value={activity} onChange={(e) => setActivity(e.target.value)} placeholder="Cari kode atau nama kegiatan" aria-describedby="pg-act-hint" aria-invalid={Boolean(errors.activityCode)}>
               <option value="">Pilih kegiatan</option>
               {ACTIVITIES.map((a) => (
                 <option key={a.code} value={a.code}>
@@ -105,7 +108,8 @@ export function PackageDialog({ year, catalog, initial, onClose, onDone }: { yea
           <div className="grid min-w-0 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="pg-mode">Cara pengadaan *</Label>
-              <SearchSelect id="pg-mode" className={SELECT_CLASS} value={mode} onChange={(e) => setMode(e.target.value)}>
+              <FieldHelpBlock id="pg-mode" help={pengadaanFieldHelp("pg-mode")} />
+              <SearchSelect id="pg-mode" className={SELECT_CLASS} aria-describedby="pg-mode-hint" value={mode} onChange={(e) => setMode(e.target.value)}>
                 {Object.entries(catalog.modes).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -116,7 +120,8 @@ export function PackageDialog({ year, catalog, initial, onClose, onDone }: { yea
             {mode === "PENYEDIA" ? (
               <div className="space-y-1.5">
                 <Label htmlFor="pg-method">Metode *</Label>
-                <SearchSelect id="pg-method" className={SELECT_CLASS} value={method} onChange={(e) => setMethod(e.target.value)} aria-invalid={Boolean(errors.method)}>
+                <FieldHelpBlock id="pg-method" help={pengadaanFieldHelp("pg-method")} />
+                <SearchSelect id="pg-method" className={SELECT_CLASS} aria-describedby="pg-method-hint" value={method} onChange={(e) => setMethod(e.target.value)} aria-invalid={Boolean(errors.method)}>
                   {Object.entries(catalog.methods).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
@@ -128,12 +133,14 @@ export function PackageDialog({ year, catalog, initial, onClose, onDone }: { yea
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pg-hps">{mode === "SWAKELOLA" ? "RAB pengadaan *" : "Harga perkiraan sendiri (HPS) *"}</Label>
-            <CurrencyInput id="pg-hps" inputClassName="h-11" value={hps} onValueChange={setHps} aria-invalid={Boolean(errors.hps)} />
+            <FieldHelpBlock id="pg-hps" help={pengadaanFieldHelp("pg-hps")} />
+            <CurrencyInput id="pg-hps" inputClassName="h-11" aria-describedby="pg-hps-hint" value={hps} onValueChange={setHps} aria-invalid={Boolean(errors.hps)} />
           </div>
           <div className="grid min-w-0 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="pg-exec">Kasi/Kaur pelaksana</Label>
-              <Input id="pg-exec" className="h-11" maxLength={150} value={executorName} onChange={(e) => setExecutorName(e.target.value)} />
+              <FieldHelpBlock id="pg-exec" help={pengadaanFieldHelp("pg-exec")} />
+              <Input id="pg-exec" className="h-11" maxLength={150} aria-describedby="pg-exec-hint" value={executorName} onChange={(e) => setExecutorName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="pg-ext">Jabatan</Label>

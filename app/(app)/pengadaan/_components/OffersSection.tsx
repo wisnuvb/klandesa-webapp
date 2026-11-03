@@ -12,6 +12,8 @@ import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { Pill, fmtDate, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { pengadaanFieldHelp } from "@/lib/guides/pengadaan";
 import { moneyRaw, type DetailResp } from "./types";
 
 type Offer = DetailResp["offers"][number];
@@ -168,7 +170,8 @@ function OfferDialog({ packageId, offer, onClose, onDone }: { packageId: number;
           </label>
           <div className="space-y-1.5">
             <Label htmlFor="of-neg">Harga hasil negosiasi (bila ada)</Label>
-            <CurrencyInput id="of-neg" inputClassName="h-11" value={negotiated} onValueChange={setNegotiated} aria-invalid={Boolean(errors.negotiated)} />
+            <FieldHelpBlock id="of-neg" help={pengadaanFieldHelp("of-neg")} />
+            <CurrencyInput id="of-neg" inputClassName="h-11" aria-describedby="of-neg-hint" value={negotiated} onValueChange={setNegotiated} aria-invalid={Boolean(errors.negotiated)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="of-note">Catatan evaluasi</Label>

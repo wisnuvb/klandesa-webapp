@@ -12,6 +12,8 @@ import { BeneficiariesTab } from "./BeneficiariesTab";
 import { PaymentsTab } from "./PaymentsTab";
 import { ProgramTab } from "./ProgramTab";
 import type { DetailResponse } from "./types";
+import { BLT_GUIDE } from "@/lib/guides/dana-desa";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
 import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 
 type Tab = "program" | "penerima" | "pembayaran";
@@ -75,8 +77,12 @@ export function BltDetail({ id }: { id: number }) {
               Tahun {p.year} · {rupiah(p.monthly)} per keluarga per bulan · {p.totalMonths} bulan
             </p>
           </div>
-          <Pill tone={TONE[p.status] ?? "neutral"}>{p.statusLabel}</Pill>
+          <div className="flex flex-wrap items-center gap-2">
+            <GuideButton guide={BLT_GUIDE} />
+            <Pill tone={TONE[p.status] ?? "neutral"}>{p.statusLabel}</Pill>
+          </div>
         </div>
+        <FirstVisitBanner guide={BLT_GUIDE} />
         <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             ["Keluarga penerima aktif", String(active)],

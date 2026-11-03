@@ -13,6 +13,8 @@ import { SppTab } from "./SppTab";
 import { SettingsDialog } from "./SettingsDialog";
 import { SELECT_CLASS, money, type Overview } from "./shared";
 import { SearchSelect } from "@/components/ui/search-select";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
+import { APBDES_GUIDE } from "@/lib/guides/apbdes";
 
 export function ApbdesView() {
   const thisYear = new Date().getFullYear();
@@ -34,6 +36,7 @@ export function ApbdesView() {
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
+          <GuideButton guide={APBDES_GUIDE} />
           <div className="w-32">
             <label htmlFor="apb-year" className="mb-1.5 block text-sm font-medium">Tahun anggaran</label>
             <SearchSelect id="apb-year" className={SELECT_CLASS} value={year} onChange={(e) => { setYear(Number(e.target.value)); setWarnings([]); }}>
@@ -48,6 +51,7 @@ export function ApbdesView() {
           ) : null}
         </div>
       </header>
+      <FirstVisitBanner guide={APBDES_GUIDE} />
 
       {loading ? <p role="status" className="flex items-center gap-2 p-6 text-muted-foreground"><Loader2 aria-hidden="true" className="size-5 animate-spin" />Memuat…</p> : null}
       {error ? (

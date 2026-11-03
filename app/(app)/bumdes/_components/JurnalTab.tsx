@@ -16,6 +16,8 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import { JOURNAL_SOURCE } from "@/lib/bumdes/catalog";
 import type { JournalView } from "@/lib/bumdes/service";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { bumdesFieldHelp } from "@/lib/guides/bumdes";
 import { AccountSelect } from "./AccountSelect";
 import { Busy, EmptyNote, INPUT_CLASS, ReasonDialog, SELECT_CLASS, StatusPill, rp } from "./shared";
 
@@ -257,11 +259,9 @@ function JournalDialog({ journal, units, onClose, onDone }: { journal: JournalVi
             <Input id="jm-desc" className={INPUT_CLASS} maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} aria-invalid={Boolean(errors.description)} />
           </div>
 
-          <fieldset className="min-w-0 space-y-2" aria-describedby="jm-lines-help">
+          <fieldset className="min-w-0 space-y-2" aria-describedby="jm-lines-hint">
             <legend className="text-sm font-medium">Baris jurnal *</legend>
-            <p id="jm-lines-help" className="text-xs text-muted-foreground">
-              Pindahan dana antara Kantor Pusat dan unit dijurnal di kedua sisi memakai akun RK (1.1.99.01 RK Unit Usaha di pusat, 3.8.01.01 RK Pusat di unit).
-            </p>
+            <FieldHelpBlock id="jm-lines" help={bumdesFieldHelp("journalLines")} />
             <ul className="min-w-0 space-y-3">
               {rows.map((r, i) => (
                 <li key={r.key} className="grid min-w-0 gap-2 rounded-md border p-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">

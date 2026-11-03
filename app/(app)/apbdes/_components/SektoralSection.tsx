@@ -9,7 +9,7 @@ import { FieldError, FormErrorSummary, fieldA11y } from "@/components/app/FormEr
 import { useApiGet } from "@/hooks/useApiGet";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { MoneyInput } from "./MoneyInput";
-import { money, type Overview } from "./shared";
+import { Hint, describedBy, money, type Overview } from "./shared";
 
 interface Program {
   id: number;
@@ -61,7 +61,8 @@ export function SektoralSection({ o }: { o: Overview }) {
           {(["programName", "activityKind", "location", "fundSource", "unit"] as const).map((k) => (
             <div key={k} className="space-y-1.5">
               <Label htmlFor={`sk-${k}`}>{LABELS[k]}{k === "location" ? "" : " *"}</Label>
-              <Input {...fieldA11y(`sk-${k}`, add.errors[k])} className="h-11" maxLength={k === "unit" ? 30 : 200} value={f[k]} onChange={(e) => set(k, e.target.value)} />
+              <Hint id={`sk-${k}`} />
+              <Input {...fieldA11y(`sk-${k}`, add.errors[k])} aria-describedby={describedBy(`sk-${k}`, add.errors[k])} className="h-11" maxLength={k === "unit" ? 30 : 200} value={f[k]} onChange={(e) => set(k, e.target.value)} />
               <FieldError id={`sk-${k}`} message={add.errors[k]} />
             </div>
           ))}

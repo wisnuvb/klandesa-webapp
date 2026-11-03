@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AsyncState } from "@/components/app/patterns";
+import { FirstVisitBanner, GuideButton } from "@/components/app/guide/PageGuide";
+import { BUMDES_GUIDE } from "@/lib/guides/bumdes";
 import { useBumdes } from "../_hooks/useBumdes";
 import { DanaDesaTab } from "./DanaDesaTab";
 import { JurnalTab } from "./JurnalTab";
@@ -54,9 +56,13 @@ export function BumdesView() {
         ) : (
           <>
             <header className="space-y-1">
-              <h1 className="break-words text-2xl font-semibold tracking-tight">{name}</h1>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight">{name}</h1>
+                <GuideButton guide={BUMDES_GUIDE} />
+              </div>
               <p className="max-w-3xl text-muted-foreground">Pembukuan BUM Desa: transaksi kas yang dapat dikoreksi berjejak, jurnal berpasangan, neraca dan laba rugi per unit dan gabungan, penutupan periode semester, data legalitas, serta hubungan dengan APB Desa.</p>
             </header>
+            <FirstVisitBanner guide={BUMDES_GUIDE} />
             <Alert>
               <Landmark className="h-4 w-4" />
               <AlertTitle>Pembukuan sederhana, bukan akuntansi penuh</AlertTitle>

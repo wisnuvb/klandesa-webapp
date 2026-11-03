@@ -6,6 +6,7 @@ import {
 } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { aggregateResidents } from "@/lib/dashboard/resident-stats";
+import { getDataCompleteness } from "@/lib/dashboard/data-completeness";
 import { getArchiveFilesBytes, getChargedMediaBytes, getEffectiveStorageLimitGb, getVillageStorageLimitBytes } from "@/lib/digitalArchive/quota";
 import { summarizeStorage } from "@/lib/digitalArchive/quota-level";
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const [residents, totalOfficials, totalMailRequests, budgetSum] =
+    const [residents, totalOfficials, totalMailRequests, budgetSum, completeness] =
       await Promise.all([
         aggregateResidents(village.id),
         prisma.official.count({ where: { villageId: village.id } }),
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
           where: { villageId: village.id, status: "active" },
           _sum: { remainingAmount: true },
         }),
+        getDataCompleteness(village),
       ]);
 
     // Peringatan kuota di dashboard tidak boleh menggagalkan kartu lain.
@@ -40,6 +42,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       storage,
+      completeness,
       totals: {
         residents: residents.total,
         households: residents.households,

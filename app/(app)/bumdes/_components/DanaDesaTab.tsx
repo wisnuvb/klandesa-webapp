@@ -16,6 +16,8 @@ import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
 import { FLOW_KIND, type FlowKind } from "@/lib/bumdes/catalog";
 import type { FlowView, FlowsOverview, ResolutionView } from "@/lib/bumdes/service";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { bumdesFieldHelp } from "@/lib/guides/bumdes";
 import { AccountSelect } from "./AccountSelect";
 import { Busy, EmptyNote, INPUT_CLASS, ReasonDialog, SELECT_CLASS, StatusPill, rp } from "./shared";
 
@@ -275,7 +277,8 @@ function FlowDialog({ kind, data, onClose, onDone }: { kind: FlowKind; data: Res
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="fl-ch">Kas Desa pada Buku Kas Umum *</Label>
-            <SearchSelect id="fl-ch" className={SELECT_CLASS} value={channel} onChange={(e) => setChannel(e.target.value)}>
+            <FieldHelpBlock id="fl-ch" help={bumdesFieldHelp("villageChannel")} />
+            <SearchSelect id="fl-ch" className={SELECT_CLASS} value={channel} onChange={(e) => setChannel(e.target.value)} aria-describedby="fl-ch-hint">
               <option value="BANK">Rekening kas desa (bank)</option>
               <option value="TUNAI">Kas tunai</option>
             </SearchSelect>
@@ -365,12 +368,14 @@ function ResolutionDialog({ data, onClose, onDone }: { data: Resp; onClose: () =
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor="rs-amt">Jumlah yang diputuskan *</Label>
-              <CurrencyInput id="rs-amt" inputClassName="h-11" value={amount} onValueChange={setAmount} aria-invalid={Boolean(errors.amount)} />
+              <FieldHelpBlock id="rs-amt" help={bumdesFieldHelp("resolutionAmount")} />
+              <CurrencyInput id="rs-amt" inputClassName="h-11" value={amount} onValueChange={setAmount} aria-invalid={Boolean(errors.amount)} aria-describedby="rs-amt-hint" />
             </div>
             {kind === "BAGI_HASIL" ? (
               <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="rs-fy">Tahun buku asal laba *</Label>
-                <Input id="rs-fy" inputMode="numeric" className={INPUT_CLASS} maxLength={4} value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} aria-invalid={Boolean(errors.fiscalYear)} />
+                <FieldHelpBlock id="rs-fy" help={bumdesFieldHelp("resolutionFiscalYear")} />
+                <Input id="rs-fy" inputMode="numeric" className={INPUT_CLASS} maxLength={4} value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} aria-invalid={Boolean(errors.fiscalYear)} aria-describedby="rs-fy-hint" />
               </div>
             ) : null}
           </div>

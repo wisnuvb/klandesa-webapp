@@ -11,6 +11,8 @@ import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { SELECT_CLASS, fmtDate } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { localToday } from "@/lib/form-input";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { DANA_DESA_FIELD_IDS, danaDesaFieldHelp } from "@/lib/guides/dana-desa";
 import type { TabProps } from "./types";
 
 export function PublicationTab({ data, year, reload, apbdesId }: TabProps & { apbdesId: string }) {
@@ -107,7 +109,8 @@ export function PublicationTab({ data, year, reload, apbdesId }: TabProps & { ap
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="pb-loc">Lokasi papan atau tautan</Label>
-                <Input id="pb-loc" className="h-11" maxLength={300} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Mis. depan balai desa, atau alamat website" />
+                <FieldHelpBlock id={DANA_DESA_FIELD_IDS.location} help={danaDesaFieldHelp("location")} />
+                <Input id="pb-loc" aria-describedby="pb-loc-hint" className="h-11" maxLength={300} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Mis. depan balai desa, atau alamat website" />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="pb-note">Catatan</Label>

@@ -12,6 +12,8 @@ import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { SELECT_CLASS } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { KIND_KEYS, KINDS, type MeetingKind } from "@/lib/musdes/catalog";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { musdesFieldHelp } from "@/lib/guides/musdes";
 import type { MeetingView } from "./types";
 
 interface Form {
@@ -62,7 +64,10 @@ export function MeetingFormDialog({ meeting, onClose, onSaved }: { meeting: Meet
   }
 
   const err = (k: string) => errors[k];
-  const common = (k: keyof Form) => ({ id: `md-${k}`, "aria-invalid": err(k) ? true : undefined, "aria-describedby": err(k) ? `md-${k}-err` : undefined });
+  /** Petunjuk kolom: tip ber-id `${id}-hint`, digabung dengan id galat bila ada. */
+  const help = (k: keyof Form) => musdesFieldHelp(`md-${k}`);
+  const describedBy = (k: keyof Form) => [help(k) ? `md-${k}-hint` : null, err(k) ? `md-${k}-err` : null].filter(Boolean).join(" ") || undefined;
+  const common = (k: keyof Form) => ({ id: `md-${k}`, "aria-invalid": err(k) ? true : undefined, "aria-describedby": describedBy(k) });
   const errNode = (k: string) => (err(k) ? <p id={`md-${k}-err`} className="text-sm text-destructive">{err(k)}</p> : null);
 
   return (
@@ -76,6 +81,7 @@ export function MeetingFormDialog({ meeting, onClose, onSaved }: { meeting: Meet
           <FormErrorSummary innerRef={summaryRef} errors={errors} general={general} labels={LABELS} />
           <div className="space-y-1.5">
             <Label htmlFor="md-kind">Jenis musyawarah *</Label>
+            <FieldHelpBlock id="md-kind" help={help("kind")!} />
             <SearchSelect {...common("kind")} className={SELECT_CLASS} value={f.kind} disabled={editing} onChange={(e) => pickKind(e.target.value)}>
               <option value="">Pilih jenis…</option>
               {KIND_KEYS.map((k) => (
@@ -95,6 +101,7 @@ export function MeetingFormDialog({ meeting, onClose, onSaved }: { meeting: Meet
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="md-topic">Pokok bahasan</Label>
+            <FieldHelpBlock id="md-topic" help={help("topic")!} />
             <Input {...common("topic")} className="h-11" maxLength={300} value={f.topic} onChange={(e) => set({ topic: e.target.value })} />
             {errNode("topic")}
           </div>
@@ -122,6 +129,7 @@ export function MeetingFormDialog({ meeting, onClose, onSaved }: { meeting: Meet
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="md-agenda">Acara</Label>
+            <FieldHelpBlock id="md-agenda" help={help("agenda")!} />
             <Textarea {...common("agenda")} rows={3} maxLength={4000} value={f.agenda} onChange={(e) => set({ agenda: e.target.value })} />
             {errNode("agenda")}
           </div>

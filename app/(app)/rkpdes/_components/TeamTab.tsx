@@ -9,6 +9,8 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
 import { ResidentPicker, SELECT_CLASS, WarningList, type PickedResident } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
+import { rkpdesFieldHelp } from "@/lib/guides/rkpdes";
 import type { DetailResponse } from "./types";
 
 export function TeamTab({ data, editable, reload }: { data: DetailResponse; editable: boolean; reload: () => void }) {
@@ -21,6 +23,7 @@ export function TeamTab({ data, editable, reload }: { data: DetailResponse; edit
   const { busy, errors, general, summaryRef, submit } = useFormSubmit();
   const [delError, setDelError] = useState<string | null>(null);
   const url = `/api/perencanaan/rkpdes/${d.id}/tim`;
+  const roleHelp = rkpdesFieldHelp("tm-role");
 
   function pick(r: PickedResident) {
     setResidentId(r.id);
@@ -100,13 +103,14 @@ export function TeamTab({ data, editable, reload }: { data: DetailResponse; edit
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="tm-role">Peran dalam tim *</Label>
-              <SearchSelect id="tm-role" className={SELECT_CLASS} value={role} onChange={(e) => setRole(e.target.value)}>
+              <SearchSelect id="tm-role" className={SELECT_CLASS} value={role} onChange={(e) => setRole(e.target.value)} aria-describedby={roleHelp ? "tm-role-hint" : undefined}>
                 {Object.entries(data.terms.teamRoles).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
                   </option>
                 ))}
               </SearchSelect>
+              {roleHelp ? <FieldHelpBlock id="tm-role" help={roleHelp} /> : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="tm-pos">Jabatan di desa/lembaga</Label>

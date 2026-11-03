@@ -11,8 +11,10 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDelete } from "@/components/app/ConfirmDelete";
 import { FormErrorSummary } from "@/components/app/FormErrorSummary";
+import { FieldHelpBlock } from "@/components/app/guide/PageGuide";
 import { Pill, SELECT_CLASS, rupiah } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
+import { rpjmFieldHelp } from "@/lib/guides/rpjm";
 import type { DetailResponse, ProgramView } from "./types";
 
 export function ProgramsTab({ data, editable, canDelete, reload }: { data: DetailResponse; editable: boolean; canDelete: boolean; reload: () => void }) {
@@ -229,12 +231,17 @@ function ProgramDialog({ data, program, onClose, onSaved }: { data: DetailRespon
     if (r) onSaved();
   }
   const err = (k: string) => errors[k];
-  const common = (k: keyof Form) => ({ id: `pg-${k}`, "aria-invalid": err(k) ? true : undefined, "aria-describedby": err(k) ? `pg-${k}-err` : undefined });
+  const common = (k: keyof Form) => ({ id: `pg-${k}`, "aria-invalid": err(k) ? true : undefined, "aria-describedby": [rpjmFieldHelp(k) ? `pg-${k}-hint` : null, err(k) ? `pg-${k}-err` : null].filter(Boolean).join(" ") || undefined });
+  const hint = (k: keyof Form) => {
+    const help = rpjmFieldHelp(k);
+    return help ? <FieldHelpBlock id={`pg-${k}`} help={help} /> : null;
+  };
   const errNode = (k: string) => (err(k) ? <p id={`pg-${k}-err`} className="text-sm text-destructive">{err(k)}</p> : null);
   const text = (k: keyof Form, label: string, max: number, ph?: string) => (
     <div className="space-y-1.5">
       <Label htmlFor={`pg-${k}`}>{label}</Label>
       <Input {...common(k)} className="h-11" maxLength={max} value={f[k]} onChange={(e) => set({ [k]: e.target.value } as Partial<Form>)} placeholder={ph} />
+      {hint(k)}
       {errNode(k)}
     </div>
   );
@@ -287,6 +294,7 @@ function ProgramDialog({ data, program, onClose, onSaved }: { data: DetailRespon
                   </option>
                 ))}
               </SearchSelect>
+              {hint("activityCode")}
               {errNode("activityCode")}
             </div>
             <div className="space-y-1.5">
@@ -301,6 +309,7 @@ function ProgramDialog({ data, program, onClose, onSaved }: { data: DetailRespon
               <div className="space-y-1.5">
                 <Label htmlFor="pg-budget">Anggaran indikatif (tahun ini)</Label>
                 <CurrencyInput {...common("budget")} inputClassName="h-11" value={f.budget} onValueChange={(v) => set({ budget: v })} />
+                {hint("budget")}
                 {errNode("budget")}
               </div>
               <div className="space-y-1.5">
@@ -325,6 +334,7 @@ function ProgramDialog({ data, program, onClose, onSaved }: { data: DetailRespon
                     </option>
                   ))}
                 </SearchSelect>
+                {hint("method")}
                 {errNode("method")}
               </div>
             </div>
