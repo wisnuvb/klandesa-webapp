@@ -8,17 +8,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import Link from "next/link";
 import { LiveAttachments } from "@/components/app/attachments/AttachmentsSection";
 import type { OfficialRow } from "../_lib/types";
+import { AccountStatusBadge, accountStatusHint } from "./AccountStatusBadge";
 
 type OfficialDetailDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedOfficial: OfficialRow | null;
+  canManageAccounts?: boolean;
 };
 
 export function OfficialDetailDialog(props: OfficialDetailDialogProps) {
-  const { open, onOpenChange, selectedOfficial } = props;
+  const { open, onOpenChange, selectedOfficial, canManageAccounts = false } = props;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,6 +62,18 @@ export function OfficialDetailDialog(props: OfficialDetailDialogProps) {
             <div className="grid grid-cols-3 gap-3">
               <p className="text-muted-foreground">Alamat</p>
               <p className="col-span-2">{selectedOfficial.address || "-"}</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <p className="text-muted-foreground">Akun dashboard</p>
+              <div className="col-span-2 space-y-1">
+                <AccountStatusBadge state={selectedOfficial.accountState} />
+                <p className="text-xs text-muted-foreground">{accountStatusHint(selectedOfficial.accountState)}</p>
+                {canManageAccounts && (
+                  <Link href="/akses-pengguna" className="text-xs font-medium text-primary underline underline-offset-2">
+                    Buka Akses Pengguna
+                  </Link>
+                )}
+              </div>
             </div>
             <LiveAttachments type="OFFICIAL" id={selectedOfficial.id} title="Berkas SK pengangkatan" readOnly />
           </div>

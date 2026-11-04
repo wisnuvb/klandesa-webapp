@@ -2,8 +2,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EntityTableCard } from "@/components/app/patterns";
 import { calculateAge } from "@/utils";
-import { Edit, Eye, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Edit, Eye, Trash2, UserPlus } from "lucide-react";
 import type { OfficialRow } from "../_lib/types";
+import { AccountStatusBadge } from "./AccountStatusBadge";
 import { getPositionBadgeVariant } from "../_lib/formatting";
 import { AttachmentCountBadge } from "@/components/app/attachments/AttachmentsSection";
 import { useAttachmentCounts } from "@/components/app/attachments/useAttachments";
@@ -16,6 +18,9 @@ type PerangkatTableCardProps = {
   onDetail: (official: OfficialRow) => void;
   onEdit: (official: OfficialRow) => void;
   onDelete: (official: OfficialRow) => void | Promise<void>;
+  /** Hanya Admin Desa: boleh membuat akun dan membuka Akses Pengguna. */
+  canManageAccounts: boolean;
+  onCreateAccount: (official: OfficialRow) => void;
 };
 
 export function PerangkatTableCard(props: PerangkatTableCardProps) {
@@ -27,6 +32,8 @@ export function PerangkatTableCard(props: PerangkatTableCardProps) {
     onDetail,
     onEdit,
     onDelete,
+    canManageAccounts,
+    onCreateAccount,
   } = props;
 
   const counts = useAttachmentCounts("OFFICIAL", rows.map((r) => r.id));
@@ -111,6 +118,42 @@ export function PerangkatTableCard(props: PerangkatTableCardProps) {
               {row.status?.toLowerCase() === "active" ? "Aktif" : "Tidak Aktif"}
             </Badge>
           ),
+        },
+        {
+          id: "account",
+          header: "Akun Dashboard",
+          cell: (row) => {
+            const state = row.accountState ?? "none";
+            const canCreate = canManageAccounts && state === "none" && row.status?.toLowerCase() === "active";
+            return (
+              <div className="flex flex-wrap items-center gap-2">
+                <AccountStatusBadge state={state} />
+                {canCreate && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1"
+                    onClick={() => onCreateAccount(row)}
+                    disabled={isSubmittingAction}
+                    aria-label={`Buat akun untuk ${row.name}`}
+                  >
+                    <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                    Buat akun
+                  </Button>
+                )}
+                {canManageAccounts && state !== "none" && (
+                  <Link
+                    href="/akses-pengguna"
+                    className="text-xs font-medium text-primary underline underline-offset-2"
+                    aria-label={`Kelola akses ${row.name}`}
+                  >
+                    Kelola
+                  </Link>
+                )}
+              </div>
+            );
+          },
         },
         {
           id: "actions",

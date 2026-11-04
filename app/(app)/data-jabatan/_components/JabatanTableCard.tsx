@@ -1,3 +1,4 @@
+import { ORG_UNIT_LABELS, resolveOrgUnit } from "@/lib/officials/org";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +45,7 @@ export function JabatanTableCard(props: JabatanTableCardProps) {
                 <TableHead className="w-12.5">#</TableHead>
                 <TableHead>Nama Jabatan</TableHead>
                 <TableHead>Deskripsi</TableHead>
-                <TableHead>Level</TableHead>
+                <TableHead>Level / Unit</TableHead>
                 <TableHead>Gaji Pokok</TableHead>
                 <TableHead>Tunjangan</TableHead>
                 <TableHead>Jumlah Pegawai</TableHead>
@@ -91,6 +92,10 @@ export function JabatanTableCard(props: JabatanTableCardProps) {
                         <Badge variant={getLevelBadgeVariant(jabatan.level)}>
                           {getLevelName(jabatan.level)}
                         </Badge>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {ORG_UNIT_LABELS[resolveOrgUnit(jabatan)]}
+                          {jabatan.unit ? "" : " (otomatis)"}
+                        </p>
                       </TableCell>
                       <TableCell className="text-sm">
                         {formatCurrency(jabatan.salary)}

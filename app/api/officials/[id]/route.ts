@@ -2,6 +2,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { diffRecord, pickSummary } from "@/lib/audit/diff";
 import { deactivateLinkedAccount } from "@/lib/rbac/accounts";
+import { createsSupervisorCycle } from "@/lib/officials/org";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -63,6 +64,7 @@ export async function PATCH(
       status,
       supervisor_id,
       supervisorId,
+      coordinator_id,
     } = body;
 
     const data: any = {};
@@ -140,9 +142,40 @@ export async function PATCH(
             { status: 404 },
           );
         }
+
+        // Tolak lingkaran (A atasan B, B atasan A): perangkat di dalamnya akan hilang dari bagan.
+        const chain = await prisma.official.findMany({
+          where: { villageId: village.id },
+          select: { id: true, supervisorId: true },
+        });
+        const supervisorOf = new Map(chain.map((o) => [o.id, o.supervisorId]));
+        if (createsSupervisorCycle(supervisorOf, officialId, parsedSupervisorId)) {
+          return NextResponse.json(
+            { error: "Atasan tidak valid: orang itu berada di bawah perangkat ini, sehingga struktur menjadi berputar." },
+            { status: 400 },
+          );
+        }
       }
 
       data.supervisorId = parsedSupervisorId;
+    }
+
+    if (coordinator_id !== undefined) {
+      const parsedCoordinatorId =
+        coordinator_id === null || coordinator_id === "" ? null : Number(coordinator_id);
+      if (parsedCoordinatorId !== null) {
+        if (!Number.isInteger(parsedCoordinatorId) || parsedCoordinatorId === officialId) {
+          return NextResponse.json({ error: "Koordinator tidak valid" }, { status: 400 });
+        }
+        const coordinator = await prisma.official.findUnique({
+          where: { id: parsedCoordinatorId },
+          select: { id: true, villageId: true },
+        });
+        if (!coordinator || coordinator.villageId !== village.id) {
+          return NextResponse.json({ error: "Koordinator tidak ditemukan" }, { status: 404 });
+        }
+      }
+      data.coordinatorId = parsedCoordinatorId;
     }
 
     const updated = await prisma.official.update({
@@ -173,6 +206,7 @@ export async function PATCH(
       name: updated.name,
       nik: updated.nik,
       supervisorId: updated.supervisorId,
+      coordinatorId: updated.coordinatorId,
       photoUrl: updated.photoUrl,
       email: updated.email,
       phone: updated.phone,

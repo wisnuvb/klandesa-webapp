@@ -73,3 +73,18 @@ describe("parsePositionId", () => {
     assert.equal(parsePositionId(""), null);
   });
 });
+
+describe("validasi jabatan - unit organisasi", () => {
+  it("unit kosong/'' = otomatis (null), unit sah diterima, unit asing ditolak", () => {
+    const base = { name: "Kasi Pelayanan", level: "3" };
+    const none = parsePositionCreate({ ...base, unit: "" });
+    assert.equal(none.ok && none.data.unit, null);
+    const omitted = parsePositionCreate(base);
+    assert.equal(omitted.ok && omitted.data.unit, undefined);
+    const ok = parsePositionCreate({ ...base, unit: "TECHNICAL" });
+    assert.equal(ok.ok && ok.data.unit, "TECHNICAL");
+    assert.equal(parsePositionCreate({ ...base, unit: "ADMIN" }).ok, false);
+    const upd = parsePositionUpdate({ unit: null });
+    assert.equal(upd.ok && upd.data.unit, null);
+  });
+});

@@ -594,6 +594,9 @@ model Position {
 
   name  String @db.VarChar(255)
   level Int    @default(1) // Hierarchy of position
+  // Unit organisasi pemerintah desa (Permendagri 84/2015): LEADER | SECRETARIAT | TECHNICAL | REGIONAL | OTHER.
+  // Null = disimpulkan dari nama/level jabatan (lihat lib/officials/org.ts).
+  unit  String? @db.VarChar(20)
 
   // Compensation
   salary    Float?
@@ -623,6 +626,11 @@ model Official {
   supervisorId Int?
   supervisor   Official?  @relation("OfficialHierarchy", fields: [supervisorId], references: [id], onDelete: SetNull)
   subordinates Official[] @relation("OfficialHierarchy")
+
+  // Koordinator (garis putus-putus di bagan). Bukan atasan: tidak mengubah garis komando.
+  coordinatorId Int?
+  coordinator   Official?  @relation("OfficialCoordination", fields: [coordinatorId], references: [id], onDelete: SetNull)
+  coordinated   Official[] @relation("OfficialCoordination")
 
   // Personal Info
   nik        String   @db.VarChar(16)
@@ -663,6 +671,7 @@ model Official {
   @@index([villageId, status])
   @@index([villageId, positionId])
   @@index([villageId, supervisorId])
+  @@index([villageId, coordinatorId])
   @@map("officials")
 }
 

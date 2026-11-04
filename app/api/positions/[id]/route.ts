@@ -90,6 +90,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       id: updated.id,
       name: updated.name,
       level: updated.level,
+      unit: updated.unit,
       description: updated.description,
       salary: updated.salary,
       allowance: updated.allowance,

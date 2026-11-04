@@ -17,11 +17,5 @@ export type AccountView = {
   pendingInvite: boolean;
 };
 
-export type OfficialOption = {
-  id: number;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  positionName: string | null;
-};
+export type { OfficialOption } from "@/components/permissions/CreateAccountDialog";
 

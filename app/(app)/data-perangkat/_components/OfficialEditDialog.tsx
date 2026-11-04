@@ -31,6 +31,7 @@ type OfficialEditDialogProps = {
   setEditForm: Dispatch<SetStateAction<EditFormState>>;
   positions: Position[];
   supervisorCandidates: OfficialRow[];
+  coordinatorCandidates: OfficialRow[];
   onSave: () => void;
 };
 
@@ -44,6 +45,7 @@ export function OfficialEditDialog(props: OfficialEditDialogProps) {
     setEditForm,
     positions,
     supervisorCandidates,
+    coordinatorCandidates,
     onSave,
   } = props;
 
@@ -96,14 +98,14 @@ export function OfficialEditDialog(props: OfficialEditDialogProps) {
             </div>
 
             <div>
-              <p className="text-sm font-medium mb-1">Atasan</p>
+              <p className="text-sm font-medium mb-1" id="edit-atasan-label">Atasan (garis komando)</p>
               <Select
                 value={editForm.supervisorId}
                 onValueChange={(value) =>
                   setEditForm((prev) => ({ ...prev, supervisorId: value }))
                 }
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" aria-labelledby="edit-atasan-label">
                   <SelectValue placeholder="Pilih Atasan" />
                 </SelectTrigger>
                 <SelectContent>
@@ -118,6 +120,31 @@ export function OfficialEditDialog(props: OfficialEditDialogProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-1" id="edit-koordinator-label">Dikoordinasikan oleh (opsional)</p>
+              <Select
+                value={editForm.coordinatorId}
+                onValueChange={(value) =>
+                  setEditForm((prev) => ({ ...prev, coordinatorId: value }))
+                }
+              >
+                <SelectTrigger className="w-full" aria-labelledby="edit-koordinator-label">
+                  <SelectValue placeholder="Pilih koordinator" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Tidak Ada</SelectItem>
+                  {coordinatorCandidates.map((official) => (
+                    <SelectItem key={official.id} value={official.id.toString()}>
+                      {`${official.name} - ${official.position?.name ?? "Tanpa Jabatan"}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Hanya untuk garis putus-putus di Bagan Hirarki. Tidak mengubah siapa atasannya.
+              </p>
             </div>
 
             <div>

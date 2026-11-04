@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       id: p.id,
       name: p.name,
       level: p.level,
+      unit: p.unit,
       description: p.description,
       salary: p.salary,
       allowance: p.allowance,
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.ok) {
       return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-    const { name, level, description, salary, allowance, isActive } =
+    const { name, level, unit, description, salary, allowance, isActive } =
       parsed.data;
 
     const position = await prisma.position.create({
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
         villageId: village.id,
         name,
         level,
+        unit: unit ?? null,
         description: description ?? null,
         salary: salary ?? null,
         allowance: allowance ?? null,
@@ -147,6 +149,7 @@ export async function POST(req: NextRequest) {
       id: position.id,
       name: position.name,
       level: position.level,
+      unit: position.unit,
       description: position.description,
       salary: position.salary,
       allowance: position.allowance,

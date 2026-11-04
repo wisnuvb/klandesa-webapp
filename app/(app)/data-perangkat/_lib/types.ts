@@ -2,13 +2,18 @@ export type Position = {
   id: number;
   name: string;
   level: number;
+  /** Unit organisasi eksplisit; null = disimpulkan dari nama/level (lib/officials/org.ts). */
+  unit?: string | null;
 };
+
+export type AccountState = "none" | "pending" | "active" | "inactive";
 
 export type OfficialRow = {
   id: number;
   name: string;
   nik: string;
   supervisorId?: number | null;
+  coordinatorId?: number | null;
   photoUrl?: string | null;
   email: string | null;
   phone: string | null;
@@ -19,6 +24,8 @@ export type OfficialRow = {
   status: string;
   education: string | null;
   position: Position | null;
+  hasAccount?: boolean;
+  accountState?: AccountState;
 };
 
 export type EditFormState = {
@@ -28,6 +35,7 @@ export type EditFormState = {
   status: "ACTIVE" | "INACTIVE";
   positionId: string;
   supervisorId: "none" | string;
+  coordinatorId: "none" | string;
   address: string;
 };
 

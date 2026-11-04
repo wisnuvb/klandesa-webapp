@@ -11,7 +11,12 @@ import {
   type OfficialRow,
   type Position,
 } from "../_lib/types";
-import { buildOfficialTree } from "../_lib/hierarchy";
+import {
+  coordinatorCandidates,
+  DEFAULT_ORG_SETTINGS,
+  supervisorCandidates,
+  type OrgSettings,
+} from "@/lib/officials/org";
 
 function defaultEditForm(): EditFormState {
   return {
@@ -21,6 +26,7 @@ function defaultEditForm(): EditFormState {
     status: "ACTIVE",
     positionId: "",
     supervisorId: "none",
+    coordinatorId: "none",
     address: "",
   };
 }
@@ -41,6 +47,9 @@ export function useDataPerangkat() {
 
   const [positions, setPositions] = useState<Position[]>([]);
   const [officials, setOfficials] = useState<OfficialRow[]>([]);
+  // Daftar lengkap tanpa filter: dipakai bagan dan kandidat atasan agar tidak ikut tersaring.
+  const [directory, setDirectory] = useState<OfficialRow[]>([]);
+  const [orgSettings, setOrgSettings] = useState<OrgSettings>(DEFAULT_ORG_SETTINGS);
   const [totalPerangkat, setTotalPerangkat] = useState(0);
   const [activePerangkat, setActivePerangkat] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +59,21 @@ export function useDataPerangkat() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const [editForm, setEditForm] = useState<EditFormState>(() => defaultEditForm());
+
+  const filtersActive =
+    searchQuery.trim() !== "" || filterPosition !== "all" || filterStatus !== "all";
+
+  const loadDirectory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/officials?page=1&pageSize=100");
+      if (!res.ok) return;
+      const data: { rows: OfficialRow[]; orgSettings?: OrgSettings } = await res.json();
+      setDirectory(data.rows);
+      if (data.orgSettings) setOrgSettings(data.orgSettings);
+    } catch (error) {
+      console.error("Gagal memuat daftar perangkat lengkap:", error);
+    }
+  }, []);
 
   const loadOfficials = useCallback(
     async (signal?: AbortSignal) => {
@@ -68,9 +92,15 @@ export function useDataPerangkat() {
           positions: Position[];
           total: number;
           activeCount: number;
+          orgSettings?: OrgSettings;
         } = await res.json();
 
         setOfficials(data.rows);
+        if (data.orgSettings) setOrgSettings(data.orgSettings);
+        // Tanpa filter, hasilnya sudah daftar lengkap: tidak perlu permintaan kedua.
+        if (!params.has("search") && !params.has("positionId") && !params.has("status")) {
+          setDirectory(data.rows);
+        }
         setPositions(data.positions);
         setTotalPerangkat(data.total);
         setActivePerangkat(data.activeCount);
@@ -90,9 +120,17 @@ export function useDataPerangkat() {
     return () => controller.abort();
   }, [loadOfficials]);
 
-  const filteredData = officials;
+  // Saat filter aktif, daftar lengkap perlu diambil terpisah (sekali, lalu setelah tiap perubahan data).
+  useEffect(() => {
+    if (filtersActive) void loadDirectory();
+  }, [filtersActive, loadDirectory]);
 
-  const officialTree = useMemo(() => buildOfficialTree(officials), [officials]);
+  /** Muat ulang setelah data berubah: tabel (sesuai filter) dan daftar lengkap. */
+  const reload = useCallback(async () => {
+    await Promise.all([loadOfficials(), filtersActive ? loadDirectory() : Promise.resolve()]);
+  }, [filtersActive, loadDirectory, loadOfficials]);
+
+  const filteredData = officials;
 
   const openDetail = useCallback((official: OfficialRow) => {
     setSelectedOfficial(official);
@@ -116,6 +154,10 @@ export function useDataPerangkat() {
         official.supervisorId === null || official.supervisorId === undefined
           ? "none"
           : String(official.supervisorId),
+      coordinatorId:
+        official.coordinatorId === null || official.coordinatorId === undefined
+          ? "none"
+          : String(official.coordinatorId),
       address: official.address ?? "",
     });
     setShowEditDialog(true);
@@ -151,7 +193,7 @@ export function useDataPerangkat() {
         }
 
         toast.success("Perangkat berhasil dihapus");
-        await loadOfficials();
+        await reload();
       } catch (error) {
         const message = error instanceof Error ? error.message : "Terjadi kesalahan";
         toast.error(message);
@@ -159,19 +201,39 @@ export function useDataPerangkat() {
         setIsSubmittingAction(false);
       }
     },
-    [appConfirm, loadOfficials],
+    [appConfirm, reload],
   );
 
-  const editSupervisorCandidates = useMemo(() => {
-    const selectedLevel =
-      positions.find((position) => String(position.id) === editForm.positionId)?.level ??
-      5;
+  const editPosition = useMemo(
+    () =>
+      positions.find((position) => String(position.id) === editForm.positionId) ??
+      selectedOfficial?.position ??
+      null,
+    [editForm.positionId, positions, selectedOfficial],
+  );
 
-    return officials
-      .filter((official) => official.id !== selectedOfficial?.id)
-      .filter((official) => (official.position?.level ?? 5) < selectedLevel)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [editForm.positionId, officials, positions, selectedOfficial]);
+  const editSupervisorCandidates = useMemo(
+    () =>
+      supervisorCandidates({
+        position: editPosition,
+        officials: directory,
+        selfId: selectedOfficial?.id,
+        settings: orgSettings,
+        currentSupervisorId: selectedOfficial?.supervisorId ?? null,
+      }),
+    [directory, editPosition, orgSettings, selectedOfficial],
+  );
+
+  const editCoordinatorCandidates = useMemo(
+    () =>
+      coordinatorCandidates({
+        position: editPosition,
+        officials: directory,
+        selfId: selectedOfficial?.id,
+        currentCoordinatorId: selectedOfficial?.coordinatorId ?? null,
+      }),
+    [directory, editPosition, selectedOfficial],
+  );
 
   const handleSaveEdit = useCallback(async () => {
     if (!selectedOfficial) return;
@@ -197,6 +259,8 @@ export function useDataPerangkat() {
           village_staff_position_id: editForm.positionId,
           supervisor_id:
             editForm.supervisorId === "none" ? null : Number(editForm.supervisorId),
+          coordinator_id:
+            editForm.coordinatorId === "none" ? null : Number(editForm.coordinatorId),
           address: editForm.address,
         }),
       });
@@ -209,14 +273,14 @@ export function useDataPerangkat() {
       toast.success("Perangkat berhasil diperbarui");
       setShowEditDialog(false);
       setSelectedOfficial(null);
-      await loadOfficials();
+      await reload();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Terjadi kesalahan";
       toast.error(message);
     } finally {
       setIsSubmittingAction(false);
     }
-  }, [editForm, loadOfficials, selectedOfficial]);
+  }, [editForm, reload, selectedOfficial]);
 
   return {
     viewTab,
@@ -249,10 +313,14 @@ export function useDataPerangkat() {
     editForm,
     setEditForm,
     editSupervisorCandidates,
+    editCoordinatorCandidates,
 
-    officialTree,
+    directory,
+    orgSettings,
+    setOrgSettings,
 
     loadOfficials,
+    reload,
     openDetail,
     openEdit,
     handleDelete,

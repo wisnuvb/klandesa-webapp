@@ -10,19 +10,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { VILLAGE_ROLES } from "@/lib/permissions/client";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/rbac/labels";
 import type { DeliveryView } from "@/components/permissions/InviteResultDialog";
-import type { OfficialOption } from "../_lib/types";
+
+export type OfficialOption = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  positionName: string | null;
+};
 
 type Props = {
   open: boolean;
   officials: OfficialOption[];
+  /** Pra-pilih perangkat (mis. saat dibuka dari baris Data Perangkat); emailnya ikut terisi. */
+  initialOfficialId?: number;
   onOpenChange: (open: boolean) => void;
   onCreate: (body: Record<string, unknown>) => Promise<{ ok: true; email: string; delivery: DeliveryView | null } | { ok: false; error: string }>;
   onCreated: (r: { email: string; delivery: DeliveryView | null; officialName: string }) => void;
 };
 
-export function CreateAccountDialog({ open, officials, onOpenChange, onCreate, onCreated }: Props) {
-  const [officialId, setOfficialId] = useState("");
-  const [email, setEmail] = useState("");
+export function CreateAccountDialog({ open, officials, initialOfficialId, onOpenChange, onCreate, onCreated }: Props) {
+  const initial = officials.find((o) => o.id === initialOfficialId);
+  const [officialId, setOfficialId] = useState(initial ? String(initial.id) : "");
+  const [email, setEmail] = useState(initial?.email ?? "");
   const [role, setRole] = useState("staff");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +40,8 @@ export function CreateAccountDialog({ open, officials, onOpenChange, onCreate, o
   const official = officials.find((o) => String(o.id) === officialId);
 
   function reset() {
-    setOfficialId("");
-    setEmail("");
+    setOfficialId(initial ? String(initial.id) : "");
+    setEmail(initial?.email ?? "");
     setRole("staff");
     setError(null);
   }
@@ -132,7 +142,7 @@ export function CreateAccountDialog({ open, officials, onOpenChange, onCreate, o
             </Select>
             <p className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[role as keyof typeof ROLE_DESCRIPTIONS]}</p>
             {role === "admin" && (
-              <p role="status" className="text-xs text-amber-800 dark:text-amber-300">
+              <p role="status" className="text-xs text-amber-800">
                 Admin punya akses penuh, termasuk mengelola akun lain dan langganan.
               </p>
             )}

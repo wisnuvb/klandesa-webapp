@@ -32,6 +32,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/rbac/labels";
 import { VILLAGE_ROLES } from "@/lib/permissions/client";
 import { Switch } from "@/components/ui/switch";
+import { DEFAULT_ORG_SETTINGS, supervisorCandidates as orgSupervisorCandidates, type OrgSettings } from "@/lib/officials/org";
 import { InviteResultDialog, type DeliveryView, type InviteNotice } from "@/components/permissions/InviteResultDialog";
 import { AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
 import { useAttachments } from "@/components/app/attachments/useAttachments";
@@ -41,6 +42,8 @@ interface FormDialogProps {
   setShowFormDialog: (value: boolean) => void;
   positions: Position[];
   officials: OfficialOption[];
+  /** Pengaturan bagan desa: menentukan atasan yang disarankan untuk Kasi. */
+  orgSettings?: OrgSettings;
   onSuccess?: () => void;
 }
 
@@ -48,11 +51,13 @@ interface Position {
   id: number;
   name: string;
   level: number;
+  unit?: string | null;
 }
 
 interface OfficialOption {
   id: number;
   name: string;
+  status: string;
   position: Position | null;
 }
 
@@ -80,6 +85,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   setShowFormDialog,
   positions,
   officials,
+  orgSettings = DEFAULT_ORG_SETTINGS,
   onSuccess,
 }) => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -121,17 +127,16 @@ export const FormDialog: React.FC<FormDialogProps> = ({
     }
   }, [positions, form]);
 
-  const supervisorCandidates = useMemo(() => {
-    const selectedPositionId = form.watch("village_staff_position_id");
-    const selectedPosition = positions.find(
-      (position) => position.id.toString() === selectedPositionId
-    );
-    const selectedLevel = selectedPosition?.level ?? 5;
-
-    return officials
-      .filter((official) => (official.position?.level ?? 5) < selectedLevel)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [form, positions, officials]);
+  const watchedPositionId = form.watch("village_staff_position_id");
+  const supervisorCandidates = useMemo(
+    () =>
+      orgSupervisorCandidates({
+        position: positions.find((position) => position.id.toString() === watchedPositionId),
+        officials,
+        settings: orgSettings,
+      }),
+    [watchedPositionId, positions, officials, orgSettings],
+  );
 
   const handlePhotoUpload = (file: File | null) => {
     if (file) {

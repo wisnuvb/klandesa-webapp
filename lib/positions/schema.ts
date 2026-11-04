@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ORG_UNITS } from "@/lib/officials/org";
 
 export const POSITION_LEVEL_MIN = 1;
 export const POSITION_LEVEL_MAX = 5;
@@ -47,6 +48,9 @@ const createSchema = z.object({
       emptyToNull,
       z.string().max(2000, "Deskripsi maksimal 2000 karakter").nullable(),
     )
+    .optional(),
+  unit: z
+    .preprocess(emptyToNull, z.enum(ORG_UNITS, { error: "Unit organisasi tidak valid" }).nullable())
     .optional(),
   salary: money,
   allowance: money,

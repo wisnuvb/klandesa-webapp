@@ -9,7 +9,8 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { pickSummary } from "@/lib/audit/diff";
 import { roleCan } from "@/lib/permissions";
-import { createOfficialAccount, isEmailTakenAnywhere, normalizeAccountEmail } from "@/lib/rbac/accounts";
+import { readOrgSettings } from "@/lib/officials/org";
+import { createOfficialAccount, isEmailTakenAnywhere, normalizeAccountEmail, pendingInviteIds } from "@/lib/rbac/accounts";
 import { deliverAccessLink, type Delivery } from "@/lib/rbac/access-links";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
     const [rows, total, activeCount, positions] = await Promise.all([
       prisma.official.findMany({
         where,
-        include: { position: true },
+        include: { position: true, user: { select: { id: true, isActive: true, lastLogin: true } } },
         orderBy: [{ position: { level: "asc" } }, { name: "asc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -67,11 +68,23 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    // Status akun login tiap perangkat: none | pending (undangan belum dipakai) | active | inactive.
+    const pending = await pendingInviteIds(
+      prisma,
+      rows.flatMap((o) => (o.user ? [o.user.id] : [])),
+    );
+    const accountState = (o: (typeof rows)[number]): "none" | "pending" | "active" | "inactive" => {
+      if (!o.user) return "none";
+      if (!o.user.isActive) return "inactive";
+      return pending.has(o.user.id) && !o.user.lastLogin ? "pending" : "active";
+    };
+
     const mapped = rows.map((o) => ({
       id: o.id,
       name: o.name,
       nik: o.nik,
       supervisorId: o.supervisorId,
+      coordinatorId: o.coordinatorId,
       photoUrl: o.photoUrl,
       email: o.email,
       phone: o.phone,
@@ -83,8 +96,9 @@ export async function GET(req: NextRequest) {
       education: o.education,
       certification: o.certification,
       hasAccount: o.userId != null,
+      accountState: accountState(o),
       position: o.position
-        ? { id: o.position.id, name: o.position.name, level: o.position.level }
+        ? { id: o.position.id, name: o.position.name, level: o.position.level, unit: o.position.unit }
         : null,
     }));
 
@@ -93,6 +107,7 @@ export async function GET(req: NextRequest) {
       total,
       activeCount,
       positions,
+      orgSettings: readOrgSettings(village.settings),
       page,
       pageSize,
     });

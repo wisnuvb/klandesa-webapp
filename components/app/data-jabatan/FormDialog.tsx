@@ -25,6 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useEffect, useState } from "react";
+import { ORG_UNITS, ORG_UNIT_LABELS } from "@/lib/officials/org";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -32,6 +33,7 @@ export type JabatanFormTarget = {
   id: number;
   name: string;
   level: number;
+  unit?: string | null;
   description: string | null;
   salary: number | null;
   allowance: number | null;
@@ -49,6 +51,8 @@ interface FormDialogProps {
 type FormValues = {
   name: string;
   level: string;
+  /** "auto" = disimpulkan dari nama/level (disimpan null). */
+  unit: string;
   description: string;
   salary: string;
   allowance: string;
@@ -58,6 +62,7 @@ type FormValues = {
 const EMPTY_VALUES: FormValues = {
   name: "",
   level: "3",
+  unit: "auto",
   description: "",
   salary: "",
   allowance: "",
@@ -69,6 +74,7 @@ function toFormValues(jabatan?: JabatanFormTarget | null): FormValues {
   return {
     name: jabatan.name,
     level: String(jabatan.level),
+    unit: jabatan.unit ?? "auto",
     description: jabatan.description ?? "",
     salary: jabatan.salary == null ? "" : String(jabatan.salary),
     allowance: jabatan.allowance == null ? "" : String(jabatan.allowance),
@@ -103,6 +109,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
           body: JSON.stringify({
             name: values.name,
             level: values.level,
+            unit: values.unit === "auto" ? null : values.unit,
             description: values.description,
             salary: values.salary || null,
             allowance: values.allowance || null,
@@ -204,6 +211,35 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                         </SelectContent>
                       </Select>
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="unit"
+                render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Unit Organisasi</FormLabel>
+                    <FormControl>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">Otomatis (dari nama jabatan)</SelectItem>
+                          {ORG_UNITS.map((u) => (
+                            <SelectItem key={u} value={u}>
+                              {ORG_UNIT_LABELS[u]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Menentukan letak jabatan di Bagan Hirarki (Sekretariat, Pelaksana Teknis, Pelaksana Kewilayahan). Biarkan otomatis kecuali bagan salah menempatkannya.
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}
