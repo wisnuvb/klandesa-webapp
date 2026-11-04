@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parsePageParams } from "@/lib/http/pagination";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -9,6 +10,7 @@ import { auditWeb } from "@/lib/audit/web-audit";
 import { pickSummary } from "@/lib/audit/diff";
 import { roleCan } from "@/lib/permissions";
 import { createOfficialAccount, isEmailTakenAnywhere, normalizeAccountEmail } from "@/lib/rbac/accounts";
+import { deliverAccessLink, type Delivery } from "@/lib/rbac/access-links";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function normalizeStatus(status?: string) {
@@ -27,11 +29,7 @@ export async function GET(req: NextRequest) {
     const { village } = loaded.ctx;
 
     const url = new URL(req.url);
-    const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
-    const pageSize = Math.max(
-      1,
-      Number(url.searchParams.get("pageSize") ?? 50),
-    );
+    const { page, pageSize } = parsePageParams(url.searchParams, { defaultPageSize: 50, maxPageSize: 100 });
     const search = url.searchParams.get("search") ?? undefined;
     const status = normalizeStatus(url.searchParams.get("status") ?? undefined);
     const positionId = url.searchParams.get("positionId");
@@ -291,7 +289,7 @@ export async function POST(req: NextRequest) {
     };
 
     let accountResult:
-      | { created: true; email: string; role: string; tempPassword: string }
+      | { created: true; email: string; role: string; delivery: Delivery | null }
       | { created: false; error: string }
       | undefined;
     if (accountEmail) {
@@ -302,11 +300,19 @@ export async function POST(req: NextRequest) {
         role: (account as { role?: unknown }).role,
       });
       if (r.ok) {
-        accountResult = { created: true, email: r.data.email, role: r.data.role, tempPassword: r.data.tempPassword };
+        const delivery = await deliverAccessLink(prisma, {
+          userId: r.data.userId,
+          purpose: "INVITE",
+          byAdmin: true,
+          invitedBy: loaded.ctx.session.user.name ?? null,
+          createdByUserId: loaded.ctx.userId,
+        });
+        accountResult = { created: true, email: r.data.email, role: r.data.role, delivery };
         await auditWeb(req, loaded.ctx, "create", "users", r.data.userId, {
           officialId: official.id,
           email: r.data.email,
           role: r.data.role,
+          invite: delivery?.sent ? "sent" : `manual:${delivery?.reason ?? "none"}`,
         });
       } else {
         // Perangkat sudah tersimpan; akun bisa dibuat ulang dari halaman Akses Pengguna.

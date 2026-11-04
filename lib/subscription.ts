@@ -188,6 +188,8 @@ const SUBSCRIPTION_EXEMPT_PREFIXES = [
   "/api/notifications/read",
   // Ganti kata sandi sendiri: urusan keamanan akun, tidak boleh ikut terkunci saat langganan berakhir.
   "/api/account/password",
+  // Izin efektif akun sendiri untuk menu/halaman di klien: tetap harus terbaca saat langganan berakhir (halaman Billing dll.).
+  "/api/account/permissions",
 ];
 
 export function isSubscriptionExemptPath(pathname: string): boolean {

@@ -12,6 +12,7 @@ import {
   isVillageCoopElevated,
 } from "@/lib/coop/access";
 import { resolveVillageFromSession } from "@/lib/coop/resolve-village";
+import { isSessionRevoked, sessionRevokedResponse } from "@/lib/session-version";
 import { getApiSession } from "@/lib/api-session";
 import { authOptions } from "@/auth";
 import { getToken } from "next-auth/jwt";
@@ -68,11 +69,12 @@ export async function GET(req: NextRequest) {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { villageId: true, isActive: true, role: true },
+    select: { villageId: true, isActive: true, role: true, sessionVersion: true },
   });
   if (!dbUser?.isActive || dbUser.villageId !== village.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  if (isSessionRevoked(session?.user?.sessionVersion ?? token?.sv, dbUser.sessionVersion)) return sessionRevokedResponse();
 
   const villageRole = dbUser.role; // dari DB, bukan JWT
   const cooperative = await fetchCooperativeForVillage(village.id);

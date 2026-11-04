@@ -22,15 +22,15 @@ import { Switch } from "@/components/ui/switch";
 import { VILLAGE_ROLES, parsePermissionOverrides, type VillageRole } from "@/lib/permissions/client";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/rbac/labels";
 import { baselineDraft, countCustomized, draftFromAccount, overridesFromDraft, setAction, type Draft } from "@/lib/rbac/editor-model";
-import type { TempCredential } from "@/components/permissions/TempPasswordDialog";
+import type { DeliveryView, InviteNotice } from "@/components/permissions/InviteResultDialog";
 import type { AccountView } from "../_lib/types";
 import { PermissionMatrix } from "./PermissionMatrix";
 
 type Props = {
   account: AccountView | null;
   onClose: () => void;
-  onSave: (id: number, body: Record<string, unknown>) => Promise<{ ok: true; account: AccountView; tempPassword?: string } | { ok: false; error: string }>;
-  onCredential: (c: TempCredential) => void;
+  onSave: (id: number, body: Record<string, unknown>) => Promise<{ ok: true; account: AccountView; delivery?: DeliveryView } | { ok: false; error: string }>;
+  onNotice: (n: InviteNotice) => void;
 };
 
 const asRole = (r: string): VillageRole => (VILLAGE_ROLES as readonly string[]).includes(r) ? (r as VillageRole) : "staff";
@@ -41,7 +41,7 @@ export function PermissionEditorSheet(props: Props) {
   return <EditorInner key={props.account.id} {...props} account={props.account} />;
 }
 
-function EditorInner({ account, onClose, onSave, onCredential }: Props & { account: AccountView }) {
+function EditorInner({ account, onClose, onSave, onNotice }: Props & { account: AccountView }) {
   const [role, setRole] = useState<VillageRole>(() => asRole(account.role));
   const [draft, setDraft] = useState<Draft>(() => draftFromAccount(asRole(account.role), parsePermissionOverrides(account.overrides)));
   const [isActive, setActive] = useState(account.isActive);
@@ -94,9 +94,8 @@ function EditorInner({ account, onClose, onSave, onCredential }: Props & { accou
       setFormError(r.error);
       return;
     }
-    if (r.tempPassword) {
-      onCredential({ email: account.email, password: r.tempPassword, name: account.name, reason: "reset" });
-      toast.success("Kata sandi direset. Salin dan berikan ke yang bersangkutan.");
+    if (r.delivery) {
+      onNotice({ email: account.email, name: account.name, kind: account.lastLogin ? "reset" : "invite", delivery: r.delivery });
       return;
     }
     toast.success("Perubahan akses disimpan");
@@ -190,10 +189,16 @@ function EditorInner({ account, onClose, onSave, onCredential }: Props & { accou
             {!locked && (
               <section className="rounded-lg border p-3">
                 <h3 className="text-sm font-medium">Kata sandi</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">Buat kata sandi sementara baru bila yang bersangkutan lupa. Kata sandi lama langsung tidak berlaku.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {account.lastLogin
+                    ? "Kirim email berisi tautan agar yang bersangkutan membuat kata sandi baru. Kata sandi lama langsung dicabut."
+                    : account.pendingInvite
+                      ? "Undangan sudah dikirim dan belum dipakai. Kirim ulang bila email belum diterima."
+                      : "Akun ini belum pernah masuk. Kirim undangan agar yang bersangkutan membuat kata sandi."}
+                </p>
                 <Button type="button" variant="outline" className="mt-2 h-10" onClick={() => setConfirmReset(true)} disabled={saving}>
                   <KeyRound className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                  Reset kata sandi
+                  {account.lastLogin ? "Kirim tautan atur ulang kata sandi" : account.pendingInvite ? "Kirim ulang undangan" : "Kirim undangan"}
                 </Button>
               </section>
             )}
@@ -221,8 +226,10 @@ function EditorInner({ account, onClose, onSave, onCredential }: Props & { accou
       <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset kata sandi {account.name}?</AlertDialogTitle>
-            <AlertDialogDescription>Kata sandi saat ini langsung tidak berlaku. Anda akan melihat kata sandi sementara satu kali; berikan langsung kepada yang bersangkutan.</AlertDialogDescription>
+            <AlertDialogTitle>Kirim tautan ke {account.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Email berisi tautan sekali pakai dikirim ke {account.email}. {account.lastLogin ? "Kata sandi saat ini langsung dicabut dan semua sesi (web dan aplikasi seluler) dikeluarkan sampai kata sandi baru dibuat. " : ""}Tautan sebelumnya yang belum dipakai ikut hangus.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
@@ -232,7 +239,7 @@ function EditorInner({ account, onClose, onSave, onCredential }: Props & { accou
                 void save({ resetPassword: true });
               }}
             >
-              Ya, reset
+              Ya, kirim
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

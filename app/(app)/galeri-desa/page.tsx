@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requireVillagePageAccess } from "@/lib/permissions/server-page-guard";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import GaleriDesaClient from "./GaleriDesaClient";
@@ -27,7 +27,8 @@ function isImageFileType(fileType: string) {
 }
 
 export default async function GaleriDesaPage() {
-  const session = await auth();
+  // Layout (app) statis tidak lagi menjadi penjaga izin modul; halaman yang membaca DB langsung wajib memeriksanya sendiri.
+  const session = await requireVillagePageAccess("galeri-desa");
   const village = await resolveVillage({ session });
 
   if (!village) {

@@ -9,14 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VILLAGE_ROLES } from "@/lib/permissions/client";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/rbac/labels";
+import type { DeliveryView } from "@/components/permissions/InviteResultDialog";
 import type { OfficialOption } from "../_lib/types";
 
 type Props = {
   open: boolean;
   officials: OfficialOption[];
   onOpenChange: (open: boolean) => void;
-  onCreate: (body: Record<string, unknown>) => Promise<{ ok: true; email: string; tempPassword: string } | { ok: false; error: string }>;
-  onCreated: (cred: { email: string; password: string; officialName: string }) => void;
+  onCreate: (body: Record<string, unknown>) => Promise<{ ok: true; email: string; delivery: DeliveryView | null } | { ok: false; error: string }>;
+  onCreated: (r: { email: string; delivery: DeliveryView | null; officialName: string }) => void;
 };
 
 export function CreateAccountDialog({ open, officials, onOpenChange, onCreate, onCreated }: Props) {
@@ -50,7 +51,7 @@ export function CreateAccountDialog({ open, officials, onOpenChange, onCreate, o
     const r = await onCreate({ officialId: official.id, email, role });
     setBusy(false);
     if (!r.ok) return setError(r.error);
-    onCreated({ email: r.email, password: r.tempPassword, officialName: official.name });
+    onCreated({ email: r.email, delivery: r.delivery, officialName: official.name });
     reset();
     onOpenChange(false);
   }
@@ -68,7 +69,9 @@ export function CreateAccountDialog({ open, officials, onOpenChange, onCreate, o
         <form onSubmit={submit} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle>Buat akun login</DialogTitle>
-            <DialogDescription>Untuk perangkat desa yang sudah terdaftar. Izin bisa disesuaikan per modul setelah akun dibuat.</DialogDescription>
+            <DialogDescription>
+              Untuk perangkat desa yang sudah terdaftar. Kami mengirim email berisi tautan agar yang bersangkutan membuat kata sandinya sendiri. Izin bisa disesuaikan per modul setelah akun dibuat.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-1.5">
@@ -109,7 +112,7 @@ export function CreateAccountDialog({ open, officials, onOpenChange, onCreate, o
               aria-describedby="new-email-help"
             />
             <p id="new-email-help" className="text-xs text-muted-foreground">
-              Harus unik dan belum dipakai akun lain.
+              Gunakan email aktif milik orangnya: undangan dan tautan atur ulang kata sandi dikirim ke sini. Harus unik dan belum dipakai akun lain.
             </p>
           </div>
 
@@ -147,7 +150,7 @@ export function CreateAccountDialog({ open, officials, onOpenChange, onCreate, o
             </Button>
             <Button type="submit" className="h-11" disabled={busy || officials.length === 0}>
               {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-              {busy ? "Membuat…" : "Buat akun"}
+              {busy ? "Membuat…" : "Buat akun & kirim undangan"}
             </Button>
           </DialogFooter>
         </form>

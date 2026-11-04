@@ -1,20 +1,42 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, TriangleAlert } from "lucide-react";
+import { Check, Copy, MailCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-export type TempCredential = { email: string; password: string; name: string; reason: "created" | "reset" };
 
-export function TempPasswordDialog({ credential, onClose }: { credential: TempCredential | null; onClose: () => void }) {
+export type DeliveryView = {
+  sent: boolean;
+  reason?: "not-configured" | "duplicate" | "quota" | "failed" | "rate-limit";
+  error?: string;
+  /** Hanya ada bila email tidak terkirim. */
+  manualLink?: string;
+  expiresAt: string;
+};
+
+export type InviteNotice = { email: string; name: string; kind: "invite" | "reset"; delivery: DeliveryView };
+
+const REASON_TEXT: Record<NonNullable<DeliveryView["reason"]>, string> = {
+  "not-configured": "Layanan email belum dikonfigurasi di server ini.",
+  duplicate: "Email serupa baru saja dikirim ke alamat ini.",
+  quota: "Kuota email harian sudah habis.",
+  failed: "Pengiriman email gagal.",
+  "rate-limit": "Terlalu banyak undangan/tautan dikirim dari desa ini dalam satu jam. Coba lagi nanti.",
+};
+
+const fmt = (iso: string) =>
+  new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(iso)) + " WIB";
+
+export function InviteResultDialog({ notice, onClose }: { notice: InviteNotice | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
-  if (!credential) return null;
-
-  const text = `Akun Klandesa\nEmail: ${credential.email}\nKata sandi sementara: ${credential.password}\nMasuk di: ${typeof window !== "undefined" ? window.location.origin : ""}/auth/signin\nSetelah masuk, segera ganti kata sandi di menu Profil.`;
+  if (!notice) return null;
+  const { delivery, email, name, kind } = notice;
+  const what = kind === "invite" ? "Undangan" : "Tautan atur ulang kata sandi";
 
   async function copy() {
+    if (!delivery.manualLink) return;
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(delivery.manualLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
@@ -25,40 +47,65 @@ export function TempPasswordDialog({ credential, onClose }: { credential: TempCr
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{credential.reason === "created" ? "Akun berhasil dibuat" : "Kata sandi direset"}</DialogTitle>
-          <DialogDescription>
-            Untuk {credential.name}. Kata sandi ini <strong>hanya tampil sekali</strong> dan tidak bisa dilihat lagi setelah jendela ini ditutup.
-          </DialogDescription>
-        </DialogHeader>
-
-        <dl className="space-y-3 rounded-lg border bg-muted/40 p-3 text-sm">
-          <div>
-            <dt className="text-xs text-muted-foreground">Email masuk</dt>
-            <dd className="break-all font-medium">{credential.email}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">Kata sandi sementara</dt>
-            <dd className="select-all break-all font-mono text-base font-semibold tracking-wide">{credential.password}</dd>
-          </div>
-        </dl>
-
-        <p className="flex items-start gap-2 text-xs text-amber-900 dark:text-amber-200">
-          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          Berikan lewat jalur yang aman (langsung atau pesan pribadi). Minta yang bersangkutan mengganti kata sandi di menu Profil setelah masuk pertama kali.
-        </p>
+        {delivery.sent ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MailCheck className="h-5 w-5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                {what} terkirim
+              </DialogTitle>
+              <DialogDescription>
+                Email dikirim ke <strong className="break-all">{email}</strong> untuk {name}. Di dalamnya ada tombol untuk membuat kata sandi sendiri.
+              </DialogDescription>
+            </DialogHeader>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              <li>Tautan berlaku sampai {fmt(delivery.expiresAt)} dan hanya bisa dipakai sekali.</li>
+              <li>Minta yang bersangkutan memeriksa folder spam bila belum masuk dalam beberapa menit.</li>
+              <li>Admin tidak pernah melihat kata sandinya. Tautan baru bisa dikirim dari “Atur akses”.</li>
+            </ul>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <TriangleAlert className="h-5 w-5 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+                Email belum terkirim
+              </DialogTitle>
+              <DialogDescription>
+                {delivery.reason ? REASON_TEXT[delivery.reason] : "Email tidak terkirim."} Akun {name} sudah dibuat. Sampaikan tautan di bawah langsung kepada yang bersangkutan.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <label htmlFor="manual-link" className="text-xs text-muted-foreground">
+                Tautan membuat kata sandi untuk <span className="break-all">{email}</span>
+              </label>
+              <input
+                id="manual-link"
+                readOnly
+                value={delivery.manualLink ?? ""}
+                onFocus={(e) => e.currentTarget.select()}
+                className="h-11 w-full rounded-md border bg-muted/40 px-3 font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tampil sekali ini saja, berlaku sampai {fmt(delivery.expiresAt)}, sekali pakai. Kirim lewat jalur pribadi yang aman (bukan grup). Siapa pun yang memegang tautan ini bisa membuat kata sandi akun tersebut.
+              </p>
+            </div>
+          </>
+        )}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button type="button" variant="outline" className="h-11" onClick={() => void copy()}>
-            {copied ? <Check className="mr-2 h-4 w-4" aria-hidden="true" /> : <Copy className="mr-2 h-4 w-4" aria-hidden="true" />}
-            {copied ? "Tersalin" : "Salin kredensial"}
-          </Button>
+          {!delivery.sent && (
+            <Button type="button" variant="outline" className="h-11" onClick={() => void copy()}>
+              {copied ? <Check className="mr-2 h-4 w-4" aria-hidden="true" /> : <Copy className="mr-2 h-4 w-4" aria-hidden="true" />}
+              {copied ? "Tersalin" : "Salin tautan"}
+            </Button>
+          )}
           <Button type="button" className="h-11" onClick={onClose}>
-            Sudah saya catat
+            {delivery.sent ? "Selesai" : "Sudah saya sampaikan"}
           </Button>
         </DialogFooter>
         <p role="status" className="sr-only">
-          {copied ? "Kredensial tersalin ke papan klip" : ""}
+          {copied ? "Tautan tersalin ke papan klip" : ""}
         </p>
       </DialogContent>
     </Dialog>

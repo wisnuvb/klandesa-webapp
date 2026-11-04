@@ -6,6 +6,12 @@ import { arsipStorageLimitForDesaTierGb } from "@/lib/billing/catalog";
 import { DEFAULT_AI_CREDITS } from "@/lib/ai/credits";
 import { normalizeReferralCode, trackReferralEvent } from "@/lib/referrals/tracking";
 import { requireTurnstile } from "@/lib/turnstile";
+import { sendTransactional } from "@/lib/email/send";
+import { welcomeEmail } from "@/lib/email/templates";
+import { getAppOrigin } from "@/lib/email/app-origin";
+import { normalizeAccountEmail } from "@/lib/rbac/accounts";
+import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
+import { clientIpOf } from "@/lib/rbac/client-ip";
 import { TRIAL_DAYS } from "@/lib/subscription";
 
 function slugifyVillageCode(input: string): string {
@@ -179,6 +185,29 @@ export async function POST(req: NextRequest) {
 
       return { village, user };
     });
+
+    // Email sambutan: satu kali per pendaftaran (email wajib unik), tidak menahan respons, tidak memengaruhi hasil bila gagal.
+    // Dibatasi per IP (3/jam) dan hanya untuk email berformat valid: formulir publik tidak boleh dipakai mengirim email
+    // bermerek Klandesa ke alamat sembarang tanpa batas atau menguras kuota. Pendaftaran tetap berhasil bila dilewati.
+    const welcomeTo = normalizeAccountEmail(emailDesa);
+    if (welcomeTo) {
+      void (async () => {
+        const rl = await checkRateLimitDb(limiterKey("welcome-ip", clientIpOf(req)), { max: 3, windowMs: 60 * 60_000 });
+        if (!rl.ok) return;
+        await sendTransactional({
+          template: "welcome",
+          to: welcomeTo,
+          dedupeMs: 365 * 24 * 60 * 60 * 1000,
+          content: welcomeEmail({
+            name: namaKepala,
+            villageName: created.village.name,
+            trialDays: TRIAL_DAYS,
+            loginUrl: `${getAppOrigin()}/auth/signin`,
+            onboardingUrl: `${getAppOrigin()}/onboarding`,
+          }),
+        });
+      })().catch(() => undefined);
+    }
 
     return NextResponse.json(
       {

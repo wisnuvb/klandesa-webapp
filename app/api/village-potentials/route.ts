@@ -3,6 +3,7 @@ import { auditWeb } from "@/lib/audit/web-audit";
 import { pickSummary } from "@/lib/audit/diff";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
+import { parsePageParams } from "@/lib/http/pagination";
 import { prisma } from "@/lib/prisma";
 import {
   isVillageSubscriptionActive,
@@ -20,8 +21,7 @@ export async function GET(req: NextRequest) {
     }
 
     const searchParams = req.nextUrl.searchParams;
-    const page = parseInt(searchParams.get("page") || "1");
-    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+    const { page, pageSize } = parsePageParams(searchParams, { defaultPageSize: 10, maxPageSize: 100 });
     const search = searchParams.get("search") || "";
     const year = searchParams.get("year") || "";
 

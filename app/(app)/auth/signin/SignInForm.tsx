@@ -192,6 +192,27 @@ export function SignInForm() {
               </div>
             </div>
 
+            <div className="-mt-1 flex justify-between gap-3 text-sm">
+              {searchParams.get("sandi") === "diatur" ? (
+                <p role="status" className="text-emerald-700">
+                  Kata sandi berhasil dibuat. Silakan masuk.
+                </p>
+              ) : searchParams.get("sandi") === "diganti" ? (
+                <p role="status" className="text-emerald-700">
+                  Kata sandi berhasil diganti. Masuk kembali dengan kata sandi baru.
+                </p>
+              ) : searchParams.get("sesi") === "berakhir" ? (
+                <p role="status" className="text-amber-700">
+                  Sesi Anda berakhir karena kata sandi akun diubah. Silakan masuk kembali.
+                </p>
+              ) : (
+                <span />
+              )}
+              <Link href="/auth/lupa-sandi" className="font-medium text-teal-700 hover:text-teal-800 hover:underline">
+                Lupa kata sandi?
+              </Link>
+            </div>
+
             {error && (
               <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}

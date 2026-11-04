@@ -39,6 +39,8 @@ const UNGUARDED_ALLOWLIST: Record<string, string> = {
   "app/api/auth/[...nextauth]/route.ts": "NextAuth",
   "app/api/auth/login/route.ts": "login publik",
   "app/api/auth/register/route.ts": "pendaftaran publik",
+  "app/api/auth/lupa-sandi/route.ts": "lupa kata sandi publik (Turnstile + batas laju; jawaban seragam)",
+  "app/api/auth/atur-sandi/route.ts": "atur kata sandi lewat tautan email sekali pakai (token = rahasia; batas laju)",
   "app/api/partner-applications/route.ts": "formulir mitra publik",
   "app/api/referrals/track/route.ts": "pelacakan referral publik",
   "app/api/beasiswa/lpdp/route.ts": "proksi informasi publik",

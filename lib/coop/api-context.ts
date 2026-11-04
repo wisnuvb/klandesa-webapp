@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { Village } from "@prisma/client";
+import { isSessionRevoked, sessionRevokedResponse } from "@/lib/session-version";
 import { getApiSession } from "@/lib/api-session";
 import { authOptions } from "@/auth";
 import { getToken } from "next-auth/jwt";
@@ -142,13 +143,16 @@ async function loadCoopApiContextBase(req: NextRequest): Promise<
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { villageId: true, isActive: true, role: true },
+    select: { villageId: true, isActive: true, role: true, sessionVersion: true },
   });
   if (!dbUser?.isActive || dbUser.villageId !== village.id) {
     return {
       ok: false,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
     };
+  }
+  if (isSessionRevoked(session?.user?.sessionVersion ?? token?.sv, dbUser.sessionVersion)) {
+    return { ok: false, response: sessionRevokedResponse() };
   }
 
   return {

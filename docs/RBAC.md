@@ -36,9 +36,9 @@ izin efektif = (bawaan role ∪ grant) − deny        // per resource × aksi
 - API: `GET/POST /api/rbac/users`, `PATCH /api/rbac/users/[id]` (peran, izin, aktif/nonaktif, reset kata sandi). Semua dijaga resource `rbac`.
 - Pagar di [`lib/rbac/accounts.ts`](../lib/rbac/accounts.ts): tidak bisa mengubah peran/izin/status/kata sandi akun sendiri; desa selalu punya ≥1 admin aktif; semua query dibatasi `villageId`; penautan perangkat↔akun atomik (dua permintaan bersamaan → satu yang jadi).
 - Akun dibuat **dari perangkat desa** (`Official.userId`), dari halaman ini atau opsional di form Data Perangkat (toggle "Buat akun login", hanya terlihat admin; server memeriksa izin `rbac` sebelum perangkat dibuat). Peran awal bawaan: **staf**. Admin menyesuaikan izin kemudian.
-- Kata sandi sementara 12 karakter acak, **hanya ditampilkan sekali**, tidak disimpan/di-log (audit hanya mencatat bahwa reset terjadi). Pengguna menggantinya sendiri di `/profil` (`POST /api/account/password`, wajib kata sandi lama, dibatasi 5 percobaan/15 menit).
+- **Tidak ada kata sandi sementara.** Akun baru dibuat dengan sandi acak yang tak diketahui siapa pun, lalu pemilik menerima email berisi **tautan sekali pakai** untuk membuat kata sandinya sendiri (lihat [EMAIL.md](EMAIL.md)). Admin tidak pernah melihat kata sandi. Bila email gagal terkirim, tautan ditampilkan sekali kepada admin untuk disampaikan manual. Akun berstatus "Menunggu aktivasi" sampai tautan dipakai. Pengguna menggantinya sendiri di `/profil` (`POST /api/account/password`) atau lewat "Lupa kata sandi" (`/auth/lupa-sandi`).
 - Email akun baru harus unik **lintas semua lane** (user desa, mitra, referral, platform, regional; `isEmailTakenAnywhere`). Login mencari `users` dulu dan portal mitra otomatis tertaut lewat email yang sama, jadi email bentrok = pengambilalihan portal mitra atau penguncian pemilik aslinya.
-- Reset/ganti kata sandi mencabut sesi seluler staf (`MobileSession`). Sesi web (JWT) tetap sampai kedaluwarsa, tetapi API memeriksa DB tiap permintaan.
+- Reset oleh admin **mencabut sandi lama seketika** (diganti sandi acak) dan mencabut sesi seluler staf (`MobileSession`); ganti/atur sandi juga mencabut sesi seluler. Sesi web (JWT) tetap sampai kedaluwarsa, tetapi API memeriksa DB tiap permintaan.
 - Penjaga "admin terakhir" berjalan dalam transaksi dengan `SELECT … FOR UPDATE` (dites balapan dua admin).
 - Perangkat dihapus/berhenti/pensiun → akun loginnya dinonaktifkan otomatis (kecuali admin; admin ditangani manual di halaman ini).
 - Perubahan dicatat di audit log (`users`).
@@ -51,10 +51,17 @@ izin efektif = (bawaan role ∪ grant) − deny        // per resource × aksi
 
 ### Batasan yang diketahui
 
-- Sesi JWT tetap hidup sampai kedaluwarsa (tidak ada `passwordChangedAt`/versi token), tetapi setiap API memeriksa `isActive`, role, dan penyesuaian dari DB, jadi pencabutan efektif segera untuk data. Menu di tab yang sedang terbuka baru menyesuaikan setelah muat ulang.
-- Kata sandi sementara belum dipaksa diganti saat masuk pertama (hanya diimbau). Kandidat berikutnya: `mustChangePassword`.
+- Sesi JWT tetap hidup sampai kedaluwarsa, tetapi setiap API memeriksa `isActive`, role, dan penyesuaian dari DB, jadi pencabutan efektif segera untuk data. Menu di tab yang sedang terbuka baru menyesuaikan setelah muat ulang.
 - Lane koperasi (`/api/coop/*`) kini memakai role dari DB, bukan JWT. Rute yang memakai `requireVillagePermissionResponse` di luar `requireVillageApiContext` wajib memakai `sessionWithFreshPermissions` (lib/rbac/fresh-session.ts).
 - BUMDes punya aturan tambahan "dikelola admin/kades"; bila admin menyesuaikan izin BUMDes sebuah akun, penyesuaian itulah yang berlaku (lihat `canManageBumdes`).
+
+### Pencabutan sesi web saat kata sandi berubah
+
+- `users.sessionVersion` (bawaan 0) **naik** setiap kata sandi berubah: ganti sendiri (`/api/account/password`), atur lewat tautan email (`/api/auth/atur-sandi`), dan reset oleh admin. JWT web mencatat versinya saat login (klaim `sv`, hanya akun desa). Versi yang berbeda dari DB → **401 `SESSION_REVOKED`** di `requireVillageApiContext`, lane koperasi, `sessionWithFreshPermissions`, dan penjaga halaman server; klien (`RemotePermissionsProvider`) lalu `signOut` ke `/auth/signin?sesi=berakhir`.
+- **Jangan** memakai `iat` JWT untuk ini: NextAuth menerbitkan ulang cookie (iat baru) setiap sesi dibaca, sehingga cookie curian akan lolos. Karena itu versi disimpan di DB dan hanya naik lewat peristiwa kata sandi.
+- JWT lama tanpa `sv` dianggap 0 = bawaan DB, jadi tidak ada yang terkeluar saat rilis; baru berlaku setelah kata sandi akun itu pertama kali berubah.
+- Mengganti kata sandi sendiri juga mengeluarkan sesi yang sedang dipakai (pengguna diarahkan masuk ulang). Sengaja: menerbitkan ulang cookie dari klien akan membuka jalan menghidupkan sesi usang.
+- Akun regional/mitra/platform (tabel lain) belum punya mekanisme ini.
 
 ## Lane akun (bukan matriks desa)
 

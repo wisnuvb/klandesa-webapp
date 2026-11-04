@@ -7,20 +7,27 @@ import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getModuleByPathSegment } from "@/lib/modules/registry";
 import { roleCan } from "@/lib/permissions/client";
-import { useEffectiveActor } from "./PermissionsProvider";
+import PageSkeleton from "@/components/layout/PageSkeleton";
+import { useEffectiveActor, usePermissionsLoaded } from "./PermissionsProvider";
 
 /** Halaman yang selalu boleh dibuka (tujuan pengalihan dan beranda). */
 const ALWAYS_ALLOWED = new Set(["", "dashboard", "profil", "bantuan", "onboarding"]);
 
 /**
- * Menutup halaman modul yang izin "Lihat"-nya tidak dimiliki akun, termasuk saat pindah halaman tanpa muat ulang
- * (layout server tidak dijalankan ulang pada navigasi sisi klien). Hanya UX; data tetap dijaga API (403).
+ * Menutup halaman modul yang izin "Lihat"-nya tidak dimiliki akun, termasuk saat pindah halaman tanpa muat ulang.
+ * Hanya UX; data tetap dijaga API (403). Halaman SERVER yang membaca DB langsung punya penjaga sendiri
+ * (lib/permissions/server-page-guard.ts).
  */
 export function PageAccessGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const actor = useEffectiveActor();
+  const loaded = usePermissionsLoaded();
   const denied = useSearchParams()?.get("akses") === "ditolak";
   const segment = pathname.split("/").filter(Boolean)[0] ?? "";
+
+  // Izin masih dimuat: tahan konten modul dengan kerangka (tanpa lonjakan tata letak) supaya halaman yang
+  // ternyata terlarang tidak sempat tampil sekejap. Beranda/profil dkk. tidak perlu menunggu.
+  if (!loaded && !ALWAYS_ALLOWED.has(segment) && getModuleByPathSegment(segment)) return <PageSkeleton />;
 
   if (!actor || ALWAYS_ALLOWED.has(segment)) {
     return (

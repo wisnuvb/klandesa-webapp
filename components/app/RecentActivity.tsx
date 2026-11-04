@@ -39,6 +39,9 @@ const statusConfig = {
   },
 };
 
+/** Jeda antarpenyegaran saat tab terlihat. Sebelumnya 30 detik tanpa memeriksa apakah tab terlihat. */
+const REFRESH_INTERVAL_MS = 2 * 60 * 1000;
+
 export function RecentActivity() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,38 +49,60 @@ export function RecentActivity() {
 
   useEffect(() => {
     let isMounted = true;
+    let inFlight = false;
+    let lastLoadedAt = 0;
 
-    const loadActivities = async () => {
+    // `background`: muat ulang diam-diam (tanpa spinner) agar daftar tidak berkedip tiap siklus.
+    const loadActivities = async (background: boolean) => {
+      if (inFlight) return;
+      inFlight = true;
       try {
-        setIsLoading(true);
-        setError(null);
+        if (!background) {
+          setIsLoading(true);
+          setError(null);
+        }
         const res = await fetch("/api/activities/recent");
         if (!res.ok) throw new Error("Failed to fetch activities");
 
         const result = await res.json();
         if (isMounted && result.success) {
           setActivities(result.data);
+          setError(null);
         }
+        lastLoadedAt = Date.now();
       } catch (err) {
         console.error("Gagal memuat aktivitas:", err);
-        if (isMounted) {
+        if (isMounted && !background) {
           setError("Gagal memuat aktivitas");
         }
       } finally {
-        if (isMounted) {
+        inFlight = false;
+        if (isMounted && !background) {
           setIsLoading(false);
         }
       }
     };
 
-    loadActivities();
+    void loadActivities(false);
 
-    // Refresh setiap 30 detik
-    const interval = setInterval(loadActivities, 30000);
+    // Penyegaran berkala hanya saat tab terlihat. Ribuan tab yang terbuka di latar belakang tidak boleh terus
+    // menembak server (tiap panggilan = pengecekan sesi + beberapa query).
+    const tick = () => {
+      if (document.visibilityState === "visible") void loadActivities(true);
+    };
+    const interval = setInterval(tick, REFRESH_INTERVAL_MS);
+    // Tab kembali terlihat setelah lama: segarkan sekali bila data sudah lebih tua dari satu siklus.
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastLoadedAt >= REFRESH_INTERVAL_MS) {
+        void loadActivities(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 

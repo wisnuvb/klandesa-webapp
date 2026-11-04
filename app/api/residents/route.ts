@@ -1,4 +1,5 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { parsePageParams } from "@/lib/http/pagination";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { pickSummary } from "@/lib/audit/diff";
 import type { Prisma } from "@prisma/client";
@@ -159,8 +160,8 @@ export async function GET(req: NextRequest) {
     const { village } = loaded.ctx;
 
     const url = new URL(req.url);
-    const page = Number(url.searchParams.get("page") ?? 1);
-    const pageSize = Number(url.searchParams.get("pageSize") ?? 10);
+    // pageSize dibatasi (maks 200: dipakai halaman PKK); sebelumnya tak terbatas -> pageSize=100000 menarik seluruh warga.
+    const { page, pageSize } = parsePageParams(url.searchParams, { defaultPageSize: 10, maxPageSize: 200 });
     const sortKey = url.searchParams.get("sortKey") ?? undefined;
     const sortOrder =
       (url.searchParams.get("sortOrder") as "asc" | "desc") ?? undefined;

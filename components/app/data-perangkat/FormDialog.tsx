@@ -32,7 +32,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/rbac/labels";
 import { VILLAGE_ROLES } from "@/lib/permissions/client";
 import { Switch } from "@/components/ui/switch";
-import { TempPasswordDialog, type TempCredential } from "@/components/permissions/TempPasswordDialog";
+import { InviteResultDialog, type DeliveryView, type InviteNotice } from "@/components/permissions/InviteResultDialog";
 import { AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
 import { useAttachments } from "@/components/app/attachments/useAttachments";
 
@@ -90,7 +90,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   const [makeAccount, setMakeAccount] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
   const [accountRole, setAccountRole] = useState("staff");
-  const [credential, setCredential] = useState<TempCredential | null>(null);
+  const [notice, setNotice] = useState<InviteNotice | null>(null);
   const att = useAttachments("OFFICIAL", null);
   const isLoading = saving || att.flushing;
 
@@ -180,13 +180,15 @@ export const FormDialog: React.FC<FormDialogProps> = ({
       const created = (await response.json().catch(() => null)) as {
         id?: number;
         name?: string;
-        account?: { created: true; email: string; tempPassword: string } | { created: false; error: string };
+        account?: { created: true; email: string; delivery: DeliveryView | null } | { created: false; error: string };
       } | null;
       if (created?.id) await att.flushAndNotify(created.id);
 
       toast.success("Data perangkat berhasil ditambahkan");
       if (created?.account?.created) {
-        setCredential({ email: created.account.email, password: created.account.tempPassword, name: created.name ?? values.name, reason: "created" });
+        if (created.account.delivery) {
+          setNotice({ email: created.account.email, name: created.name ?? values.name, kind: "invite", delivery: created.account.delivery });
+        }
       } else if (created?.account && !created.account.created) {
         toast.warning(`Perangkat tersimpan, tetapi akun login belum dibuat: ${created.account.error} Buat dari menu Akses Pengguna.`);
       }
@@ -584,7 +586,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                     <label htmlFor="official-make-account" className="text-sm font-medium">
                       Buat akun login untuk perangkat ini
                     </label>
-                    <p className="text-xs text-muted-foreground">Bisa dilewati dan dibuat nanti di menu Akses Pengguna. Izin bisa disesuaikan per modul di sana.</p>
+                    <p className="text-xs text-muted-foreground">Kami mengirim email berisi tautan agar yang bersangkutan membuat kata sandinya sendiri. Bisa dilewati dan dibuat nanti di menu Akses Pengguna.</p>
                   </div>
                   <Switch id="official-make-account" checked={makeAccount} onCheckedChange={setMakeAccount} />
                 </div>
@@ -605,7 +607,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                         aria-describedby="official-account-email-help"
                       />
                       <p id="official-account-email-help" className="text-xs text-muted-foreground">
-                        Kosongkan untuk memakai email di atas. Harus unik.
+                        Undangan dikirim ke sini; harus email aktif milik orangnya. Kosongkan untuk memakai email di atas. Harus unik.
                       </p>
                     </div>
                     <div className="space-y-1.5">
@@ -652,7 +654,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
         </Form>
       </DialogContent>
     </Dialog>
-    <TempPasswordDialog credential={credential} onClose={() => setCredential(null)} />
+    <InviteResultDialog notice={notice} onClose={() => setNotice(null)} />
     </>
   );
 };

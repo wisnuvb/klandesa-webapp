@@ -44,24 +44,29 @@ export async function resolveExpiredModuleSubscriptions(
   });
 }
 
+/**
+ * Add-on aktif desa. Dipanggil di jalur panas (setiap request modul berlangganan), jadi cukup SATU baca:
+ * penandaan "expired" di DB (tulis) hanya dijalankan bila memang ada baris yang lewat masa berlaku.
+ * Hasil yang dikembalikan sama seperti sebelumnya: hanya yang `active` dan belum kedaluwarsa.
+ */
 export async function loadActiveModuleSubs(
   villageId: number,
 ): Promise<ActiveModuleSub[]> {
-  await resolveExpiredModuleSubscriptions(villageId);
   const now = new Date();
   const rows = await prisma.villageModuleSubscription.findMany({
-    where: {
-      villageId,
-      status: "active",
-      expiryDate: { gt: now },
-    },
+    where: { villageId, status: "active" },
     select: { moduleCode: true, planCode: true, expiryDate: true },
   });
-  return rows.map((r) => ({
-    moduleCode: r.moduleCode,
-    planCode: r.planCode,
-    expiryDate: r.expiryDate,
-  }));
+  if (rows.some((r) => r.expiryDate.getTime() <= now.getTime())) {
+    await resolveExpiredModuleSubscriptions(villageId);
+  }
+  return rows
+    .filter((r) => r.expiryDate.getTime() > now.getTime())
+    .map((r) => ({
+      moduleCode: r.moduleCode,
+      planCode: r.planCode,
+      expiryDate: r.expiryDate,
+    }));
 }
 
 export async function requireModuleEntitlement(

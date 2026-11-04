@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { DeliveryView } from "@/components/permissions/InviteResultDialog";
 import type { AccountView, OfficialOption } from "../_lib/types";
 
 type Failure = { ok: false; error: string };
@@ -49,7 +50,7 @@ export function useAccessUsers() {
 
   const update = useCallback(
     async (id: number, body: Record<string, unknown>) => {
-      const r = await call<{ account: AccountView; tempPassword?: string }>(`/api/rbac/users/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+      const r = await call<{ account: AccountView; delivery?: DeliveryView }>(`/api/rbac/users/${id}`, { method: "PATCH", body: JSON.stringify(body) });
       if (r.ok) setUsers((prev) => prev.map((u) => (u.id === id ? r.account : u)));
       return r;
     },
@@ -58,7 +59,7 @@ export function useAccessUsers() {
 
   const create = useCallback(
     async (body: Record<string, unknown>) => {
-      const r = await call<{ userId: number; email: string; role: string; tempPassword: string }>("/api/rbac/users", { method: "POST", body: JSON.stringify(body) });
+      const r = await call<{ userId: number; email: string; role: string; delivery: DeliveryView | null }>("/api/rbac/users", { method: "POST", body: JSON.stringify(body) });
       if (r.ok) await load();
       return r;
     },

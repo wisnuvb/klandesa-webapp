@@ -5,6 +5,7 @@ import type { Village } from "@prisma/client";
 import { getApiSession } from "@/lib/api-session";
 import { isRegionalAccount } from "@/lib/regional-session";
 import { prisma } from "@/lib/prisma";
+import { isSessionRevoked, sessionRevokedResponse } from "@/lib/session-version";
 import { resolveApiPermission } from "@/lib/permissions/api-route-map";
 import { requirePermissionResponse } from "@/lib/permissions/require-permission";
 import {
@@ -34,6 +35,7 @@ export type VillageApiContext = {
     role: string;
     /** Penyesuaian izin per akun (JSON mentah). Nilai efektif: roleCan(resource, action, ctx.dbUser). */
     permissionOverrides: unknown;
+    sessionVersion: number;
   };
 };
 
@@ -69,6 +71,7 @@ export async function requireVillageApiContext(
       isActive: true,
       role: true,
       permissionOverrides: true,
+      sessionVersion: true,
     },
   });
   if (!dbUser) {
@@ -76,6 +79,10 @@ export async function requireVillageApiContext(
   }
   if (!dbUser.isActive) {
     return { ok: false, response: jsonForbidden("Akun tidak aktif") };
+  }
+  // Kata sandi akun berubah sejak sesi ini dibuat -> sesi web lama ditolak (cookie curian ikut mati).
+  if (isSessionRevoked(session.user.sessionVersion, dbUser.sessionVersion)) {
+    return { ok: false, response: sessionRevokedResponse() };
   }
 
   const village = await prisma.village.findUnique({

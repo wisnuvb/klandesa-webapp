@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, CircleSlash, SlidersHorizontal } from "lucide-react";
+import { CircleCheck, CircleSlash, MailPlus, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { countCustomized } from "@/lib/rbac/editor-model";
@@ -38,7 +38,12 @@ export function AccountList({ users, onEdit }: { users: AccountView[]; onEdit: (
                   {custom} modul disesuaikan
                 </Badge>
               )}
-              {u.isActive ? (
+              {u.isActive && u.pendingInvite ? (
+                <Badge variant="outline" className="text-amber-800 dark:text-amber-300">
+                  <MailPlus aria-hidden="true" />
+                  Menunggu aktivasi
+                </Badge>
+              ) : u.isActive ? (
                 <Badge variant="outline" className="text-emerald-800 dark:text-emerald-300">
                   <CircleCheck aria-hidden="true" />
                   Aktif

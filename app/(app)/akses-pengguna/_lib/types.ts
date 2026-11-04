@@ -14,6 +14,7 @@ export type AccountView = {
   overrides: PermissionOverrides;
   official: { id: number; name: string; status: string; positionName: string | null } | null;
   isSelf: boolean;
+  pendingInvite: boolean;
 };
 
 export type OfficialOption = {

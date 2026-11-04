@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requireVillagePageAccess } from "@/lib/permissions/server-page-guard";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import ArsipDigitalClient from "./ArsipDigitalClient";
@@ -6,7 +6,8 @@ import type { ArchiveEntry, ArchiveFolderEntry } from "./_types";
 import { getActiveArsipAddon, getChargedMediaBytes, getEffectiveStorageLimitGb } from "@/lib/digitalArchive/quota";
 
 export default async function ArsipPage() {
-  const session = await auth();
+  // Layout (app) statis tidak lagi menjadi penjaga izin modul; halaman yang membaca DB langsung wajib memeriksanya sendiri.
+  const session = await requireVillagePageAccess("arsip");
   const village = await resolveVillage({ session });
 
   if (!village) {

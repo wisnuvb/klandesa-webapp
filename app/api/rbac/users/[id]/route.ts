@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
-import { ACCOUNT_SELECT, serializeAccount, updateAccount } from "@/lib/rbac/accounts";
+import { ACCOUNT_SELECT, pendingInviteIds, serializeAccount, updateAccount } from "@/lib/rbac/accounts";
+import { deliverAccessLink } from "@/lib/rbac/access-links";
 
 /** Ubah peran, izin per akun, status aktif, atau reset kata sandi. Khusus admin (resource `rbac`). */
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -33,7 +34,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
     const row = await prisma.user.findFirst({ where: { id: targetUserId, villageId: village.id }, select: ACCOUNT_SELECT });
     if (!row) return NextResponse.json({ error: "Akun tidak ditemukan" }, { status: 404 });
-    const account = serializeAccount(row, userId);
+    const account = serializeAccount(row, userId, (await pendingInviteIds(prisma, [row.id])).has(row.id));
 
     await auditWeb(req, loaded.ctx, "update", "users", targetUserId, {
       roleFrom: r.data.before.role,
@@ -42,13 +43,22 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       activeTo: account.isActive,
       overridesFrom: r.data.before.overrides,
       overridesTo: account.overrides,
-      passwordReset: r.data.tempPassword ? true : undefined,
+      passwordReset: r.data.passwordReset ? true : undefined,
     });
 
-    return NextResponse.json(
-      { account, ...(r.data.tempPassword ? { tempPassword: r.data.tempPassword } : {}) },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    // Reset oleh admin: kirim tautan (undangan bila akun belum pernah masuk, atur ulang bila sudah). Sandi lama sudah dicabut.
+    const delivery = r.data.passwordReset
+      ? await deliverAccessLink(prisma, {
+          userId: targetUserId,
+          purpose: row.lastLogin ? "RESET" : "INVITE",
+          byAdmin: true,
+          invitedBy: loaded.ctx.session.user.name ?? null,
+          createdByUserId: userId,
+        })
+      : undefined;
+
+    if (delivery) account.pendingInvite = (await pendingInviteIds(prisma, [targetUserId])).has(targetUserId);
+    return NextResponse.json({ account, ...(delivery ? { delivery } : {}) }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("PATCH /api/rbac/users/[id] error:", err);
     return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });

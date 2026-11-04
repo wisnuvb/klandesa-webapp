@@ -36,18 +36,17 @@ describe("Akun & izin per akun (MySQL nyata)", { skip: enabled ? false : "KEP_TE
     await prisma.$disconnect();
   });
 
-  it("membuat akun dari perangkat: kata sandi sementara valid, tertaut, peran bawaan staf, hash bukan teks asli", async () => {
+  it("membuat akun dari perangkat: tertaut, peran bawaan staf, dan BELUM bisa login (sandi acak tak diketahui siapa pun)", async () => {
     const off = await mkOfficial(vA, posA, "Budi");
     const r = await svc.createOfficialAccount(prisma, { villageId: vA, officialId: off, email: ` Budi${t}@Desa.ID ` });
     assert.ok(r.ok);
     if (!r.ok) return;
     assert.equal(r.data.role, "staff");
     assert.equal(r.data.email, `budi${t}@desa.id`);
-    assert.equal(r.data.tempPassword.length, 12);
+    assert.ok(!("tempPassword" in r.data), "tidak ada kata sandi yang dikembalikan");
     const u = await prisma.user.findUniqueOrThrow({ where: { id: r.data.userId } });
-    assert.notEqual(u.password, r.data.tempPassword);
     const { verifyPassword } = await import("../lib/auth");
-    assert.equal(await verifyPassword(r.data.tempPassword, u.password), true);
+    for (const guess of ["", "password", "12345678", r.data.email]) assert.equal(await verifyPassword(guess, u.password), false);
     assert.equal((await prisma.official.findUniqueOrThrow({ where: { id: off } })).userId, u.id);
   });
 
@@ -177,18 +176,24 @@ describe("Akun & izin per akun (MySQL nyata)", { skip: enabled ? false : "KEP_TE
     assert.ok(rows.length === 1 && rows[0].revokedAt !== null);
   });
 
-  it("reset kata sandi memberi sandi baru yang bekerja dan menggugurkan yang lama", async () => {
+  it("reset oleh admin mencabut sandi lama SEKARANG (tak bisa login lagi) sampai pemilik membuat sandi lewat tautan", async () => {
+    const { hashPassword, verifyPassword } = await import("../lib/auth");
     const o = await mkOfficial(vA, posA, "Joko");
     const c = await svc.createOfficialAccount(prisma, { villageId: vA, officialId: o, email: `joko${t}@a.id` });
     assert.ok(c.ok);
     if (!c.ok) return;
+    await prisma.user.update({ where: { id: c.data.userId }, data: { password: await hashPassword("Lama12345") } });
     const r = await svc.updateAccount(prisma, { villageId: vA, actorUserId: adminA, targetUserId: c.data.userId, resetPassword: true });
-    assert.ok(r.ok && r.data.tempPassword);
-    if (!r.ok || !r.data.tempPassword) return;
-    const { verifyPassword } = await import("../lib/auth");
+    assert.ok(r.ok && r.data.passwordReset);
     const u = await prisma.user.findUniqueOrThrow({ where: { id: c.data.userId } });
-    assert.equal(await verifyPassword(r.data.tempPassword, u.password), true);
-    assert.equal(await verifyPassword(c.data.tempPassword, u.password), false);
+    assert.equal(await verifyPassword("Lama12345", u.password), false);
+  });
+
+  it("reset oleh admin ditolak untuk akun warga (role citizen): tak punya jalur pemulihan, jangan sampai terkunci", async () => {
+    const w = await prisma.user.create({ data: { villageId: vA, email: `wg${t}@a.id`, password: "x", name: "Warga", role: "citizen" } });
+    const r = await svc.updateAccount(prisma, { villageId: vA, actorUserId: adminA, targetUserId: w.id, resetPassword: true });
+    assert.ok(!r.ok && r.status === 400);
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: w.id } })).password, "x");
   });
 
   it("perangkat berhenti/dihapus menonaktifkan akun loginnya, kecuali admin", async () => {

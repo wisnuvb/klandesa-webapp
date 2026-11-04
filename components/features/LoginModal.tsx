@@ -16,7 +16,6 @@ import {
 import { signIn, signOut } from "next-auth/react";
 
 // NextAuth will handle auth; Redux sync happens via the hook below
-import { useNextAuthSession } from "@/hooks/use-nextauth-session";
 
 import { KlandesaLogo } from "./KlandesaLogo";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
@@ -44,8 +43,6 @@ export function LoginModal({
   const [turnstileReset, setTurnstileReset] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
   const turnstileRequired = isTurnstileRequiredOnClient();
-  // Initialize hook to sync NextAuth session into Redux store
-  useNextAuthSession();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

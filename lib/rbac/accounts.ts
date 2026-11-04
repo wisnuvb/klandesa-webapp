@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { hashPassword } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/rbac/labels";
@@ -20,13 +20,12 @@ const fail = (status: number, error: string): Fail => ({ ok: false, status, erro
 /** Peran bawaan akun baru: staf. Izin tambahan diberikan admin per akun di halaman Akses Pengguna. */
 export const DEFAULT_NEW_ACCOUNT_ROLE: VillageRole = "staff";
 
-// Tanpa 0/O/1/l/I agar mudah dibaca dan disalin dari layar.
-const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-
-export function generateTempPassword(length = 12): string {
-  let out = "";
-  for (let i = 0; i < length; i += 1) out += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)];
-  return out;
+/**
+ * Kata sandi acak yang tidak diketahui siapa pun: akun belum bisa dipakai login sampai pemiliknya membuat kata sandi
+ * lewat tautan email (undangan/atur ulang). Tidak ada kata sandi sementara yang pernah ditampilkan atau dikirim.
+ */
+export async function unusablePasswordHash(): Promise<string> {
+  return hashPassword(randomBytes(32).toString("hex"));
 }
 
 export function normalizeAccountEmail(raw: unknown): string | null {
@@ -80,7 +79,17 @@ export const ACCOUNT_SELECT = {
 
 export type AccountRow = Prisma.UserGetPayload<{ select: typeof ACCOUNT_SELECT }>;
 
-export function serializeAccount(row: AccountRow, selfId: number) {
+/** Id akun yang undangannya belum dipakai dan belum kedaluwarsa ("Menunggu aktivasi"). */
+export async function pendingInviteIds(db: Db, userIds: number[], now = new Date()): Promise<Set<number>> {
+  if (userIds.length === 0) return new Set();
+  const rows = await db.authToken.findMany({
+    where: { userId: { in: userIds }, purpose: "INVITE", usedAt: null, expiresAt: { gt: now } },
+    select: { userId: true },
+  });
+  return new Set(rows.map((r) => r.userId));
+}
+
+export function serializeAccount(row: AccountRow, selfId: number, pendingInvite = false) {
   const role = isVillageRole(row.role) ? row.role : null;
   return {
     id: row.id,
@@ -98,6 +107,8 @@ export function serializeAccount(row: AccountRow, selfId: number) {
       ? { id: row.officialProfile.id, name: row.officialProfile.name, status: row.officialProfile.status, positionName: row.officialProfile.position?.name ?? null }
       : null,
     isSelf: row.id === selfId,
+    /** Undangan terkirim dan belum dipakai: akun belum punya kata sandi. */
+    pendingInvite,
   };
 }
 
@@ -114,11 +125,11 @@ export type CreateAccountInput = {
   overrides?: unknown;
 };
 
-/** Buat akun login untuk perangkat desa yang sudah ada dan tautkan. Kata sandi sementara dikembalikan SEKALI. */
+/** Buat akun login untuk perangkat desa yang sudah ada dan tautkan. Akun belum bisa login: pemilik membuat kata sandi lewat tautan undangan. */
 export async function createOfficialAccount(
   db: PrismaClient,
   input: CreateAccountInput,
-): Promise<Result<{ userId: number; email: string; role: VillageRole; tempPassword: string }>> {
+): Promise<Result<{ userId: number; email: string; role: VillageRole }>> {
   const email = normalizeAccountEmail(input.email);
   if (!email) return fail(400, "Email akun tidak valid.");
   const role = input.role == null || input.role === "" ? DEFAULT_NEW_ACCOUNT_ROLE : parseRoleInput(input.role);
@@ -133,8 +144,7 @@ export async function createOfficialAccount(
 
   if (await isEmailTakenAnywhere(db, email)) return fail(409, "Email ini sudah dipakai akun lain.");
 
-  const tempPassword = generateTempPassword();
-  const password = await hashPassword(tempPassword);
+  const password = await unusablePasswordHash();
   const overrides = role === "admin" ? undefined : parsePermissionOverrides(input.overrides);
   const hasOverrides = overrides && (overrides.grant || overrides.deny);
 
@@ -159,7 +169,7 @@ export async function createOfficialAccount(
       if (linked.count !== 1) throw new AlreadyLinked();
       return user.id;
     });
-    return { ok: true, data: { userId, email, role, tempPassword } };
+    return { ok: true, data: { userId, email, role } };
   } catch (e) {
     if (e instanceof AlreadyLinked) return fail(409, "Perangkat ini sudah punya akun login.");
     if ((e as { code?: string }).code === "P2002") return fail(409, "Email ini sudah dipakai akun lain.");
@@ -177,7 +187,7 @@ export type UpdateAccountInput = {
   resetPassword?: unknown;
 };
 
-export type UpdateAccountResult = { before: { role: string; isActive: boolean; overrides: PermissionOverrides }; tempPassword?: string };
+export type UpdateAccountResult = { before: { role: string; isActive: boolean; overrides: PermissionOverrides }; passwordReset: boolean };
 
 export async function updateAccount(db: PrismaClient, input: UpdateAccountInput): Promise<Result<UpdateAccountResult>> {
   const target = await db.user.findFirst({
@@ -214,11 +224,17 @@ export async function updateAccount(db: PrismaClient, input: UpdateAccountInput)
     nextActive = input.isActive;
   }
 
-  let tempPassword: string | undefined;
+  // Reset oleh admin: kata sandi lama DICABUT sekarang (tidak bisa dipakai lagi, mis. bila dicurigai bocor); pemilik membuat
+  // kata sandi baru lewat tautan email yang dikirim route setelah ini.
+  let passwordReset = false;
   if (input.resetPassword === true) {
     if (isSelf) return fail(400, "Ubah kata sandi Anda sendiri lewat halaman Profil.");
-    tempPassword = generateTempPassword();
-    data.password = await hashPassword(tempPassword);
+    // Akun warga bukan akun perangkat: tidak punya jalur pemulihan (lupa sandi mengecualikannya), jangan sampai terkunci.
+    if (target.role === "citizen") return fail(400, "Akun warga tidak dapat direset dari halaman ini.");
+    data.password = await unusablePasswordHash();
+    // Semua sesi web yang masih hidup (termasuk cookie curian) langsung tidak sah.
+    data.sessionVersion = { increment: 1 };
+    passwordReset = true;
   }
 
   if (Object.keys(data).length === 0) return fail(400, "Tidak ada perubahan.");
@@ -244,7 +260,7 @@ export async function updateAccount(db: PrismaClient, input: UpdateAccountInput)
   if (outcome === "last-admin") {
     return fail(409, "Desa harus punya minimal satu Admin aktif. Jadikan akun lain Admin terlebih dulu.");
   }
-  return { ok: true, data: { before, tempPassword } };
+  return { ok: true, data: { before, passwordReset } };
 }
 
 export const ASSIGNABLE_ROLES = VILLAGE_ROLES;

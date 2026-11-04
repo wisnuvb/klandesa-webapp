@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
           email: user.email,
           name: user.name,
           role: user.role,
+          sessionVersion: user.sessionVersion,
           ...(linkedPartnerId != null ? { partnerId: linkedPartnerId } : {}),
           village: {
             id: user.village.id,

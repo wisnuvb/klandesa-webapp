@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
-import { ACCOUNT_SELECT, createOfficialAccount, serializeAccount } from "@/lib/rbac/accounts";
+import { ACCOUNT_SELECT, createOfficialAccount, pendingInviteIds, serializeAccount } from "@/lib/rbac/accounts";
+import { deliverAccessLink } from "@/lib/rbac/access-links";
 
 /** Daftar akun desa (kecuali akun warga) + perangkat aktif yang belum punya akun. Khusus admin (resource `rbac`). */
 export async function GET(req: NextRequest) {
@@ -26,9 +27,10 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    const pending = await pendingInviteIds(prisma, users.map((u) => u.id));
     return NextResponse.json(
       {
-        users: users.map((u) => serializeAccount(u, userId)),
+        users: users.map((u) => serializeAccount(u, userId, pending.has(u.id))),
         officialsWithoutAccount: officials.map((o) => ({
           id: o.id,
           name: o.name,
@@ -74,8 +76,18 @@ export async function POST(req: NextRequest) {
       hasCustomPermissions: Boolean(body?.permissionOverrides),
     });
 
+    // Undangan: tautan sekali pakai untuk membuat kata sandi sendiri. Bila email gagal, tautan dikembalikan untuk disampaikan manual.
+    const delivery = await deliverAccessLink(prisma, {
+      userId: r.data.userId,
+      purpose: "INVITE",
+      byAdmin: true,
+      invitedBy: loaded.ctx.session.user.name ?? null,
+      createdByUserId: loaded.ctx.userId,
+    });
+    await auditWeb(req, loaded.ctx, "update", "users", r.data.userId, { invite: delivery?.sent ? "sent" : `manual:${delivery?.reason ?? "none"}` });
+
     return NextResponse.json(
-      { userId: r.data.userId, email: r.data.email, role: r.data.role, tempPassword: r.data.tempPassword },
+      { userId: r.data.userId, email: r.data.email, role: r.data.role, delivery },
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {

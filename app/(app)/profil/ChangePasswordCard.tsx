@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,10 +29,12 @@ export function ChangePasswordCard() {
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) return setError(json.error ?? "Gagal mengganti kata sandi.");
-      toast.success("Kata sandi berhasil diganti");
+      toast.success("Kata sandi berhasil diganti. Silakan masuk kembali.");
       setCurrent("");
       setNext("");
       setConfirm("");
+      // Mengganti kata sandi mengakhiri semua sesi web akun ini, termasuk yang ini.
+      await signOut({ callbackUrl: "/auth/signin?sandi=diganti" });
     } catch {
       setError("Tidak dapat terhubung ke server. Periksa koneksi Anda.");
     } finally {

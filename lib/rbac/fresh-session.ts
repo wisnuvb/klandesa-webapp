@@ -1,5 +1,6 @@
 import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { isSessionRevoked } from "@/lib/session-version";
 
 /**
  * Salinan sesi dengan role & penyesuaian izin SEGAR dari DB. Untuk rute yang tidak lewat requireVillageApiContext
@@ -9,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 export async function sessionWithFreshPermissions(session: Session | null): Promise<Session | null> {
   const id = Number.parseInt(String(session?.user?.id ?? ""), 10);
   if (!session?.user || !Number.isFinite(id)) return null;
-  const row = await prisma.user.findUnique({ where: { id }, select: { role: true, isActive: true, permissionOverrides: true } });
-  if (!row || !row.isActive) return null;
+  const row = await prisma.user.findUnique({ where: { id }, select: { role: true, isActive: true, permissionOverrides: true, sessionVersion: true } });
+  if (!row || !row.isActive || isSessionRevoked(session.user.sessionVersion, row.sessionVersion)) return null;
   return { ...session, user: { ...session.user, role: row.role, permissionOverrides: row.permissionOverrides } };
 }

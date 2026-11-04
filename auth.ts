@@ -7,6 +7,7 @@ import { cookies, headers } from "next/headers";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { getResolvedAuthSecret } from "@/lib/auth-secret";
+import { slimJwt } from "@/lib/session-slim";
 import {
   jwtPayloadToSession,
   secureCookieForNextAuth,
@@ -44,6 +45,8 @@ declare module "next-auth" {
       role?: string;
       /** Diisi dari DB per permintaan API (bukan disimpan di JWT). */
       permissionOverrides?: unknown;
+      /** Versi sesi akun desa saat login (JWT `sv`); dibandingkan dengan `users.sessionVersion`. */
+      sessionVersion?: number;
       villageId?: number;
       villageCode?: string;
       village?: Village;
@@ -58,6 +61,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
     role?: string;
+    /** Versi sesi akun desa saat login. */
+    sv?: number;
     accessToken?: string;
     refreshToken?: string;
     villageId?: number;
@@ -186,6 +191,7 @@ providers.push(
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
             accountType: "village" as const,
+            sessionVersion: Number((data.user as { sessionVersion?: number }).sessionVersion ?? 0),
             partnerId: (data.user as { partnerId?: number }).partnerId,
             villageId: data.user.village?.id,
             villageCode: data.user.village?.code,
@@ -296,6 +302,8 @@ export const authOptions: NextAuthOptions = {
           | "platform"
           | undefined;
         token.accountType = at ?? "village";
+        // Hanya akun desa (tabel users) yang punya versi sesi; dicatat SEKALI saat login dan tidak berubah saat token diperbarui.
+        token.sv = token.accountType === "village" ? Number((user as { sessionVersion?: number }).sessionVersion ?? 0) : undefined;
         if (token.accountType === "regional") {
           token.regionalScope = (user as any).regionalScope;
           token.villageId = undefined;
@@ -322,7 +330,8 @@ export const authOptions: NextAuthOptions = {
           token.regionalScope = undefined;
         }
       }
-      return token;
+      // Ramping cookie sesi (tanpa accessToken/refreshToken yang tak terpakai, village hanya kolom yang dipakai klien).
+      return slimJwt(token);
     },
     async session({ session, token }) {
       if (session.user) {
@@ -344,6 +353,7 @@ export const authOptions: NextAuthOptions = {
         session.user.villageCode = token.villageCode as string | undefined;
         session.user.village = token.village as Village | undefined;
         session.user.partnerId = token.partnerId as number | undefined;
+        session.user.sessionVersion = typeof token.sv === "number" ? token.sv : undefined;
       }
       (session as any).accessToken = token.accessToken;
       (session as any).refreshToken = token.refreshToken;

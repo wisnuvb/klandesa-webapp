@@ -16,7 +16,30 @@ export async function sendBrevoEmail(input: {
   subject: string;
   html: string;
   text: string;
+  /** Penelepon (sendTransactional) mencatat sendiri. Tanpa ini, setiap pengiriman dicatat sebagai "other" agar terhitung di anggaran harian. */
+  skipLog?: boolean;
 }): Promise<BrevoSendResult> {
+  const res = await sendRaw(input);
+  if (!input.skipLog) {
+    try {
+      const { prisma } = await import("@/lib/prisma");
+      const { createHash } = await import("node:crypto");
+      await prisma.emailLog.create({
+        data: {
+          template: "other",
+          toHash: createHash("sha256").update(input.to.trim().toLowerCase()).digest("hex"),
+          status: res.ok ? "SENT" : "FAILED",
+          error: res.ok ? null : res.error.slice(0, 255),
+        },
+      });
+    } catch {
+      // Pencatatan bersifat pelengkap; jangan pernah menggagalkan pengiriman.
+    }
+  }
+  return res;
+}
+
+async function sendRaw(input: { to: string; subject: string; html: string; text: string }): Promise<BrevoSendResult> {
   const apiKey = process.env.BREVO_API_KEY?.trim();
   const senderEmail = process.env.BREVO_SENDER_EMAIL?.trim();
   if (!apiKey || !senderEmail) return { ok: false, error: "Brevo belum dikonfigurasi" };

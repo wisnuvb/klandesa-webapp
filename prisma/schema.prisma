@@ -363,6 +363,9 @@ model User {
   // Penyesuaian izin per akun di atas bawaan role: {"grant":{"finance":["create"]},"deny":{"residents":["delete"]}}.
   // Diabaikan untuk role admin. Divalidasi lewat lib/permissions/overrides.ts.
   permissionOverrides Json?
+  // Naik setiap kata sandi berubah (ganti/atur ulang/reset admin). Dicatat di JWT web saat login (`sv`); sesi web dengan versi
+  // lama ditolak. TIDAK memakai `iat` JWT karena NextAuth memperbaruinya setiap sesi dibaca, sehingga cookie curian akan lolos.
+  sessionVersion Int @default(0)
   aiCredits Int    @default(1000)
 
   isActive  Boolean   @default(true)
@@ -388,6 +391,7 @@ model User {
   aiAssistantThreads       AiAssistantThread[]
 
   officialProfile Official? @relation("OfficialAccount")
+  authTokens      AuthToken[]
 
   @@index([villageId, role])
   @@index([email])
@@ -572,6 +576,8 @@ model Resident {
   @@index([villageId, householdId])
   @@index([villageId, wilayahUnitId])
   @@index([villageId, dusunUnitId])
+  // Urutan bawaan daftar warga (createdAt terbaru): tanpa ini setiap halaman membaca SEMUA warga desa lalu filesort.
+  @@index([villageId, createdAt(sort: Desc)])
   @@map("residents")
 }
 
@@ -6937,4 +6943,41 @@ model PanganHargaSnapshot {
   @@index([kind, kodeKabKota, tanggal])
   @@index([tanggal])
   @@map("pangan_harga_snapshots")
+}
+
+// ============================================
+// TAUTAN AKSES AKUN (undangan & atur ulang kata sandi) + LOG EMAIL
+// ============================================
+
+/// Token sekali pakai untuk membuat/mengatur ulang kata sandi lewat email. Hanya HASH (sha256) yang disimpan.
+model AuthToken {
+  id        Int  @id @default(autoincrement())
+  userId    Int
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// INVITE (akun baru dibuat admin) | RESET (lupa/atur ulang)
+  purpose   String   @db.VarChar(20)
+  tokenHash String   @unique @db.VarChar(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdByUserId Int?
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose, usedAt])
+  @@map("auth_tokens")
+}
+
+/// Jejak email transaksional: dasar anggaran kuota harian dan dedup. Alamat tujuan hanya disimpan sebagai hash.
+model EmailLog {
+  id        Int      @id @default(autoincrement())
+  template  String   @db.VarChar(40)
+  toHash    String   @db.VarChar(64)
+  /// SENT | FAILED | SKIPPED
+  status    String   @db.VarChar(12)
+  error     String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([template, toHash, createdAt])
+  @@map("email_logs")
 }

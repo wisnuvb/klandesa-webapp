@@ -60,7 +60,8 @@ export function Header({ title, subtitle, back, avatarSrc, onMenuClick }: Header
   // memicu fetch notifikasi serta kedipan lonceng setiap kali.
   const accountType = (user as { accountType?: string } | null)?.accountType;
 
-  const loadNotifications = useCallback(async () => {
+  // `summaryOnly`: saat halaman dimuat hanya jumlah belum dibaca (lencana); daftar penuh diambil saat lonceng dibuka.
+  const loadNotifications = useCallback(async (summaryOnly = false) => {
     if (!isAuthenticated) return;
     const at = accountType;
     if (at && at !== "village") {
@@ -68,12 +69,12 @@ export function Header({ title, subtitle, back, avatarSrc, onMenuClick }: Header
       setUnreadCount(0);
       return;
     }
-    setNotifLoading(true);
+    if (!summaryOnly) setNotifLoading(true);
     try {
-      const res = await fetch("/api/notifications");
+      const res = await fetch(summaryOnly ? "/api/notifications?summary=1" : "/api/notifications");
       if (!res.ok) return;
       const data = await res.json();
-      setNotifications(data.notifications ?? []);
+      if (!summaryOnly) setNotifications(data.notifications ?? []);
       setUnreadCount(typeof data.unreadCount === "number" ? data.unreadCount : 0);
     } catch {
       /* ignore */
@@ -84,7 +85,7 @@ export function Header({ title, subtitle, back, avatarSrc, onMenuClick }: Header
 
   useEffect(() => {
     if (isAuthenticated) {
-      void loadNotifications();
+      void loadNotifications(true);
     }
   }, [isAuthenticated, loadNotifications]);
 

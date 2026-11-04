@@ -15,6 +15,8 @@ export type JwtPayload = Record<string, unknown> & {
   partnerId?: number;
   accountType?: "village" | "regional" | "partner" | "platform";
   regionalScope?: RegionalScope;
+  /** Versi sesi akun desa saat login. */
+  sv?: number;
 };
 
 /** Selaras dengan NEXTAUTH_URL (nama cookie __Secure- vs biasa). */
@@ -52,6 +54,7 @@ export function jwtPayloadToSession(token: JwtPayload | null): Session | null {
       villageId: token.villageId as number | undefined,
       villageCode: token.villageCode as string | undefined,
       partnerId: token.partnerId as number | undefined,
+      sessionVersion: typeof token.sv === "number" ? token.sv : undefined,
       village: token.village as Session["user"] extends { village?: infer V }
         ? V
         : undefined,

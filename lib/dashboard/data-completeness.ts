@@ -23,9 +23,13 @@ function readIdmVillageCode(settings: unknown): string {
  * Checklist kelengkapan data dasar agar fitur inti (surat, statistik, status IDM) tidak
  * tampil cacat/kosong. Dipakai untuk alert dashboard, bukan gate blocking seperti /onboarding.
  */
-export async function getDataCompleteness(village: Village): Promise<CompletenessItem[]> {
+export async function getDataCompleteness(
+  village: Village,
+  /** Total warga bila pemanggil sudah menghitungnya (dashboard): menghindari COUNT(*) ganda atas tabel warga. */
+  knownResidentCount?: number,
+): Promise<CompletenessItem[]> {
   const [residentCount, positionCount, officialCount, kepalaDesaOfficialCount] = await Promise.all([
-    prisma.resident.count({ where: { villageId: village.id } }),
+    knownResidentCount ?? prisma.resident.count({ where: { villageId: village.id } }),
     prisma.position.count({ where: { villageId: village.id, isActive: true } }),
     prisma.official.count({ where: { villageId: village.id, status: "active" } }),
     prisma.official.count({

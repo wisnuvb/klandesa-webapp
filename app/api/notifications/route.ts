@@ -17,6 +17,19 @@ export async function GET(req: NextRequest) {
 
     await syncAdminNotificationsForVillage(village.id);
 
+    // Mode ringkas untuk lencana lonceng saat halaman dimuat: cukup jumlah belum dibaca (1 COUNT, ±50 byte),
+    // daftar penuh baru diminta saat lonceng dibuka. Dibatasi seperti daftar (LIST_LIMIT) agar angkanya konsisten.
+    if (new URL(req.url).searchParams.get("summary") === "1") {
+      const unread = await prisma.adminNotification.count({
+        where: {
+          villageId: village.id,
+          createdAt: { gte: notificationCutoffs().visibleSince },
+          reads: { none: { userId } },
+        },
+      });
+      return NextResponse.json({ unreadCount: Math.min(unread, NOTIFICATION_RETENTION.LIST_LIMIT) });
+    }
+
     const rows = await prisma.adminNotification.findMany({
       where: { villageId: village.id, createdAt: { gte: notificationCutoffs().visibleSince } },
       orderBy: { createdAt: "desc" },

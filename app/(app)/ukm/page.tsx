@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requireVillagePageAccess } from "@/lib/permissions/server-page-guard";
 import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import ProdukUKMClient from "./ProdukUKMClient";
@@ -7,7 +7,8 @@ import { normalizeImageUrls } from "./_utils";
 import { parseUkmSettings } from "@/lib/mobile/ukm-logic";
 
 export default async function ProdukUKMPage() {
-  const session = await auth();
+  // Layout (app) statis tidak lagi menjadi penjaga izin modul; halaman yang membaca DB langsung wajib memeriksanya sendiri.
+  const session = await requireVillagePageAccess("ukm");
   const village = await resolveVillage({ session });
 
   if (!village) {

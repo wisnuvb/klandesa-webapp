@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AccountList } from "./_components/AccountList";
 import { CreateAccountDialog } from "./_components/CreateAccountDialog";
 import { PermissionEditorSheet } from "./_components/PermissionEditorSheet";
-import { TempPasswordDialog, type TempCredential } from "@/components/permissions/TempPasswordDialog";
+import { InviteResultDialog, type InviteNotice } from "@/components/permissions/InviteResultDialog";
 import { useAccessUsers } from "./_hooks/useAccessUsers";
 import type { AccountView } from "./_lib/types";
 
@@ -15,7 +15,7 @@ export default function AksesPenggunaPage() {
   const access = useAccessUsers();
   const [editing, setEditing] = useState<AccountView | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [credential, setCredential] = useState<TempCredential | null>(null);
+  const [notice, setNotice] = useState<InviteNotice | null>(null);
 
   // Sheet selalu memakai data terbaru dari daftar (mis. setelah reset kata sandi).
   const editingFresh = editing ? (access.users.find((u) => u.id === editing.id) ?? editing) : null;
@@ -61,7 +61,7 @@ export default function AksesPenggunaPage() {
         account={editingFresh}
         onClose={() => setEditing(null)}
         onSave={access.update}
-        onCredential={setCredential}
+        onNotice={setNotice}
       />
 
       <CreateAccountDialog
@@ -70,12 +70,12 @@ export default function AksesPenggunaPage() {
         onOpenChange={setShowCreate}
         onCreate={async (body) => {
           const r = await access.create(body);
-          return r.ok ? { ok: true as const, email: r.email, tempPassword: r.tempPassword } : r;
+          return r.ok ? { ok: true as const, email: r.email, delivery: r.delivery } : r;
         }}
-        onCreated={(c) => setCredential({ email: c.email, password: c.password, name: c.officialName, reason: "created" })}
+        onCreated={(c) => c.delivery && setNotice({ email: c.email, name: c.officialName, kind: "invite", delivery: c.delivery })}
       />
 
-      <TempPasswordDialog credential={credential} onClose={() => setCredential(null)} />
+      <InviteResultDialog notice={notice} onClose={() => setNotice(null)} />
     </div>
   );
 }
