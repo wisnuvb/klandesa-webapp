@@ -29,30 +29,48 @@ import { ExportDialog, type ExportFormat } from "@/components/app/patterns/Expor
 import { formatLongDate } from "@/lib/statistics/export";
 import { exportStatistics } from "@/lib/statistics/export-client";
 import type { StatisticsData } from "@/lib/statistics/types";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart as RePieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+import { COLORS } from "./_components/chart-colors";
 
-const COLORS = [
-  "#0f766e",
-  "#14b8a6",
-  "#2dd4bf",
-  "#5eead4",
-  "#99f6e4",
-  "#ccfbf1",
-  "#3b82f6",
-  "#ec4899",
-];
+// recharts dimuat lazy lewat komponen grafik terpisah. Skeleton memakai tinggi yang sama
+// dengan grafik asli agar tidak ada lonjakan tata letak.
+const PerubahanPendudukChart = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.PerubahanPendudukChart),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
+const JenisKelaminOverviewPie = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.JenisKelaminOverviewPie),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
+const UsiaChart = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.UsiaChart),
+  { ssr: false, loading: () => <Skeleton className="h-[400px] w-full" /> },
+);
+const JenisKelaminDetailPie = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.JenisKelaminDetailPie),
+  { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> },
+);
+const PendidikanChart = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.PendidikanChart),
+  { ssr: false, loading: () => <Skeleton className="h-[400px] w-full" /> },
+);
+const PekerjaanChart = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.PekerjaanChart),
+  { ssr: false, loading: () => <Skeleton className="h-[400px] w-full" /> },
+);
+const PerkawinanPie = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.PerkawinanPie),
+  { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> },
+);
+const AgamaChart = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.AgamaChart),
+  { ssr: false, loading: () => <Skeleton className="h-[350px] w-full" /> },
+);
+const WilayahChart = dynamic(
+  () => import("./_components/StatistikCharts").then((m) => m.WilayahChart),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
 
 const STATISTIK_TABS = [
   "overview",
@@ -370,25 +388,7 @@ export function Statistik() {
                   <CardContent>
                     {perubahanPenduduk ? (
                       <>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <BarChart data={perubahanPenduduk.perBulan}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis dataKey="bulan" stroke="#6b7280" />
-                            <YAxis stroke="#6b7280" allowDecimals={false} />
-                            <Tooltip
-                              formatter={(value, name) => [value, name]}
-                              labelFormatter={(_label, payload) => {
-                                const m = payload?.[0]?.payload;
-                                return m
-                                  ? `${m.bulan} ${String(m.key).slice(0, 4)} · selisih ${m.selisih > 0 ? "+" : ""}${m.selisih}`
-                                  : "";
-                              }}
-                            />
-                            <Legend />
-                            <Bar dataKey="bertambah" name="Lahir + datang" fill="#0f766e" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="berkurang" name="Meninggal + pindah" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <PerubahanPendudukChart data={perubahanPenduduk.perBulan} />
                         <p className="mt-3 text-xs text-muted-foreground">
                           Dihitung dari mutasi penduduk yang sudah diterapkan.
                         </p>
@@ -416,30 +416,7 @@ export function Statistik() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RePieChart>
-                        <Pie
-                          data={jenisKelamin}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percentage }) =>
-                            `${name}: ${percentage}%`
-                          }
-                          outerRadius={100}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {jenisKelamin.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={index === 0 ? "#3b82f6" : "#ec4899"}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </RePieChart>
-                    </ResponsiveContainer>
+                    <JenisKelaminOverviewPie data={jenisKelamin} />
                   </CardContent>
                 </Card>
               </div>
@@ -454,33 +431,7 @@ export function Statistik() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={usia}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="range" stroke="#6b7280" />
-                      <YAxis stroke="#6b7280" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#fff",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: "8px",
-                        }}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="lakilaki"
-                        fill="#3b82f6"
-                        name="Laki-laki"
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="perempuan"
-                        fill="#ec4899"
-                        name="Perempuan"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <UsiaChart data={usia} />
 
                   {/* Summary Table */}
                   <div className="mt-6 border rounded-lg overflow-hidden">
@@ -547,30 +498,7 @@ export function Statistik() {
                     <CardTitle>Perbandingan Jenis Kelamin</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={350}>
-                      <RePieChart>
-                        <Pie
-                          data={jenisKelamin}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={true}
-                          label={({ name, value, percentage }) =>
-                            `${name}: ${value} (${percentage}%)`
-                          }
-                          outerRadius={120}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {jenisKelamin.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={index === 0 ? "#3b82f6" : "#ec4899"}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </RePieChart>
-                    </ResponsiveContainer>
+                    <JenisKelaminDetailPie data={jenisKelamin} />
                   </CardContent>
                 </Card>
 
@@ -631,37 +559,7 @@ export function Statistik() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={pendidikan} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis type="number" stroke="#6b7280" />
-                      <YAxis
-                        dataKey="tingkat"
-                        type="category"
-                        stroke="#6b7280"
-                        width={120}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#fff",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: "8px",
-                        }}
-                      />
-                      <Bar
-                        dataKey="jumlah"
-                        fill="#0f766e"
-                        radius={[0, 4, 4, 0]}
-                      >
-                        {pendidikan.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <PendidikanChart data={pendidikan} />
 
                   {/* Summary Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
@@ -702,38 +600,7 @@ export function Statistik() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={pekerjaan}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="pekerjaan"
-                        stroke="#6b7280"
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                      />
-                      <YAxis stroke="#6b7280" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#fff",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: "8px",
-                        }}
-                      />
-                      <Bar
-                        dataKey="jumlah"
-                        fill="#0f766e"
-                        radius={[4, 4, 0, 0]}
-                      >
-                        {pekerjaan.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <PekerjaanChart data={pekerjaan} />
 
                   {/* Detailed List */}
                   <div className="mt-6 space-y-3">
@@ -789,28 +656,7 @@ export function Statistik() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ResponsiveContainer width="100%" height={350}>
-                      <RePieChart>
-                        <Pie
-                          data={perkawinan}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={true}
-                          label={({ status, jumlah }) => `${status}: ${jumlah}`}
-                          outerRadius={120}
-                          fill="#8884d8"
-                          dataKey="jumlah"
-                        >
-                          {perkawinan.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={COLORS[index % COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </RePieChart>
-                    </ResponsiveContainer>
+                    <PerkawinanPie data={perkawinan} />
 
                     <div className="space-y-3">
                       {perkawinan.map((item, index) => (
@@ -862,32 +708,7 @@ export function Statistik() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ResponsiveContainer width="100%" height={350}>
-                      <BarChart data={agama}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis dataKey="agama" stroke="#6b7280" />
-                        <YAxis stroke="#6b7280" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#fff",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: "8px",
-                          }}
-                        />
-                        <Bar
-                          dataKey="jumlah"
-                          fill="#0f766e"
-                          radius={[4, 4, 0, 0]}
-                        >
-                          {agama.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={COLORS[index % COLORS.length]}
-                            />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <AgamaChart data={agama} />
 
                     <div className="space-y-3">
                       {agama.map((item, index) => (
@@ -942,26 +763,7 @@ export function Statistik() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={wilayah}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="wilayah" stroke="#6b7280" />
-                      <YAxis stroke="#6b7280" />
-                      <Tooltip />
-                      <Bar
-                        dataKey="jumlah"
-                        fill="#0f766e"
-                        radius={[4, 4, 0, 0]}
-                      >
-                        {wilayah.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <WilayahChart data={wilayah} />
                   <div className="mt-6 space-y-3">
                     {wilayah.map((item, index) => (
                       <button

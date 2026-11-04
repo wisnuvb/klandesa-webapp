@@ -12,12 +12,13 @@ export type ParsedListQuery = {
 
 export function parseListQuery(
   req: NextRequest,
-  defaults?: { pageSize?: number },
+  /** `maxPageSize`: batas atas per rute (bawaan 100). Dropdown opsi formulir meminta daftar penuh (<= 500). */
+  defaults?: { pageSize?: number; maxPageSize?: number },
 ): ParsedListQuery {
   const sp = req.nextUrl.searchParams;
   const page = Math.max(1, Number(sp.get("page") ?? 1) || 1);
   const pageSize = Math.min(
-    100,
+    defaults?.maxPageSize ?? 100,
     Math.max(1, Number(sp.get("pageSize") ?? defaults?.pageSize ?? 10) || 10),
   );
   const sortKey = sp.get("sortKey")?.trim() || undefined;

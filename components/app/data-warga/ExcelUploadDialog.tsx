@@ -2,13 +2,11 @@
 
 import { ArrowLeft, ArrowRight, Check, Download, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/components/ui/utils";
-import { buildReportWorkbook, buildTemplateWorkbook } from "@/lib/residents-import/template";
 import {
   ColumnMappingStep,
   MAX_FILE_MB,
@@ -81,13 +79,24 @@ export const ExcelUploadDialog: React.FC<ExcelUploadDialogProps> = ({ showExcelD
     close();
   };
 
-  const downloadTemplate = () => {
-    XLSX.writeFile(buildTemplateWorkbook(), "template_data_warga.xlsx");
-    toast.success("Template berhasil diunduh");
+  // xlsx (SheetJS) dimuat lazy: hanya diunduh saat pengguna mengunduh template/laporan atau memilih berkas.
+  const downloadTemplate = async () => {
+    try {
+      const [XLSX, { buildTemplateWorkbook }] = await Promise.all([import("xlsx"), import("@/lib/residents-import/template")]);
+      XLSX.writeFile(buildTemplateWorkbook(), "template_data_warga.xlsx");
+      toast.success("Template berhasil diunduh");
+    } catch {
+      toast.error("Gagal mengunduh template. Periksa koneksi lalu coba lagi.");
+    }
   };
 
-  const downloadReport = () => {
-    XLSX.writeFile(buildReportWorkbook(wizard.buildReport()), "laporan_impor_warga.xlsx");
+  const downloadReport = async () => {
+    try {
+      const [XLSX, { buildReportWorkbook }] = await Promise.all([import("xlsx"), import("@/lib/residents-import/template")]);
+      XLSX.writeFile(buildReportWorkbook(wizard.buildReport()), "laporan_impor_warga.xlsx");
+    } catch {
+      toast.error("Gagal mengunduh laporan. Periksa koneksi lalu coba lagi.");
+    }
   };
 
   const onFiles = (files: FileList | null) => {

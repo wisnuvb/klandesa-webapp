@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
+import { fetchJsonDeduped } from "@/lib/client/fetch-cache";
 
 export type CooperativeAccessState = {
   showCoopMenu: boolean;
@@ -42,37 +43,50 @@ export function CooperativeNavProvider({
   const [access, setAccess] = useState<CooperativeAccessState | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(async () => {
-    if (!isAuthenticated) {
-      setAccess(null);
-      setLoading(false);
-      return;
-    }
-    const at = (user as { accountType?: string } | null)?.accountType;
-    if (at && at !== "village") {
-      setAccess(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const r = await fetch("/api/coop/access", { cache: "no-store" });
-      if (!r.ok) {
-        setAccess(null);
+  // Primitif, bukan objek `user`: SessionProvider membuat objek sesi baru tiap tab difokuskan ulang, dan itu dulu
+  // memicu fetch /api/coop/access setiap kali (sama seperti catatan di Header).
+  const accountType = (user as { accountType?: string } | null)?.accountType;
+
+  // `force`: refresh() eksplisit (mis. setelah koperasi dibuat) wajib ke jaringan, tidak ikut request yang sudah berjalan.
+  const load = useCallback(
+    async (force: boolean, isAlive: () => boolean = () => true) => {
+      if (!isAuthenticated) {
+        if (isAlive()) {
+          setAccess(null);
+          setLoading(false);
+        }
         return;
       }
-      const data = (await r.json()) as CooperativeAccessState;
-      setAccess(data);
-    } catch {
-      setAccess(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, user]);
+      if (accountType && accountType !== "village") {
+        if (isAlive()) {
+          setAccess(null);
+          setLoading(false);
+        }
+        return;
+      }
+      if (isAlive()) setLoading(true);
+      try {
+        const r = await fetchJsonDeduped<CooperativeAccessState>("/api/coop/access", { force });
+        if (!isAlive()) return;
+        setAccess(r.ok ? r.body : null);
+      } catch {
+        if (isAlive()) setAccess(null);
+      } finally {
+        if (isAlive()) setLoading(false);
+      }
+    },
+    [isAuthenticated, accountType],
+  );
+
+  const refresh = useCallback(() => load(true), [load]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let alive = true;
+    void load(false, () => alive);
+    return () => {
+      alive = false;
+    };
+  }, [load]);
 
   return (
     <CooperativeNavContext.Provider value={{ access, loading, refresh }}>

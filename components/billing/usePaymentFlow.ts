@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LinkquEwalletRetailCode } from "@/lib/payment/linkqu-channels";
+import { invalidateFetchCache } from "@/lib/client/fetch-cache";
 import { priceForMonths, type SubscriptionMonths } from "@/lib/billing/duration";
 import {
   ALL_PAYMENT_METHODS,
@@ -224,6 +225,8 @@ export function usePaymentFlow() {
   useEffect(() => {
     if (invoiceStatus !== "paid" || !invoiceId || paidNotified.current === invoiceId) return;
     paidNotified.current = invoiceId;
+    // Lunas mengubah status langganan/add-on: buang status tagihan yang di-cache klien (dibaca AppShell) sebelum onPaid.
+    invalidateFetchCache("/api/billing");
     void Promise.resolve(requestRef.current?.onPaid?.()).catch(() => undefined);
   }, [invoiceId, invoiceStatus]);
 

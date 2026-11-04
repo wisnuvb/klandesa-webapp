@@ -9,7 +9,8 @@ import type { Grid } from "./map";
 
 export const XLSX_LIMITS = { maxRows: 100_000, maxCols: 200, maxSheets: 10 } as const;
 
-export class TooBigError extends Error {}
+import { TooBigError } from "./errors";
+export { TooBigError };
 
 export function readWorkbookLimited(data: ArrayBuffer, limits: { maxRows: number; maxCols: number; maxSheets: number } = XLSX_LIMITS): { name: string; grid: Grid }[] {
   const wb = XLSX.read(data, { type: "array", cellDates: false, cellText: false, cellNF: false, cellHTML: false, cellFormula: false, sheetRows: limits.maxRows + 1 });

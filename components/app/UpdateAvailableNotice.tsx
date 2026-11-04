@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { fetchJsonDeduped } from "@/lib/client/fetch-cache";
 
 // Deploy jarang terjadi (tidak tiap menit), jadi interval panjang sudah cukup
 // dan jauh lebih ringan daripada polling cepat.
@@ -29,9 +30,10 @@ export function UpdateAvailableNotice({ currentBuildId }: { currentBuildId: stri
 
       checkingRef.current = true;
       try {
-        const res = await fetch("/api/app-build-id", { cache: "no-store" });
+        // Selalu ke jaringan (tanpa ttl): tujuannya mendeteksi deploy baru, bukan membaca cache.
+        const res = await fetchJsonDeduped<{ buildId?: string }>("/api/app-build-id");
         if (!res.ok) return;
-        const data = (await res.json().catch(() => null)) as { buildId?: string } | null;
+        const data = res.body;
         if (
           data?.buildId &&
           data.buildId !== currentBuildId &&
@@ -46,7 +48,9 @@ export function UpdateAvailableNotice({ currentBuildId }: { currentBuildId: stri
       }
     };
 
-    void checkBuildId();
+    // `currentBuildId` (basis pembanding) baru saja diambil dari /api/app-build-id oleh AppLayoutClient, jadi cek pertama
+    // tidak perlu meminta ulang: hitung sebagai pengecekan terakhir. Deploy baru tetap terdeteksi di interval/visibilitychange.
+    lastCheckedAtRef.current = Date.now();
     const interval = setInterval(checkBuildId, CHECK_INTERVAL_MS);
     document.addEventListener("visibilitychange", checkBuildId);
 

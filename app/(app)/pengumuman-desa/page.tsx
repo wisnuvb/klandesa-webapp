@@ -48,6 +48,12 @@ interface Announcement {
 export function PengumumanDesa() {
   const { appAlert, appConfirm } = useAppDialogs();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  // Diisi server hanya bila daftar terpotong batas pengaman (sangat longgar); null = semua baris sudah tampil.
+  const [truncation, setTruncation] = useState<{
+    total: number;
+    pinnedTotal: number;
+    viewsTotal: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<
@@ -81,6 +87,15 @@ export function PengumumanDesa() {
       if (!res.ok) throw new Error("Gagal memuat pengumuman");
       const data = await res.json();
       setAnnouncements(data.rows);
+      setTruncation(
+        data.truncated
+          ? {
+              total: Number(data.total) || 0,
+              pinnedTotal: Number(data.pinnedTotal) || 0,
+              viewsTotal: Number(data.viewsTotal) || 0,
+            }
+          : null,
+      );
     } catch (error) {
       console.error("Fetch announcements error:", error);
     } finally {
@@ -96,12 +111,19 @@ export function PengumumanDesa() {
   }, [fetchAnnouncements]);
 
   // Stats
-  const stats = {
-    total: announcements.length,
-    published: announcements.length, // Since we only fetch active ones
-    pinned: announcements.filter((a) => a.isPinned).length,
-    totalViews: announcements.reduce((sum, a) => sum + a.viewCount, 0),
-  };
+  const stats = truncation
+    ? {
+        total: truncation.total,
+        published: truncation.total,
+        pinned: truncation.pinnedTotal,
+        totalViews: truncation.viewsTotal,
+      }
+    : {
+        total: announcements.length,
+        published: announcements.length, // Since we only fetch active ones
+        pinned: announcements.filter((a) => a.isPinned).length,
+        totalViews: announcements.reduce((sum, a) => sum + a.viewCount, 0),
+      };
 
   // Filtered list (for local display after fetch)
   const filteredAnnouncements = announcements;
@@ -406,6 +428,16 @@ export function PengumumanDesa() {
 
       {/* Announcements List */}
       <div className="grid grid-cols-1 gap-4">
+        {truncation && !isLoading && (
+          <div
+            role="status"
+            className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          >
+            Menampilkan {announcements.length.toLocaleString("id-ID")} dari{" "}
+            {truncation.total.toLocaleString("id-ID")} pengumuman (terbaru dan yang disematkan lebih dulu). Persempit
+            dengan kotak pencarian atau filter kategori untuk menjangkau pengumuman yang lebih lama.
+          </div>
+        )}
         {isLoading ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <Loader2 className="w-12 h-12 text-teal-600 mx-auto mb-3 animate-spin" />

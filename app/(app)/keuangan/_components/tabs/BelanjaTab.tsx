@@ -6,16 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { BelanjaItem } from "../../_lib/types";
 import { formatRupiah } from "../../_lib/formatting";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// recharts dimuat lazy; Skeleton setinggi grafik asli (400px) agar tidak ada lonjakan tata letak.
+const AnggaranRealisasiChart = dynamic(
+  () => import("./KeuanganCharts").then((m) => m.AnggaranRealisasiChart),
+  { ssr: false, loading: () => <Skeleton className="h-[400px] w-full" /> },
+);
 
 type BelanjaTabProps = {
   selectedYear: string;
@@ -56,30 +54,7 @@ export function BelanjaTab(props: BelanjaTabProps) {
           <CardTitle>Perbandingan Anggaran vs Realisasi</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={belanjaData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="bidang"
-                stroke="#6b7280"
-                angle={-20}
-                textAnchor="end"
-                height={120}
-              />
-              <YAxis stroke="#6b7280" />
-              <Tooltip
-                formatter={(value: number) => formatRupiah(Number(value))}
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                }}
-              />
-              <Legend />
-              <Bar dataKey="anggaran" fill="#94a3b8" name="Anggaran" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="realisasi" fill="#0f766e" name="Realisasi" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <AnggaranRealisasiChart data={belanjaData} />
         </CardContent>
       </Card>
       )}

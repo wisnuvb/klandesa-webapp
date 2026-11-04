@@ -8,6 +8,7 @@ import { pickSummary } from "@/lib/audit/diff";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { normalizeImageUrls } from "@/app/(app)/ukm/_utils";
 import { resolveUkmOwner } from "@/lib/ukm/owner";
+import { LIST_SAFETY_TAKE, capRows } from "@/lib/http/list-cap";
 import {
   parseStockQuantity,
   toUkmProduct,
@@ -43,13 +44,17 @@ export async function GET(req: NextRequest) {
       where.subCategory = category;
     }
 
-    const rows = await prisma.potential.findMany({
+    // Batas pengaman longgar (terbaru dulu); `search`/`category` tetap menjangkau semua data.
+    const fetched = await prisma.potential.findMany({
       where,
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: LIST_SAFETY_TAKE,
       select: ukmProductSelect,
     });
+    const { rows, truncated } = capRows(fetched);
+    const total = truncated ? await prisma.potential.count({ where }) : rows.length;
 
-    return NextResponse.json({ rows: rows.map(toUkmProduct) });
+    return NextResponse.json({ rows: rows.map(toUkmProduct), total, truncated });
   } catch (error) {
     console.error("Error fetching UKM products:", error);
     return NextResponse.json(

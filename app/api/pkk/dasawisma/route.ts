@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
       return subscriptionBlockedResponse(village);
     }
 
-    const q = parseListQuery(req);
+    // Halaman PKK memuat opsi dropdown lewat pageSize=500; dulu dibatasi diam-diam di 100 (opsi di atas 100 hilang).
+    const q = parseListQuery(req, { maxPageSize: 500 });
     const searchFilter = dasawismaSearchWhere(q.search);
     const where: Prisma.DasawismaWhereInput = {
       villageId: village.id,

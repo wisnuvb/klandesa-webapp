@@ -16,18 +16,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CreditCard, Gift, Landmark, Receipt } from "lucide-react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  CartesianGrid,
-} from "recharts";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BILLING_CATALOG, formatIdr } from "@/lib/billing/catalog";
 import { closingBonusFor } from "@/lib/partner/commission-math";
 import { hasPartnerPortalAccess } from "@/lib/partner-session";
+
+// recharts dimuat lazy; Skeleton mengisi kontainer h-[280px] persis seperti grafik asli.
+const KomisiTypeChart = dynamic(
+  () => import("./_components/KomisiTypeChart").then((m) => m.KomisiTypeChart),
+  { ssr: false, loading: () => <Skeleton className="h-full w-full" /> },
+);
 
 type SummaryResponse = {
   totals?: {
@@ -245,26 +244,7 @@ export default function MitraKomisiPage() {
               Belum ada data komisi untuk ditampilkan.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="4 8" opacity={0.3} />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis
-                  tickFormatter={(v: number | string) =>
-                    `${Math.round(Number(v) / 1000)}rb`
-                  }
-                  tick={{ fontSize: 11 }}
-                  width={40}
-                />
-                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                <RechartsTooltip
-                  formatter={(value: unknown) => {
-                    const v = typeof value === "number" ? value : Number(value);
-                    return [Number.isFinite(v) ? formatIdr(v) : String(value), "Jumlah"];
-                  }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            <KomisiTypeChart data={chartData} />
           )}
         </CardContent>
       </Card>

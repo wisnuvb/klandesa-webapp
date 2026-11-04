@@ -2,11 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
+// Impor langsung dari constants/types, BUKAN barrel "@/lib/gis/map": barrel itu mengekspor ulang
+// create-map (maplibre-gl) & draw-control (mapbox-gl-draw) sehingga menyeret pustaka peta ke bundel awal.
 import {
   MAP_DEFAULT_HEIGHT,
   MAP_DEFAULT_MIN_HEIGHT_PX,
-  type VillageMapProps,
-} from "@/lib/gis/map";
+} from "@/lib/gis/map/constants";
+import type { VillageMapProps } from "@/lib/gis/map/types";
 
 const VillageMapInner = dynamic(
   () => import("./map/VillageMap").then((m) => m.VillageMap),

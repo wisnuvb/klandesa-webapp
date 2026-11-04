@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { emitWebhookEvent } from "@/lib/webhooks/deliver";
 import { parseAnnouncementImageUrl } from "@/lib/announcements/image-url";
+import { LIST_SAFETY_TAKE, capRows } from "@/lib/http/list-cap";
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,12 +39,15 @@ export async function GET(req: NextRequest) {
       where.category = category;
     }
 
-    const announcements = await prisma.announcement.findMany({
+    // Batas pengaman longgar (urut terbaru, disematkan dulu); pencarian & kategori di atas tetap menjangkau semua data.
+    const fetched = await prisma.announcement.findMany({
       where,
       orderBy: [
         { isPinned: "desc" },
         { publishDate: "desc" },
+        { id: "desc" },
       ],
+      take: LIST_SAFETY_TAKE,
       include: {
         createdBy: {
           select: {
@@ -52,8 +56,25 @@ export async function GET(req: NextRequest) {
         },
       },
     });
+    const { rows: announcements, truncated } = capRows(fetched);
 
-    return NextResponse.json({ rows: announcements });
+    if (!truncated) {
+      return NextResponse.json({ rows: announcements, total: announcements.length, truncated: false });
+    }
+
+    // Terpotong: kartu ringkasan di UI tetap harus mencerminkan seluruh hasil, bukan hanya baris yang tampil.
+    const [total, pinnedTotal, views] = await Promise.all([
+      prisma.announcement.count({ where }),
+      prisma.announcement.count({ where: { ...where, isPinned: true } }),
+      prisma.announcement.aggregate({ where, _sum: { viewCount: true } }),
+    ]);
+    return NextResponse.json({
+      rows: announcements,
+      total,
+      truncated: true,
+      pinnedTotal,
+      viewsTotal: views._sum.viewCount ?? 0,
+    });
   } catch (error: any) {
     console.error("GET /api/announcements error:", error);
     return NextResponse.json(

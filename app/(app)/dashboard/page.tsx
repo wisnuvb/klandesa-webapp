@@ -21,18 +21,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// recharts (~100 KB gzip) dimuat lazy: semua grafik ada di bawah lipatan.
+// Skeleton berukuran sama dengan grafik asli agar tidak ada lonjakan tata letak.
+const IdmTrendChart = dynamic(
+  () => import("./_components/DashboardCharts").then((m) => m.IdmTrendChart),
+  { ssr: false, loading: () => <Skeleton className="h-full w-full" /> },
+);
+const GenderPieChart = dynamic(
+  () => import("./_components/DashboardCharts").then((m) => m.GenderPieChart),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
+const AgeBarChart = dynamic(
+  () => import("./_components/DashboardCharts").then((m) => m.AgeBarChart),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
+const EducationBarChart = dynamic(
+  () => import("./_components/DashboardCharts").then((m) => m.EducationBarChart),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
 
 type DashboardStats = {
   storage?: StorageUsageSummary | null;
@@ -356,15 +365,7 @@ export default function AppDashboard() {
               ) : null}
               {idmTrendData.length ? (
                 <div className="h-44">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={idmTrendData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="year" className="text-xs" />
-                      <YAxis className="text-xs" domain={[0, 1]} />
-                      <Tooltip />
-                      <Bar dataKey="score" fill="#0f766e" radius={[8, 8, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <IdmTrendChart data={idmTrendData} />
                 </div>
               ) : null}
               <div className="flex flex-wrap gap-2">
@@ -409,27 +410,7 @@ export default function AppDashboard() {
             <CardTitle>Distribusi Jenis Kelamin</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={genderData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-                  }
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {genderData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <GenderPieChart data={genderData} />
           </CardContent>
         </Card>
 
@@ -439,18 +420,7 @@ export default function AppDashboard() {
             <CardTitle>Distribusi Usia</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={ageData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-border"
-                />
-                <XAxis dataKey="name" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip />
-                <Bar dataKey="value" fill="#0f766e" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <AgeBarChart data={ageData} />
           </CardContent>
         </Card>
       </div>
@@ -463,23 +433,7 @@ export default function AppDashboard() {
             <CardTitle>Tingkat Pendidikan</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={educationData} layout="vertical">
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-border"
-                />
-                <XAxis type="number" className="text-xs" />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  width={100}
-                  className="text-xs"
-                />
-                <Tooltip />
-                <Bar dataKey="value" fill="#14b8a6" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <EducationBarChart data={educationData} />
           </CardContent>
         </Card>
 

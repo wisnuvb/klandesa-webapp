@@ -21,7 +21,6 @@ import {
   type RowStatus,
   type SheetRole,
 } from "@/lib/residents-import";
-import { readAndPlan } from "@/lib/residents-import/read-plan";
 import type { ReportLine } from "@/lib/residents-import/template";
 
 export type Step = "upload" | "map" | "review" | "result";
@@ -113,6 +112,8 @@ export function useImportWizard(onImported?: () => void) {
     await tick();
     try {
       const buf = await file.arrayBuffer();
+      // SheetJS (xlsx) berat: baru diunduh saat pengguna benar-benar memilih berkas.
+      const { readAndPlan } = await import("@/lib/residents-import/read-plan");
       // Beri kesempatan browser menggambar indikator "Membaca file…" sebelum parsing (sinkron) dimulai.
       await tick();
       const planned = readAndPlan(buf, loadSaved());

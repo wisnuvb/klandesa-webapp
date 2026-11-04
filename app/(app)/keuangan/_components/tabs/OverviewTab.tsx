@@ -3,20 +3,19 @@
 import { BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApbdesData, BelanjaItem, TrendItem } from "../../_lib/types";
-import { formatRupiah, formatRupiahShort } from "../../_lib/formatting";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart as RePieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { formatRupiahShort } from "../../_lib/formatting";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// recharts dimuat lazy; Skeleton setinggi grafik asli (300px) agar tidak ada lonjakan tata letak.
+const TrendKeuanganChart = dynamic(
+  () => import("./KeuanganCharts").then((m) => m.TrendKeuanganChart),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
+const KomposisiBelanjaPie = dynamic(
+  () => import("./KeuanganCharts").then((m) => m.KomposisiBelanjaPie),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
 
 type OverviewTabProps = {
   selectedYear: string;
@@ -48,64 +47,7 @@ export function OverviewTab(props: OverviewTabProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={trendKeuangan}>
-                <defs>
-                  <linearGradient
-                    id="colorPendapatan"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="5%" stopColor="#0f766e" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#0f766e" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorBelanja" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="bulan" stroke="#6b7280" />
-                <YAxis
-                  stroke="#6b7280"
-                  width={80}
-                  tickFormatter={(v) =>
-                    typeof v === "number"
-                      ? formatRupiahShort(v).replace(/^Rp\s?/, "")
-                      : String(v)
-                  }
-                />
-                <Tooltip
-                  formatter={(value: number) => formatRupiah(Number(value))}
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="pendapatan"
-                  stroke="#0f766e"
-                  fillOpacity={1}
-                  fill="url(#colorPendapatan)"
-                  strokeWidth={2}
-                  name="Pendapatan"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="belanja"
-                  stroke="#f97316"
-                  fillOpacity={1}
-                  fill="url(#colorBelanja)"
-                  strokeWidth={2}
-                  name="Belanja"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <TrendKeuanganChart data={trendKeuangan} />
           </CardContent>
         </Card>
 
@@ -117,29 +59,7 @@ export function OverviewTab(props: OverviewTabProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <RePieChart>
-                <Pie
-                  data={belanjaData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ persentase }) =>
-                    `${Number(persentase).toFixed(0)}%`
-                  }
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="anggaran"
-                >
-                  {belanjaData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) => formatRupiah(Number(value))}
-                />
-              </RePieChart>
-            </ResponsiveContainer>
+            <KomposisiBelanjaPie data={belanjaData} />
             <div className="mt-4 space-y-2">
               {belanjaData.map((item, index) => (
                 <div key={index} className="flex items-center gap-2 text-sm">

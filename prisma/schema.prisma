@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // relationJoins: user + desanya dalam SATU query (JOIN) di guard API (lib/api-village-context.ts), dipakai di setiap request API desa.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

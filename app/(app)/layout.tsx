@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { AuthProvider } from "../components/AuthProvider";
+// CSS tur onboarding (driver.js) hanya dimuat di area aplikasi, bukan di halaman publik.
+// Urutan penting: dashboard-tour.css menimpa gaya dasar driver.css.
+import "driver.js/dist/driver.css";
+import "../styles/dashboard-tour.css";
 import { AppLayoutClient } from "./AppLayoutClient";
 
 /**

@@ -12,7 +12,7 @@ import { SELECT_CLASS } from "@/components/app/perencanaan/shared";
 import { useFormSubmit } from "@/hooks/useFormSubmit";
 import { INDICATOR_FIELDS, SUMMARY_FIELDS, type Layout } from "@/lib/idm/catalog";
 import { detectHeaderRow, detectLayout, guessMapping, matchRows, norm, parseDelimited, readIndicatorRows, readSummaryRows, villageKey, yearFromHeaders, type Grid, type Mapping, type SummaryRow } from "@/lib/idm/map";
-import { TooBigError, readWorkbookLimited } from "@/lib/idm/read-xlsx";
+import { TooBigError } from "@/lib/idm/errors";
 import { fmtScore, type Resp } from "./types";
 
 type Step = "file" | "map" | "pick";
@@ -67,7 +67,10 @@ export function ImportDialog({ data, onClose, onDone }: { data: Resp; onClose: (
     setReading(true);
     try {
       const isText = /\.(csv|tsv|txt)$/i.test(file.name);
-      const list: { name: string; grid: Grid }[] = isText ? [{ name: "Data", grid: parseDelimited(await file.text(), data.catalog.limits.maxRows) }] : readWorkbookLimited(await file.arrayBuffer());
+      // xlsx berat: hanya diunduh saat pengguna memilih berkas Excel (bukan CSV).
+      const list: { name: string; grid: Grid }[] = isText
+        ? [{ name: "Data", grid: parseDelimited(await file.text(), data.catalog.limits.maxRows) }]
+        : (await import("@/lib/idm/read-xlsx")).readWorkbookLimited(await file.arrayBuffer());
       const usable = list.filter((s) => s.grid.length > 1);
       if (!usable.length) {
         setReadErr("Berkas kosong atau tidak dapat dibaca. Gunakan berkas .xlsx atau .csv.");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { isRegionalAccount } from "@/lib/regional-session";
@@ -14,7 +14,14 @@ import { LarasFab } from "@/components/ai/LarasFab";
 import { shouldShowLarasFab } from "@/lib/ai/laras-access";
 import { AI_ASSISTANT_AVATAR_SRC, AI_ASSISTANT_TAGLINE, AI_ASSISTANT_TITLE } from "@/lib/ai/persona";
 import { isOnboardingFlowPath } from "@/lib/onboarding";
+import { fetchJsonDeduped } from "@/lib/client/fetch-cache";
 import { PageHeaderProvider, usePageHeaderOverride, usePageScrollLocked } from "@/components/layout/PageHeaderContext";
+
+/**
+ * Status langganan dipakai ulang selama beberapa detik (selain dedupe serentak): effect pengecekan jalan lagi tiap
+ * pathname/sesi berubah. Pendek karena dipakai untuk mengalihkan ke /billing & /onboarding; lihat `leftFlow` di bawah.
+ */
+const BILLING_STATUS_TTL_MS = 3000;
 
 // Map route keys to page metadata — urutan mengikuti sidebar & alur operasional desa
 const pageConfig = {
@@ -361,6 +368,10 @@ function AppShellInner({
   const accountType = session?.user?.accountType;
   const regional = session ? isRegionalAccount(session) : false;
 
+  // Pathname sebelumnya (yang berbeda): bila baru keluar dari /billing atau alur onboarding, status mungkin baru saja
+  // berubah (bayar lunas / onboarding selesai), jadi TTL dilewati dan status dimuat segar agar tidak salah mengalihkan.
+  const lastPathRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (sessionStatus !== "authenticated" || !userId) return;
     if (regional || accountType === "partner" || accountType === "platform") return;
@@ -368,11 +379,18 @@ function AppShellInner({
     const current = pathname || "/";
     if (current.startsWith("/auth")) return;
 
+    const prevPath = lastPathRef.current;
+    lastPathRef.current = current;
+    const leftFlow =
+      prevPath !== null && prevPath !== current && (prevPath.startsWith("/billing") || isOnboardingFlowPath(prevPath));
+
     const check = async () => {
       try {
-        const res = await fetch("/api/billing/status", { cache: "no-store" });
+        // Dedupe + TTL pendek: effect ini jalan lagi tiap pathname/sesi berubah (dan dua kali di StrictMode dev).
+        // Pembayaran lunas memanggil invalidateFetchCache("/api/billing") (usePaymentFlow).
+        const res = await fetchJsonDeduped<unknown>("/api/billing/status", { ttlMs: BILLING_STATUS_TTL_MS, force: leftFlow });
         if (!res.ok) return;
-        const data = (await res.json().catch(() => null)) as {
+        const data = res.body as {
           subscription?: {
             active?: boolean;
             writable?: boolean;

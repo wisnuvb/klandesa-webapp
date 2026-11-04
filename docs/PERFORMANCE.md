@@ -6,8 +6,10 @@ perbandingan relatif.
 ## Prinsip
 
 - **Biaya utama = jumlah query per aksi pengguna**, bukan SSR. Satu muat dashboard dulu 140 query (38 tulis); kini 17–35.
-- **Role/`isActive` tidak pernah di-cache lintas request** (pencabutan akses harus langsung berlaku). Guard
-  `requireVillageApiContext` masih 2 query/request; opsi lanjutan: `relationJoins` Prisma atau Redis dengan invalidasi.
+- **Role/`isActive`/versi sesi tidak pernah di-cache lintas request** (pencabutan akses harus langsung berlaku). Guard
+  `requireVillageApiContext` memakai Prisma `relationJoins` (generator `previewFeatures`): akun + desa dalam **1 query** (dulu 2;
+  diukur 400 panggilan serentak 317 → 88 ms, hasil identik). Konsekuensi deploy: `prisma generate` wajib di folder rilis (sudah
+  bagian prosedur) karena klien Prisma berubah.
 - Cache memori per proses (`lib/cache/ttl-cache.ts`) **hanya** untuk hasil mahal yang sama untuk semua pengguna satu desa
   dan boleh basi puluhan detik. PM2 menjalankan 8 worker: cache tidak dibagi antarproses, jadi jangan dipakai untuk keputusan izin.
 
@@ -78,8 +80,34 @@ proxy_cache_path /var/cache/nginx/tenant levels=1:2 keys_zone=tenant:20m max_siz
 #   proxy_cache_bypass $http_authorization $cookie_next_auth_session_token;
 ```
 
-## Sisa pekerjaan
+## Lapisan data klien
 
-- Guard API 2 query/request (lihat Prinsip). `findMany` tanpa `take` yang tersisa: `arsip/page.tsx`, `galeri-desa/page.tsx`,
-  `ukm/page.tsx`, `api/digital-archives`, `api/announcements`, `api/citizen-reports`, `api/forum-threads`, `api/ukm-products`.
-- Klien: SWR/TanStack Query, `next/dynamic` untuk recharts/xlsx/tiptap, pindahkan CSS `driver.js` dari root layout.
+`lib/client/fetch-cache.ts`: dedupe GET serentak + cache memori per-tab **opt-in** (`ttlMs`/`staleMs`) dengan stale-while-revalidate.
+Cache dikunci per akun (`setFetchCacheScope` di `AppLayoutClient`, dikosongkan saat login/logout/ganti akun; respons akun lama yang
+terlambat tidak boleh masuk). `/api/account/permissions` dan non-GET tidak pernah di-cache. `useApiGet(url, { ttlMs, staleMs })`:
+tanpa opsi perilakunya sama seperti dulu (+ dedupe serentak); `reload()` selalu ke jaringan. Dipakai di shell untuk
+`/api/app-build-id`, `/api/billing/status` (TTL 3 dtk, dilewati bila baru keluar dari `/billing`/onboarding), `/api/coop/access`.
+Belum ada halaman yang memakai opsi cache; ±190 pemanggil `fetch` lain belum dimigrasi.
+
+## Pustaka berat (lazy)
+
+Grafik recharts dimuat lewat `next/dynamic` (`ssr:false`) dengan `Skeleton` setinggi grafik asli: `dashboard/_components/DashboardCharts`,
+`statistik/_components/StatistikCharts`, `keuangan/_components/tabs/KeuanganCharts`, `mitra/komisi/_components/KomisiTypeChart`.
+xlsx di klien dimuat lewat `await import("xlsx")` (impor warga, IDM); route server tetap statis. CSS tur driver.js hanya dimuat di
+layout `(app)`. **Aturan:** jangan impor nilai dari barrel `lib/gis/map` di komponen non-lazy (menyeret maplibre ke bundel awal).
+
+## Daftar & batas pengaman
+
+`lib/http/list-cap.ts`: batas 2.000 baris yang WAJIB melapor `truncated` + `total` dan memberi tahu di UI (dipakai `/api/announcements`,
+`/api/ukm-products`). Sengaja TIDAK dibatasi karena klien mencari/menghitung statistik atas seluruh daftar (memotongnya menyembunyikan
+data): `/api/citizen-reports`, `/api/forum-threads`, halaman server `arsip`, `galeri-desa`, `ukm`. Mengubahnya butuh pencarian +
+agregat sisi server dan uji klik.
+
+## Sisa pekerjaan / temuan terbuka
+
+- Daftar warga di formulir PKK hanya 200 warga pertama (`/api/residents?pageSize=200`): desa >200 warga tidak bisa memilih sisanya;
+  perlu pemilih warga yang bisa dicari (`components/app/ResidentPicker`).
+- `app/api/digital-archives`: `parseInt` pada `take`/`skip` bisa `NaN` → 500 (pakai `parsePageParams`).
+- CSS peta (`maplibre-gl.css`, `mapbox-gl-draw.css`) hanya di `app/globals.css` yang impornya dikomentari di root layout: periksa tampilan peta.
+- `motion` (29 berkas): `LazyMotion` + `m` dapat memangkas runtime; `components/ui/chart.tsx` tidak dipakai (kode mati).
+- Nginx (bagian di atas) belum diterapkan.

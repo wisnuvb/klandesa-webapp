@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { RegionalAppShell } from "@/components/layout/RegionalAppShell";
@@ -15,6 +15,7 @@ import { isRegionalAccount } from "@/lib/regional-session";
 import { isPartnerAccount } from "@/lib/partner-session";
 import { isPlatformAccount } from "@/lib/platform-session";
 import { resolveAreaRedirect, signInUrl } from "@/lib/auth/area-redirect";
+import { fetchJsonDeduped, setFetchCacheScope } from "@/lib/client/fetch-cache";
 import { AppShell } from "./AppShell";
 
 /**
@@ -31,6 +32,16 @@ export function AppLayoutClient({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
 
   const isAuthRoute = pathname.startsWith("/auth");
+
+  // Identitas sesi (jenis akun + id) menjadi "scope" cache klien. Berubah (login/logout/ganti akun) -> cache & dedupe
+  // dikosongkan. Layout effect (bukan useEffect) agar jalan SEBELUM effect pemuat data milik anak pada commit yang sama,
+  // jadi tidak ada fetch akun baru yang membaca cache akun lama. Belum masuk/memuat -> scope kosong.
+  const sessionUser = session?.user as { id?: string; accountType?: string } | undefined;
+  const cacheScope =
+    status === "authenticated" && sessionUser?.id ? `${sessionUser.accountType ?? "village"}:${sessionUser.id}` : "";
+  useLayoutEffect(() => {
+    setFetchCacheScope(cacheScope);
+  }, [cacheScope]);
 
   const redirectTo =
     isAuthRoute || status === "loading"
@@ -64,9 +75,10 @@ function useBuildId(): string {
   const [buildId, setBuildId] = useState("dev");
   useEffect(() => {
     let alive = true;
-    fetch("/api/app-build-id", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { buildId?: string } | null) => {
+    // Lewat util dedupe; UpdateAvailableNotice memakai build id ini sebagai basis dan tidak meminta ulang saat muat.
+    fetchJsonDeduped<{ buildId?: string }>("/api/app-build-id")
+      .then((r) => (r.ok ? r.body : null))
+      .then((d) => {
         if (alive && d?.buildId) setBuildId(d.buildId);
       })
       .catch(() => {
