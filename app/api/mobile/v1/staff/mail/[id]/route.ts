@@ -4,7 +4,7 @@ import { mobileError } from "@/lib/mobile/context";
 import { requireStaff } from "@/lib/mobile/staff";
 import { findIssuedLetter } from "@/lib/mobile/mail-data";
 import { maskNik } from "@/lib/mobile/mail-logic";
-import { roleCan, normalizeVillageRole } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const g = await requireStaff(req, "mail", "read");
@@ -32,6 +32,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     resident: resident ? { address: resident.address, rt: resident.rt, rw: resident.rw, hamlet: resident.hamlet, birthDate: resident.birthDate, birthplace: resident.birthplace, occupation: resident.occupation } : null,
     letterIssued: !!letter,
     waitingRt: r.rtStatus === "pending", rtStatus: r.rtStatus, rtNote: r.rtNote,
-    canDecide: r.status === "pending" && r.rtStatus !== "pending" && roleCan("mail", "update", normalizeVillageRole(ctx.role)),
+    canDecide: r.status === "pending" && r.rtStatus !== "pending" && roleCan("mail", "update", ctx),
   });
 }

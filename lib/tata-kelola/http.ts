@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { normalizeVillageRole, roleCan, type PermissionAction, type PermissionResource } from "@/lib/permissions";
+import { roleCan, type PermissionAction, type PermissionActor, type PermissionResource } from "@/lib/permissions";
 import type { Result } from "@/lib/form-input";
 
 export function failResponse(r: Extract<Result<unknown>, { ok: false }>) {
@@ -9,9 +9,8 @@ export function failResponse(r: Extract<Result<unknown>, { ok: false }>) {
 export const parseIntId = (raw: string): number | null => (/^\d{1,10}$/.test(raw) && Number(raw) > 0 ? Number(raw) : null);
 
 /** Izin tiap aksi untuk peran pengguna, dikirim ke layar agar tombol yang tak berlaku disembunyikan. */
-export function can(resource: PermissionResource, role: string, actions: PermissionAction[]): Record<PermissionAction, boolean> {
-  const r = normalizeVillageRole(role);
-  return Object.fromEntries(actions.map((a) => [a, roleCan(resource, a, r)])) as Record<PermissionAction, boolean>;
+export function can(resource: PermissionResource, who: PermissionActor, actions: PermissionAction[]): Record<PermissionAction, boolean> {
+  return Object.fromEntries(actions.map((a) => [a, roleCan(resource, a, who)])) as Record<PermissionAction, boolean>;
 }
 
 export const denied = (msg: string) => NextResponse.json({ error: msg }, { status: 403 });

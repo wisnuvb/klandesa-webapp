@@ -142,7 +142,7 @@ async function loadCoopApiContextBase(req: NextRequest): Promise<
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { villageId: true, isActive: true },
+    select: { villageId: true, isActive: true, role: true },
   });
   if (!dbUser?.isActive || dbUser.villageId !== village.id) {
     return {
@@ -156,7 +156,8 @@ async function loadCoopApiContextBase(req: NextRequest): Promise<
     ctx: {
       village,
       userId,
-      villageRole: session?.user?.role,
+      // Peran dari DB, bukan JWT (JWT bisa usang hingga 30 hari setelah peran diturunkan).
+      villageRole: dbUser.role,
     },
   };
 }

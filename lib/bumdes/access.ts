@@ -2,7 +2,7 @@ import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
 import type { Bumdes } from "@prisma/client";
 import { requireVillagePermissionResponse } from "@/lib/access-policy";
-import { normalizeVillageRole, roleCan } from "@/lib/permissions";
+import { parsePermissionOverrides, roleCan, type PermissionActor } from "@/lib/permissions";
 
 export function isVillageBumdesElevated(villageRole?: string | null): boolean {
   const r = String(villageRole ?? "").toLowerCase();
@@ -16,9 +16,24 @@ export function canReadBumdesModule(villageRole: string | undefined): boolean {
   return r === "secretary" || r === "staff";
 }
 
-/** Kelola profil, unit, transaksi. Admin & kepala desa. */
-export function canManageBumdes(villageRole: string | undefined): boolean {
-  return isVillageBumdesElevated(villageRole);
+type BumdesWho = string | null | undefined | PermissionActor;
+
+const roleOf = (who: BumdesWho): string | undefined =>
+  typeof who === "object" && who !== null ? (who.role ?? undefined) : (who ?? undefined);
+
+/**
+ * Kelola profil, unit, transaksi. Admin & kepala desa (bawaan). Bila admin menyesuaikan izin BUMDes sebuah akun,
+ * penyesuaian itu yang berlaku: kepala desa yang izin BUMDes-nya disesuaikan harus punya "create" untuk mengelola.
+ */
+export function canManageBumdes(who: BumdesWho): boolean {
+  const role = roleOf(who);
+  if (role === "admin") return true;
+  if (!isVillageBumdesElevated(role)) return false;
+  if (typeof who === "object" && who !== null) {
+    const o = parsePermissionOverrides(who.permissionOverrides);
+    if (o.grant?.bumdes || o.deny?.bumdes) return roleCan("bumdes", "create", who);
+  }
+  return true;
 }
 
 export function requireBumdesReadResponse(
@@ -35,7 +50,7 @@ export function requireBumdesReadResponse(
 export function requireBumdesManageResponse(
   session: Session | null,
 ): NextResponse | null {
-  if (canManageBumdes(session?.user?.role)) return null;
+  if (canManageBumdes(session?.user)) return null;
   return requireVillagePermissionResponse(session, "bumdes", "create");
 }
 
@@ -43,14 +58,16 @@ export function requireBumdesManageResponse(
  * Varian berbasis peran dari DATABASE (ctx.dbUser.role), bukan klaim JWT sesi: admin yang diturunkan kehilangan akses seketika,
  * bukan menunggu token kedaluwarsa.
  */
-export function requireBumdesReadForRole(role: string | null | undefined): NextResponse | null {
-  if (!roleCan("bumdes", "read", normalizeVillageRole(role)) || !canReadBumdesModule(role ?? undefined)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+export function requireBumdesReadForRole(who: BumdesWho): NextResponse | null {
+  const actor: PermissionActor = typeof who === "object" && who !== null ? who : { role: who };
+  if (!roleCan("bumdes", "read", actor) || !canReadBumdesModule(roleOf(who))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return null;
 }
 
-export function requireBumdesManageForRole(role: string | null | undefined): NextResponse | null {
-  if (canManageBumdes(role ?? undefined)) return null;
-  return roleCan("bumdes", "create", normalizeVillageRole(role)) ? null : NextResponse.json({ error: "Forbidden" }, { status: 403 });
+export function requireBumdesManageForRole(who: BumdesWho): NextResponse | null {
+  if (canManageBumdes(who)) return null;
+  const actor: PermissionActor = typeof who === "object" && who !== null ? who : { role: who };
+  return roleCan("bumdes", "create", actor) ? null : NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
 export async function fetchBumdesForVillage(villageId: number): Promise<Bumdes | null> {

@@ -186,6 +186,8 @@ const SUBSCRIPTION_EXEMPT_PREFIXES = [
   "/api/auth",
   // Tandai dibaca bukan perubahan data desa; tetap boleh saat trial/grace mode baca saja (rute memeriksa keterbacaan sendiri).
   "/api/notifications/read",
+  // Ganti kata sandi sendiri: urusan keamanan akun, tidak boleh ikut terkunci saat langganan berakhir.
+  "/api/account/password",
 ];
 
 export function isSubscriptionExemptPath(pathname: string): boolean {

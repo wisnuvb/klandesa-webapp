@@ -1,4 +1,5 @@
 import { getApiSession } from "@/lib/api-session";
+import { sessionWithFreshPermissions } from "@/lib/rbac/fresh-session";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createHash, timingSafeEqual } from "node:crypto";
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
     if (!resolved.ok) return resolved.response;
     const { village, userId } = resolved;
 
-    const session = await getApiSession(req);
+    const session = await sessionWithFreshPermissions(await getApiSession(req));
     const createPermErr = requireVillagePermissionResponse(
       session,
       "finance",
@@ -228,7 +229,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const session = await getApiSession(req);
+    const session = await sessionWithFreshPermissions(await getApiSession(req));
     const updatePermErr = requireVillagePermissionResponse(
       session,
       "finance",

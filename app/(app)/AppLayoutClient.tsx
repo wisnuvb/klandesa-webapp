@@ -9,6 +9,7 @@ import { CooperativeNavProvider } from "@/components/providers/CooperativeNavPro
 import { AppDialogProvider } from "@/components/providers/AppDialogProvider";
 import { PaymentProvider } from "@/components/billing/PaymentProvider";
 import { isRegionalAccount } from "@/lib/regional-session";
+import { PageAccessGuard } from "@/components/permissions/PageAccessGuard";
 import { AppShell } from "./AppShell";
 
 /**
@@ -49,7 +50,9 @@ export function AppLayoutClient({
         ) : (
           <CooperativeNavProvider>
             <CooperativeNavGate />
-            <AppShell buildId={buildId}>{children}</AppShell>
+            <AppShell buildId={buildId}>
+              <PageAccessGuard>{children}</PageAccessGuard>
+            </AppShell>
           </CooperativeNavProvider>
         )}
       </PaymentProvider>

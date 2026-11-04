@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const { ctx } = guard;
     const { sp, page, pageSize, search } = listParams(req);
     const list = await listProposals(prisma, ctx.village.id, { status: sp.get("status") ?? undefined, kind: sp.get("kind") ?? undefined, stale: sp.get("stale") === "1", search, page, pageSize });
-    return NextResponse.json({ ...list, can: can("dtsen_usulan", ctx.dbUser.role, ["create", "update", "delete"]) }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ...list, can: can("dtsen_usulan", ctx.dbUser, ["create", "update", "delete"]) }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("GET /api/dtsen/usulan error:", e);
     return NextResponse.json({ error: "Gagal memuat usulan DTSEN" }, { status: 500 });

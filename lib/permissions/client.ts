@@ -3,4 +3,5 @@ export * from "./roles";
 export * from "./resources";
 export * from "./actions";
 export * from "./matrix";
+export * from "./overrides";
 export * from "./can";

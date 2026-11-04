@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
-import { roleCan, normalizeVillageRole } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 
 /** Antrean pendaftaran warga yang menunggu persetujuan (mode desa "approval"). */
 export async function GET(req: NextRequest) {
   const loaded = await requireMobileContext(req, { allow: ["staff"] });
   if (!loaded.ok) return loaded.response;
   const { ctx } = loaded;
-  if (!roleCan("residents", "read", normalizeVillageRole(ctx.role))) {
+  if (!roleCan("residents", "read", ctx)) {
     return mobileError("FORBIDDEN", "Anda tidak punya akses.", 403);
   }
   const rows = await prisma.citizenAccount.findMany({

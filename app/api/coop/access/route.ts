@@ -12,6 +12,7 @@ import {
   usesCooperativeOnlyNav,
 } from "@/lib/coop/access";
 import { resolveVillageFromSession } from "@/lib/coop/resolve-village";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const session = await getApiSession(req);
@@ -33,7 +34,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const villageRole = session?.user?.role;
+  // Peran dari DB, bukan JWT (JWT bisa usang hingga 30 hari setelah peran diturunkan).
+  const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true, villageId: true } });
+  if (!dbUser?.isActive || dbUser.villageId !== village.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const villageRole = dbUser.role;
   const cooperative = await fetchCooperativeForVillage(village.id);
   const membership = cooperative
     ? await fetchMembershipForUser(cooperative.id, userId)

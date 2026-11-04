@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const guard = await requireVillageApiContext(req);
     if (!guard.ok) return guard.response;
     const { ctx } = guard;
-    if (!can("produk_hukum", ctx.dbUser.role, ["update"]).update) return denied("Peran Anda tidak berwenang mencabut produk hukum.");
+    if (!can("produk_hukum", ctx.dbUser, ["update"]).update) return denied("Peran Anda tidak berwenang mencabut produk hukum.");
     const id = parseIntId((await params).id);
     if (!id) return NextResponse.json({ error: "Produk hukum tidak ditemukan" }, { status: 404 });
     const r = await revokeLegal(prisma, { villageId: ctx.village.id, id, input: await req.json().catch(() => null) });

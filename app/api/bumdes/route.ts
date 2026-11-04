@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const loaded = await loadBumdesApiContext(req);
   if (!loaded.ok) return loaded.response;
 
-  const manageErr = requireBumdesManageForRole(loaded.ctx.role);
+  const manageErr = requireBumdesManageForRole(loaded.ctx.session.user);
   if (manageErr) return manageErr;
 
   const { village } = loaded.ctx;
@@ -90,7 +90,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "BUMDes belum dibuat" }, { status: 404 });
   }
 
-  const manageErr = requireBumdesManageForRole(loaded.ctx.role);
+  const manageErr = requireBumdesManageForRole(loaded.ctx.session.user);
   if (manageErr) return manageErr;
 
   const body = await req.json().catch(() => ({}));

@@ -17,6 +17,6 @@ export async function GET(req: NextRequest) {
     const pageSize = Math.max(1, Math.min(100, Number(sp.get("pageSize")) || 25));
     const search = sp.get("search")?.trim().slice(0, 100) || undefined;
     const list = await listLand(prisma, ctx.village.id, { search, page, pageSize });
-    return NextResponse.json({ ...list, can: can("aset_desa", ctx.dbUser.role, ["create", "update"]), terms: { rightKinds: RIGHT_KINDS, usages: USAGES } });
+    return NextResponse.json({ ...list, can: can("aset_desa", ctx.dbUser, ["create", "update"]), terms: { rightKinds: RIGHT_KINDS, usages: USAGES } });
   });
 }

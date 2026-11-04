@@ -4,7 +4,7 @@ import { mobileError } from "@/lib/mobile/context";
 import { requireStaff } from "@/lib/mobile/staff";
 import { maskNik } from "@/lib/mobile/mail-logic";
 import { REPORT_TRANSITIONS, canRespondToReport, categoryLabel, describeReport, parseImages } from "@/lib/mobile/report-logic";
-import { roleCan, normalizeVillageRole } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const g = await requireStaff(req, "citizen_reports", "read");
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const resident = r.residentId
     ? await prisma.resident.findUnique({ where: { id: r.residentId }, select: { rt: true, rw: true, hamlet: true, address: true, phone: true } })
     : null;
-  const canAct = roleCan("citizen_reports", "update", normalizeVillageRole(ctx.role));
+  const canAct = roleCan("citizen_reports", "update", ctx);
   const view = describeReport(r.status, r.responses.length > 0);
 
   return NextResponse.json({

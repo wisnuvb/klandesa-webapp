@@ -7,6 +7,8 @@ import {
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { pickSummary } from "@/lib/audit/diff";
+import { roleCan } from "@/lib/permissions";
+import { createOfficialAccount, isEmailTakenAnywhere, normalizeAccountEmail } from "@/lib/rbac/accounts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function normalizeStatus(status?: string) {
@@ -82,6 +84,7 @@ export async function GET(req: NextRequest) {
       status: o.status,
       education: o.education,
       certification: o.certification,
+      hasAccount: o.userId != null,
       position: o.position
         ? { id: o.position.id, name: o.position.name, level: o.position.level }
         : null,
@@ -132,7 +135,23 @@ export async function POST(req: NextRequest) {
       sk_date,
       start_date,
       status,
+      account,
     } = body;
+
+    // Akun login opsional: { email, role }. Hanya Admin (izin rbac) yang boleh; diperiksa SEBELUM perangkat dibuat.
+    let accountEmail: string | null = null;
+    if (account && typeof account === "object") {
+      if (!roleCan("rbac", "create", loaded.ctx.dbUser)) {
+        return NextResponse.json({ error: "Hanya Admin yang dapat membuat akun login." }, { status: 403 });
+      }
+      accountEmail = normalizeAccountEmail((account as { email?: unknown }).email);
+      if (!accountEmail) {
+        return NextResponse.json({ error: "Email akun tidak valid." }, { status: 400 });
+      }
+      if (await isEmailTakenAnywhere(prisma, accountEmail)) {
+        return NextResponse.json({ error: "Email ini sudah dipakai akun lain." }, { status: 409 });
+      }
+    }
 
     // Handle both id_number and nik
     const nikValue = id_number || nik;
@@ -271,7 +290,34 @@ export async function POST(req: NextRequest) {
         : null,
     };
 
-    return NextResponse.json(mapped, { status: 201 });
+    let accountResult:
+      | { created: true; email: string; role: string; tempPassword: string }
+      | { created: false; error: string }
+      | undefined;
+    if (accountEmail) {
+      const r = await createOfficialAccount(prisma, {
+        villageId: village.id,
+        officialId: official.id,
+        email: accountEmail,
+        role: (account as { role?: unknown }).role,
+      });
+      if (r.ok) {
+        accountResult = { created: true, email: r.data.email, role: r.data.role, tempPassword: r.data.tempPassword };
+        await auditWeb(req, loaded.ctx, "create", "users", r.data.userId, {
+          officialId: official.id,
+          email: r.data.email,
+          role: r.data.role,
+        });
+      } else {
+        // Perangkat sudah tersimpan; akun bisa dibuat ulang dari halaman Akses Pengguna.
+        accountResult = { created: false, error: r.error };
+      }
+    }
+
+    return NextResponse.json(
+      accountResult ? { ...mapped, account: accountResult } : mapped,
+      { status: 201, headers: accountResult ? { "Cache-Control": "no-store" } : undefined },
+    );
   } catch (err) {
     console.error("POST /api/officials error:", err);
     return NextResponse.json(

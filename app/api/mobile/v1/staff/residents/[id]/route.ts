@@ -4,7 +4,7 @@ import { mobileError } from "@/lib/mobile/context";
 import { audit, requireStaff } from "@/lib/mobile/staff";
 import { maskNik } from "@/lib/mobile/mail-logic";
 import { ageFromBirthDate } from "@/lib/mobile/resident-logic";
-import { roleCan, normalizeVillageRole } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 
 /** Ringkasan penduduk. Hanya data yang dibutuhkan pelayanan; data kesehatan/ekonomi sengaja tidak dikirim ke HP. */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ? await prisma.resident.findMany({ where: { villageId: ctx.villageId, kk: r.kk, id: { not: r.id } }, select: { id: true, name: true, familyRole: true, birthDate: true }, orderBy: { birthDate: "asc" }, take: 20 })
     : [];
 
-  const canManage = roleCan("residents", "update", normalizeVillageRole(ctx.role));
+  const canManage = roleCan("residents", "update", ctx);
   void audit(ctx, req, "view", "residents", id);
   return NextResponse.json({
     id: r.id, name: r.name, nikMasked: maskNik(r.nik), kkMasked: r.kk ? maskNik(r.kk) : null, gender: r.gender, age: ageFromBirthDate(r.birthDate),

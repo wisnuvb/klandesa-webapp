@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { permissions } from "@/lib/apbdes/http";
 import type { VillageApiContext } from "@/lib/api-village-context";
-import { normalizeVillageRole, roleCan, type PermissionAction } from "@/lib/permissions";
+import { roleCan, type PermissionAction } from "@/lib/permissions";
 
 /** Izin aksi pengguna pada resource "keamanan" (dikirim ke layar agar tombol yang tak berlaku disembunyikan). */
 export const keamananCan = (ctx: VillageApiContext) => permissions(ctx, "keamanan");
 
 /** Baca rinci (nama pihak mediasi tanpa penyamaran, telepon anggota) = aksi export. */
-export const hasDetail = (ctx: VillageApiContext): boolean => roleCan("keamanan", "export", normalizeVillageRole(ctx.dbUser.role));
+export const hasDetail = (ctx: VillageApiContext): boolean => roleCan("keamanan", "export", ctx.dbUser);
 
 /** Kunci catatan audit. Detail audit tidak memuat nama pihak, uraian, atau isi kesepakatan. */
 export const AUDIT = {
@@ -33,5 +33,5 @@ export const AUDIT = {
  * jadi tetap menolak walau pemetaan jalur gagal cocok. Mengembalikan respons 403 atau null.
  */
 export function denyUnless(ctx: VillageApiContext, action: PermissionAction): NextResponse | null {
-  return roleCan("keamanan", action, normalizeVillageRole(ctx.dbUser.role)) ? null : NextResponse.json({ error: "Anda tidak berhak melakukan aksi ini." }, { status: 403 });
+  return roleCan("keamanan", action, ctx.dbUser) ? null : NextResponse.json({ error: "Anda tidak berhak melakukan aksi ini." }, { status: 403 });
 }

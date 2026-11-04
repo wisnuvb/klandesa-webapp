@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { VillageApiContext } from "@/lib/api-village-context";
-import { normalizeVillageRole, roleCan, type PermissionAction, type PermissionResource } from "@/lib/permissions";
+import { roleCan, type PermissionAction, type PermissionResource } from "@/lib/permissions";
 
 export { failResponse, parseIntId } from "@/lib/tata-kelola/http";
 
@@ -11,8 +11,7 @@ export const yearOf = (raw: unknown, fallback = new Date().getUTCFullYear()): nu
 
 /** Izin aksi untuk peran pengguna (dikirim ke layar agar tombol yang tak berlaku disembunyikan). */
 export const permissions = (ctx: VillageApiContext, resource: PermissionResource = "apbdes"): Record<PermissionAction, boolean> => {
-  const role = normalizeVillageRole(ctx.dbUser.role);
-  return Object.fromEntries((["read", "create", "update", "delete", "export", "approve"] as PermissionAction[]).map((a) => [a, roleCan(resource, a, role)])) as Record<PermissionAction, boolean>;
+  return Object.fromEntries((["read", "create", "update", "delete", "export", "approve"] as PermissionAction[]).map((a) => [a, roleCan(resource, a, ctx.dbUser)])) as Record<PermissionAction, boolean>;
 };
 
 /** Membungkus isi rute: galat tak terduga menjadi 500 berpesan (guard tetap dipanggil eksplisit di setiap rute). */

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const guard = await requireVillageApiContext(req);
     if (!guard.ok) return guard.response;
     const { ctx } = guard;
-    if (!can("dtsen_usulan", ctx.dbUser.role, ["update"]).update) return denied("Peran Anda tidak berwenang memproses usulan DTSEN.");
+    if (!can("dtsen_usulan", ctx.dbUser, ["update"]).update) return denied("Peran Anda tidak berwenang memproses usulan DTSEN.");
     const body = await req.json().catch(() => null);
     const r = await transition(prisma, { villageId: ctx.village.id, input: body });
     if (!r.ok) return failResponse(r);

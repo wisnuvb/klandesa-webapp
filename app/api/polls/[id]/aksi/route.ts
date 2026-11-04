@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const guard = await requireVillageApiContext(req);
     if (!guard.ok) return guard.response;
     const { ctx } = guard;
-    if (!can("polls", ctx.dbUser.role, ["update"]).update) return denied("Peran Anda tidak berwenang menerbitkan atau menutup polling.");
+    if (!can("polls", ctx.dbUser, ["update"]).update) return denied("Peran Anda tidak berwenang menerbitkan atau menutup polling.");
     const id = parseIntId((await params).id);
     if (!id) return NextResponse.json({ error: "Polling tidak ditemukan" }, { status: 404 });
     const body = (await req.json().catch(() => null)) as { action?: unknown } | null;

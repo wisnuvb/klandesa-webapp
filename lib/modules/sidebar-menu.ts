@@ -17,6 +17,7 @@ import {
   Monitor,
   RefreshCw,
   Settings2,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Sprout,
@@ -26,7 +27,7 @@ import {
   Store,
   Heart,
 } from "lucide-react";
-import { getAllowedActions } from "@/lib/permissions/matrix";
+import { getAllowedActions, type PermissionActor } from "@/lib/permissions/matrix";
 import { normalizeVillageRole, type VillageRole } from "@/lib/permissions/roles";
 import type { PermissionResource } from "@/lib/permissions/resources";
 import { getNavModules, type ModuleDefinition } from "./registry";
@@ -77,6 +78,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   ukm: ShoppingBag,
   website: Monitor,
   "pengaturan-desa": Settings2,
+  "akses-pengguna": ShieldCheck,
   billing: Wallet,
 };
 
@@ -91,8 +93,8 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
   pengaturan: Settings2,
 };
 
-function canReadModule(role: VillageRole, permission: PermissionResource): boolean {
-  return getAllowedActions(permission, role).includes("read");
+function canReadModule(who: VillageRole | PermissionActor, permission: PermissionResource): boolean {
+  return getAllowedActions(permission, who).includes("read");
 }
 
 function resolveIcon(moduleId: string, group?: string): LucideIcon {
@@ -105,7 +107,7 @@ function resolveIcon(moduleId: string, group?: string): LucideIcon {
 
 function buildGroupedItems(
   modules: ModuleDefinition[],
-  role: VillageRole,
+  role: VillageRole | PermissionActor,
 ): SidebarMenuItem[] {
   const visible = modules
     .filter((m) => canReadModule(role, m.permission))
@@ -152,13 +154,18 @@ function buildGroupedItems(
 
 type BuildVillageSidebarOptions = {
   role?: string | null;
+  /** Penyesuaian izin per akun (dari provider izin). */
+  permissionOverrides?: unknown;
   includeKoperasi?: boolean;
 };
 
 export function buildVillageSidebarMenu(
   options: BuildVillageSidebarOptions = {},
 ): SidebarMenuItem[] {
-  const role = normalizeVillageRole(options.role);
+  const role: PermissionActor = {
+    role: normalizeVillageRole(options.role),
+    permissionOverrides: options.permissionOverrides,
+  };
   let modules = getNavModules();
 
   if (!options.includeKoperasi) {
@@ -170,7 +177,7 @@ export function buildVillageSidebarMenu(
 
 export function filterSidebarByPermission(
   items: SidebarMenuItem[],
-  role: VillageRole,
+  role: VillageRole | PermissionActor,
   permissionById: Record<string, PermissionResource>,
 ): SidebarMenuItem[] {
   return items

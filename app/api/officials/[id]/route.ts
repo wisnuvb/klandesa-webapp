@@ -1,6 +1,7 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { diffRecord, pickSummary } from "@/lib/audit/diff";
+import { deactivateLinkedAccount } from "@/lib/rbac/accounts";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -150,6 +151,11 @@ export async function PATCH(
       include: { position: true },
     });
 
+    // Perangkat tidak lagi aktif (berhenti/pensiun) -> akun loginnya ikut dinonaktifkan.
+    if (updated.status !== "active" && existing.status === "active") {
+      await deactivateLinkedAccount(prisma, village.id, updated.userId);
+    }
+
     await auditWeb(
       req,
       loaded.ctx,
@@ -214,7 +220,7 @@ export async function DELETE(
 
     const existing = await prisma.official.findUnique({
       where: { id: officialId },
-      select: { id: true, villageId: true, positionId: true, status: true },
+      select: { id: true, villageId: true, positionId: true, status: true, userId: true },
     });
 
     if (!existing || existing.villageId !== village.id) {
@@ -225,6 +231,7 @@ export async function DELETE(
     }
 
     await prisma.official.delete({ where: { id: officialId } });
+    await deactivateLinkedAccount(prisma, village.id, existing.userId);
 
     await auditWeb(
       req,

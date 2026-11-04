@@ -3,7 +3,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import { attempt, failResponse, forbidden, parseIntId } from "@/lib/apbdes/http";
-import { normalizeVillageRole, roleCan } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 import { activateAgreement, closeAgreement } from "@/lib/aset-desa/land-service";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -17,7 +17,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const id = parseIntId((await params).id);
     if (!id) return NextResponse.json({ error: "Perjanjian tidak ditemukan" }, { status: 404 });
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-    const role = normalizeVillageRole(ctx.dbUser.role);
     const action = body?.action;
     if (action === "aktifkan") {
       const r = await activateAgreement(prisma, { villageId: ctx.village.id, userId: ctx.userId ?? null, id });
@@ -26,7 +25,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       return NextResponse.json({ success: true, ...r.data });
     }
     if (action === "akhiri" || action === "batalkan") {
-      if (!roleCan("aset_desa", "update", role)) return forbidden("Anda tidak berwenang mengakhiri perjanjian.");
+      if (!roleCan("aset_desa", "update", ctx.dbUser)) return forbidden("Anda tidak berwenang mengakhiri perjanjian.");
       const mode = action === "akhiri" ? "SELESAI" : "BATAL";
       const r = await closeAgreement(prisma, { villageId: ctx.village.id, id, mode, reason: body?.reason, endedOn: body?.endedOn });
       if (!r.ok) return failResponse(r);

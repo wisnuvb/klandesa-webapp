@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const { ctx } = guard;
     const { sp, page, pageSize, search, year } = listParams(req);
     const list = await listLegal(prisma, ctx.village.id, { type: sp.get("type") ?? undefined, status: sp.get("status") ?? undefined, year, search, page, pageSize });
-    return NextResponse.json({ ...list, can: can("produk_hukum", ctx.dbUser.role, ["create", "update", "delete"]), types: LEGAL_TYPE_LABEL });
+    return NextResponse.json({ ...list, can: can("produk_hukum", ctx.dbUser, ["create", "update", "delete"]), types: LEGAL_TYPE_LABEL });
   } catch (e) {
     console.error("GET /api/tata-kelola/produk-hukum error:", e);
     return NextResponse.json({ error: "Gagal memuat produk hukum" }, { status: 500 });

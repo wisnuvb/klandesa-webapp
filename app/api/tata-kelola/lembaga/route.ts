@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const { ctx } = guard;
     return NextResponse.json({
       institutions: await listInstitutions(prisma, ctx.village.id),
-      can: can("lembaga_desa", ctx.dbUser.role, ["create", "update", "delete"]),
+      can: can("lembaga_desa", ctx.dbUser, ["create", "update", "delete"]),
       types: INSTITUTION_TYPE_LABEL,
       roles: ROLE_LABEL,
     });

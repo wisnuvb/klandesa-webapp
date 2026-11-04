@@ -4,7 +4,7 @@ import { auditWeb } from "@/lib/audit/web-audit";
 import { prisma } from "@/lib/prisma";
 import { disposeItem } from "@/lib/aset-desa/service";
 import { failResponse, parseIntId } from "@/lib/aset-desa/http";
-import { normalizeVillageRole, roleCan } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!guard.ok) return guard.response;
     const { ctx } = guard;
     // Rute ini dipetakan sebagai "create" oleh pemetaan izin; menghapus dari buku butuh izin "delete".
-    if (!roleCan("aset_desa", "delete", normalizeVillageRole(ctx.dbUser.role))) {
+    if (!roleCan("aset_desa", "delete", ctx.dbUser)) {
       return NextResponse.json({ error: "Peran Anda tidak berwenang menghapus barang dari buku inventaris." }, { status: 403 });
     }
     const id = parseIntId((await params).id);

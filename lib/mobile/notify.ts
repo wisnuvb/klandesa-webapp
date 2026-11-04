@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { roleCan, normalizeVillageRole, type PermissionResource } from "@/lib/permissions";
+import { roleCan, type PermissionResource } from "@/lib/permissions";
 import { sendPushToAccount } from "./push";
 import type { MobileAccountType } from "./tokens";
 
@@ -95,8 +95,8 @@ export async function notifyVillageStaff(
   n: NotifyInput,
 ): Promise<void> {
   try {
-    const users = await prisma.user.findMany({ where: { villageId, isActive: true }, select: { id: true, role: true }, take: 50 });
-    const targets = users.filter((u) => roleCan(resource, "update", normalizeVillageRole(u.role))).slice(0, 15);
+    const users = await prisma.user.findMany({ where: { villageId, isActive: true }, select: { id: true, role: true, permissionOverrides: true }, take: 50 });
+    const targets = users.filter((u) => roleCan(resource, "update", u)).slice(0, 15);
     await Promise.all(targets.map((u) => notifyAccount("staff", u.id, villageId, n)));
   } catch (e) {
     console.error("notifyVillageStaff failed:", e);

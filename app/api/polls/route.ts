@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const guard = await requireVillageApiContext(req);
     if (!guard.ok) return guard.response;
     const { ctx } = guard;
-    return NextResponse.json({ polls: await listPolls(prisma, ctx.village.id), can: can("polls", ctx.dbUser.role, ["create", "update", "delete"]), limits: POLL_LIMITS, statusLabel: STATUS_LABEL }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ polls: await listPolls(prisma, ctx.village.id), can: can("polls", ctx.dbUser, ["create", "update", "delete"]), limits: POLL_LIMITS, statusLabel: STATUS_LABEL }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("GET /api/polls error:", e);
     return NextResponse.json({ error: "Gagal memuat polling" }, { status: 500 });

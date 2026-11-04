@@ -40,6 +40,8 @@ export const PERMISSION_RESOURCES = [
   "blt",
   "bencana",
   "keamanan",
+  /** Kelola akun & izin pengguna desa. Khusus admin; tidak dapat didelegasikan lewat penyesuaian izin. */
+  "rbac",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];

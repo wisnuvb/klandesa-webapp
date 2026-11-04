@@ -21,6 +21,8 @@ export type MobileContext = {
   accountId: number;
   villageId: number;
   role: string;
+  /** Penyesuaian izin per akun staf (dari DB). Dipakai bersama `role`: roleCan(resource, action, ctx). */
+  permissionOverrides?: unknown;
   village: {
     id: number;
     code: string;
@@ -67,15 +69,17 @@ export async function requireMobileContext(
     return { ok: false, response: mobileError("VILLAGE_INACTIVE", "Layanan digital desa sedang tidak aktif. Silakan hubungi kantor desa.", 403) };
   }
 
+  let permissionOverrides: unknown;
   if (claims.t === "staff") {
     const user = await prisma.user.findUnique({
       where: { id: claims.id },
-      select: { isActive: true, villageId: true, role: true },
+      select: { isActive: true, villageId: true, role: true, permissionOverrides: true },
     });
     if (!user || !user.isActive || user.villageId !== claims.villageId) {
       return { ok: false, response: mobileError("ACCOUNT_DISABLED", "Akun Anda tidak aktif. Hubungi admin desa.", 403) };
     }
     claims.role = user.role;
+    permissionOverrides = user.permissionOverrides;
   }
 
   if (claims.t === "citizen") {
@@ -107,6 +111,7 @@ export async function requireMobileContext(
       accountId: claims.id,
       villageId: claims.villageId,
       role: claims.role,
+      permissionOverrides,
       village: {
         id: village.id,
         code: village.code,

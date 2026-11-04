@@ -637,6 +637,17 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     sortOrder: 904,
   },
   {
+    id: "akses-pengguna",
+    label: "Akses Pengguna",
+    path: "/akses-pengguna",
+    permission: "rbac",
+    sdgGoals: [16],
+    status: "live",
+    group: "pengaturan",
+    groupLabel: "Pengaturan",
+    sortOrder: 905,
+  },
+  {
     id: "billing",
     label: "Langganan & Billing",
     path: "/billing",

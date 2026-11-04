@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const list = await listAgreements(prisma, ctx.village.id, { status: sp.get("status") ?? undefined, itemId, page, pageSize });
     return NextResponse.json({
       ...list,
-      can: { ...can("aset_desa", ctx.dbUser.role, ["create", "update", "delete"]), receive: can("apbdes", ctx.dbUser.role, ["create"]).create, revert: can("apbdes", ctx.dbUser.role, ["delete"]).delete },
+      can: { ...can("aset_desa", ctx.dbUser, ["create", "update", "delete"]), receive: can("apbdes", ctx.dbUser, ["create"]).create, revert: can("apbdes", ctx.dbUser, ["delete"]).delete },
       limits: LIMITS,
       terms: {
         kinds: AGREEMENT_KINDS,

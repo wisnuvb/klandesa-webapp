@@ -4,7 +4,11 @@ import {
   type PermissionActionSet,
 } from "./actions";
 import type { PermissionResource } from "./resources";
-import type { VillageRole } from "./roles";
+import { normalizeVillageRole, type VillageRole } from "./roles";
+import {
+  applyOverridesToActions,
+  parsePermissionOverrides,
+} from "./overrides";
 
 type RoleActionMap = Partial<
   Record<VillageRole, PermissionActionSet | PermissionAction[]>
@@ -274,6 +278,10 @@ export const VILLAGE_PERMISSION_MATRIX: Record<
     secretary: ["read", "create", "update", "delete", "export", "approve"],
     staff: ["read", "create", "update"],
   },
+  rbac: {
+    // Kelola akun & izin pengguna desa. Khusus admin; tidak bisa didelegasikan (lihat NON_DELEGABLE_RESOURCES).
+    admin: "crud",
+  },
 };
 
 function resolveActions(
@@ -284,18 +292,43 @@ function resolveActions(
   return expandActionSet(entry);
 }
 
-export function getAllowedActions(
+/** Bawaan role saja (tanpa penyesuaian per akun). */
+export function getRoleBaselineActions(
   resource: PermissionResource,
   role: VillageRole,
 ): PermissionAction[] {
-  const map = VILLAGE_PERMISSION_MATRIX[resource]?.[role];
-  return resolveActions(map);
+  return resolveActions(VILLAGE_PERMISSION_MATRIX[resource]?.[role]);
+}
+
+/** Akun yang dinilai izinnya: role + (opsional) penyesuaian per akun dari DB/sesi. */
+export type PermissionActor = {
+  role?: string | null;
+  permissionOverrides?: unknown;
+};
+
+/**
+ * Izin efektif. Menerima role saja (bawaan matriks) atau akun lengkap (role + penyesuaian).
+ * Role `admin` selalu memakai matriks penuh: penyesuaian diabaikan.
+ */
+export function getAllowedActions(
+  resource: PermissionResource,
+  who: VillageRole | PermissionActor,
+): PermissionAction[] {
+  if (typeof who === "string") return getRoleBaselineActions(resource, who);
+  const role = normalizeVillageRole(who.role);
+  const base = getRoleBaselineActions(resource, role);
+  if (role === "admin" || who.permissionOverrides == null) return base;
+  return applyOverridesToActions(
+    resource,
+    base,
+    parsePermissionOverrides(who.permissionOverrides),
+  );
 }
 
 export function roleCan(
   resource: PermissionResource,
   action: PermissionAction,
-  role: VillageRole,
+  who: VillageRole | PermissionActor,
 ): boolean {
-  return getAllowedActions(resource, role).includes(action);
+  return getAllowedActions(resource, who).includes(action);
 }

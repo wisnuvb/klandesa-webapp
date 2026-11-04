@@ -27,7 +27,14 @@ export type VillageApiContext = {
   session: Session;
   userId: number;
   village: Village;
-  dbUser: { id: number; villageId: number; isActive: boolean; role: string };
+  dbUser: {
+    id: number;
+    villageId: number;
+    isActive: boolean;
+    role: string;
+    /** Penyesuaian izin per akun (JSON mentah). Nilai efektif: roleCan(resource, action, ctx.dbUser). */
+    permissionOverrides: unknown;
+  };
 };
 
 /**
@@ -56,7 +63,13 @@ export async function requireVillageApiContext(
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, villageId: true, isActive: true, role: true },
+    select: {
+      id: true,
+      villageId: true,
+      isActive: true,
+      role: true,
+      permissionOverrides: true,
+    },
   });
   if (!dbUser) {
     return { ok: false, response: jsonUnauthorized() };
@@ -87,6 +100,11 @@ export async function requireVillageApiContext(
   ) {
     return { ok: false, response: jsonForbidden("Konteks desa tidak cocok") };
   }
+
+  // Role & penyesuaian izin selalu dari DB, bukan JWT: perubahan oleh admin berlaku pada permintaan berikutnya
+  // tanpa menunggu pengguna masuk ulang, dan pencabutan tidak bisa dilewati dengan token lama.
+  session.user.role = dbUser.role;
+  session.user.permissionOverrides = dbUser.permissionOverrides;
 
   const apiPerm = resolveApiPermission(req.nextUrl.pathname, req.method);
   if (apiPerm) {

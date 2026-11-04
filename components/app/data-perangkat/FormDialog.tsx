@@ -28,6 +28,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { EDUCATION_OPTIONS } from "@/utils/constants/user";
+import { usePermissions } from "@/hooks/use-permissions";
+import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/rbac/labels";
+import { VILLAGE_ROLES } from "@/lib/permissions/client";
+import { Switch } from "@/components/ui/switch";
+import { TempPasswordDialog, type TempCredential } from "@/components/permissions/TempPasswordDialog";
 import { AttachmentsSection } from "@/components/app/attachments/AttachmentsSection";
 import { useAttachments } from "@/components/app/attachments/useAttachments";
 
@@ -79,6 +84,13 @@ export const FormDialog: React.FC<FormDialogProps> = ({
 }) => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Akun login (opsional, khusus Admin): dibuat bersamaan dengan data perangkat.
+  const { can } = usePermissions();
+  const canCreateAccount = can("rbac", "create");
+  const [makeAccount, setMakeAccount] = useState(false);
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountRole, setAccountRole] = useState("staff");
+  const [credential, setCredential] = useState<TempCredential | null>(null);
   const att = useAttachments("OFFICIAL", null);
   const isLoading = saving || att.flushing;
 
@@ -154,6 +166,9 @@ export const FormDialog: React.FC<FormDialogProps> = ({
           sk_date: values.sk_date,
           start_date: values.start_date,
           status: values.status,
+          ...(canCreateAccount && makeAccount
+            ? { account: { email: accountEmail || values.email, role: accountRole } }
+            : {}),
         }),
       });
 
@@ -162,10 +177,22 @@ export const FormDialog: React.FC<FormDialogProps> = ({
         throw new Error(error.error || "Gagal menambahkan perangkat desa");
       }
 
-      const created = (await response.json().catch(() => null)) as { id?: number } | null;
+      const created = (await response.json().catch(() => null)) as {
+        id?: number;
+        name?: string;
+        account?: { created: true; email: string; tempPassword: string } | { created: false; error: string };
+      } | null;
       if (created?.id) await att.flushAndNotify(created.id);
 
       toast.success("Data perangkat berhasil ditambahkan");
+      if (created?.account?.created) {
+        setCredential({ email: created.account.email, password: created.account.tempPassword, name: created.name ?? values.name, reason: "created" });
+      } else if (created?.account && !created.account.created) {
+        toast.warning(`Perangkat tersimpan, tetapi akun login belum dibuat: ${created.account.error} Buat dari menu Akses Pengguna.`);
+      }
+      setMakeAccount(false);
+      setAccountEmail("");
+      setAccountRole("staff");
       setShowFormDialog(false);
       form.reset({
         name: "",
@@ -196,6 +223,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   };
 
   return (
+    <>
     <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -548,6 +576,61 @@ export const FormDialog: React.FC<FormDialogProps> = ({
               />
             </div>
 
+            {canCreateAccount && (
+              <fieldset className="mt-4 space-y-3 rounded-lg border p-3">
+                <legend className="px-1 text-sm font-medium">Akun login (opsional)</legend>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <label htmlFor="official-make-account" className="text-sm font-medium">
+                      Buat akun login untuk perangkat ini
+                    </label>
+                    <p className="text-xs text-muted-foreground">Bisa dilewati dan dibuat nanti di menu Akses Pengguna. Izin bisa disesuaikan per modul di sana.</p>
+                  </div>
+                  <Switch id="official-make-account" checked={makeAccount} onCheckedChange={setMakeAccount} />
+                </div>
+                {makeAccount && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label htmlFor="official-account-email" className="text-sm font-medium">
+                        Email untuk masuk
+                      </label>
+                      <Input
+                        id="official-account-email"
+                        type="email"
+                        inputMode="email"
+                        autoComplete="off"
+                        value={accountEmail}
+                        onChange={(e) => setAccountEmail(e.target.value)}
+                        placeholder={form.watch("email") || "nama@contoh.id"}
+                        aria-describedby="official-account-email-help"
+                      />
+                      <p id="official-account-email-help" className="text-xs text-muted-foreground">
+                        Kosongkan untuk memakai email di atas. Harus unik.
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="official-account-role" className="text-sm font-medium">
+                        Peran awal
+                      </label>
+                      <Select value={accountRole} onValueChange={setAccountRole}>
+                        <SelectTrigger id="official-account-role" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VILLAGE_ROLES.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              {ROLE_LABELS[r]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[accountRole as keyof typeof ROLE_DESCRIPTIONS]}</p>
+                    </div>
+                  </div>
+                )}
+              </fieldset>
+            )}
+
             <div className="mt-4">
               <AttachmentsSection att={att} title="Berkas SK pengangkatan" hint="Unggah salinan SK pengangkatan (PDF atau pindaian). Disimpan di Arsip Digital." />
             </div>
@@ -569,5 +652,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
         </Form>
       </DialogContent>
     </Dialog>
+    <TempPasswordDialog credential={credential} onClose={() => setCredential(null)} />
+    </>
   );
 };

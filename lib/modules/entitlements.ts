@@ -42,6 +42,7 @@ const CORE_STARTER_IDS = new Set([
   "absensi",
   "arsip",
   "pengaturan-desa",
+  "akses-pengguna",
   "billing",
   // Resource-limited modules — accessible to all tiers, capacity varies
   "keuangan",
@@ -197,7 +198,7 @@ export function resolveModuleAccess(
     };
   }
 
-  if (moduleId === "pengaturan-desa" || moduleId === "billing" || moduleId === "dashboard") {
+  if (moduleId === "pengaturan-desa" || moduleId === "akses-pengguna" || moduleId === "billing" || moduleId === "dashboard") {
     return {
       entitled: opts.subscriptionReadable,
       source: "package",

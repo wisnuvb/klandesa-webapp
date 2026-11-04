@@ -68,13 +68,13 @@ export async function GET(req: NextRequest) {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { villageId: true, isActive: true },
+    select: { villageId: true, isActive: true, role: true },
   });
   if (!dbUser?.isActive || dbUser.villageId !== village.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const villageRole = session?.user?.role;
+  const villageRole = dbUser.role; // dari DB, bukan JWT
   const cooperative = await fetchCooperativeForVillage(village.id);
 
   if (!cooperative) {

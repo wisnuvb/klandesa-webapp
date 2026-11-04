@@ -13,6 +13,49 @@ Dokumen ini menjelaskan sistem permission desa di Klandesa setelah Phase 0.
 | API auto-guard | [`lib/permissions/api-route-map.ts`](../lib/permissions/api-route-map.ts) | Map path → resource |
 | Context + guard | [`lib/api-village-context.ts`](../lib/api-village-context.ts) | `requireVillageApiContext` + permission |
 
+## Izin per akun (fleksibel) — Phase 1
+
+Role = **templat awal**. Admin dapat menyesuaikan izin tiap akun di atas bawaan role, sehingga dua staf ber-role sama bisa berbeda wewenang.
+
+```
+izin efektif = (bawaan role ∪ grant) − deny        // per resource × aksi
+```
+
+- Disimpan di `User.permissionOverrides` (JSON): `{"grant":{"finance":["create"]},"deny":{"residents":["delete"]}}`. NULL = ikut bawaan role.
+- Logika murni: [`lib/permissions/overrides.ts`](../lib/permissions/overrides.ts) (`parsePermissionOverrides`, `applyOverridesToActions`, `diffToOverrides`). Input dibersihkan: resource/aksi tak dikenal dibuang; bila aksi sama ada di grant dan deny, **deny menang**.
+- **Admin selalu penuh**: penyesuaian pada akun admin diabaikan (tidak bisa mengunci diri sendiri).
+- **Tanpa "Lihat" = tanpa akses** pada resource itu (aksi lain tidak berlaku).
+- Resource `rbac` (kelola akun) **tidak bisa didelegasikan** (`NON_DELEGABLE_RESOURCES`); hanya admin lewat bawaan role.
+- `roleCan(resource, action, who)` / `getAllowedActions` menerima `VillageRole` (bawaan matriks) **atau** akun `{ role, permissionOverrides }`. Kode baru wajib memberi akun lengkap (mis. `ctx.dbUser`, `ctx.session.user`, konteks mobile), bukan role string saja, kalau tidak penyesuaian diabaikan.
+- `requireVillageApiContext` mengisi `session.user.role` dan `session.user.permissionOverrides` **dari DB tiap permintaan** (bukan JWT), jadi `canVillageUser(session, …)` otomatis ikut. Perubahan admin berlaku di permintaan berikutnya.
+- Mobile staf: `requireMobileContext` membawa `permissionOverrides` di `ctx`.
+- Katalog label/grup modul untuk UI: [`lib/permissions/catalog.ts`](../lib/permissions/catalog.ts). Aksi yang ditawarkan di UI = gabungan aksi yang dipakai role mana pun di matriks (tidak ada tombol palsu). **Resource baru wajib masuk `PERMISSION_CATALOG`** (dites).
+
+### Halaman Akses Pengguna (`/akses-pengguna`, hanya admin)
+
+- API: `GET/POST /api/rbac/users`, `PATCH /api/rbac/users/[id]` (peran, izin, aktif/nonaktif, reset kata sandi). Semua dijaga resource `rbac`.
+- Pagar di [`lib/rbac/accounts.ts`](../lib/rbac/accounts.ts): tidak bisa mengubah peran/izin/status/kata sandi akun sendiri; desa selalu punya ≥1 admin aktif; semua query dibatasi `villageId`; penautan perangkat↔akun atomik (dua permintaan bersamaan → satu yang jadi).
+- Akun dibuat **dari perangkat desa** (`Official.userId`), dari halaman ini atau opsional di form Data Perangkat (toggle "Buat akun login", hanya terlihat admin; server memeriksa izin `rbac` sebelum perangkat dibuat). Peran awal bawaan: **staf**. Admin menyesuaikan izin kemudian.
+- Kata sandi sementara 12 karakter acak, **hanya ditampilkan sekali**, tidak disimpan/di-log (audit hanya mencatat bahwa reset terjadi). Pengguna menggantinya sendiri di `/profil` (`POST /api/account/password`, wajib kata sandi lama, dibatasi 5 percobaan/15 menit).
+- Email akun baru harus unik **lintas semua lane** (user desa, mitra, referral, platform, regional; `isEmailTakenAnywhere`). Login mencari `users` dulu dan portal mitra otomatis tertaut lewat email yang sama, jadi email bentrok = pengambilalihan portal mitra atau penguncian pemilik aslinya.
+- Reset/ganti kata sandi mencabut sesi seluler staf (`MobileSession`). Sesi web (JWT) tetap sampai kedaluwarsa, tetapi API memeriksa DB tiap permintaan.
+- Penjaga "admin terakhir" berjalan dalam transaksi dengan `SELECT … FOR UPDATE` (dites balapan dua admin).
+- Perangkat dihapus/berhenti/pensiun → akun loginnya dinonaktifkan otomatis (kecuali admin; admin ditangani manual di halaman ini).
+- Perubahan dicatat di audit log (`users`).
+
+### Penjagaan halaman
+
+- Server: `app/(app)/layout.tsx` membaca role+penyesuaian dari DB; muat penuh ke modul tanpa izin "Lihat" → redirect ke `/dashboard?akses=ditolak`.
+- Klien: [`PageAccessGuard`](../components/permissions/PageAccessGuard.tsx) menutup halaman saat pindah halaman tanpa muat ulang. Ini hanya UX; **penegakan sebenarnya di API (403)**.
+- Sidebar, `usePermissions`, dan `<Can>` memakai izin efektif dari `PermissionsProvider`.
+
+### Batasan yang diketahui
+
+- Sesi JWT tetap hidup sampai kedaluwarsa (tidak ada `passwordChangedAt`/versi token), tetapi setiap API memeriksa `isActive`, role, dan penyesuaian dari DB, jadi pencabutan efektif segera untuk data. Menu di tab yang sedang terbuka baru menyesuaikan setelah muat ulang.
+- Kata sandi sementara belum dipaksa diganti saat masuk pertama (hanya diimbau). Kandidat berikutnya: `mustChangePassword`.
+- Lane koperasi (`/api/coop/*`) kini memakai role dari DB, bukan JWT. Rute yang memakai `requireVillagePermissionResponse` di luar `requireVillageApiContext` wajib memakai `sessionWithFreshPermissions` (lib/rbac/fresh-session.ts).
+- BUMDes punya aturan tambahan "dikelola admin/kades"; bila admin menyesuaikan izin BUMDes sebuah akun, penyesuaian itulah yang berlaku (lihat `canManageBumdes`).
+
 ## Lane akun (bukan matriks desa)
 
 | Lane | Guard |

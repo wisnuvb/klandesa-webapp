@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const { ctx } = guard;
     const { sp, page, pageSize, search, year } = listParams(req);
     const list = await listRegister(prisma, ctx.village.id, { direction: sp.get("direction") ?? undefined, year, search, page, pageSize });
-    return NextResponse.json({ ...list, can: can("register_surat", ctx.dbUser.role, ["create", "update"]), natures: NATURE_LABEL });
+    return NextResponse.json({ ...list, can: can("register_surat", ctx.dbUser, ["create", "update"]), natures: NATURE_LABEL });
   } catch (e) {
     console.error("GET /api/tata-kelola/surat error:", e);
     return NextResponse.json({ error: "Gagal memuat register surat" }, { status: 500 });

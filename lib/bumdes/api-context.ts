@@ -51,7 +51,7 @@ export async function loadBumdesApiContext(
   const { session, userId, village, dbUser } = loaded.ctx as VillageApiContext;
   const villageRole = dbUser.role;
 
-  const readErr = requireBumdesReadForRole(villageRole);
+  const readErr = requireBumdesReadForRole(dbUser);
   if (readErr) return { ok: false, response: readErr };
 
   if (!isVillageSubscriptionActive(village)) {
@@ -59,7 +59,7 @@ export async function loadBumdesApiContext(
   }
 
   const bumdes = await fetchBumdesForVillage(village.id);
-  const canManage = canManageBumdes(villageRole);
+  const canManage = canManageBumdes(dbUser);
 
   if (!bumdes) {
     if (options?.requireExisting && !isVillageBumdesElevated(villageRole)) {
@@ -78,8 +78,8 @@ export async function loadBumdesApiContext(
   };
 }
 
-export function requireBumdesManage(ctx: { role: string }): NextResponse | null {
-  return requireBumdesManageForRole(ctx.role);
+export function requireBumdesManage(ctx: { role: string; session?: Session }): NextResponse | null {
+  return requireBumdesManageForRole(ctx.session?.user ?? ctx.role);
 }
 
 export type BumdesScope =
@@ -91,13 +91,12 @@ export type BumdesScope =
  * izin baca modul, langganan aktif, BUMDes milik desa sesi (bukan dari body/query), dan izin kelola bila `write`.
  */
 export async function bumdesScope(ctx: VillageApiContext, opts: { write?: boolean } = {}): Promise<BumdesScope> {
-  const role = ctx.dbUser.role;
-  const readErr = requireBumdesReadForRole(role);
+  const readErr = requireBumdesReadForRole(ctx.dbUser);
   if (readErr) return { ok: false, response: readErr };
   if (!isVillageSubscriptionActive(ctx.village)) return { ok: false, response: subscriptionBlockedResponse(ctx.village) };
-  const canManage = canManageBumdes(role);
+  const canManage = canManageBumdes(ctx.dbUser);
   if (opts.write) {
-    const denied = requireBumdesManageForRole(role);
+    const denied = requireBumdesManageForRole(ctx.dbUser);
     if (denied) return { ok: false, response: denied };
   }
   const bumdes = await fetchBumdesForVillage(ctx.village.id);

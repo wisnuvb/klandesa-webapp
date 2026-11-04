@@ -33,6 +33,7 @@ import {
 import type { Session } from "next-auth";
 import { hasPartnerPortalAccess } from "@/lib/partner-session";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
+import { useEffectiveActor } from "@/components/permissions/PermissionsProvider";
 import { useCooperativeNav } from "@/components/providers/CooperativeNavProvider";
 import { buildVillageSidebarMenu } from "@/lib/modules/sidebar-menu";
 import { flattenMenuForSearch } from "@/lib/modules/sidebar-search";
@@ -173,6 +174,7 @@ export function Sidebar({
 
   const { access, loading: coopNavLoading } = useCooperativeNav();
   const { user, isLoading } = useNextAuthSession();
+  const effectiveActor = useEffectiveActor();
   const userId = typeof user?.id === "string" ? user.id : "";
   const isPartner = user?.accountType === "partner" || userId.startsWith("pt:");
   const isPlatform =
@@ -192,7 +194,8 @@ export function Sidebar({
     }
     if (hasDualPartnerPortal) {
       const base = buildVillageSidebarMenu({
-        role: user?.role,
+        role: effectiveActor?.role ?? user?.role,
+      permissionOverrides: effectiveActor?.permissionOverrides,
         includeKoperasi: Boolean(!coopNavLoading && access?.showCoopMenu),
       }) as MenuItem[];
       const partnerChildren = PARTNER_SIDEBAR_MENU.map((item) => ({ ...item }));
@@ -210,7 +213,8 @@ export function Sidebar({
       return COOPERATIVE_ONLY_SIDEBAR_MENU;
     }
     return buildVillageSidebarMenu({
-      role: user?.role,
+      role: effectiveActor?.role ?? user?.role,
+      permissionOverrides: effectiveActor?.permissionOverrides,
       includeKoperasi: Boolean(!coopNavLoading && access?.showCoopMenu),
     }) as MenuItem[];
   }, [
@@ -221,6 +225,7 @@ export function Sidebar({
     isPartner,
     isPlatform,
     user?.role,
+    effectiveActor,
   ]);
 
   const searchableMenuItems = useMemo(

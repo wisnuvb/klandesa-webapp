@@ -98,6 +98,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/website", resource: "website" },
   { prefix: "/api/village/profile", resource: "settings" },
   { prefix: "/api/billing", resource: "billing" },
+  // Kelola akun & izin pengguna desa: khusus admin (resource rbac tidak bisa didelegasikan).
+  { prefix: "/api/rbac", resource: "rbac" },
   { prefix: "/api/pkk/export", resource: "pkk", suffixActions: { "": "export" } },
   { prefix: "/api/pkk", resource: "pkk" },
   { prefix: "/api/sdgs", resource: "sdgs" },

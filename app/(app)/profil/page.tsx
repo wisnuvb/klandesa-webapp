@@ -9,6 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useNextAuthSession } from "@/hooks/use-nextauth-session";
+import { useEffectiveActor } from "@/components/permissions/PermissionsProvider";
+import { ROLE_LABELS } from "@/lib/rbac/labels";
+import { ChangePasswordCard } from "./ChangePasswordCard";
 
 export default function ProfilPage() {
   const { user, isLoading } = useNextAuthSession();
@@ -22,7 +25,9 @@ export default function ProfilPage() {
       }
     | null
     | undefined;
-  const role = sessionUser?.role ?? "—";
+  const effective = useEffectiveActor();
+  const rawRole = effective?.role ?? sessionUser?.role ?? null;
+  const role = rawRole ? (ROLE_LABELS[rawRole as keyof typeof ROLE_LABELS] ?? rawRole) : "—";
 
   return (
     <div className="mx-auto max-w-lg space-y-6 p-6">
@@ -80,6 +85,8 @@ export default function ProfilPage() {
           )}
         </CardContent>
       </Card>
+
+      <ChangePasswordCard />
     </div>
   );
 }

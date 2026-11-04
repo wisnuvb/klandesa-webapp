@@ -24,7 +24,7 @@ export async function requireStaff(
   const loaded = await requireMobileContext(req, { allow: ["staff"] });
   if (!loaded.ok) return loaded;
   const role = normalizeVillageRole(loaded.ctx.role);
-  if (!roleCan(resource, action, role)) {
+  if (!roleCan(resource, action, loaded.ctx)) {
     return { ok: false, response: mobileError("FORBIDDEN", "Peran Anda tidak punya izin untuk tindakan ini.", 403) };
   }
   const user = await prisma.user.findUnique({ where: { id: loaded.ctx.accountId }, select: { name: true } });

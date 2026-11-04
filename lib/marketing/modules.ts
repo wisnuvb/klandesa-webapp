@@ -99,6 +99,8 @@ export const MARKETING_MODULE_COPY: Partial<Record<string, string>> = {
   "layanan-surat":
     "Susun surat resmi langsung di lembar kertas, dengan nomor surat otomatis dan 37 jenis surat siap pakai.",
   "pengaturan-desa": "Profil dan preferensi desa, termasuk pengaturan pertukaran data.",
+  "akses-pengguna":
+    "Admin mengatur siapa boleh masuk dan apa yang boleh dilakukan tiap perangkat desa, bahkan beda antar staf dengan peran yang sama.",
   keuangan: "Kas/APBDes, transaksi, dan pelaporan keuangan dengan penanda belanja SDGs.",
   "pengumuman-desa": "Kanal komunikasi resmi antara pemdes dan masyarakat.",
   "forum-diskusi": "Ruangan aspirasi warga dengan moderasi perangkat desa.",
@@ -247,6 +249,7 @@ export const MARKETING_GROUPS: MarketingGroup[] = [
       "data-jabatan",
       "statistik",
       "pengaturan-desa",
+      "akses-pengguna",
       "arsip",
       "register-surat",
       "produk-hukum",

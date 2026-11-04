@@ -42,6 +42,8 @@ declare module "next-auth" {
     user: DefaultSession["user"] & {
       id: string;
       role?: string;
+      /** Diisi dari DB per permintaan API (bukan disimpan di JWT). */
+      permissionOverrides?: unknown;
       villageId?: number;
       villageCode?: string;
       village?: Village;

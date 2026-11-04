@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORIES, CONDITION_LABEL, DISPOSAL_REASON_LABEL, LIMITS, ORIGIN_LABEL } from "@/lib/aset-desa/catalog";
 import { createItem, listItems, summarize } from "@/lib/aset-desa/service";
 import { failResponse } from "@/lib/aset-desa/http";
-import { normalizeVillageRole, roleCan } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 
 /** Daftar barang buku inventaris (?status=ACTIVE|DISPOSED&category=&search=&page=&pageSize=) beserta ringkasan dan istilah layar. */
 export async function GET(req: NextRequest) {
@@ -22,15 +22,14 @@ export async function GET(req: NextRequest) {
       listItems(prisma, ctx.village.id, { status, category: sp.get("category") ?? undefined, search, page, pageSize }),
       summarize(prisma, ctx.village.id),
     ]);
-    const role = normalizeVillageRole(ctx.dbUser.role);
     return NextResponse.json({
       ...list,
       summary,
       can: {
-        create: roleCan("aset_desa", "create", role),
-        update: roleCan("aset_desa", "update", role),
-        dispose: roleCan("aset_desa", "delete", role),
-        export: roleCan("aset_desa", "export", role),
+        create: roleCan("aset_desa", "create", ctx.dbUser),
+        update: roleCan("aset_desa", "update", ctx.dbUser),
+        dispose: roleCan("aset_desa", "delete", ctx.dbUser),
+        export: roleCan("aset_desa", "export", ctx.dbUser),
       },
       limits: { items: LIMITS.itemsPerVillage },
       terms: { categories: CATEGORIES, origins: ORIGIN_LABEL, conditions: CONDITION_LABEL, disposalReasons: DISPOSAL_REASON_LABEL },

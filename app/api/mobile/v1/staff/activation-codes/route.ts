@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
-import { roleCan, normalizeVillageRole } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { generateActivationCode, hashActivationCode, isValidNik, normalizeActivationCode, normalizeNik } from "@/lib/mobile/citizen";
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const loaded = await requireMobileContext(req, { allow: ["staff"] });
   if (!loaded.ok) return loaded.response;
   const { ctx } = loaded;
-  if (!roleCan("residents", "update", normalizeVillageRole(ctx.role))) {
+  if (!roleCan("residents", "update", ctx)) {
     return mobileError("FORBIDDEN", "Anda tidak punya akses membuat kode.", 403);
   }
 

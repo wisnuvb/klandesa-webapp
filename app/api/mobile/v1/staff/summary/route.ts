@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireMobileContext } from "@/lib/mobile/context";
-import { roleCan, normalizeVillageRole } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 
 /** Ringkasan beranda perangkat desa. Hitungan hanya untuk modul yang boleh dibaca perannya. */
 export async function GET(req: NextRequest) {
   const loaded = await requireMobileContext(req, { allow: ["staff"] });
   if (!loaded.ok) return loaded.response;
   const { ctx } = loaded;
-  const role = normalizeVillageRole(ctx.role);
-  const can = (r: Parameters<typeof roleCan>[0], a: Parameters<typeof roleCan>[1]) => roleCan(r, a, role);
+  const can = (r: Parameters<typeof roleCan>[0], a: Parameters<typeof roleCan>[1]) => roleCan(r, a, ctx);
   const v = ctx.villageId;
 
   const [pendingMail, oldestMail, newReports, processingReports, pendingSignups, unread, village, user] = await Promise.all([

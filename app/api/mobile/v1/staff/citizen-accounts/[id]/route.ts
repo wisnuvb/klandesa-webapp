@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError, requireMobileContext } from "@/lib/mobile/context";
-import { roleCan, normalizeVillageRole } from "@/lib/permissions";
+import { roleCan } from "@/lib/permissions";
 
 /** Setujui / tolak pendaftaran warga. Tolak = hapus akun agar warga bisa mendaftar ulang dengan data benar. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const loaded = await requireMobileContext(req, { allow: ["staff"] });
   if (!loaded.ok) return loaded.response;
   const { ctx } = loaded;
-  if (!roleCan("residents", "update", normalizeVillageRole(ctx.role))) {
+  if (!roleCan("residents", "update", ctx)) {
     return mobileError("FORBIDDEN", "Anda tidak punya akses.", 403);
   }
   const id = Number((await params).id);

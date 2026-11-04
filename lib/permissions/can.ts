@@ -17,6 +17,9 @@ export function canVillageUser(
   if (sid.startsWith("rg:") || sid.startsWith("pl:") || sid.startsWith("pt:")) {
     return false;
   }
-  const role = normalizeVillageRole(session.user.role);
-  return roleCan(resource, action, role);
+  // `permissionOverrides` dan `role` diisi ulang dari DB oleh requireVillageApiContext (bukan dari JWT yang bisa usang).
+  return roleCan(resource, action, {
+    role: normalizeVillageRole(session.user.role),
+    permissionOverrides: session.user.permissionOverrides,
+  });
 }
