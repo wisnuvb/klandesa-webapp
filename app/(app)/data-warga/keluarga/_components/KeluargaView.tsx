@@ -12,6 +12,8 @@ import { FAMILY_ROLES, formatTanggal, MUTASI_TYPES } from "@/lib/kependudukan/mu
 import { MUTATION_LABEL, type MutationType } from "@/lib/kependudukan/mutation";
 import { useApiGet } from "@/hooks/useApiGet";
 import { SearchSelect } from "@/components/ui/search-select";
+import { SplitHouseholdPanel } from "@/components/app/kependudukan/SplitHouseholdPanel";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface HouseholdRow {
   id: number;
@@ -143,7 +145,7 @@ function ChangeHeadPanel({ detail, onDone }: { detail: HouseholdDetail; onDone: 
     );
   }
   return (
-    <section aria-label="Ganti Kepala Keluarga" className="space-y-3 rounded-md border p-4">
+    <section aria-label="Ganti Kepala Keluarga" className="w-full space-y-3 rounded-md border p-4">
       <div className="space-y-1.5">
         <Label htmlFor="kepala-baru">Kepala Keluarga yang baru</Label>
         <SearchSelect id="kepala-baru" className={SELECT_CLASS} value={newHead} onChange={(e) => setNewHead(e.target.value)}>
@@ -186,7 +188,8 @@ function ChangeHeadPanel({ detail, onDone }: { detail: HouseholdDetail; onDone: 
   );
 }
 
-function HouseholdDetailDialog({ id, onClose }: { id: number; onClose: () => void }) {
+function HouseholdDetailDialog({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => void }) {
+  const { can } = usePermissions();
   const d = useApiGet<HouseholdDetail>(`/api/kependudukan/households/${id}`);
   return (
     <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
@@ -207,7 +210,15 @@ function HouseholdDetailDialog({ id, onClose }: { id: number; onClose: () => voi
                 Keluarga ini belum punya Kepala Keluarga yang aktif. Perbaiki lewat halaman Perbaikan Data KK.
               </p>
             ) : null}
-            <ChangeHeadPanel key={d.data.members.map((m) => m.familyRole).join("|")} detail={d.data} onDone={d.reload} />
+            <div className="flex flex-wrap items-start gap-2">
+              <ChangeHeadPanel key={d.data.members.map((m) => m.familyRole).join("|")} detail={d.data} onDone={() => { d.reload(); onChanged(); }} />
+              <SplitHouseholdPanel
+                key={d.data.members.map((m) => `${m.id}:${m.familyRole}:${m.status}`).join("|")}
+                allowed={can("residents", "update")}
+                household={{ kk: d.data.kkNumber, members: d.data.members.map((m) => ({ id: m.id, name: m.name, nikLast4: m.nikLast4, familyRole: m.familyRole, active: m.status === "aktif" })) }}
+                onDone={() => { d.reload(); onChanged(); }}
+              />
+            </div>
             <section aria-labelledby="anggota-title">
               <h3 id="anggota-title" className="mb-2 font-semibold">
                 Anggota ({d.data.members.length})
@@ -322,7 +333,7 @@ function Keluarga() {
           {list.data.items.length < list.data.total && limit >= 100 ? <p className="text-center text-sm text-muted-foreground">Persempit pencarian untuk melihat keluarga lainnya.</p> : null}
         </>
       ) : null}
-      {open != null ? <HouseholdDetailDialog key={open} id={open} onClose={() => setOpen(null)} /> : null}
+      {open != null ? <HouseholdDetailDialog key={open} id={open} onClose={() => setOpen(null)} onChanged={list.reload} /> : null}
     </div>
   );
 }

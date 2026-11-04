@@ -198,6 +198,7 @@ export function DataTable<T extends Record<string, any>>({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari..."
+              aria-label="Cari di tabel"
               className="pl-9"
             />
           </div>
@@ -207,6 +208,8 @@ export function DataTable<T extends Record<string, any>>({
             size="icon"
             onClick={() => doFetch()}
             disabled={loading}
+            aria-label="Muat ulang data"
+            title="Muat ulang data"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -236,6 +239,18 @@ export function DataTable<T extends Record<string, any>>({
                         col.align === "right" && "text-right"
                       )}
                       onClick={() => onHeaderClick(col)}
+                      {...(col.sortable
+                        ? {
+                            tabIndex: 0,
+                            "aria-sort": isActive ? (sortOrder === "asc" ? "ascending" : sortOrder === "desc" ? "descending" : "none") : "none",
+                            onKeyDown: (e: React.KeyboardEvent) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                onHeaderClick(col);
+                              }
+                            },
+                          }
+                        : {})}
                     >
                       <div
                         className={cn(
@@ -322,7 +337,7 @@ export function DataTable<T extends Record<string, any>>({
                   setPageSize(size);
                 }}
               >
-                <SelectTrigger className="w-22">
+                <SelectTrigger className="w-22" aria-label="Jumlah baris per halaman">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

@@ -1,102 +1,43 @@
 import { requireVillageApiContext } from "@/lib/api-village-context";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auditWeb } from "@/lib/audit/web-audit";
+import { canVillageUser } from "@/lib/permissions/can";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
+import { parseKkQuery, toKkListRow } from "@/lib/kependudukan/kk-list";
+import { listKk } from "@/lib/kependudukan/kk-list-service";
 
+/**
+ * Daftar KK satu halaman. Satu agregasi SQL (bukan query per KK); hanya anggota aktif yang dihitung.
+ * Nomor KK dikirim tersamar plus `ref` (pegangan buram untuk membuka detail). Nomor lengkap hanya untuk pemegang izin
+ * `residents.export` (admin) yang memintanya dengan `?full=1`, dan setiap permintaan dicatat di jejak audit.
+ */
 export async function GET(req: NextRequest) {
   try {
     const loaded = await requireVillageApiContext(req);
     if (!loaded.ok) return loaded.response;
-    const { village } = loaded.ctx;
-
-    const url = new URL(req.url);
-    const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
-    const pageSize = Math.max(
-      1,
-      Number(url.searchParams.get("pageSize") ?? 10),
-    );
-    const sortKey = url.searchParams.get("sortKey") ?? undefined;
-    const sortOrder =
-      (url.searchParams.get("sortOrder") as "asc" | "desc") ?? "asc";
-    const search = url.searchParams.get("search") ?? undefined;
+    const { village, userId, session } = loaded.ctx;
 
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
 
-    const where: any = { villageId: village.id, kk: { not: null } };
-    if (search) {
-      where.OR = [
-        { kk: { contains: search } },
-        { name: { contains: search } },
-      ];
+    const query = parseKkQuery(req.nextUrl.searchParams);
+    const canFull = canVillageUser(session, "residents", "export");
+    if (query.full && !canFull) {
+      return NextResponse.json({ error: "Hanya admin yang boleh melihat nomor KK lengkap." }, { status: 403 });
     }
 
-    const matched = await prisma.resident.groupBy({
-      by: ["kk"],
-      where,
-      _count: { _all: true },
-    });
-    // Dicari lewat nama: hitungan di atas hanya anggota yang cocok, jadi hitung ulang seluruh anggota tiap KK.
-    // (Hasil ditampung di konstanta baru, bukan menimpa `matched`: penugasan ulang membuat TypeScript menyimpulkan generik groupBy dari tipe tujuan dan galat.)
-    const grouped =
-      search && matched.length > 0
-        ? await prisma.resident.groupBy({
-            by: ["kk"],
-            where: { villageId: village.id, kk: { in: matched.map((g) => g.kk as string) } },
-            _count: { _all: true },
-          })
-        : matched;
+    const { rows, total } = await listKk(prisma, { villageId: village.id, query });
+    const out = rows.map((r) => toKkListRow(r, { full: query.full }));
 
-    const summaries = await Promise.all(
-      grouped.map(async (g) => {
-        const kk = g.kk as string;
-        const head = await prisma.resident.findFirst({
-          where: { villageId: village.id, kk, familyRole: "Kepala Keluarga" },
-        });
-        const anyMember = head
-          ? head
-          : await prisma.resident.findFirst({
-              where: { villageId: village.id, kk },
-              orderBy: { createdAt: "asc" },
-            });
-        return {
-          id: kk,
-          family_card_number: kk,
-          kepalaKeluarga: head?.name ?? anyMember?.name ?? "-",
-          alamat: anyMember?.address ?? "-",
-          rt: anyMember?.rt ?? "-",
-          rw: anyMember?.rw ?? "-",
-          hamlet: anyMember?.hamlet ?? "-",
-          jumlahAnggota: g._count._all,
-        };
-      }),
-    );
+    if (query.full && out.length > 0) {
+      await auditWeb(req, { userId, village }, "reveal", "kk_list", `halaman-${query.page}`, { rows: out.length });
+    }
 
-    const sorted = summaries.sort((a: any, b: any) => {
-      const dir = sortOrder === "desc" ? -1 : 1;
-      const key = sortKey ?? "family_card_number";
-      const va: any =
-        key === "jumlahAnggota" ? a.jumlahAnggota : (a as any)[key];
-      const vb: any =
-        key === "jumlahAnggota" ? b.jumlahAnggota : (b as any)[key];
-      if (va < vb) return -1 * dir;
-      if (va > vb) return 1 * dir;
-      return 0;
-    });
-
-    const total = sorted.length;
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    const rows = sorted.slice(start, end);
-
-    return NextResponse.json({ rows, total });
+    return NextResponse.json({ rows: out, total, canFull }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("GET /api/kk error:", err);
-    return NextResponse.json(
-      { error: "Terjadi kesalahan server" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
   }
 }

@@ -20,6 +20,8 @@ type RouteRule = {
  * atau rute yang memeriksa izin per aksi di dalam rute (gerbang kasar = "read"). Dicek lebih dulu daripada awalan.
  */
 const PATTERN_RULES: { pattern: RegExp; resource: PermissionResource; action: PermissionAction }[] = [
+  // Pecah KK mengubah KK warga yang sudah ada (bukan membuat warga baru): izin "update" warga, sama seperti penyuntingan langsung.
+  { pattern: /^\/api\/kk\/\d+\/pecah$/, resource: "residents", action: "update" },
   { pattern: /^\/api\/perencanaan\/rkpdes\/\d+\/persetujuan$/, resource: "perencanaan", action: "approve" },
   // RPJM Desa: persetujuan rancangan dan pembukaan kunci untuk perubahan = approve (Kepala Desa/admin).
   { pattern: /^\/api\/perencanaan\/rpjm\/\d+\/(persetujuan|buka-kunci)$/, resource: "perencanaan", action: "approve" },
@@ -60,6 +62,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/residents/bulk", resource: "residents", suffixActions: { "": "create" } },
   { prefix: "/api/residents/photo-upload", resource: "residents", suffixActions: { "": "update" } },
   { prefix: "/api/residents", resource: "residents" },
+  // Ekspor daftar KK memuat nomor KK lengkap: izin ekspor data warga (admin), bukan sekadar baca.
+  { prefix: "/api/kk/export", resource: "residents", suffixActions: { "": "export" } },
   { prefix: "/api/kk", resource: "residents" },
   { prefix: "/api/kependudukan/mutasi/keputusan", resource: "residents", suffixActions: { "": "approve" } },
   { prefix: "/api/kependudukan", resource: "residents" },
