@@ -18,9 +18,9 @@ import type { ParsedRegionalSession } from "@/lib/regional-session";
 export async function freshPlatformSession(admin: ParsedPlatformSession): Promise<ParsedPlatformSession | null> {
   const row = await prisma.platformUser.findUnique({
     where: { id: admin.platformUserId },
-    select: { isActive: true, role: true, email: true, name: true },
+    select: { isActive: true, role: true, email: true, name: true, sessionVersion: true },
   });
-  if (!row || !row.isActive) return null;
+  if (!row || !row.isActive || isSessionRevoked(admin.sessionVersion, row.sessionVersion)) return null;
   return { ...admin, role: row.role, email: row.email, name: row.name };
 }
 
@@ -28,11 +28,11 @@ export async function freshRegionalSession(regional: ParsedRegionalSession): Pro
   const row = await prisma.regionalUser.findUnique({
     where: { id: regional.regionalUserId },
     select: {
-      isActive: true, role: true, email: true, name: true,
+      isActive: true, role: true, email: true, name: true, sessionVersion: true,
       scopeProvince: true, scopeRegency: true, scopeDistrict: true, scopeKodeProvinsi: true, scopeKodeKabKota: true,
     },
   });
-  if (!row || !row.isActive || !isRegionalRole(row.role)) return null;
+  if (!row || !row.isActive || !isRegionalRole(row.role) || isSessionRevoked(regional.sessionVersion, row.sessionVersion)) return null;
   // Lingkup dari DB (bukan salinan di JWT): penyempitan wilayah oleh admin berlaku pada permintaan berikutnya.
   const scope = buildRegionalScopeFromUser(row);
   if (!scope) return null;
@@ -60,7 +60,7 @@ export async function getVerifiedPartnerSession(session: Session | null): Promis
     return { ...partner, email: row.email };
   }
 
-  const row = await prisma.partner.findUnique({ where: { id: partner.partnerId }, select: { status: true, email: true, name: true } });
-  if (!row || row.status !== "active") return null;
+  const row = await prisma.partner.findUnique({ where: { id: partner.partnerId }, select: { status: true, email: true, name: true, sessionVersion: true } });
+  if (!row || row.status !== "active" || isSessionRevoked(partner.sessionVersion, row.sessionVersion)) return null;
   return { ...partner, email: row.email, name: row.name };
 }

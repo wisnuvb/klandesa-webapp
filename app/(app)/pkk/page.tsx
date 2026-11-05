@@ -21,6 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ResidentPicker } from "@/components/app/ResidentPicker";
+import type { ResidentPick } from "@/lib/kependudukan/mutasi-labels";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -50,12 +52,6 @@ type PkkStats = {
   stuntingFromVisits: number;
 };
 
-type ResidentOption = {
-  id: number;
-  name: string;
-  nik: string;
-};
-
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   const data = await res.json().catch(() => ({}));
@@ -73,7 +69,7 @@ export default function PkkPage() {
   const [stats, setStats] = useState<PkkStats | null>(null);
   const [dasawismaOptions, setDasawismaOptions] = useState<DasawismaRow[]>([]);
   const [sessionOptions, setSessionOptions] = useState<SessionRow[]>([]);
-  const [residents, setResidents] = useState<ResidentOption[]>([]);
+  const [visitResident, setVisitResident] = useState<ResidentPick | null>(null);
   const [tableRefreshKey, setTableRefreshKey] = useState(0);
 
   const [dasDialog, setDasDialog] = useState(false);
@@ -121,16 +117,8 @@ export default function PkkPage() {
     setLoading(true);
     setError(null);
     try {
-      const [statsRes, resRes] = await Promise.all([
-        fetchJson<{ stats: PkkStats }>("/api/pkk/stats"),
-        fetchJson<{ rows: Array<{ id: number; name: string; nik: string }> }>(
-          "/api/residents?page=1&pageSize=200",
-        ),
-      ]);
+      const statsRes = await fetchJson<{ stats: PkkStats }>("/api/pkk/stats");
       setStats(statsRes.stats);
-      setResidents(
-        resRes.rows.map((r) => ({ id: r.id, name: r.name, nik: r.nik })),
-      );
       await loadFormOptions();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat data PKK");
@@ -262,6 +250,7 @@ export default function PkkPage() {
         }),
       });
       setVisitDialog(false);
+      setVisitResident(null);
       setVisitForm({
         sessionId: "",
         residentId: "",
@@ -539,29 +528,14 @@ export default function PkkPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Warga (residentId)</Label>
-                <Select
-                  value={visitForm.residentId || "none"}
-                  onValueChange={(v) =>
-                    setVisitForm((f) => ({
-                      ...f,
-                      residentId: v === "none" ? "" : v,
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih warga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {residents.map((r) => (
-                      <SelectItem key={r.id} value={String(r.id)}>
-                        {r.name} — {r.nik}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <ResidentPicker
+                value={visitResident}
+                onChange={(r) => {
+                  setVisitResident(r);
+                  setVisitForm((f) => ({ ...f, residentId: r ? String(r.id) : "" }));
+                }}
+                label="Cari warga (nama atau NIK)"
+              />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="weightKg">Berat (kg)</Label>

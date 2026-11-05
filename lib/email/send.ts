@@ -11,7 +11,7 @@ import type { EmailContent } from "./render";
  *  - tiap pengiriman dicatat di `email_logs` (alamat hanya sebagai hash) sehingga anggaran terhitung lintas worker PM2.
  * Tidak pernah melempar: kegagalan dikembalikan sebagai hasil.
  */
-export type EmailTemplateId = "invite" | "reset" | "password-changed" | "welcome";
+export type EmailTemplateId = "invite" | "reset" | "password-changed" | "welcome" | "owner-notify";
 const CRITICAL: ReadonlySet<EmailTemplateId> = new Set(["invite", "reset"]);
 const CRITICAL_HEADROOM = 40;
 const DAY_MS = 24 * 60 * 60 * 1000;

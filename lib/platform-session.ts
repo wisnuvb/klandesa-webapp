@@ -25,6 +25,8 @@ export type ParsedPlatformSession = {
   email: string;
   name: string;
   role: string;
+  /** Versi sesi dari JWT (klaim `sv`); dibandingkan dengan `platform_users.sessionVersion`. */
+  sessionVersion?: number;
 };
 
 export function getPlatformSession(session: Session | null): ParsedPlatformSession | null {
@@ -43,5 +45,6 @@ export function getPlatformSession(session: Session | null): ParsedPlatformSessi
     email: u.email ?? "",
     name: u.name ?? "",
     role: u.role ?? "",
+    sessionVersion: (u as { sessionVersion?: number }).sessionVersion,
   };
 }

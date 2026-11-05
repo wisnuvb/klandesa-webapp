@@ -16,6 +16,7 @@ describe("Revalidasi sesi lane platform/regional/mitra (MySQL nyata)", { skip: e
   let adminPartners: typeof import("../app/api/admin/partners/route");
   let regionalSummary: typeof import("../app/api/regional/summary/route");
   let partnerCommissions: typeof import("../app/api/partner/commissions/route");
+  let regionalUserPatch: typeof import("../app/api/admin/regional-users/[id]/route");
   let encode: typeof import("next-auth/jwt").encode;
   const SECRET = "uji-rahasia-lane-0123456789abcdef";
   const t = Date.now() % 1e6;
@@ -34,10 +35,32 @@ describe("Revalidasi sesi lane platform/regional/mitra (MySQL nyata)", { skip: e
     adminPartners = await import("../app/api/admin/partners/route");
     regionalSummary = await import("../app/api/regional/summary/route");
     partnerCommissions = await import("../app/api/partner/commissions/route");
+    regionalUserPatch = await import("../app/api/admin/regional-users/[id]/route");
   });
 
   after(async () => {
     await prisma.$disconnect();
+  });
+
+  describe("rute login mengembalikan versi sesi untuk setiap lane", () => {
+    it("platform, regional, mitra: user.sessionVersion = kolom DB (bukan 0 bawaan)", async () => {
+      const { hashPassword } = await import("../lib/auth");
+      const login = await import("../app/api/auth/login/route");
+      const pw = "Masuk12345";
+      const hash = await hashPassword(pw);
+      const mk = async (email: string) => {
+        const res = await login.POST(new NextRequest("http://localhost/api/auth/login", { method: "POST", headers: { "content-type": "application/json", "x-real-ip": `10.7.${t % 250}.${++ipN}` }, body: JSON.stringify({ email, password: pw }) }));
+        assert.equal(res.status, 200, email);
+        return (await res.json()) as { accountType: string; user: { sessionVersion: number } };
+      };
+      const pl = await prisma.platformUser.create({ data: { email: `lg-pl${t}@uji.test`, password: hash, name: "P", sessionVersion: 4 } });
+      const rg = await prisma.regionalUser.create({ data: { email: `lg-rg${t}@uji.test`, password: hash, name: "R", role: "regional_kabupaten", scopeRegency: "Kab", sessionVersion: 5 } });
+      const pt = await prisma.partner.create({ data: { email: `lg-pt${t}@uji.test`, password: hash, name: "M", status: "active", sessionVersion: 6 } });
+      const a = await mk(pl.email); const b = await mk(rg.email); const c = await mk(pt.email);
+      assert.deepEqual([a.accountType, a.user.sessionVersion], ["platform", 4]);
+      assert.deepEqual([b.accountType, b.user.sessionVersion], ["regional", 5]);
+      assert.deepEqual([c.accountType, c.user.sessionVersion], ["partner", 6]);
+    });
   });
 
   describe("platform", () => {
@@ -54,6 +77,18 @@ describe("Revalidasi sesi lane platform/regional/mitra (MySQL nyata)", { skip: e
 
       await prisma.platformUser.delete({ where: { id: u.id } });
       assert.equal((await get(adminPartners.GET, "/api/admin/partners", c)).status, 401, "akun terhapus");
+    });
+
+    it("sessionVersion: sesi lama gugur setelah versi akun naik; JWT tanpa sv (sebelum fitur) tetap sah selama versi DB 0", async () => {
+      const u = await prisma.platformUser.create({ data: { email: `plat-sv${t}@uji.test`, password: "x", name: "P", role: "platform_admin" } });
+      const base = { sub: `pl:${u.id}`, id: `pl:${u.id}`, accountType: "platform", role: "platform_admin", email: u.email, name: "P" };
+      const noSv = await cookie(base);
+      const sv0 = await cookie({ ...base, sv: 0 });
+      assert.equal((await get(adminPartners.GET, "/api/admin/partners", noSv)).status, 200, "JWT lama tanpa sv");
+      await prisma.platformUser.update({ where: { id: u.id }, data: { sessionVersion: { increment: 1 } } });
+      assert.equal((await get(adminPartners.GET, "/api/admin/partners", noSv)).status, 401);
+      assert.equal((await get(adminPartners.GET, "/api/admin/partners", sv0)).status, 401);
+      assert.equal((await get(adminPartners.GET, "/api/admin/partners", await cookie({ ...base, sv: 1 }))).status, 200, "login baru membawa versi baru");
     });
   });
 
@@ -80,6 +115,39 @@ describe("Revalidasi sesi lane platform/regional/mitra (MySQL nyata)", { skip: e
       assert.equal((await get(regionalSummary.GET, "/api/regional/summary", c)).status, 403);
     });
 
+    it("sessionVersion: reset sandi oleh admin (PATCH) menaikkan versi dan mengakhiri sesi lama; login baru membawa versi baru", async () => {
+      const admin = await prisma.platformUser.create({ data: { email: `plat-rs${t}@uji.test`, password: "x", name: "A", role: "platform_admin" } });
+      const adminCookie = await cookie({ sub: `pl:${admin.id}`, id: `pl:${admin.id}`, accountType: "platform", role: "platform_admin", email: admin.email, name: "A" });
+      const u = await prisma.regionalUser.create({ data: { email: `reg-sv${t}@uji.test`, password: "x", name: "R", role: "regional_kabupaten", scopeRegency: "Kab" } });
+      const base = { sub: `rg:${u.id}`, id: `rg:${u.id}`, accountType: "regional", role: "regional_kabupaten", email: u.email, name: "R", regionalScope: { level: "REGENCY", regency: "Kab" } };
+      const old = await cookie({ ...base, sv: 0 });
+      assert.equal((await get(regionalSummary.GET, "/api/regional/summary", old)).status, 200);
+
+      const patch = await regionalUserPatch.PATCH(
+        new NextRequest(`http://localhost/api/admin/regional-users/${u.id}`, {
+          method: "PATCH",
+          headers: { cookie: `next-auth.session-token=${adminCookie}`, "content-type": "application/json", "x-real-ip": `10.9.${t % 250}.${++ipN}` },
+          body: JSON.stringify({ password: "SandiBaru123" }),
+        }),
+        { params: Promise.resolve({ id: String(u.id) }) },
+      );
+      assert.equal(patch.status, 200);
+      assert.equal((await prisma.regionalUser.findUniqueOrThrow({ where: { id: u.id } })).sessionVersion, 1);
+      assert.equal((await get(regionalSummary.GET, "/api/regional/summary", old)).status, 403, "sesi lama berakhir");
+      assert.equal((await get(regionalSummary.GET, "/api/regional/summary", await cookie({ ...base, sv: 1 }))).status, 200);
+
+      // PATCH tanpa mengubah sandi tidak boleh menaikkan versi.
+      await regionalUserPatch.PATCH(
+        new NextRequest(`http://localhost/api/admin/regional-users/${u.id}`, {
+          method: "PATCH",
+          headers: { cookie: `next-auth.session-token=${adminCookie}`, "content-type": "application/json", "x-real-ip": `10.9.${t % 250}.${++ipN}` },
+          body: JSON.stringify({ name: "R Baru" }),
+        }),
+        { params: Promise.resolve({ id: String(u.id) }) },
+      );
+      assert.equal((await prisma.regionalUser.findUniqueOrThrow({ where: { id: u.id } })).sessionVersion, 1);
+    });
+
     it("role di DB bukan role regional -> ditolak", async () => {
       const u = await prisma.regionalUser.create({
         data: { email: `reg2${t}@uji.test`, password: "x", name: "R2", role: "regional_kabupaten", scopeRegency: "Kab" },
@@ -103,6 +171,16 @@ describe("Revalidasi sesi lane platform/regional/mitra (MySQL nyata)", { skip: e
       assert.equal((await get(partnerCommissions.GET, "/api/partner/commissions", c)).status, 401);
       await prisma.partner.delete({ where: { id: p.id } });
       assert.equal((await get(partnerCommissions.GET, "/api/partner/commissions", c)).status, 401);
+    });
+
+    it("sessionVersion: sesi Partner murni lama gugur setelah versi naik", async () => {
+      const p = await prisma.partner.create({ data: { email: `mitra-sv${t}@uji.test`, password: "x", name: "M", status: "active" } });
+      const base = { sub: `pt:${p.id}`, id: `pt:${p.id}`, accountType: "partner", role: "partner", email: p.email, name: "M" };
+      const old = await cookie({ ...base, sv: 0 });
+      assert.equal((await get(partnerCommissions.GET, "/api/partner/commissions", old)).status, 200);
+      await prisma.partner.update({ where: { id: p.id }, data: { sessionVersion: { increment: 1 } } });
+      assert.equal((await get(partnerCommissions.GET, "/api/partner/commissions", old)).status, 401);
+      assert.equal((await get(partnerCommissions.GET, "/api/partner/commissions", await cookie({ ...base, sv: 1 }))).status, 200);
     });
 
     it("akun desa dengan mitra tertaut: lolos selama akun desa aktif & tautan email berlaku; gugur bila nonaktif/mitra ditangguhkan/tautan putus", async () => {

@@ -34,13 +34,7 @@ export function normalizeAccountEmail(raw: unknown): string | null {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? email : null;
 }
 
-export function validateNewPassword(raw: unknown): string | null {
-  const pw = typeof raw === "string" ? raw : "";
-  if (pw.length < 8) return "Kata sandi minimal 8 karakter.";
-  if (pw.length > 128) return "Kata sandi terlalu panjang.";
-  if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return "Kata sandi harus memuat huruf dan angka.";
-  return null;
-}
+export { validateNewPassword } from "@/lib/auth/password-policy";
 
 /** Role dari klien: hanya role desa yang dikenal. Mengembalikan null bila tidak valid. */
 export function parseRoleInput(raw: unknown): VillageRole | null {

@@ -169,6 +169,7 @@ providers.push(
             refreshToken: data.refreshToken,
             accountType: "regional" as const,
             regionalScope: data.user.regionalScope as RegionalScope,
+            sessionVersion: Number((data.user as { sessionVersion?: number }).sessionVersion ?? 0),
           };
         }
 
@@ -183,6 +184,7 @@ providers.push(
             refreshToken: data.refreshToken,
             accountType: "partner" as const,
             partnerId: data.user.partnerId as number,
+            sessionVersion: Number((data.user as { sessionVersion?: number }).sessionVersion ?? 0),
           };
         }
 
@@ -196,6 +198,7 @@ providers.push(
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
             accountType: "platform" as const,
+            sessionVersion: Number((data.user as { sessionVersion?: number }).sessionVersion ?? 0),
           };
         }
 
@@ -320,8 +323,9 @@ export const authOptions: NextAuthOptions = {
           | "platform"
           | undefined;
         token.accountType = at ?? "village";
-        // Hanya akun desa (tabel users) yang punya versi sesi; dicatat SEKALI saat login dan tidak berubah saat token diperbarui.
-        token.sv = token.accountType === "village" ? Number((user as { sessionVersion?: number }).sessionVersion ?? 0) : undefined;
+        // Versi sesi akun (users / platform_users / regional_users / partners); dicatat SEKALI saat login dan tidak berubah saat
+        // token diperbarui. Dibandingkan dengan kolom `sessionVersion` di DB pada setiap request (lib/auth/revalidate.ts).
+        token.sv = Number((user as { sessionVersion?: number }).sessionVersion ?? 0);
         if (token.accountType === "regional") {
           token.regionalScope = (user as any).regionalScope;
           token.villageId = undefined;

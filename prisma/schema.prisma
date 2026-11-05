@@ -231,6 +231,9 @@ model RegionalUser {
   password String @db.VarChar(255)
   name     String @db.VarChar(255)
 
+  /// Versi sesi web: naik saat kata sandi berubah sehingga JWT lama (klaim `sv`) ditolak. Bawaan 0 = sesi yang ada tetap sah.
+  sessionVersion Int @default(0)
+
   /// regional_provinsi | regional_kabupaten | regional_kecamatan
   role String @db.VarChar(50)
 
@@ -276,6 +279,9 @@ model PlatformUser {
   email    String @unique @db.VarChar(255)
   password String @db.VarChar(255)
   name     String @db.VarChar(255)
+
+  /// Versi sesi web: naik saat kata sandi berubah sehingga JWT lama (klaim `sv`) ditolak. Bawaan 0 = sesi yang ada tetap sah.
+  sessionVersion Int @default(0)
 
   role String @default("platform_admin") @db.VarChar(50)
 
@@ -1916,6 +1922,9 @@ model Partner {
   name     String  @db.VarChar(255)
   phone    String? @db.VarChar(40)
   region   String? @db.VarChar(200)
+
+  /// Versi sesi web: naik saat kata sandi berubah sehingga JWT lama (klaim `sv`) ditolak. Bawaan 0 = sesi yang ada tetap sah.
+  sessionVersion Int @default(0)
 
   status String @default("active") @db.VarChar(30)
 

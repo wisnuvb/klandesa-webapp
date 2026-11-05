@@ -29,6 +29,7 @@ import {
 } from "@/lib/pangan/region-master";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
+import { PASSWORD_HINT, validateNewPassword } from "@/lib/auth/password-policy";
 import Link from "next/link";
 
 interface RegistrationModalProps {
@@ -44,6 +45,7 @@ export function RegistrationModal({
   const [step, setStep] = React.useState(1);
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+  const [passwordTouched, setPasswordTouched] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = React.useState<string | null>(
@@ -89,6 +91,12 @@ export function RegistrationModal({
       try {
         setIsSubmitting(true);
         setSubmitError(null);
+
+        const passwordProblem = validateNewPassword(formData.password);
+        if (passwordProblem) {
+          setPasswordTouched(true);
+          throw new Error(passwordProblem);
+        }
 
         if (formData.password !== formData.confirmPassword) {
           throw new Error("Konfirmasi password tidak sama");
@@ -670,6 +678,10 @@ export function RegistrationModal({
                       type={showPassword ? "text" : "password"}
                       id="password"
                       value={formData.password}
+                      autoComplete="new-password"
+                      aria-describedby="password-hint"
+                      aria-invalid={passwordTouched && !!validateNewPassword(formData.password)}
+                      onBlur={() => setPasswordTouched(true)}
                       onChange={(e) =>
                         handleInputChange("password", e.target.value)
                       }
@@ -680,6 +692,8 @@ export function RegistrationModal({
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                      aria-pressed={showPassword}
                       className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
                     >
                       {showPassword ? (
@@ -689,8 +703,18 @@ export function RegistrationModal({
                       )}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Minimal 8 karakter, gunakan kombinasi huruf dan angka
+                  <p
+                    id="password-hint"
+                    className={`text-xs mt-1 ${
+                      passwordTouched && validateNewPassword(formData.password)
+                        ? "text-red-700"
+                        : "text-gray-600"
+                    }`}
+                    role={passwordTouched && validateNewPassword(formData.password) ? "alert" : undefined}
+                  >
+                    {passwordTouched && validateNewPassword(formData.password)
+                      ? validateNewPassword(formData.password)
+                      : PASSWORD_HINT}
                   </p>
                 </div>
 
@@ -708,6 +732,7 @@ export function RegistrationModal({
                     <input
                       type={showConfirmPassword ? "text" : "password"}
                       id="confirmPassword"
+                      autoComplete="new-password"
                       value={formData.confirmPassword}
                       onChange={(e) =>
                         handleInputChange("confirmPassword", e.target.value)
@@ -721,6 +746,8 @@ export function RegistrationModal({
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
+                      aria-label={showConfirmPassword ? "Sembunyikan konfirmasi kata sandi" : "Tampilkan konfirmasi kata sandi"}
+                      aria-pressed={showConfirmPassword}
                       className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
                     >
                       {showConfirmPassword ? (

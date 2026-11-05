@@ -32,6 +32,8 @@ export type ParsedPartnerSession = {
   partnerId: number;
   email: string;
   name: string;
+  /** Versi sesi dari JWT (klaim `sv`); akun Partner murni dibandingkan dengan `partners.sessionVersion`. */
+  sessionVersion?: number;
 };
 
 export function getPartnerSession(session: Session | null): ParsedPartnerSession | null {
@@ -67,5 +69,6 @@ export function getPartnerSession(session: Session | null): ParsedPartnerSession
     partnerId: pid,
     email: u.email ?? "",
     name: u.name ?? "",
+    sessionVersion: (u as { sessionVersion?: number }).sessionVersion,
   };
 }

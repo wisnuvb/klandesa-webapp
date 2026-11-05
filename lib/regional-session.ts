@@ -18,6 +18,8 @@ export type ParsedRegionalSession = {
   email: string;
   name: string;
   role: string;
+  /** Versi sesi dari JWT (klaim `sv`); dibandingkan dengan `regional_users.sessionVersion`. */
+  sessionVersion?: number;
 };
 
 const REGIONAL_ID_PREFIX = "rg:";
@@ -75,5 +77,6 @@ export function getRegionalSession(
     email,
     name,
     role,
+    sessionVersion: (u as { sessionVersion?: number }).sessionVersion,
   };
 }

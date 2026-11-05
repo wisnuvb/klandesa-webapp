@@ -62,6 +62,7 @@ import {
   websiteCustomLineItems,
 } from "@/lib/website-service/subscription";
 import { notifyWebsiteOrderPaid } from "@/lib/website-service/order-notification";
+import { notifyOwnerPaymentPaid } from "@/lib/notifications/owner-notify";
 
 export type BillingPaymentMethod = "qris" | "va" | "ewallet";
 
@@ -1135,6 +1136,8 @@ async function applyInvoiceOutcome(
 
   // Setelah transaksi tersimpan; tidak di-await agar balasan webhook LinkQu tidak tertahan, dan galat kirim tidak berdampak.
   if (websiteOrderPaid) void notifyWebsiteOrderPaid(invoice.id);
+  // Email pemilik untuk pembayaran lainnya (Website Desa Kustom sudah punya email sendiri di atas); sekali per tagihan.
+  else if (paid) void notifyOwnerPaymentPaid(invoice.id);
 
   return { ok: true, status: 200 as const, invoiceStatus: nextStatus };
 }

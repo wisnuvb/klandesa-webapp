@@ -13,6 +13,7 @@ import { isEmailTakenAnywhere, normalizeAccountEmail, validateNewPassword } from
 import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { clientIpOf } from "@/lib/rbac/client-ip";
 import { TRIAL_DAYS } from "@/lib/subscription";
+import { notifyOwnerVillageRegistered } from "@/lib/notifications/owner-notify";
 
 function slugifyVillageCode(input: string): string {
   const s = input
@@ -195,6 +196,22 @@ export async function POST(req: NextRequest) {
       );
 
       return { village, user };
+    });
+
+    // Pemberitahuan ke pemilik platform: desa baru mendaftar trial. Tidak menahan respons dan tidak memengaruhi hasil bila gagal.
+    void notifyOwnerVillageRegistered({
+      villageName: created.village.name,
+      villageCode: created.village.code,
+      district: namaKecamatan,
+      regency: namaKabupaten,
+      province: provinsi,
+      headName: namaKepala,
+      email: emailDesa,
+      phone: nomorTelepon || null,
+      referralCode: referralCode || null,
+      trialDays: TRIAL_DAYS,
+      trialExpiry,
+      registeredAt: trialStart,
     });
 
     // Email sambutan: satu kali per pendaftaran (email wajib unik), tidak menahan respons, tidak memengaruhi hasil bila gagal.

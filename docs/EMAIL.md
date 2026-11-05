@@ -23,6 +23,8 @@ Satu lapisan untuk semua email: [`lib/email/`](../lib/email/). Env: `BREVO_API_K
 | Pengingat langganan | Cron harian (bucket 1/3/7/30 hari, dedup per desa) | Admin desa | biasa | terbatas per desa |
 | Pengingat kepatuhan | Cron | Admin desa | biasa | terbatas |
 | Pesanan website | Tagihan Website Desa Kustom lunas (sekali per tagihan) | Pemilik platform (`WEBSITE_ORDER_NOTIFY_EMAIL`) | biasa | per pesanan |
+| Desa baru daftar | Pendaftaran trial berhasil (`/api/auth/register`) | Pemilik platform (`OWNER_NOTIFY_EMAIL`, bawaan wisnuvb@gmail.com) | biasa (template `owner-notify`) | 30/jam semua pendaftaran |
+| Pembayaran lunas | Tagihan LinkQu lunas, sekali per tagihan (kecuali Website Desa Kustom yang punya email sendiri); menandai pembayaran pertama sebagai konversi trial | Pemilik platform (`OWNER_NOTIFY_EMAIL`) | biasa (template `owner-notify`) | per pembayaran |
 
 ## Celah yang masih ada (diketahui)
 

@@ -58,6 +58,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (body.isActive != null) data.isActive = Boolean(body.isActive);
   if (body.password && String(body.password).length >= 6) {
     data.password = await hashPassword(String(body.password));
+    // Sandi direset admin -> sesi web lama pengguna regional ini berakhir.
+    data.sessionVersion = { increment: 1 };
   }
 
   try {

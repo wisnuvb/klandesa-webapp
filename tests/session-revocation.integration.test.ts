@@ -108,7 +108,7 @@ describe("Pencabutan sesi web saat kata sandi berubah (MySQL nyata)", { skip: en
     assert.equal((await get(u, 1)).status, 200, "login baru (sv=1) diterima");
   });
 
-  it("rantai login: rute login mengembalikan versi akun -> callback jwt mencatat sv -> callback session meneruskannya; akun non-desa tanpa sv", async () => {
+  it("rantai login: rute login mengembalikan versi akun -> callback jwt mencatat sv -> callback session meneruskannya; akun non-desa membawa versi tabelnya", async () => {
     const { hashPassword } = await import("../lib/auth");
     const { authOptions } = await import("../auth");
     const login = await import("../app/api/auth/login/route");
@@ -129,9 +129,11 @@ describe("Pencabutan sesi web saat kata sandi berubah (MySQL nyata)", { skip: en
     const session = await authOptions.callbacks!.session!({ session: { user: {}, expires: "" }, token: jwt } as never);
     assert.equal((session as { user: { sessionVersion?: number } }).user.sessionVersion, 3);
 
-    // Akun non-desa (tabel lain) tidak punya versi sesi.
+    // Akun platform/regional/mitra membawa versi tabelnya sendiri (audit 2026-11-05); tanpa versi -> 0 (sama dengan bawaan DB).
     const reg = await authOptions.callbacks!.jwt!({ token: {}, user: { id: "rg:1", accountType: "regional", sessionVersion: 9 } as never, account: null, trigger: "signIn" } as never);
-    assert.equal(reg.sv, undefined);
+    assert.equal(reg.sv, 9);
+    const plain = await authOptions.callbacks!.jwt!({ token: {}, user: { id: "pt:1", accountType: "partner" } as never, account: null, trigger: "signIn" } as never);
+    assert.equal(plain.sv, 0);
   });
 
   it("akun tanpa kolom bermasalah: pengguna nonaktif tetap 403 (bukan 401), sesi tak bertanda tangan ditolak", async () => {

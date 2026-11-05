@@ -75,8 +75,9 @@ export async function POST(
           name: application.name,
           phone: application.phone,
           region: application.region,
+          // Sandi berganti -> sesi web lama mitra ini berakhir (sessionVersion naik).
           ...(application.passwordHash
-            ? { password: application.passwordHash }
+            ? { password: application.passwordHash, sessionVersion: { increment: 1 } }
             : {}),
         },
         select: { id: true },
