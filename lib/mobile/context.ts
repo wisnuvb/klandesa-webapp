@@ -1,3 +1,4 @@
+import { isVillageRole } from "@/lib/permissions/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isVillageSubscriptionActive } from "@/lib/subscription";
@@ -75,7 +76,8 @@ export async function requireMobileContext(
       where: { id: claims.id },
       select: { isActive: true, villageId: true, role: true, permissionOverrides: true },
     });
-    if (!user || !user.isActive || user.villageId !== claims.villageId) {
+    // Role di luar daftar dikenal ditolak (fail-closed): normalizeVillageRole akan menjadikannya "staff".
+    if (!user || !user.isActive || user.villageId !== claims.villageId || !isVillageRole(user.role)) {
       return { ok: false, response: mobileError("ACCOUNT_DISABLED", "Akun Anda tidak aktif. Hubungi admin desa.", 403) };
     }
     claims.role = user.role;

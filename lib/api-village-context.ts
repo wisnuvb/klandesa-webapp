@@ -1,3 +1,4 @@
+import { isVillageRole } from "@/lib/permissions/roles";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
@@ -85,6 +86,11 @@ export async function requireVillageApiContext(
   const { village, ...dbUser } = row;
   if (!dbUser.isActive) {
     return { ok: false, response: jsonForbidden("Akun tidak aktif") };
+  }
+  // Fail-closed: `normalizeVillageRole` memetakan role tak dikenal ke "staff", jadi akun dengan role di luar daftar
+  // (mis. baris "citizen" lama) akan diam-diam mendapat hak staf. Tolak sebelum izin dihitung.
+  if (!isVillageRole(dbUser.role)) {
+    return { ok: false, response: jsonForbidden("Peran akun tidak valid. Hubungi admin desa.") };
   }
   // Kata sandi akun berubah sejak sesi ini dibuat -> sesi web lama ditolak (cookie curian ikut mati).
   if (isSessionRevoked(session.user.sessionVersion, dbUser.sessionVersion)) {

@@ -75,6 +75,21 @@ declare module "next-auth/jwt" {
 }
 
 /** Error yang pesannya aman ditampilkan ke pengguna (diteruskan NextAuth sebagai `error`). */
+function forwardedClientHeaders(headers: unknown): Record<string, string> {
+  const h = (headers ?? {}) as Record<string, string | string[] | undefined>;
+  const pick = (name: string): string | undefined => {
+    const v = h[name];
+    const one = Array.isArray(v) ? v[v.length - 1] : v;
+    return typeof one === "string" && one.trim() ? one.trim().slice(0, 300) : undefined;
+  };
+  const out: Record<string, string> = {};
+  const real = pick("x-real-ip");
+  const xff = pick("x-forwarded-for");
+  if (real) out["x-real-ip"] = real;
+  if (xff) out["x-forwarded-for"] = xff;
+  return out;
+}
+
 class AuthorizeError extends Error {}
 
 const providers: any[] = [];
@@ -106,7 +121,7 @@ providers.push(
       password: { label: "Password", type: "password" },
       turnstileToken: { label: "Turnstile", type: "text" },
     },
-    async authorize(credentials) {
+    async authorize(credentials, req) {
       // Panggilan server→server ke API login: pakai NEXTAUTH_URL_INTERNAL (mis. http://127.0.0.1:<port>)
       // agar stabil; NEXTAUTH_URL tetap untuk origin di browser (mis. http://my.localhost:<port>).
       const baseUrl =
@@ -119,6 +134,9 @@ providers.push(
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            // IP klien asli diteruskan ke API login agar batas percobaan per IP berlaku untuk pengguna sebenarnya,
+            // bukan untuk alamat loopback server ini. Nilainya diisi proxy (nginx) dari $remote_addr.
+            ...forwardedClientHeaders(req?.headers),
           },
           body: JSON.stringify({
             email: credentials?.email,

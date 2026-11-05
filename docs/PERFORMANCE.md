@@ -21,6 +21,8 @@ perbandingan relatif.
 | Sinkron notifikasi | `lib/notifications/syncAdminNotifications.ts` | 30 dtk / desa / proses | rekonsiliasi selisih, bukan upsert per baris |
 | Statistik penduduk | `app/api/statistics/route.ts` | 5 mnt / desa / proses | memuat warga hidup sekali per TTL |
 | Add-on modul | `lib/modules/require-module.ts` | tanpa cache | tulis hanya bila ada yang kedaluwarsa |
+| Hitungan kualitas KK/NIK (`?summary=1`) | `app/api/kependudukan/kualitas[/nik]/route.ts` | 1 mnt / desa / proses | hanya untuk spanduk Data Warga; daftar kerja penuh tetap segar |
+| Daftar warga hidup (statistik per kategori) | `app/api/statistics/residents-by-category/route.ts` | 1 mnt / desa / proses | maks 6 desa, tidak disimpan bila >20.000 warga |
 
 ## Layout dashboard statis
 
@@ -41,6 +43,13 @@ Pakai `parsePageParams` (`lib/http/pagination.ts`) untuk query `page`/`pageSize`
 
 `residents(villageId, createdAt DESC)` (urutan bawaan daftar warga): halaman pertama desa 50.000 warga 114 ms → 0,08 ms.
 SQL manual + rollback: `PHASE10_RESIDENT_CREATEDAT_INDEX_MIGRATION.sql` / `..._ROLLBACK.sql` (identik dengan `prisma db push`).
+
+`residents(villageId, updatedAt DESC)`, `transactions(villageId, createdAt DESC)`, `mail_requests(villageId, createdAt DESC)`,
+`mail_requests(villageId, status, requestDate DESC)`, `mail_services(villageId, templateCategory)`: melayani query yang jalan di tiap
+muat halaman (aktivitas terbaru, sinkron notifikasi, daftar surat). SQL + rollback: `PHASE11_SHELL_QUERY_INDEXES_MIGRATION.sql` /
+`..._ROLLBACK.sql` (identik dengan `prisma db push`; diverifikasi `migrate diff` kosong, rollback→migrasi bolak-balik). Status langganan di shell
+(`/api/billing/status`, ±10 query) di-cache klien 45 dtk (dulu 3 dtk) dan rute tidak lagi membaca ulang desa kecuali ada transisi langganan.
+Impor warga massal memakai konkurensi UPDATE 3 (pool Prisma per worker hanya 5).
 
 ## Cookie sesi
 

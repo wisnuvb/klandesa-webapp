@@ -4,6 +4,14 @@ import { isTurnstileProduction } from "@/lib/turnstile-config";
 const SITEVERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
+let warnedDisabled = false;
+/** Di produksi, Turnstile mati (secret kosong / TURNSTILE_SKIP) berarti form publik tanpa CAPTCHA: ingatkan sekali di log. */
+function warnTurnstileDisabledOnce() {
+  if (warnedDisabled || !isTurnstileProduction()) return;
+  warnedDisabled = true;
+  console.warn("[turnstile] NONAKTIF di produksi (TURNSTILE_SECRET_KEY kosong atau TURNSTILE_SKIP=true): login/daftar hanya dilindungi batas laju.");
+}
+
 export function isTurnstileEnabled(): boolean {
   if (process.env.TURNSTILE_SKIP === "true") return false;
   if (!isTurnstileProduction()) return false;
@@ -21,6 +29,7 @@ export async function verifyTurnstileToken(
   remoteIp?: string,
 ): Promise<{ success: boolean; error?: string }> {
   if (!isTurnstileEnabled()) {
+    warnTurnstileDisabledOnce();
     return { success: true };
   }
 
@@ -79,7 +88,6 @@ export async function requireTurnstile(
       {
         error: "Verifikasi keamanan gagal. Silakan coba lagi.",
         code: "TURNSTILE_FAILED",
-        detail: result.error,
       },
       { status: 403 },
     ),

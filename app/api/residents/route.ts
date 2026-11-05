@@ -12,7 +12,6 @@ import {
   getKKRelationshipStatus,
   getMaritalStatus,
 } from "@/utils";
-import bcrypt from "bcryptjs";
 import {
   isVillageSubscriptionActive,
   subscriptionBlockedResponse,
@@ -104,41 +103,15 @@ export async function POST(req: NextRequest) {
       ...extra.data,
     };
 
-    const result = await prisma.$transaction(async (tx) => {
-      const resident = await tx.resident.create({ data: residentData });
-
-      let user: { id: number } | null = null;
-      if (body.email) {
-        const exists = await tx.user.findUnique({
-          where: { email: body.email },
-        });
-        if (!exists) {
-          const tempPassword =
-            body.password ?? Math.random().toString(36).slice(-10) + "!A1";
-          const hashed = await bcrypt.hash(tempPassword, 10);
-          const created = await tx.user.create({
-            data: {
-              villageId: village.id,
-              email: String(body.email),
-              password: hashed,
-              name: String(body.name),
-              phone: body.phone_number || null,
-              role: "citizen",
-              isActive: true,
-            },
-            select: { id: true },
-          });
-          user = created;
-        }
-      }
-
-      return { resident, user };
-    });
+    // Mendaftarkan warga TIDAK membuat akun login. Dulu `email`+`password` dari body membuat `User` (role "citizen", sandi
+    // tanpa validasi) yang lolos sebagai staf dan tak tampak di daftar akun admin; akun login dibuat lewat Data Perangkat
+    // (/akses-pengguna), warga mendaftar sendiri di aplikasi mobile. Kolom `email` tetap tersimpan sebagai data warga.
+    const resident = await prisma.resident.create({ data: residentData });
+    const result = { resident, user: null as { id: number } | null };
 
     emitWebhookEvent(village.id, "penduduk.dibuat", { residentId: result.resident.id });
     await auditWeb(req, loaded.ctx, "create", "residents", result.resident.id, {
       ...pickSummary(result.resident as unknown as Record<string, unknown>, ["rt", "rw", "familyRole", "isAlive"]),
-      loginAccountCreated: result.user != null,
     });
 
     await runKependudukanSync(loaded.ctx.village, "create", (db) => syncResidents(db, loaded.ctx.village.id, [result.resident.id]));

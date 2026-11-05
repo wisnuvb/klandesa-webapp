@@ -18,10 +18,12 @@ import { fetchJsonDeduped } from "@/lib/client/fetch-cache";
 import { PageHeaderProvider, usePageHeaderOverride, usePageScrollLocked } from "@/components/layout/PageHeaderContext";
 
 /**
- * Status langganan dipakai ulang selama beberapa detik (selain dedupe serentak): effect pengecekan jalan lagi tiap
- * pathname/sesi berubah. Pendek karena dipakai untuk mengalihkan ke /billing & /onboarding; lihat `leftFlow` di bawah.
+ * Status langganan dipakai ulang selama 45 dtk (selain dedupe serentak): effect pengecekan jalan lagi tiap pathname/sesi
+ * berubah, dan rute `/api/billing/status` ±10 query. Status hanya berubah karena pembayaran/kedaluwarsa (hari), bukan detik;
+ * dibaca ulang PAKSA setelah keluar dari /billing atau onboarding (`leftFlow`) dan setelah pembayaran lunas
+ * (`invalidateFetchCache("/api/billing")`). Dulu 3 dtk.
  */
-const BILLING_STATUS_TTL_MS = 3000;
+const BILLING_STATUS_TTL_MS = 45_000;
 
 // Map route keys to page metadata — urutan mengikuti sidebar & alur operasional desa
 const pageConfig = {

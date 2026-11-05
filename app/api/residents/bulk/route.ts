@@ -19,8 +19,12 @@ export const runtime = "nodejs";
 const MAX_ROWS_PER_REQUEST = 5000;
 const CHUNK_SIZE = 1000;
 const TRANSACTION_TIMEOUT = 300_000;
-/** UPDATE dijalankan paralel lewat pool koneksi Prisma (bukan satu per satu di dalam transaksi). */
-const UPDATE_CONCURRENCY = 8;
+/**
+ * UPDATE dijalankan paralel lewat pool koneksi Prisma (bukan satu per satu di dalam transaksi). Pool tiap worker hanya
+ * `connection_limit=5` dan dipakai bersama semua request pengguna lain di worker itu: konkurensi 8 membuat satu impor
+ * menghabiskan pool (request lain kena P2024 "pool timeout"). Sisakan minimal 2 koneksi.
+ */
+const UPDATE_CONCURRENCY = 3;
 
 const MODES: ImportMode[] = ["skip", "fill", "overwrite", "status"];
 

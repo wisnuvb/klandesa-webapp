@@ -580,6 +580,7 @@ model Resident {
   @@index([villageId, dusunUnitId])
   // Urutan bawaan daftar warga (createdAt terbaru): tanpa ini setiap halaman membaca SEMUA warga desa lalu filesort.
   @@index([villageId, createdAt(sort: Desc)])
+  @@index([villageId, updatedAt(sort: Desc)])
   @@map("residents")
 }
 
@@ -879,6 +880,7 @@ model MailService {
   @@index([villageId, createdAt(sort: Desc)])
   @@index([villageId, applicantNik])
   @@index([villageId, status])
+  @@index([villageId, templateCategory])
   @@index([letterNumber])
   @@index([templateId])
   @@index([villageId, templateId, letterDateKey])
@@ -1014,6 +1016,8 @@ model MailRequest {
   updatedAt DateTime @updatedAt
 
   @@index([villageId, status])
+  @@index([villageId, status, requestDate(sort: Desc)])
+  @@index([villageId, createdAt(sort: Desc)])
   @@index([villageId, nik])
   @@index([villageId, channel])
   @@index([residentId, createdAt])
@@ -1068,6 +1072,7 @@ model Transaction {
   updatedAt DateTime @updatedAt
 
   @@index([villageId, transactionDate(sort: Desc)])
+  @@index([villageId, createdAt(sort: Desc)])
   @@index([villageId, type, category])
   @@index([villageId, status])
   @@map("transactions")

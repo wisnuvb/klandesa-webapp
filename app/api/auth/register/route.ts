@@ -9,7 +9,7 @@ import { requireTurnstile } from "@/lib/turnstile";
 import { sendTransactional } from "@/lib/email/send";
 import { welcomeEmail } from "@/lib/email/templates";
 import { getAppOrigin } from "@/lib/email/app-origin";
-import { normalizeAccountEmail } from "@/lib/rbac/accounts";
+import { isEmailTakenAnywhere, normalizeAccountEmail, validateNewPassword } from "@/lib/rbac/accounts";
 import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { clientIpOf } from "@/lib/rbac/client-ip";
 import { TRIAL_DAYS } from "@/lib/subscription";
@@ -63,7 +63,9 @@ export async function POST(req: NextRequest) {
 
     const namaKepala = String(body?.namaKepala ?? "").trim();
     const nomorTelepon = String(body?.nomorTelepon ?? "").trim();
-    const emailDesa = String(body?.emailDesa ?? "").trim();
+    const emailRaw = String(body?.emailDesa ?? "").trim();
+    // Disimpan huruf kecil agar sama dengan semua jalur akun lain (login, partner, regional) dan tidak ada "dua" email.
+    const emailDesa = normalizeAccountEmail(emailRaw) ?? "";
 
     const password = String(body?.password ?? "");
     const confirmPassword = String(body?.confirmPassword ?? "");
@@ -76,17 +78,18 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (!namaKepala || !emailDesa) {
+    if (!namaKepala || !emailRaw) {
       return NextResponse.json(
         { error: "Kontak penanggung jawab belum lengkap" },
         { status: 400 }
       );
     }
-    if (!password || password.length < 8) {
-      return NextResponse.json(
-        { error: "Password minimal 8 karakter" },
-        { status: 400 }
-      );
+    if (!emailDesa) {
+      return NextResponse.json({ error: "Format email tidak valid" }, { status: 400 });
+    }
+    const passwordError = validateNewPassword(password);
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
     }
     if (password !== confirmPassword) {
       return NextResponse.json(
@@ -104,11 +107,19 @@ export async function POST(req: NextRequest) {
     const turnstile = await requireTurnstile(req, body?.turnstileToken);
     if (!turnstile.ok) return turnstile.response;
 
-    const emailExists = await prisma.user.findUnique({
-      where: { email: emailDesa },
-      select: { id: true },
-    });
-    if (emailExists) {
+    // Pendaftaran publik membuat akun dan memberi sesi penuh: batasi per IP (menyulitkan penebakan email terdaftar
+    // lewat respons 409 dan pembuatan desa massal).
+    const rl = await checkRateLimitDb(limiterKey("register-ip", clientIpOf(req)), { max: 10, windowMs: 60 * 60_000 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Terlalu banyak pendaftaran dari jaringan ini. Coba lagi nanti." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      );
+    }
+
+    // Email belum diverifikasi, jadi tidak boleh sama dengan akun MANA PUN (desa, mitra, platform, regional, pemilik
+    // kode referral): login menautkan portal mitra lewat kecocokan email dan akan membuat pemilik asli terkunci.
+    if (await isEmailTakenAnywhere(prisma, emailDesa)) {
       return NextResponse.json(
         { error: "Email sudah terdaftar" },
         { status: 409 }
@@ -219,8 +230,8 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Terjadi kesalahan server";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Jangan kembalikan error.message mentah (bisa memuat detail Prisma/SQL).
+    console.error("POST /api/auth/register error:", error);
+    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
   }
 }

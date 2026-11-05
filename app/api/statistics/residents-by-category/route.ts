@@ -5,6 +5,7 @@ import {
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
+import { createTtlCache } from "@/lib/cache/ttl-cache";
 import {
   DIMENSIONS,
   RESIDENT_SELECT,
@@ -12,6 +13,22 @@ import {
   toStatisticRow,
   type ResidentDb,
 } from "@/lib/statistics/residents-by-category";
+
+/**
+ * Modal statistik memanggil rute ini pada SETIAP ganti halaman/urutan/ketikan pencarian, dan tiap panggilan dulu memuat semua
+ * warga hidup desa lalu menyaring di JS. Daftar mentah disimpan 60 dtk per desa (single-flight): satu muat untuk seluruh
+ * rangkaian klik. Desa sangat besar tidak disimpan (memori worker), jadi perilakunya sama seperti dulu.
+ */
+const MAX_CACHED_ROWS = 20_000;
+const rowsCache = createTtlCache<number, ResidentDb[]>({ ttlMs: 60_000, maxEntries: 6 });
+
+async function loadAliveResidents(villageId: number): Promise<ResidentDb[]> {
+  const rows = await rowsCache.getOrLoad(villageId, async () => {
+    return (await prisma.resident.findMany({ where: { villageId, isAlive: true }, select: RESIDENT_SELECT })) as ResidentDb[];
+  });
+  if (rows.length > MAX_CACHED_ROWS) rowsCache.invalidate(villageId);
+  return rows;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -43,12 +60,9 @@ export async function GET(req: NextRequest) {
     const rawPageSize = Number(searchParams.get("pageSize") ?? 10);
     const pageSize = Math.min(100, Math.max(1, rawPageSize || 10));
 
-    const residents = await prisma.resident.findMany({
-      where: { villageId: village.id, isAlive: true },
-      select: RESIDENT_SELECT,
-    });
+    const residents = await loadAliveResidents(village.id);
 
-    const filtered = filterResidents(residents as ResidentDb[], {
+    const filtered = filterResidents(residents, {
       dimension,
       category,
       gender: searchParams.get("gender") ?? "",

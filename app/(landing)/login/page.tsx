@@ -1,5 +1,6 @@
 "use client";
 
+import { safeInternalPath } from "@/lib/auth/safe-redirect";
 import Link from "next/link";
 import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -64,10 +65,7 @@ function LandingLoginContent() {
         return;
       }
 
-      const requestedPath =
-        callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
-          ? callbackUrl
-          : "/dashboard";
+      const requestedPath = safeInternalPath(callbackUrl, "/dashboard");
 
       const currentHost = window.location.host;
       const isLocal =

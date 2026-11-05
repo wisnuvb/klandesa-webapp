@@ -14,7 +14,7 @@ export function KualitasKkBanner({ refreshKey }: { refreshKey: number }) {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch("/api/kependudukan/kualitas?limit=1", { cache: "no-store", signal: ctrl.signal })
+    fetch("/api/kependudukan/kualitas?summary=1", { cache: "no-store", signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         const counts = j?.counts as Record<string, number> | undefined;

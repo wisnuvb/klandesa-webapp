@@ -1,5 +1,6 @@
 "use client";
 
+import { safeInternalPath } from "@/lib/auth/safe-redirect";
 import { getSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -72,10 +73,7 @@ export function SignInForm() {
                 : u.accountType === "platform"
                   ? "/admin"
                   : "/dashboard";
-          const next =
-            callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
-              ? callbackUrl
-              : defaultDest;
+          const next = safeInternalPath(callbackUrl, defaultDest);
           let safe =
             u.accountType === "regional" && next.startsWith("/dashboard")
               ? "/wilayah"

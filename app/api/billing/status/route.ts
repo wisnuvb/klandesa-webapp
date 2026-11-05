@@ -13,7 +13,7 @@ import {
   isVillagePaidSubscriptionActive,
   isVillageSubscriptionReadable,
   isVillageSubscriptionWritable,
-  resolveSubscriptionPhaseWithTransition,
+  applySubscriptionTransition,
   SUBSCRIPTION_EXPIRING_SOON_DAYS,
 } from "@/lib/subscription";
 
@@ -23,9 +23,13 @@ export async function GET(req: NextRequest) {
     if (!loaded.ok) return loaded.response;
     let { village } = loaded.ctx;
 
-    await resolveSubscriptionPhaseWithTransition(village.id, village);
-    const fresh = await prisma.village.findUnique({ where: { id: village.id } });
-    if (fresh) village = fresh;
+    // Baris desa dari guard baru saja dibaca (JOIN) pada permintaan yang sama: baca ulang HANYA bila transisi trial→grace→inactive
+    // baru saja menulisnya (dulu selalu 1 query tambahan, padahal rute ini dipanggil shell pada hampir tiap navigasi).
+    const { changed } = await applySubscriptionTransition(village.id, village);
+    if (changed) {
+      const fresh = await prisma.village.findUnique({ where: { id: village.id } });
+      if (fresh) village = fresh;
+    }
 
     const phaseInfo = getSubscriptionPhaseInfo(village);
     const subscriptionActive = phaseInfo.readable;

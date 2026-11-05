@@ -63,6 +63,16 @@ izin efektif = (bawaan role ∪ grant) − deny        // per resource × aksi
 - Mengganti kata sandi sendiri juga mengeluarkan sesi yang sedang dipakai (pengguna diarahkan masuk ulang). Sengaja: menerbitkan ulang cookie dari klien akan membuka jalan menghidupkan sesi usang.
 - Akun regional/mitra/platform (tabel lain) belum punya mekanisme ini.
 
+### Pengerasan login & pembuatan akun (audit 2026-11-05)
+
+- **Email unik lintas semua jenis akun.** `POST /api/auth/register` memakai `isEmailTakenAnywhere` (desa, mitra, platform, regional, pemilik kode referral) dan menyimpan email huruf kecil. Alasan: login menautkan portal mitra lewat kecocokan email (`resolve-linked-partner`) dan email pendaftar tidak diverifikasi; tanpa cek ini pendaftar bisa mengambil alih portal mitra/mengunci pemilik asli. Sandi baru wajib huruf+angka (`validateNewPassword`); pendaftaran dibatasi 10/jam/IP.
+- **Mendaftarkan warga tidak membuat akun login.** `POST /api/residents` dulu membuat `User` ber-role `citizen` dari `email`+`password` di body (lolos sebagai staf, tak tampak di `/akses-pengguna`). Kini hanya menyimpan data warga. Akun login hanya dari `register` dan Data Perangkat (`lib/rbac/accounts.ts`).
+- **Role di luar daftar ditolak (fail-closed).** `normalizeVillageRole` memetakan role tak dikenal ke `staff`, jadi guard (`requireVillageApiContext`, `sessionWithFreshPermissions`, konteks mobile staf) dan login menolak akun yang `role`-nya bukan `VILLAGE_ROLES`. **Baris `users.role='citizen'` lama (dari rute di atas) tidak bisa masuk lagi**; cek `SELECT id,email,villageId FROM users WHERE role NOT IN ('admin','staff','village_head','secretary')` dan nonaktifkan/hapus.
+- **Batas percobaan login web** (`app/api/auth/login`, tabel `mobile_rate_limits`): 40/10 mnt per IP, 8/10 mnt per IP+email, 60/30 mnt per email; 429 + `Retry-After`. IP asli diteruskan dari NextAuth `authorize` lewat `X-Real-IP` (tanpa itu semua pengguna terlihat sebagai loopback). Sandi diperiksa SEBELUM status akun (nonaktif/peran) dan akun tak dikenal tetap menghabiskan satu bcrypt, agar login tidak bisa dipakai menebak akun. Log login tidak lagi memuat email.
+- **Turnstile** tetap mati bila `TURNSTILE_SECRET_KEY` kosong atau `TURNSTILE_SKIP=true`; di produksi itu kini dicatat sekali di log (`[turnstile] NONAKTIF ...`). Pastikan secret terisi di VPS.
+- **`callbackUrl` login** hanya path internal (`lib/auth/safe-redirect.ts`; menolak `/\evil.com`, `//`, karakter kontrol).
+- Belum: sesi platform/regional/mitra masih JWT 30 hari tanpa cek DB (lihat bagian di atas).
+
 ## Lane akun (bukan matriks desa)
 
 | Lane | Guard |
