@@ -1,3 +1,4 @@
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import { NextRequest, NextResponse } from "next/server";
 import { isTurnstileProduction } from "@/lib/turnstile-config";
 
@@ -19,9 +20,7 @@ export function isTurnstileEnabled(): boolean {
 }
 
 function clientIp(req: NextRequest): string | undefined {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim();
-  return req.headers.get("x-real-ip") ?? undefined;
+  return clientIpOrNull(req) ?? undefined;
 }
 
 export async function verifyTurnstileToken(

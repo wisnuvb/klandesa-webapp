@@ -1,3 +1,4 @@
+import { clientIpOf } from "@/lib/rbac/client-ip";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
@@ -10,11 +11,8 @@ import { checkWebsiteEnginePatchLimit } from "@/lib/website-engine/engine-rate-l
 import { discardDraft, publishDraft } from "@/lib/website-engine/customization-store";
 
 function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
+  // X-Real-IP (diisi nginx) lalu entri TERAKHIR XFF; entri pertama bisa dipalsukan klien (lib/rbac/client-ip.ts).
+  return clientIpOf(req);
 }
 
 async function loadContext(req: NextRequest) {

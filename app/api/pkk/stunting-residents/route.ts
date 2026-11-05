@@ -1,3 +1,4 @@
+import { maskNik } from "@/lib/api-v1/mask";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import {
@@ -59,7 +60,8 @@ export async function GET(req: NextRequest) {
       rows: rows.map((r) => ({
         id: r.id,
         name: r.name,
-        nik: r.nik,
+        // Hanya ditampilkan di tabel (pencarian NIK tetap memakai nilai penuh di server): jangan kirim NIK utuh ke browser.
+        nik: maskNik(r.nik) ?? "",
         rt: r.rt,
         rw: r.rw,
         birthDate: r.birthDate.toISOString().slice(0, 10),

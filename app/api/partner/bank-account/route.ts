@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-session";
-import { getPartnerSession } from "@/lib/partner-session";
+import { getVerifiedPartnerSession } from "@/lib/auth/revalidate";
 
 const MAX_LEN = {
   bankName: 80,
@@ -11,7 +11,7 @@ const MAX_LEN = {
 
 export async function GET(req: NextRequest) {
   const session = await getApiSession(req);
-  const partner = getPartnerSession(session);
+  const partner = await getVerifiedPartnerSession(session);
   if (!partner) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const row = await prisma.partnerBankAccount.findFirst({
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const session = await getApiSession(req);
-  const partner = getPartnerSession(session);
+  const partner = await getVerifiedPartnerSession(session);
   if (!partner) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json().catch(() => null)) as

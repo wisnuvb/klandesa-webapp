@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCronSecret } from "@/lib/regional-news/config";
+import { isValidCronAuth } from "@/lib/regional-news/cron-auth";
 import { getMainSiteOrigin } from "@/lib/seo/url";
 import { isBrevoConfigured, sendBrevoEmail } from "@/lib/email/brevo";
 import {
@@ -49,7 +50,7 @@ async function recipientsFor(village: VillageLite): Promise<string[]> {
 export async function POST(req: NextRequest) {
   const secret = getCronSecret();
   if (!secret) return NextResponse.json({ error: "CRON_SECRET belum dikonfigurasi" }, { status: 503 });
-  if (req.headers.get("authorization")?.trim() !== `Bearer ${secret}`) {
+  if (!isValidCronAuth(req.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!isBrevoConfigured()) {

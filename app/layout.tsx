@@ -19,6 +19,9 @@ const geistMono = Geist_Mono({
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://klandesa.com";
 
+const APP_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;0,7..72,700;1,7..72,400&display=swap";
+
 export const metadata: Metadata = {
   title: {
     default: "Klandesa — Aplikasi Desa Terpadu Berbasis SDGs",
@@ -81,6 +84,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
+      <head>
+        {/* Nama keluarga font tetap "Inter"/"Literata" (dipakai --font-sans/--font-serif); hanya cara memuatnya yang lebih cepat. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link rel="stylesheet" href={APP_FONTS_HREF} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

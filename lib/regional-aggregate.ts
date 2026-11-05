@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { createTtlCache } from "@/lib/cache/ttl-cache";
 import { getAgeRange } from "@/lib/statistics/age-range";
 import { collectVillageMetrics } from "@/lib/sdgs/collect-metrics";
 import { computeSdgsDashboard } from "@/lib/sdgs/scoring-engine";
@@ -57,7 +59,7 @@ export type RegionalDemographicsPayload = {
   desil12Rate: number | null;
 };
 
-export async function aggregateRegionalDemographics(
+async function aggregateRegionalDemographicsUncached(
   scope: RegionalScope,
   villageIds: number[],
 ): Promise<RegionalDemographicsPayload> {
@@ -203,7 +205,7 @@ export type RegionalSdgsPayload = {
   }>;
 };
 
-export async function aggregateRegionalSdgs(
+async function aggregateRegionalSdgsUncached(
   scope: RegionalScope,
   villageIds: number[],
   villages: VillageInScope[],
@@ -339,7 +341,7 @@ export type RegionalAdoptionPayload = {
   }>;
 };
 
-export async function aggregateRegionalAdoption(
+async function aggregateRegionalAdoptionUncached(
   scope: RegionalScope,
   villageIds: number[],
   villages: VillageInScope[],
@@ -525,7 +527,7 @@ export type RegionalFinancePayload = {
   monthlyTrend: Array<{ month: string; income: number; expense: number }>;
 };
 
-export async function aggregateRegionalFinance(
+async function aggregateRegionalFinanceUncached(
   scope: RegionalScope,
   villageIds: number[],
   villages: VillageInScope[],
@@ -668,7 +670,7 @@ export type RegionalServicesPayload = {
   };
 };
 
-export async function aggregateRegionalServices(
+async function aggregateRegionalServicesUncached(
   scope: RegionalScope,
   villageIds: number[],
   villages: VillageInScope[],
@@ -798,7 +800,7 @@ export type RegionalGisPayload = {
   };
 };
 
-export async function aggregateRegionalGis(
+async function aggregateRegionalGisUncached(
   scope: RegionalScope,
   villageIds: number[],
   villages: VillageInScope[],
@@ -1018,4 +1020,46 @@ export function villageMatchesBpsCodes(
   if (kodeProvinsi && codes.kode_provinsi !== kodeProvinsi) return false;
   if (kodeKabKota && codes.kode_kab_kota !== kodeKabKota) return false;
   return true;
+}
+
+// ───────────────────────── Cache hasil agregat (5 menit) ─────────────────────────
+// Dasbor wilayah memanggil agregat ini pada setiap muat halaman. Tiap agregat memuat data semua desa dalam lingkup
+// (mis. `collectVillageMetrics` per desa = belasan query x jumlah desa, atau seluruh warga hidup lintas desa): kabupaten dengan
+// 100 desa = ribuan query per muat. Hasilnya SAMA untuk semua akun dengan lingkup yang sama dan boleh basi beberapa menit,
+// jadi disimpan per proses dengan kunci (lingkup + daftar desa + parameter), single-flight. BUKAN keputusan izin: izin/lingkup
+// akun tetap dibaca dari DB tiap request di requireRegionalApi sebelum agregat dipanggil.
+const REGIONAL_AGGREGATE_TTL_MS = 5 * 60_000;
+const regionalAggregateCache = createTtlCache<string, unknown>({ ttlMs: REGIONAL_AGGREGATE_TTL_MS, maxEntries: 200 });
+
+function regionalAggregateKey(name: string, scope: RegionalScope, villageIds: number[], extra = ""): string {
+  const ids = createHash("sha1").update([...villageIds].sort((a, b) => a - b).join(",")).digest("hex");
+  return `${name}|${JSON.stringify(scope)}|${villageIds.length}:${ids}|${extra}`;
+}
+
+function memoRegional<T>(name: string, scope: RegionalScope, villageIds: number[], extra: string, load: () => Promise<T>): Promise<T> {
+  return regionalAggregateCache.getOrLoad(regionalAggregateKey(name, scope, villageIds, extra), load as () => Promise<unknown>) as Promise<T>;
+}
+
+/** Untuk tes: kosongkan cache agregat. */
+export function clearRegionalAggregateCache(): void {
+  regionalAggregateCache.clear();
+}
+
+export function aggregateRegionalDemographics(scope: RegionalScope, villageIds: number[]): Promise<RegionalDemographicsPayload> {
+  return memoRegional("demographics", scope, villageIds, "", () => aggregateRegionalDemographicsUncached(scope, villageIds));
+}
+export function aggregateRegionalSdgs(scope: RegionalScope, villageIds: number[], villages: VillageInScope[]): Promise<RegionalSdgsPayload> {
+  return memoRegional("sdgs", scope, villageIds, "", () => aggregateRegionalSdgsUncached(scope, villageIds, villages));
+}
+export function aggregateRegionalAdoption(scope: RegionalScope, villageIds: number[], villages: VillageInScope[]): Promise<RegionalAdoptionPayload> {
+  return memoRegional("adoption", scope, villageIds, "", () => aggregateRegionalAdoptionUncached(scope, villageIds, villages));
+}
+export function aggregateRegionalFinance(scope: RegionalScope, villageIds: number[], villages: VillageInScope[], year: number): Promise<RegionalFinancePayload> {
+  return memoRegional("finance", scope, villageIds, String(year), () => aggregateRegionalFinanceUncached(scope, villageIds, villages, year));
+}
+export function aggregateRegionalServices(scope: RegionalScope, villageIds: number[], villages: VillageInScope[]): Promise<RegionalServicesPayload> {
+  return memoRegional("services", scope, villageIds, "", () => aggregateRegionalServicesUncached(scope, villageIds, villages));
+}
+export function aggregateRegionalGis(scope: RegionalScope, villageIds: number[], villages: VillageInScope[]): Promise<RegionalGisPayload> {
+  return memoRegional("gis", scope, villageIds, "", () => aggregateRegionalGisUncached(scope, villageIds, villages));
 }

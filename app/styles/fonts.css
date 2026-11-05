@@ -1,5 +1,7 @@
-/* Import Professional Fonts for Dashboard */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;0,7..72,700;1,7..72,400&display=swap');
+/*
+  Inter + Literata dimuat lewat <link> di app/layout.tsx (bukan @import di sini): @import membuat rantai
+  HTML -> CSS bundel -> CSS Google -> woff2 yang menahan render di SEMUA halaman; <link> + preconnect memangkas satu putaran.
+*/
 
 /* 
   Font Stack:

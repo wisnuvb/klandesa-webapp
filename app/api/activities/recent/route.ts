@@ -1,3 +1,4 @@
+import { maskNik } from "@/lib/api-v1/mask";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireVillageApiContext } from "@/lib/api-village-context";
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
         id: `request-${request.id}`,
         type: "surat",
         title: `Permohonan ${request.mailType}`,
-        description: `${request.name} - NIK: ${request.nik}`,
+        description: `${request.name} - NIK: ${maskNik(request.nik) ?? "-"}`,
         timestamp: formatTimeAgo(request.createdAt),
         status,
         createdAt: request.createdAt,
@@ -152,6 +153,8 @@ export async function GET(req: NextRequest) {
       where: { villageId },
       orderBy: { updatedAt: "desc" },
       take: 3,
+      // Hanya kolom yang ditampilkan (dulu seluruh baris warga, ±90 kolom).
+      select: { id: true, name: true, nik: true, createdAt: true, updatedAt: true },
     });
 
     // Hanya tambahkan jika updatedAt berbeda dari createdAt (ada perubahan)
@@ -161,7 +164,7 @@ export async function GET(req: NextRequest) {
           id: `resident-${resident.id}`,
           type: "warga",
           title: "Data Warga Diperbarui",
-          description: `${resident.name} - NIK: ${resident.nik}`,
+          description: `${resident.name} - NIK: ${maskNik(resident.nik) ?? "-"}`,
           timestamp: formatTimeAgo(resident.updatedAt),
           status: "completed",
           createdAt: resident.updatedAt,

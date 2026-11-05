@@ -39,8 +39,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     // Pembayaran sudah masuk di LinkQu tapi aktivasi gagal: harus terlihat di log, bukan hanya jadi balasan 500.
     logger.error({ err: error }, "[LinkQu] Callback gagal diproses");
-    const message =
-      error instanceof Error ? error.message : "Terjadi kesalahan server";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
   }
 }

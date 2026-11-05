@@ -23,6 +23,9 @@ export async function POST(req: NextRequest) {
   let changed = 0;
   let failed = 0;
   for (const v of villages) {
+    // Job ini berjalan di worker web yang sama dengan pengguna: beri jeda antar desa agar request lain tidak tertahan
+    // (memuat seluruh warga + rencana rekonsiliasi per desa memakai CPU/heap yang nyata).
+    await new Promise((resolve) => setTimeout(resolve, 25));
     try {
       const r = await reconcileAndClear(v.id);
       if (Object.values(r).some((n) => n > 0)) changed++;

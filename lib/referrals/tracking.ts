@@ -1,3 +1,4 @@
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import type { NextRequest } from "next/server";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -34,9 +35,7 @@ export function normalizeReferralCode(value: unknown): string | null {
 }
 
 export function firstIp(req: NextRequest): string | null {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || null;
-  return req.headers.get("x-real-ip");
+  return clientIpOrNull(req);
 }
 
 function normalizeDigitsPhone(value: unknown): string | null {

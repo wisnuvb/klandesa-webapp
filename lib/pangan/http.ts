@@ -1,3 +1,4 @@
+import { clientIpOf } from "@/lib/rbac/client-ip";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { MirrorError, toMirrorError, type MirrorResult, type MirrorSource } from "./mirror";
@@ -10,11 +11,8 @@ export const corsHeaders: Record<string, string> = {
 };
 
 export function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
+  // X-Real-IP (diisi nginx) lalu entri TERAKHIR XFF; entri pertama bisa dipalsukan klien (lib/rbac/client-ip.ts).
+  return clientIpOf(req);
 }
 
 export type PanganMeta = { fetched_at: string; stale: boolean; source: MirrorSource };

@@ -22,6 +22,7 @@ perbandingan relatif.
 | Statistik penduduk | `app/api/statistics/route.ts` | 5 mnt / desa / proses | memuat warga hidup sekali per TTL |
 | Add-on modul | `lib/modules/require-module.ts` | tanpa cache | tulis hanya bila ada yang kedaluwarsa |
 | Hitungan kualitas KK/NIK (`?summary=1`) | `app/api/kependudukan/kualitas[/nik]/route.ts` | 1 mnt / desa / proses | hanya untuk spanduk Data Warga; daftar kerja penuh tetap segar |
+| Agregat dasbor wilayah (demografi, SDGs, adopsi, keuangan, layanan, GIS) | `lib/regional-aggregate.ts` | 5 mnt / (lingkup + daftar desa) / proses | lingkup & status akun tetap dibaca dari DB tiap request |
 | Daftar warga hidup (statistik per kategori) | `app/api/statistics/residents-by-category/route.ts` | 1 mnt / desa / proses | maks 6 desa, tidak disimpan bila >20.000 warga |
 
 ## Layout dashboard statis
@@ -49,6 +50,7 @@ SQL manual + rollback: `PHASE10_RESIDENT_CREATEDAT_INDEX_MIGRATION.sql` / `..._R
 muat halaman (aktivitas terbaru, sinkron notifikasi, daftar surat). SQL + rollback: `PHASE11_SHELL_QUERY_INDEXES_MIGRATION.sql` /
 `..._ROLLBACK.sql` (identik dengan `prisma db push`; diverifikasi `migrate diff` kosong, rollback→migrasi bolak-balik). Status langganan di shell
 (`/api/billing/status`, ±10 query) di-cache klien 45 dtk (dulu 3 dtk) dan rute tidak lagi membaca ulang desa kecuali ada transisi langganan.
+Font Inter/Literata dimuat lewat `<link>` + preconnect di `app/layout.tsx` (bukan `@import` di CSS: rantai HTML→CSS→CSS Google→woff2).
 Impor warga massal memakai konkurensi UPDATE 3 (pool Prisma per worker hanya 5).
 
 ## Cookie sesi

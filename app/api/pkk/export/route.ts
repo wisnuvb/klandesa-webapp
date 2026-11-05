@@ -1,3 +1,4 @@
+import { csvSafeCell } from "@/lib/csv-safe";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { prisma } from "@/lib/prisma";
@@ -7,13 +8,8 @@ import {
   subscriptionBlockedResponse,
 } from "@/lib/subscription";
 
-function csvEscape(v: string | number | null | undefined): string {
-  const s = String(v ?? "");
-  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
+// Nama/lokasi diketik pengguna: netralkan rumus spreadsheet (lib/csv-safe).
+const csvEscape = (v: string | number | null | undefined): string => csvSafeCell(v);
 
 export async function GET(req: NextRequest) {
   try {

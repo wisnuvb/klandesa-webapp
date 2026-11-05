@@ -1,3 +1,4 @@
+import { clientIpOf } from "@/lib/rbac/client-ip";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-session";
@@ -27,11 +28,8 @@ import { getTemplatePack } from "@/lib/website-engine/template-packs/registry";
 const MODEL_TIMEOUT_MS = 60_000;
 
 function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
+  // X-Real-IP (diisi nginx) lalu entri TERAKHIR XFF; entri pertama bisa dipalsukan klien (lib/rbac/client-ip.ts).
+  return clientIpOf(req);
 }
 
 /**

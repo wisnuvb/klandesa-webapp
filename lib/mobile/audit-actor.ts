@@ -1,3 +1,4 @@
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -58,7 +59,7 @@ export async function auditAs(
   changes?: Record<string, unknown>,
 ): Promise<void> {
   try {
-    const e = buildAuditEntry(villageId, actor, { forwardedFor: req.headers.get("x-forwarded-for"), userAgent: req.headers.get("user-agent") }, action, entity, entityId, changes);
+    const e = buildAuditEntry(villageId, actor, { forwardedFor: clientIpOrNull(req), userAgent: req.headers.get("user-agent") }, action, entity, entityId, changes);
     await prisma.auditLog.create({
       data: {
         villageId: e.villageId, userId: e.userId, action: e.action, entity: e.entity, entityId: e.entityId,

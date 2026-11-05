@@ -1,3 +1,4 @@
+import { csvSafeCell } from "@/lib/csv-safe";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest) {
       const headers = Object.keys(exportData[0]).join(",");
       const rows = exportData.map((row) =>
         Object.values(row)
-          .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+          .map((val) => csvSafeCell(val, { alwaysQuote: true }))
           .join(",")
       );
       const csvContent = [headers, ...rows].join("\n");

@@ -1,6 +1,7 @@
+import { clientIpOf } from "@/lib/rbac/client-ip";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkRegionalRateLimit } from "@/lib/regional-rate-limit";
+import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { isValidNik, normalizeNik } from "@/lib/nik-validation";
 import { isVillageSubscriptionActive } from "@/lib/subscription";
 import { resolvePublicEnrollmentSummary } from "@/lib/social-benefit-public-label";
@@ -13,11 +14,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
+  // X-Real-IP (diisi nginx) lalu entri TERAKHIR XFF; entri pertama bisa dipalsukan klien (lib/rbac/client-ip.ts).
+  return clientIpOf(req);
 }
 
 const corsHeaders: Record<string, string> = {
@@ -33,10 +31,14 @@ export async function OPTIONS() {
 
 /** POST JSON { "nik": "..." } → ringkasan entri untuk NIK tersebut (tenant subscription aktif). */
 export async function POST(req: NextRequest) {
+  // Endpoint publik tanpa login yang mengonfirmasi status penerima bansos per NIK: batas harus dibagi antar worker (tabel
+  // mobile_rate_limits; limiter memori per proses = batas x jumlah worker) dan memakai IP yang tak bisa dipalsukan klien.
   const ip = clientIp(req);
-  const rl = checkRegionalRateLimit(ip, "social_benefit_public_check", {
-    maxRequests: 60,
-  });
+  const [short, hourly] = await Promise.all([
+    checkRateLimitDb(limiterKey("sb-check-10m", ip), { max: 20, windowMs: 10 * 60_000 }),
+    checkRateLimitDb(limiterKey("sb-check-1h", ip), { max: 60, windowMs: 60 * 60_000 }),
+  ]);
+  const rl = !short.ok ? short : hourly;
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Terlalu banyak permintaan. Coba lagi nanti." },

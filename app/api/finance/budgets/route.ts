@@ -7,7 +7,7 @@ import { toJSONSafe } from "@/utils/json";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { requireVillagePermissionResponse } from "@/lib/access-policy";
-import { resolveFinanceWriteVillage } from "@/lib/finance-village-context";
+import { financeKeyAllowsVillage, resolveFinanceWriteVillage } from "@/lib/finance-village-context";
 import { auditWeb } from "@/lib/audit/web-audit";
 import { diffRecord, pickSummary } from "@/lib/audit/diff";
 
@@ -60,6 +60,9 @@ async function resolveBudgetAccess(
     const vid = Number(body.villageId);
     if (!Number.isInteger(vid)) {
       return { ok: false, response: NextResponse.json({ error: "villageId wajib untuk otentikasi service" }, { status: 400 }) };
+    }
+    if (!financeKeyAllowsVillage(vid)) {
+      return { ok: false, response: NextResponse.json({ error: "Kunci layanan tidak berlaku untuk desa ini" }, { status: 403 }) };
     }
     return { ok: true, villageId: vid, userId: null };
   }

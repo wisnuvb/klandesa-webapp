@@ -9,6 +9,26 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
 }
 
+let warnedUnbound = false;
+
+/**
+ * `FINANCE_API_KEY` adalah satu kunci untuk SEMUA desa (desa dipilih lewat `villageId` di body), jadi bocornya kunci = semua
+ * tenant terdampak. `FINANCE_API_KEY_VILLAGE_IDS` (id desa dipisah koma) membatasi kunci ke desa tertentu; bila terisi dan
+ * `villageId` tidak ada di daftar, ditolak. Bila belum diisi, perilaku lama dipertahankan (agar integrasi yang berjalan tidak
+ * putus) dan dicatat sekali di log. Dipakai bersama oleh finance/spp dan finance/budgets.
+ */
+export function financeKeyAllowsVillage(villageId: number, env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env.FINANCE_API_KEY_VILLAGE_IDS;
+  if (raw == null || raw.trim() === "") {
+    if (!warnedUnbound) {
+      warnedUnbound = true;
+      console.warn("[finance] FINANCE_API_KEY berlaku untuk SEMUA desa; isi FINANCE_API_KEY_VILLAGE_IDS untuk membatasinya.");
+    }
+    return true;
+  }
+  return raw.split(",").map((x) => Number(x.trim())).filter(Number.isInteger).includes(villageId);
+}
+
 /**
  * Lane campuran: sesi app desa (ketat) atau `FINANCE_API_KEY` + `villageId` di body.
  * Penolakan dari `requireVillageApiContext` (izin, akun nonaktif, langganan, konteks desa) berlaku apa adanya;
@@ -48,6 +68,9 @@ export async function resolveFinanceWriteVillage(
           { status: 400 },
         ),
       };
+    }
+    if (!financeKeyAllowsVillage(vid)) {
+      return { ok: false, response: NextResponse.json({ error: "Kunci layanan tidak berlaku untuk desa ini" }, { status: 403 }) };
     }
     const village = await prisma.village.findUnique({ where: { id: vid } });
     if (!village) {

@@ -1,3 +1,4 @@
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import { prisma } from "@/lib/prisma";
 
 type AuditCtx = { userId?: number | null; village: { id: number } };
@@ -21,7 +22,7 @@ export async function auditWeb(
         entityId: String(entityId),
         changes: changes as never,
         metadata: { via: "web" } as never,
-        ipAddress: (req.headers.get("x-forwarded-for")?.split(",")[0] ?? "").trim().slice(0, 50) || null,
+        ipAddress: clientIpOrNull(req),
         userAgent: req.headers.get("user-agent")?.slice(0, 500) ?? null,
       },
     });

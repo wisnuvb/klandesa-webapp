@@ -28,6 +28,10 @@ export function checkRegionalRateLimit(
     store.set(k, b);
   }
   b.count += 1;
+  // Peta ini tidak pernah dibersihkan: IP acak (atau header dipalsukan) membuatnya membengkak. Buang jendela kedaluwarsa.
+  if (store.size > 5000) {
+    for (const [sk, sv] of store) if (now - sv.windowStart >= WINDOW_MS) store.delete(sk);
+  }
   if (b.count > maxRequests) {
     const retryAfterSec = Math.ceil(
       (WINDOW_MS - (now - b.windowStart)) / 1000,

@@ -1,3 +1,4 @@
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -7,11 +8,7 @@ export async function logRegionalAccess(params: {
   path: string;
   req: NextRequest;
 }): Promise<void> {
-  const forwarded = params.req.headers.get("x-forwarded-for");
-  const ip =
-    forwarded?.split(",")[0]?.trim() ||
-    params.req.headers.get("x-real-ip") ||
-    null;
+  const ip = clientIpOrNull(params.req);
   const userAgent = params.req.headers.get("user-agent");
 
   try {

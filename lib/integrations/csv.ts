@@ -1,9 +1,8 @@
+import { csvSafeCell } from "../csv-safe";
+
+/** Berkas ekspor ke sistem eksternal dibuka di spreadsheet: sel diawali rumus dinetralkan (lib/csv-safe). */
 export function csvEscape(v: string | number | null | undefined): string {
-  const s = String(v ?? "");
-  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
+  return csvSafeCell(v);
 }
 
 export function rowsToCsv(

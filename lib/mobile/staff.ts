@@ -1,3 +1,4 @@
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mobileError, requireMobileContext, type MobileContext } from "./context";
@@ -46,7 +47,7 @@ export async function audit(
         villageId: ctx.villageId, userId: ctx.userId, action, entity, entityId: String(entityId),
         changes: changes ? JSON.parse(JSON.stringify(changes)) : undefined,
         metadata: { via: "mobile" },
-        ipAddress: (req.headers.get("x-forwarded-for")?.split(",")[0] ?? "").trim().slice(0, 50) || null,
+        ipAddress: clientIpOrNull(req),
         userAgent: req.headers.get("user-agent")?.slice(0, 500) ?? null,
       },
     });

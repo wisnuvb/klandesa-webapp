@@ -1,3 +1,4 @@
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import {
   parseAppsScriptWebAppUrl,
@@ -9,9 +10,7 @@ import { normalizeReferralCode, trackReferralEvent } from "@/lib/referrals/track
 import { requireTurnstile } from "@/lib/turnstile";
 
 function firstIp(req: NextRequest): string | null {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || null;
-  return req.headers.get("x-real-ip");
+  return clientIpOrNull(req);
 }
 
 function resolveContactEmail(email: string, phone: string): string | null {

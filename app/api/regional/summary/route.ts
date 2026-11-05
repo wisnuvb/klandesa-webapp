@@ -1,3 +1,5 @@
+import { clientIpOf } from "@/lib/rbac/client-ip";
+import { freshRegionalSession } from "@/lib/auth/revalidate";
 import { NextRequest, NextResponse } from "next/server";
 import { getApiSession } from "@/lib/api-session";
 import { logRegionalAccess } from "@/lib/regional-audit";
@@ -15,8 +17,7 @@ export const dynamic = "force-dynamic";
  * Ringkasan agregat wilayah: hanya metadata desa + hitungan agregat (tanpa PII warga).
  */
 export async function GET(req: NextRequest) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = clientIpOf(req);
   const rl = checkRegionalRateLimit(ip, "regional_summary");
   if (!rl.ok) {
     return NextResponse.json(
@@ -29,7 +30,8 @@ export async function GET(req: NextRequest) {
   }
 
   const session = await getApiSession(req);
-  const regional = getRegionalSession(session);
+  const parsedRegional = getRegionalSession(session);
+  const regional = parsedRegional ? await freshRegionalSession(parsedRegional) : null;
   if (!regional) {
     return NextResponse.json({ error: "Tidak diizinkan" }, { status: 403 });
   }

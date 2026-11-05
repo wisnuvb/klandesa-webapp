@@ -3,6 +3,7 @@
  * Urutan: bentuk kunci → cari hash → belum dicabut/kedaluwarsa → langganan desa aktif → scope → batas laju.
  * Setiap pemakaian yang bisa diatribusikan ke desa dicatat di `api_access_logs` (dilihat kepala desa).
  */
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import type { Village } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -30,7 +31,7 @@ const err = (status: number, code: string, message: string, headers?: Record<str
   NextResponse.json({ error: { code, message } }, { status, headers: { "Cache-Control": "no-store", ...headers } });
 
 function clientIp(req: Request): string | null {
-  return (req.headers.get("x-forwarded-for")?.split(",")[0] ?? "").trim().slice(0, 50) || null;
+  return clientIpOrNull(req);
 }
 
 async function logAccess(req: Request, villageId: number, key: { id: number; prefix: string }, status: number): Promise<void> {

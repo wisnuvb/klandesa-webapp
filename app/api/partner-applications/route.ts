@@ -1,3 +1,4 @@
+import { clientIpOrNull } from "@/lib/rbac/client-ip";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -99,8 +100,7 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await hashPassword(password);
 
-    const forwardedFor = req.headers.get("x-forwarded-for") || "";
-    const ipAddress = forwardedFor.split(",")[0]?.trim() || null;
+    const ipAddress = clientIpOrNull(req);
     const userAgent = req.headers.get("user-agent") || null;
 
     await prisma.partnerApplication.create({

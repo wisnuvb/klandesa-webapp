@@ -672,6 +672,37 @@ function isPaymentCallbackType(type: unknown): boolean {
   return t === "" || t === "pay";
 }
 
+/**
+ * Tanda tangan callback hanya mencakup partner_reff, amount, va_number, dan username: `status`/`type` TIDAK ikut ditandatangani,
+ * jadi callback sah yang pernah dipegang seseorang (mis. admin desa yang mengarahkan `url_callback` ke servernya sendiri)
+ * bisa diputar ulang dengan status diubah menjadi "paid". Sebelum mengaktifkan, klaim "paid" dicocokkan dengan status di
+ * LinkQu sendiri (checkstatus):
+ * - "confirmed": LinkQu membenarkan lunas dengan nominal sama -> lanjut.
+ * - "contradicted": LinkQu menjawab dengan jelas BUKAN lunas (atau nominal beda) -> tolak.
+ * - "unknown": LinkQu tak terjangkau/jawaban tak dikenali -> tetap percaya callback bertanda tangan (perilaku lama), agar
+ *   gangguan LinkQu tidak menahan aktivasi pembayaran yang sungguhan; dicatat di log.
+ */
+export type PaidConfirmation = "confirmed" | "contradicted" | "unknown";
+
+export async function confirmPaidWithLinkqu(partnerReff: string, invoiceAmount: number): Promise<PaidConfirmation> {
+  try {
+    const status = await getLinkquClient().checkStatus(partnerReff);
+    const data = status?.data;
+    if (!data) return "unknown";
+    const statusTrx = String(data.status_trx ?? "").trim().toLowerCase();
+    const statusPaid = String(data.status_paid ?? "").trim().toLowerCase();
+    if (!statusTrx && !statusPaid) return "unknown";
+    const paid = statusTrx === "success" || statusPaid === "paid" || statusPaid === "settle";
+    if (!paid) return "contradicted";
+    const paidAmount = Number(String(data.amount ?? "").replace(/[^\d]/g, ""));
+    if (Number.isFinite(paidAmount) && paidAmount > 0 && paidAmount !== Math.round(invoiceAmount)) return "contradicted";
+    return "confirmed";
+  } catch (err) {
+    logger.warn({ err, partnerReff }, "[LinkQu] checkstatus gagal saat memverifikasi callback; memakai callback bertanda tangan");
+    return "unknown";
+  }
+}
+
 export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
   const config = getLinkquConfig();
   const signatureValid = verifyLinkquCallbackSignature(
@@ -704,18 +735,27 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
   const amountMatches =
     amount != null && Number.isFinite(amount) && Math.round(amount) === Math.round(invoiceAmount);
 
-  await prisma.billingPaymentEvent.create({
-    data: {
-      invoiceId: invoice.id,
-      partnerReff: partnerReff || null,
-      transactionId: payload.transaction_id
-        ? String(payload.transaction_id)
-        : null,
-      status: payload.status ? String(payload.status) : null,
-      signatureValid,
-      payload: payload as unknown as object,
-    },
-  });
+  // Percobaan dengan tanda tangan salah tetap dicatat (jejak audit), tetapi dibatasi per tagihan: siapa pun yang tahu
+  // partner_reff tidak boleh bisa menimbun baris tanpa batas.
+  const skipEvent =
+    !signatureValid &&
+    (await prisma.billingPaymentEvent.count({
+      where: { invoiceId: invoice.id, signatureValid: false, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
+    })) >= 20;
+  if (!skipEvent) {
+    await prisma.billingPaymentEvent.create({
+      data: {
+        invoiceId: invoice.id,
+        partnerReff: partnerReff || null,
+        transactionId: payload.transaction_id
+          ? String(payload.transaction_id)
+          : null,
+        status: payload.status ? String(payload.status) : null,
+        signatureValid,
+        payload: payload as unknown as object,
+      },
+    });
+  }
 
   if (!signatureValid) {
     return { ok: false, status: 400 as const, error: "Signature tidak valid" };
@@ -727,6 +767,14 @@ export async function handleLinkquCallback(payload: LinkquCallbackPayload) {
 
   if (!amountMatches) {
     return { ok: false, status: 400 as const, error: "Amount tidak sesuai" };
+  }
+
+  if (mapped === "paid" && invoice.status !== "paid") {
+    const confirmation = await confirmPaidWithLinkqu(partnerReff, invoiceAmount);
+    if (confirmation === "contradicted") {
+      logger.warn({ invoiceId: String(invoice.id), partnerReff }, "[LinkQu] Callback 'paid' DITOLAK: status di LinkQu bukan lunas");
+      return { ok: false, status: 409 as const, error: "Status pembayaran belum terkonfirmasi" };
+    }
   }
 
   return applyInvoiceOutcome(invoice, mapped, {

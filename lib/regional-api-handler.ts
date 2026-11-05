@@ -1,3 +1,5 @@
+import { clientIpOf } from "@/lib/rbac/client-ip";
+import { freshRegionalSession } from "@/lib/auth/revalidate";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getApiSession } from "@/lib/api-session";
@@ -26,8 +28,7 @@ export async function requireRegionalApi(
   | { ok: true; ctx: RegionalApiContext }
   | { ok: false; response: NextResponse }
 > {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = clientIpOf(req);
   const rl = checkRegionalRateLimit(ip, rateLimitKey);
   if (!rl.ok) {
     return {
@@ -43,7 +44,9 @@ export async function requireRegionalApi(
   }
 
   const session = await getApiSession(req);
-  const regional = getRegionalSession(session);
+  const parsedRegional = getRegionalSession(session);
+  // Akun, role, dan lingkup wilayah dibaca ulang dari DB (nonaktif/penyempitan wilayah berlaku segera).
+  const regional = parsedRegional ? await freshRegionalSession(parsedRegional) : null;
   if (!regional) {
     return {
       ok: false,

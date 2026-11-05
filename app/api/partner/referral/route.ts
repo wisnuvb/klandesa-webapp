@@ -2,7 +2,7 @@ import { port as APP_PORT } from "@/config/port.json";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { getPartnerSession } from "@/lib/partner-session";
+import { getVerifiedPartnerSession } from "@/lib/auth/revalidate";
 import { buildPartnerShareUrl } from "@/lib/partner/public-page";
 import { toJSONSafe } from "@/utils/json";
 
@@ -10,7 +10,7 @@ const RECENT_LIMIT = 40;
 
 export async function GET(req: Request) {
   const session = await auth();
-  const partner = getPartnerSession(session);
+  const partner = await getVerifiedPartnerSession(session);
   if (!partner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

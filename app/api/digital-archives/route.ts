@@ -56,8 +56,8 @@ export async function GET(req: NextRequest) {
     }
 
     const sp = req.nextUrl.searchParams;
-    const take = Math.min(100, Math.max(1, parseInt(sp.get("take") || "24")));
-    const skip = Math.max(0, parseInt(sp.get("skip") || "0"));
+    const take = Math.min(100, Math.max(1, Number.parseInt(sp.get("take") ?? "", 10) || 24));
+    const skip = Math.min(1_000_000, Math.max(0, Number.parseInt(sp.get("skip") ?? "", 10) || 0));
     const search = (sp.get("search") || "").trim();
     const type = (sp.get("type") || "").trim().toLowerCase();
     const excludeCategory = (sp.get("excludeCategory") || "").trim();
