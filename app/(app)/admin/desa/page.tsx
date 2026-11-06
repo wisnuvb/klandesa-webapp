@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -52,15 +53,12 @@ export default function AdminDesaPage() {
         if (!res.ok) throw new Error(data?.error || "Gagal memuat desa");
         setRows(data?.villages ?? []);
       } catch (e) {
-        const name =
-          e && typeof e === "object" && "name" in e
-            ? String((e as { name?: unknown }).name || "")
-            : "";
-        if (name === "AbortError") return;
+        // abort("cleanup") membuat fetch menolak dengan string (bukan AbortError); permintaan yang dibatalkan tidak boleh
+        // memunculkan galat atau mematikan indikator muat milik permintaan penggantinya.
+        if (signal?.aborted) return;
         setError(e instanceof Error ? e.message : "Gagal memuat desa");
-      } finally {
-        setLoading(false);
       }
+      if (!signal?.aborted) setLoading(false);
     },
     [q],
   );
@@ -92,6 +90,7 @@ export default function AdminDesaPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Cari desa…"
+              aria-label="Cari desa"
             />
             <Button
               className="w-full sm:w-auto"
@@ -131,7 +130,7 @@ export default function AdminDesaPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="font-medium truncate">{v.name}</div>
+                        <Link href={`/admin/desa/${v.id}`} className="block min-h-10 font-medium truncate underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{v.name}</Link>
                         <div className="text-xs text-muted-foreground truncate">
                           {v.code} ·{" "}
                           {[v.district, v.regency, v.province]
@@ -166,7 +165,9 @@ export default function AdminDesaPage() {
                   <tbody>
                     {rows.map((v) => (
                       <tr key={v.id} className="border-b border-border">
-                        <td className="py-2 pr-4 font-medium">{v.name}</td>
+                        <td className="py-2 pr-4 font-medium">
+                          <Link href={`/admin/desa/${v.id}`} className="inline-block py-1 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{v.name}</Link>
+                        </td>
                         <td className="py-2 pr-4 text-muted-foreground">
                           {v.code}
                         </td>

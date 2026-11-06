@@ -9,26 +9,51 @@ import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { clientIpOf } from "@/lib/rbac/client-ip";
 import { getDummyHash } from "@/lib/mobile/citizen-login";
 import { isVillageRole } from "@/lib/permissions/roles";
+import { gateVillage } from "@/lib/platform/villages/village-gate";
+import { verifySecondFactor } from "@/lib/platform/admins/two-factor";
+import { auditLoginFailure, auditLoginSuccess } from "@/lib/platform/admins/login";
+import { lockedForSec, recordFailure } from "@/lib/platform/admins/login-guard";
 
 const WINDOW_MS = 10 * 60_000;
 const DISABLED_MSG = "Akun Anda tidak aktif. Hubungi administrator.";
 
+const EMAIL_LIMIT = { max: 60, windowMs: 30 * 60_000 };
+const emailLimitKey = (email: string) => limiterKey("web-login-email", email.toLowerCase());
+
 /**
  * Batas percobaan login. Dihitung SEBELUM verifikasi sandi/Turnstile supaya tidak bisa dipakai menebak sandi:
  * - per IP (semua email): menahan satu sumber yang mencoba banyak akun;
- * - per IP + email: menahan penebakan satu akun dari satu sumber (tanpa mengunci pemilik asli yang IP-nya lain);
- * - per email (longgar): menahan serangan terdistribusi ke satu akun tanpa mudah dipakai mengunci pemilik.
- * Berlaku sama untuk email yang ada maupun tidak, jadi tidak membocorkan keberadaan akun.
+ * - per IP + email: menahan penebakan satu akun dari satu sumber (tanpa mengunci pemilik asli yang IP-nya lain).
+ * Dua batas di atas dinaikkan secara atomik sebelum sandi dinilai, jadi permintaan paralel tidak bisa menembusnya.
+ * Batas per EMAIL (lintas IP) tidak dihitung di sini: hanya KEGAGALAN sandi yang dihitung (lihat `noteEmailFailure`) dan hanya
+ * dibaca di `emailLockedForSec`, supaya pihak tak terautentikasi tidak bisa mengunci pemilik akun dengan membanjiri email-nya.
  */
 async function loginRateLimited(ip: string, email: string): Promise<number | null> {
   const emailKey = email.toLowerCase();
   const checks = await Promise.all([
     checkRateLimitDb(limiterKey("web-login-ip", ip), { max: 40, windowMs: WINDOW_MS }),
     checkRateLimitDb(limiterKey("web-login-id", ip, emailKey), { max: 8, windowMs: WINDOW_MS }),
-    checkRateLimitDb(limiterKey("web-login-email", emailKey), { max: 60, windowMs: 30 * 60_000 }),
   ]);
   const blocked = checks.find((c) => !c.ok);
   return blocked && !blocked.ok ? blocked.retryAfterSec : null;
+}
+
+/**
+ * Serangan terdistribusi ke satu akun desa/wilayah/mitra: setelah 60 KEGAGALAN sandi/30 menit lintas IP, email itu ditahan.
+ * Akun admin platform DIKECUALIKAN (hanya terkena batas per IP+email): kalau tidak, siapa pun bisa mengunci owner. Konsekuensinya
+ * email yang tak pernah ditahan bisa dibedakan dari yang ditahan hanya setelah ratusan kegagalan terdistribusi; kompensasinya: sandi admin
+ * dilindungi bcrypt + 2FA dengan batasnya sendiri, dan admin lain bisa membuka kunci (aksi `unlock`).
+ */
+async function emailLockedForSec(email: string): Promise<number | null> {
+  const locked = await lockedForSec(emailLimitKey(email), EMAIL_LIMIT);
+  if (locked == null) return null;
+  const isPlatform = await prisma.platformUser.findUnique({ where: { email }, select: { id: true } }).catch(() => null);
+  return isPlatform ? null : locked;
+}
+
+/** Catat satu kegagalan sandi untuk email non-platform (tak pernah memblokir permintaan ini; hanya menaikkan hitungan). */
+async function noteEmailFailure(email: string): Promise<void> {
+  await recordFailure(emailLimitKey(email), EMAIL_LIMIT).catch(() => undefined);
 }
 
 export async function POST(request: NextRequest) {
@@ -46,13 +71,15 @@ export async function POST(request: NextRequest) {
     }
 
     const retryAfterSec = await loginRateLimited(clientIpOf(request), email);
-    if (retryAfterSec != null) {
+    const emailLock = retryAfterSec == null ? await emailLockedForSec(email) : null;
+    const blockedSec = retryAfterSec ?? emailLock;
+    if (blockedSec != null) {
       return NextResponse.json(
         {
-          error: `Terlalu banyak percobaan masuk. Coba lagi dalam ${Math.max(1, Math.ceil(retryAfterSec / 60))} menit.`,
+          error: `Terlalu banyak percobaan masuk. Coba lagi dalam ${Math.max(1, Math.ceil(blockedSec / 60))} menit.`,
           code: "RATE_LIMITED",
         },
-        { status: 429, headers: { "Retry-After": String(retryAfterSec) } },
+        { status: 429, headers: { "Retry-After": String(blockedSec) } },
       );
     }
 
@@ -69,6 +96,7 @@ export async function POST(request: NextRequest) {
       // sehingga halaman login tidak bisa dipakai menebak akun mana yang ada/nonaktif.
       const isPasswordValid = await verifyPassword(password, user.password);
       if (!isPasswordValid) {
+        await noteEmailFailure(email);
         return NextResponse.json(
           { error: "Email atau password salah" },
           { status: 401 },
@@ -81,6 +109,9 @@ export async function POST(request: NextRequest) {
       if (!isVillageRole(user.role)) {
         return NextResponse.json({ error: DISABLED_MSG }, { status: 403 });
       }
+      // Desa dinonaktifkan admin platform: tolak masuk (setelah sandi benar, agar tidak jadi penebak status desa).
+      const villageGate = gateVillage(user.village);
+      if (villageGate) return villageGate;
 
       await prisma.user.update({
         where: { id: user.id },
@@ -138,6 +169,8 @@ export async function POST(request: NextRequest) {
         platformUser.password,
       );
       if (!isPlatformPasswordValid) {
+        // Di latar (tanpa await): waktu respons sandi-salah tidak boleh berbeda dari email yang tidak dikenal.
+        void auditLoginFailure(request, platformUser, "password");
         return NextResponse.json(
           { error: "Email atau password salah" },
           { status: 401 },
@@ -147,10 +180,45 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: DISABLED_MSG }, { status: 403 });
       }
 
+      // 2FA: sandi benar BELUM cukup. Pesan TOTP_REQUIRED hanya keluar untuk pemilik sandi yang benar, jadi tidak membocorkan
+      // apakah sebuah email adalah admin platform. Kode salah/terpakai memakai pesan seragam dan dibatasi (lihat login-guard).
+      let loginMethod: "password" | "totp" | "recovery" = "password";
+      let recoveryLeft: number | null = null;
+      if (platformUser.totpEnabledAt) {
+        const totpCode = typeof body?.totpCode === "string" ? body.totpCode.slice(0, 64) : "";
+        if (!totpCode.trim()) {
+          return NextResponse.json(
+            { error: "Masukkan kode verifikasi 2FA Anda.", code: "TOTP_REQUIRED" },
+            { status: 401 },
+          );
+        }
+        const second = await verifySecondFactor(platformUser, totpCode, clientIpOf(request));
+        if (!second.ok) {
+          if (second.reason === "locked") {
+            await auditLoginFailure(request, platformUser, "totp_locked");
+            return NextResponse.json(
+              {
+                error: `Terlalu banyak kode salah. Coba lagi dalam ${Math.max(1, Math.ceil(second.retryAfterSec / 60))} menit.`,
+                code: "RATE_LIMITED",
+              },
+              { status: 429, headers: { "Retry-After": String(second.retryAfterSec) } },
+            );
+          }
+          await auditLoginFailure(request, platformUser, "totp");
+          return NextResponse.json(
+            { error: "Kode verifikasi salah atau sudah dipakai.", code: "TOTP_INVALID" },
+            { status: 401 },
+          );
+        }
+        loginMethod = second.method;
+        recoveryLeft = second.recoveryLeft;
+      }
+
       await prisma.platformUser.update({
         where: { id: platformUser.id },
         data: { lastLogin: new Date() },
       });
+      await auditLoginSuccess(request, platformUser, loginMethod, recoveryLeft);
 
       const { accessToken, refreshToken } = generateTokens({
         id: platformUser.id,
@@ -183,6 +251,7 @@ export async function POST(request: NextRequest) {
         regionalUser.password,
       );
       if (!isRegionalPasswordValid) {
+        await noteEmailFailure(email);
         return NextResponse.json(
           { error: "Email atau password salah" },
           { status: 401 },
@@ -234,6 +303,7 @@ export async function POST(request: NextRequest) {
     if (!partner) {
       // Samakan waktu respons dengan akun yang ada (bcrypt) agar keberadaan email tidak bisa diukur dari latensi.
       await verifyPassword(password, await getDummyHash()).catch(() => false);
+      await noteEmailFailure(email);
       return NextResponse.json(
         { error: "Email atau password salah" },
         { status: 401 },
@@ -242,6 +312,7 @@ export async function POST(request: NextRequest) {
 
     const isPartnerPasswordValid = await verifyPassword(password, partner.password);
     if (!isPartnerPasswordValid) {
+      await noteEmailFailure(email);
       return NextResponse.json(
         { error: "Email atau password salah" },
         { status: 401 },

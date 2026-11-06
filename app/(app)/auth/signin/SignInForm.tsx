@@ -5,7 +5,7 @@ import { getSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 import { loginErrorMessage } from "@/lib/login-error";
@@ -19,6 +19,10 @@ export function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Admin platform ber-2FA: setelah sandi benar server meminta kode (TOTP_REQUIRED), lalu kolom kode ditampilkan.
+  const [needTotp, setNeedTotp] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileReset, setTurnstileReset] = useState(0);
   const turnstileRequired = isTurnstileRequiredOnClient();
@@ -26,9 +30,10 @@ export function SignInForm() {
     () =>
       !email.trim() ||
       !password.trim() ||
+      (needTotp && !totpCode.trim()) ||
       loading ||
       (turnstileRequired && !turnstileToken),
-    [email, password, loading, turnstileRequired, turnstileToken],
+    [email, password, needTotp, totpCode, loading, turnstileRequired, turnstileToken],
   );
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -49,6 +54,7 @@ export function SignInForm() {
         email: email.trim(),
         password,
         turnstileToken,
+        ...(needTotp ? { totpCode: totpCode.trim() } : {}),
         redirect: false,
       });
 
@@ -96,6 +102,14 @@ export function SignInForm() {
         return;
       }
 
+      if (result?.error === "TOTP_REQUIRED") {
+        setNeedTotp(true);
+        setTotpCode("");
+        setError(null);
+        setTurnstileReset((n) => n + 1);
+        return;
+      }
+      if (needTotp) setTotpCode("");
       setError(loginErrorMessage(result?.error));
       setTurnstileReset((n) => n + 1);
     } catch {
@@ -190,6 +204,45 @@ export function SignInForm() {
               </div>
             </div>
 
+            {needTotp && (
+              <div className="space-y-1.5 rounded-lg border border-teal-200 bg-teal-50/60 p-3">
+                <label htmlFor="totp" className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
+                  <KeyRound className="h-4 w-4 text-teal-700" aria-hidden="true" />
+                  {useRecovery ? "Kode pemulihan" : "Kode verifikasi 2FA"}
+                </label>
+                <input
+                  id="totp"
+                  type="text"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value)}
+                  inputMode={useRecovery ? "text" : "numeric"}
+                  autoComplete={useRecovery ? "off" : "one-time-code"}
+                  autoCapitalize={useRecovery ? "characters" : "off"}
+                  spellCheck={false}
+                  maxLength={useRecovery ? 24 : 12}
+                  autoFocus
+                  aria-describedby="totp-help"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-center font-mono text-lg tracking-widest text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  placeholder={useRecovery ? "XXXX-XXXX-XXXX-XXXX" : "123456"}
+                />
+                <p id="totp-help" className="text-xs text-slate-600">
+                  {useRecovery
+                    ? "Masukkan salah satu kode pemulihan yang Anda simpan. Setiap kode hanya berlaku sekali."
+                    : "Buka aplikasi autentikator di ponsel Anda, lalu masukkan 6 digit kode yang tampil."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseRecovery((v) => !v);
+                    setTotpCode("");
+                  }}
+                  className="min-h-8 text-xs font-medium text-teal-700 hover:underline"
+                >
+                  {useRecovery ? "Pakai kode dari aplikasi autentikator" : "Tidak bisa mengakses autentikator? Pakai kode pemulihan"}
+                </button>
+              </div>
+            )}
+
             <div className="-mt-1 flex justify-between gap-3 text-sm">
               {searchParams.get("sandi") === "diatur" ? (
                 <p role="status" className="text-emerald-700">
@@ -202,6 +255,10 @@ export function SignInForm() {
               ) : searchParams.get("sesi") === "berakhir" ? (
                 <p role="status" className="text-amber-700">
                   Sesi Anda berakhir karena kata sandi akun diubah. Silakan masuk kembali.
+                </p>
+              ) : searchParams.get("desa") === "nonaktif" ? (
+                <p role="status" className="text-amber-700">
+                  Layanan desa Anda sedang dinonaktifkan. Hubungi admin Klandesa untuk bantuan.
                 </p>
               ) : (
                 <span />

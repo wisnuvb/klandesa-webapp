@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
 
   const title = String(body.title ?? "").trim();
   if (!title) return NextResponse.json({ error: "Judul wajib diisi" }, { status: 400 });
+  if (title.length > 200) return NextResponse.json({ error: "Judul maksimal 200 karakter" }, { status: 400 });
 
   const language = String(body.language ?? "id").trim() || "id";
   const model = AI_MODEL;
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
     method: "POST",
     headers: getAiHeaders(config),
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(90_000),
   });
 
   const data = (await res.json().catch(() => null)) as
@@ -110,7 +112,7 @@ export async function POST(req: NextRequest) {
 
   if (!res.ok) {
     return NextResponse.json(
-      { error: "Gagal generate draft", _debug: data?.error ?? null },
+      { error: "Gagal generate draft" },
       { status: 502 },
     );
   }

@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
-import { getPlatformSession } from "@/lib/platform-session";
-import { getApiSession } from "@/lib/api-session";
+import { Prisma } from "@prisma/client";
+import { readRisky } from "@/lib/platform/legacy-risky";
 import { toJSONSafe } from "@/utils/json";
+import { actorOf, auditBefore, formatRupiah, maskAccountNumber, parsePositiveInt } from "@/lib/platform/legacy-audit";
 
-function partnerIdFromParam(raw: string): number | null {
-  const n = Number(raw);
-  return Number.isFinite(n) ? Math.floor(n) : null;
-}
+/** Batas entri komisi per batch pencairan. */
+const MAX_ENTRIES = 200;
+
+const partnerIdFromParam = (raw: string): number | null => parsePositiveInt(raw);
 
 function parseBigInts(ids: unknown): { ok: true; ids: bigint[] } | { ok: false } {
-  if (!Array.isArray(ids) || ids.length === 0) return { ok: false };
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > MAX_ENTRIES) return { ok: false };
   const out: bigint[] = [];
   for (const x of ids) {
     try {
       if (typeof x !== "number" && typeof x !== "string") return { ok: false };
-      out.push(BigInt(String(x)));
+      const b = BigInt(String(x));
+      if (b < BigInt(1)) return { ok: false };
+      out.push(b);
     } catch {
       return { ok: false };
     }
@@ -31,30 +34,26 @@ export async function POST(
   const auth = await requirePlatformSession(req);
   if (!auth.ok) return auth.response;
 
-  const session = await getApiSession(req);
-  const plat = getPlatformSession(session);
-
   const pid = partnerIdFromParam((await ctx.params).id ?? "");
   if (pid == null) {
     return NextResponse.json({ error: "ID mitra tidak valid" }, { status: 400 });
   }
 
-  const partner = await prisma.partner.findUnique({
-    where: { id: pid },
-    select: { id: true },
-  });
-  if (!partner) return NextResponse.json({ error: "Mitra tidak ditemukan" }, { status: 404 });
-
-  const body = (await req.json().catch(() => null)) as {
+  // Membuat batch pencairan komisi menggerakkan uang: wajib konfirmasi sandi admin + alasan.
+  const risky = await readRisky(req, auth.admin);
+  if (!risky.ok) return risky.response;
+  const body = risky.body as {
     commissionEntryIds?: unknown;
     notes?: unknown;
     status?: unknown;
     reference?: unknown;
-  } | null;
+  };
 
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
-  }
+  const partner = await prisma.partner.findUnique({
+    where: { id: pid },
+    select: { id: true, name: true },
+  });
+  if (!partner) return NextResponse.json({ error: "Mitra tidak ditemukan" }, { status: 404 });
 
   const parsed = parseBigInts(body.commissionEntryIds);
   if (!parsed.ok) {
@@ -126,7 +125,28 @@ export async function POST(
           ? "failed"
           : "pending";
 
-  const disbursementId = await prisma.$transaction(async (tx) => {
+  // Pencairan menggerakkan uang: jejak (ketat) ditulis SEBELUM batch dibuat. Nomor rekening hanya disamarkan.
+  const blocked = await auditBefore(req, actorOf(auth), {
+    action: disburseRowStatus === "paid" ? "disbursement.paid" : "disbursement.create",
+    targetType: "partner",
+    targetId: pid,
+    summary: `${disburseRowStatus === "paid" ? "Membuat & menandai LUNAS" : "Membuat"} pencairan komisi mitra "${partner.name}" (#${pid}) senilai ${formatRupiah(totalMinor)} untuk ${entries.length} entri`,
+    metadata: {
+      reason: risky.reason,
+      status: disburseRowStatus,
+      totalIdr: totalMinor,
+      entryCount: entries.length,
+      commissionEntryIds: entries.map((e) => e.id.toString()),
+      bankName: bank.bankName,
+      accountNumberMasked: maskAccountNumber(bank.accountNumber),
+      reference: referenceIn || null,
+    },
+  });
+  if (blocked) return blocked;
+
+  let disbursementId: bigint;
+  try {
+    disbursementId = await prisma.$transaction(async (tx) => {
     const disp = await tx.partnerDisbursement.create({
       data: {
         partnerId: pid,
@@ -143,7 +163,7 @@ export async function POST(
               : null,
         paidAt: disburseRowStatus === "paid" ? new Date() : null,
         notes,
-        createdByPlatformUserId: plat?.platformUserId ?? null,
+        createdByPlatformUserId: auth.admin.platformUserId,
       },
       select: { id: true },
     });
@@ -165,7 +185,17 @@ export async function POST(
     }
 
     return disp.id;
-  });
+    });
+  } catch (e) {
+    // Kolom unik commissionEntryId: dua permintaan bersamaan untuk entri yang sama -> salah satunya ditolak (tanpa pencairan ganda).
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json(
+        { error: "Beberapa entri tidak ditemukan, bukan approved, atau sudah masuk disbursement lain" },
+        { status: 409 },
+      );
+    }
+    throw e;
+  }
 
   const full = await prisma.partnerDisbursement.findUnique({
     where: { id: disbursementId },

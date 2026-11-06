@@ -6,12 +6,17 @@ import { invalidateChannelSettings } from "@/lib/payment/channel-settings";
 import { getLinkquMode, probeChannels } from "@/lib/payment/channel-probe";
 import { isKnownLinkquChannelCode, listAllLinkquChannels } from "@/lib/payment/linkqu-channels";
 import { toUserFacingError } from "@/lib/billing/user-error";
+import { auditPlatform } from "@/lib/platform/audit";
+import { actorOf } from "@/lib/platform/legacy-audit";
+import { readRisky } from "@/lib/platform/legacy-risky";
+import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 /**
- * Uji kanal ke LinkQu. Body: { codes?: string[] (default semua), confirmProduction?: boolean }.
+ * Uji kanal ke LinkQu. Body: { codes?: string[] (default semua), confirmProduction?: boolean, confirmPassword, reason }.
+ * Wajib konfirmasi sandi admin + alasan (membuat tagihan uji sungguhan di produksi dan bisa menonaktifkan kanal).
  * Kanal yang DITOLAK LinkQu otomatis dinonaktifkan; kanal yang diterima tidak diaktifkan otomatis (admin mungkin
  * sengaja mematikannya); gangguan jaringan tidak mengubah apa pun.
  */
@@ -19,13 +24,25 @@ export async function POST(req: NextRequest) {
   const auth = await requirePlatformSession(req);
   if (!auth.ok) return auth.response;
 
+  const risky = await readRisky(req, auth.admin);
+  if (!risky.ok) return risky.response;
+
+  // Uji kanal memanggil LinkQu (tagihan uji sungguhan di produksi, hingga 120 dtk): batasi laju per admin.
+  const rl = await checkRateLimitDb(limiterKey("platform-channel-probe", auth.admin.platformUserId), { max: 6, windowMs: 10 * 60_000 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Terlalu sering menguji kanal. Coba lagi beberapa menit lagi." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   try {
-    const body = (await req.json().catch(() => null)) as { codes?: unknown; confirmProduction?: unknown } | null;
+    const body = risky.body as { codes?: unknown; confirmProduction?: unknown };
     const { mode } = getLinkquMode();
     if (mode === "unconfigured") {
       return NextResponse.json({ error: "LINKQU_URL belum diisi di server." }, { status: 400 });
     }
-    if (mode === "production" && body?.confirmProduction !== true) {
+    if (mode === "production" && body.confirmProduction !== true) {
       return NextResponse.json(
         {
           error:
@@ -37,7 +54,7 @@ export async function POST(req: NextRequest) {
     }
 
     const all = listAllLinkquChannels().map((c) => c.code);
-    const codes = Array.isArray(body?.codes)
+    const codes = Array.isArray(body.codes)
       ? [...new Set(body.codes.filter((c): c is string => typeof c === "string" && isKnownLinkquChannelCode(c)))]
       : all;
     if (codes.length === 0) return NextResponse.json({ error: "Tidak ada kanal yang valid untuk diuji" }, { status: 400 });
@@ -71,6 +88,19 @@ export async function POST(req: NextRequest) {
     }
     invalidateChannelSettings();
     logger.info({ by: auth.admin.email, mode, tested: codes.length, disabled }, "[LinkQu] Uji kanal pembayaran dari panel admin");
+    await auditPlatform(req, actorOf(auth), {
+      action: "payment_channel.probe",
+      targetType: "system",
+      targetId: "payment_channel:probe",
+      summary: `Uji ${codes.length} kanal pembayaran ke LinkQu (${mode}); ${disabled.length} kanal otomatis dinonaktifkan karena ditolak`,
+      metadata: {
+        reason: risky.reason,
+        mode,
+        tested: codes.length,
+        disabled,
+        results: results.map((r) => ({ code: r.code, kind: r.kind })),
+      },
+    });
 
     return NextResponse.json({ ok: true, mode, results, disabled });
   } catch (error) {

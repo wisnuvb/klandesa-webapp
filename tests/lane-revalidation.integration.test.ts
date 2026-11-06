@@ -116,7 +116,9 @@ describe("Revalidasi sesi lane platform/regional/mitra (MySQL nyata)", { skip: e
     });
 
     it("sessionVersion: reset sandi oleh admin (PATCH) menaikkan versi dan mengakhiri sesi lama; login baru membawa versi baru", async () => {
-      const admin = await prisma.platformUser.create({ data: { email: `plat-rs${t}@uji.test`, password: "x", name: "A", role: "platform_admin" } });
+      const { hashPassword } = await import("../lib/auth");
+      const adminPw = "SandiAdminLane-12345";
+      const admin = await prisma.platformUser.create({ data: { email: `plat-rs${t}@uji.test`, password: await hashPassword(adminPw), name: "A", role: "platform_admin" } });
       const adminCookie = await cookie({ sub: `pl:${admin.id}`, id: `pl:${admin.id}`, accountType: "platform", role: "platform_admin", email: admin.email, name: "A" });
       const u = await prisma.regionalUser.create({ data: { email: `reg-sv${t}@uji.test`, password: "x", name: "R", role: "regional_kabupaten", scopeRegency: "Kab" } });
       const base = { sub: `rg:${u.id}`, id: `rg:${u.id}`, accountType: "regional", role: "regional_kabupaten", email: u.email, name: "R", regionalScope: { level: "REGENCY", regency: "Kab" } };
@@ -127,7 +129,7 @@ describe("Revalidasi sesi lane platform/regional/mitra (MySQL nyata)", { skip: e
         new NextRequest(`http://localhost/api/admin/regional-users/${u.id}`, {
           method: "PATCH",
           headers: { cookie: `next-auth.session-token=${adminCookie}`, "content-type": "application/json", "x-real-ip": `10.9.${t % 250}.${++ipN}` },
-          body: JSON.stringify({ password: "SandiBaru123" }),
+          body: JSON.stringify({ password: "SandiBaru123", confirmPassword: adminPw, reason: "reset sandi uji lane" }),
         }),
         { params: Promise.resolve({ id: String(u.id) }) },
       );

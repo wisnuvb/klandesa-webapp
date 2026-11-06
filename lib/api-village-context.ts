@@ -16,6 +16,7 @@ import {
 } from "@/lib/subscription";
 import { resolveModuleIdFromApiPath } from "@/lib/modules/api-route-map";
 import { requireModuleEntitlement } from "@/lib/modules/require-module";
+import { gateVillage } from "@/lib/platform/villages/village-gate";
 
 export function jsonUnauthorized(message = "Unauthorized") {
   return NextResponse.json({ error: message }, { status: 401 });
@@ -103,6 +104,10 @@ export async function requireVillageApiContext(
       response: NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 }),
     };
   }
+
+  // Desa dinonaktifkan oleh admin platform: seluruh API web desa ditutup (seluler/kios/kunci API sudah menegakkannya sendiri).
+  const inactive = gateVillage(village);
+  if (inactive) return { ok: false, response: inactive };
 
   if (
     session.user.villageId != null &&

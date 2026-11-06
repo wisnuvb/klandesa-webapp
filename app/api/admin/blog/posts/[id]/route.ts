@@ -4,6 +4,44 @@ import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { slugifyBlog } from "@/app/api/admin/blog/_slug";
 import { toJSONSafe } from "@/utils/json";
+import { auditPlatform } from "@/lib/platform/audit";
+import { actorOf, clip } from "@/lib/platform/legacy-audit";
+
+const MAX_CONTENT = 300_000;
+const MAX_TAGS = 20;
+const ATTRIBUTION_TEXT_KEYS = ["authorName", "authorUsername", "source"] as const;
+const ATTRIBUTION_URL_KEYS = ["authorUrl", "photoUrl", "downloadLocation"] as const;
+
+function isHttpUrl(v: string): boolean {
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/** Sampul: kosong (hapus), jalur lokal, atau URL http(s). Skema lain (javascript:, data:) ditolak. */
+function validCoverUrl(v: string): boolean {
+  if (v === "") return true;
+  if (v.length > 2000) return false;
+  if (v.startsWith("/") && !v.startsWith("//")) return true;
+  return isHttpUrl(v);
+}
+
+/** Atribusi tampil publik (tautan <a href>): hanya kunci dikenal, teks pendek, URL harus http(s). */
+function sanitizeAttribution(input: object): Prisma.InputJsonValue {
+  const src = input as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const k of ATTRIBUTION_TEXT_KEYS) {
+    if (typeof src[k] === "string") out[k] = (src[k] as string).slice(0, 200);
+  }
+  for (const k of ATTRIBUTION_URL_KEYS) {
+    const v = src[k];
+    if (typeof v === "string" && v.length <= 1000 && isHttpUrl(v)) out[k] = v;
+  }
+  return out;
+}
 
 function normalizeStatus(input: string): string | null {
   const s = input.trim().toLowerCase();
@@ -118,6 +156,28 @@ export async function PUT(
       { status: 400 },
     );
   }
+  if (
+    (title !== undefined && title.length > 200) ||
+    (seoTitle !== undefined && seoTitle.length > 200) ||
+    (seoDescription !== undefined && seoDescription.length > 500) ||
+    (excerpt !== undefined && excerpt.length > 5000) ||
+    (content !== undefined && content.length > MAX_CONTENT)
+  ) {
+    return NextResponse.json({ error: "Salah satu isian melebihi batas panjang" }, { status: 400 });
+  }
+  if (coverImageUrl !== undefined && !validCoverUrl(coverImageUrl)) {
+    return NextResponse.json({ error: "coverImageUrl harus berupa URL http(s) atau jalur lokal" }, { status: 400 });
+  }
+  let attributionData: Prisma.InputJsonValue | typeof Prisma.DbNull | undefined;
+  if (coverImageAttributionInput !== undefined) {
+    if (coverImageAttributionInput === null) {
+      attributionData = Prisma.DbNull;
+    } else if (typeof coverImageAttributionInput === "object" && !Array.isArray(coverImageAttributionInput)) {
+      attributionData = sanitizeAttribution(coverImageAttributionInput);
+    } else {
+      return NextResponse.json({ error: "coverImageAttribution tidak valid" }, { status: 400 });
+    }
+  }
   if (statusRaw !== undefined && !status) {
     return NextResponse.json({ error: "Status tidak valid" }, { status: 400 });
   }
@@ -142,34 +202,34 @@ export async function PUT(
 
   const tagsInput = body.tags;
   const tags = Array.isArray(tagsInput)
-    ? tagsInput.filter((t) => typeof t === "string")
+    ? tagsInput.filter((t): t is string => typeof t === "string").slice(0, MAX_TAGS)
     : null;
 
-  const updated = await prisma.$transaction(async (tx) => {
+  const before = await prisma.blogPost.findUnique({
+    where: { id: postId },
+    select: { title: true, slug: true, status: true, publishedAt: true },
+  });
+  if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  let updated: { id: bigint; slug: string };
+  try {
+    updated = await prisma.$transaction(async (tx) => {
     const data: Prisma.BlogPostUpdateInput = {};
     if (title !== undefined) data.title = title;
     if (slug !== undefined) data.slug = slug;
     if (excerpt !== undefined) data.excerpt = excerpt;
     if (content !== undefined) data.content = content;
-    if (statusOk !== undefined) data.status = statusOk;
+    if (statusOk !== undefined) {
+      data.status = statusOk;
+      // Terbit tanpa tanggal terbit membuat artikel hilang dari urutan daftar publik: isi bila belum ada.
+      if (statusOk === "published" && !before.publishedAt) data.publishedAt = new Date();
+    }
     if (coverImageUrl !== undefined) data.coverImageUrl = coverImageUrl || null;
     if (seoTitle !== undefined) data.seoTitle = seoTitle || null;
     if (seoDescription !== undefined)
       data.seoDescription = seoDescription || null;
 
-    if (coverImageAttributionInput !== undefined) {
-      if (coverImageAttributionInput === null) {
-        data.coverImageAttribution = Prisma.DbNull;
-      } else if (typeof coverImageAttributionInput === "object") {
-        data.coverImageAttribution =
-          coverImageAttributionInput as Prisma.InputJsonValue;
-      } else {
-        return NextResponse.json(
-          { error: "coverImageAttribution tidak valid" },
-          { status: 400 },
-        );
-      }
-    }
+    if (attributionData !== undefined) data.coverImageAttribution = attributionData;
 
     const post = await tx.blogPost.update({
       where: { id: postId },
@@ -198,6 +258,47 @@ export async function PUT(
     }
 
     return post;
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json({ error: "Slug sudah dipakai" }, { status: 400 });
+    }
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    throw e;
+  }
+
+  const changed = [
+    title !== undefined && "title",
+    slug !== undefined && "slug",
+    excerpt !== undefined && "excerpt",
+    content !== undefined && "content",
+    statusOk !== undefined && "status",
+    coverImageUrl !== undefined && "coverImageUrl",
+    attributionData !== undefined && "coverImageAttribution",
+    seoTitle !== undefined && "seoTitle",
+    seoDescription !== undefined && "seoDescription",
+    tags !== null && "tags",
+  ].filter(Boolean) as string[];
+  const wasPublished = before.status === "published";
+  const action =
+    statusOk === "published" && !wasPublished
+      ? "blog.publish"
+      : statusOk !== undefined && statusOk !== "published" && wasPublished
+        ? "blog.unpublish"
+        : "blog.update";
+  await auditPlatform(req, actorOf(auth), {
+    action,
+    targetType: "system",
+    targetId: `blog_post:${postId}`,
+    summary: `${action === "blog.publish" ? "Menerbitkan" : action === "blog.unpublish" ? "Menarik dari terbit" : "Mengubah"} artikel blog "${clip(title ?? before.title, 120)}" (slug ${updated.slug})${action === "blog.update" ? `: ${changed.join(", ") || "tanpa perubahan"}` : ""}`,
+    metadata: {
+      postId: postId.toString(),
+      changedFields: changed,
+      before: { status: before.status, slug: before.slug, title: clip(before.title, 120) },
+      after: { status: statusOk ?? before.status, slug: updated.slug, ...(title !== undefined ? { title: clip(title, 120) } : {}) },
+    },
   });
 
   return NextResponse.json(

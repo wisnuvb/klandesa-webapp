@@ -54,6 +54,7 @@ export async function provisionPartnerFromReferralCodeTx(
       where: { email },
       select: {
         id: true,
+        status: true,
       },
     })) ?? null;
 
@@ -68,9 +69,13 @@ export async function provisionPartnerFromReferralCodeTx(
         region: null,
         status: "active",
       },
-      select: { id: true },
+      select: { id: true, status: true },
     });
   } else {
+    // Mitra yang ditangguhkan/nonaktif TIDAK boleh hidup lagi lewat pembuatan kode referral: aktifkan sengaja di Kelola Mitra.
+    if (partner.status !== "active") {
+      throw new Error("Mitra dengan email ini berstatus tidak aktif. Aktifkan dulu lewat Kelola Mitra, lalu buat kode referral.");
+    }
     const otherRefWithSamePartner = await tx.referralCode.findFirst({
       where: {
         partnerId: partner.id,
@@ -91,7 +96,6 @@ export async function provisionPartnerFromReferralCodeTx(
         ...(ref.ownerPhone?.trim()
           ? { phone: ref.ownerPhone.trim().slice(0, 40) }
           : {}),
-        status: "active",
       },
     });
   }

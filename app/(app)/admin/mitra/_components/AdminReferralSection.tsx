@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { port as APP_PORT } from "@/config/port.json";
 import { buildPartnerSharePath } from "@/lib/partner/public-page";
+import { StepUpDialog, type StepUpSubmit } from "@/components/admin/StepUpDialog";
 
 type ReferralCodeRow = {
   id: number;
@@ -95,6 +96,7 @@ export function AdminReferralSection() {
   const [selectedCode, setSelectedCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -160,7 +162,8 @@ export function AdminReferralSection() {
     };
   }, [load]);
 
-  const createCode = async () => {
+  /** Galat dilempar ke StepUpDialog (sandi salah, email mitra tidak aktif, dll) dan tampil di dalam dialog. */
+  const createCode = async (v: StepUpSubmit) => {
     try {
       setSaving(true);
       setError(null);
@@ -172,6 +175,9 @@ export function AdminReferralSection() {
           ...form,
           landingPath: "/m",
           status: "active",
+          confirmPassword: v.confirmPassword,
+          totpCode: v.totpCode,
+          reason: v.reason,
         }),
       });
       const data = (await res.json().catch(() => null)) as {
@@ -195,10 +201,6 @@ export function AdminReferralSection() {
         notes: "",
       });
       await load();
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Gagal membuat kode referral",
-      );
     } finally {
       setSaving(false);
     }
@@ -313,7 +315,7 @@ export function AdminReferralSection() {
             placeholder="Catatan internal"
           />
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button disabled={saving} onClick={createCode}>
+            <Button disabled={saving} onClick={() => setConfirmOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               {saving ? "Menyimpan…" : "Buat kode"}
             </Button>
@@ -492,6 +494,14 @@ export function AdminReferralSection() {
           )}
         </CardContent>
       </Card>
+      <StepUpDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Buat kode referral"
+        description="Kode referral dapat membuat atau menautkan akun Mitra dan aturan komisinya. Tindakan ini tercatat di jejak audit."
+        confirmLabel="Buat kode"
+        onConfirm={createCode}
+      />
     </>
   );
 }

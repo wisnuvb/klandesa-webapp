@@ -19,6 +19,10 @@ import {
   Share2,
   CircleDollarSign,
   CreditCard,
+  UserSearch,
+  TrendingUp,
+  ScrollText,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { Button } from "../ui/button";
@@ -117,36 +121,15 @@ const PARTNER_SIDEBAR_MENU: MenuItem[] = [
 ];
 
 const PLATFORM_SIDEBAR_MENU: MenuItem[] = [
-  {
-    id: "admin",
-    label: "Admin",
-    icon: Home,
-    path: "/admin",
-  },
-  {
-    id: "admin/desa",
-    label: "Kelola Desa",
-    icon: Users,
-    path: "/admin/desa",
-  },
-  {
-    id: "admin/mitra",
-    label: "Kelola Mitra",
-    icon: HeartHandshake,
-    path: "/admin/mitra",
-  },
-  {
-    id: "admin/blog",
-    label: "Kelola Blog",
-    icon: FileText,
-    path: "/admin/blog",
-  },
-  {
-    id: "admin/pembayaran",
-    label: "Kanal Pembayaran",
-    icon: CreditCard,
-    path: "/admin/pembayaran",
-  },
+  { id: "admin", label: "Dasbor Owner", icon: Home, path: "/admin" },
+  { id: "admin/akun", label: "Pusat Akun", icon: UserSearch, path: "/admin/akun" },
+  { id: "admin/desa", label: "Kelola Desa", icon: Users, path: "/admin/desa" },
+  { id: "admin/pendapatan", label: "Pendapatan", icon: TrendingUp, path: "/admin/pendapatan" },
+  { id: "admin/mitra", label: "Kelola Mitra", icon: HeartHandshake, path: "/admin/mitra" },
+  { id: "admin/blog", label: "Kelola Blog", icon: FileText, path: "/admin/blog" },
+  { id: "admin/pembayaran", label: "Kanal Pembayaran", icon: CreditCard, path: "/admin/pembayaran" },
+  { id: "admin/audit", label: "Jejak Audit", icon: ScrollText, path: "/admin/audit" },
+  { id: "admin/keamanan", label: "Keamanan & Admin", icon: ShieldCheck, path: "/admin/keamanan" },
 ];
 
 interface SidebarProps {

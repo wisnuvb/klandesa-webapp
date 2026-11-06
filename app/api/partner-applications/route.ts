@@ -8,7 +8,10 @@ import {
 import { hashPassword } from "@/lib/auth";
 import { validatePartnerPasswordPlain } from "@/lib/partner/password-policy";
 import { prisma } from "@/lib/prisma";
+import { findPartnerEmailConflict } from "@/lib/partner/application-email";
 import { requireTurnstile } from "@/lib/turnstile";
+import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
+import { clientIpOf } from "@/lib/rbac/client-ip";
 
 /**
  * Pendaftaran mitra → Google Apps Script (Web App URL).
@@ -44,6 +47,15 @@ export async function POST(req: NextRequest) {
           turnstileToken?: string;
         }
       | null;
+
+    // Pembatas per IP (Turnstile bisa nonaktif): menahan banjir tabel pendaftaran + webhook dan pemakaian bcrypt tak terbatas.
+    const rl = await checkRateLimitDb(limiterKey("partner-apply-ip", clientIpOf(req)), { max: 8, windowMs: 60 * 60_000 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Terlalu banyak pendaftaran dari jaringan ini. Coba lagi nanti." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      );
+    }
 
     const turnstile = await requireTurnstile(req, body?.turnstileToken);
     if (!turnstile.ok) return turnstile.response;
@@ -98,7 +110,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: pwErr }, { status: 400 });
     }
 
-    const passwordHash = await hashPassword(password);
+    // Email yang sudah milik mitra/admin/pemda: pendaftaran tetap diterima (respons sama, tidak membocorkan email terdaftar)
+    // tetapi sandi pilihan pelamar TIDAK disimpan, dan persetujuan admin akan menolaknya (anti pengambilalihan akun).
+    const conflict = await findPartnerEmailConflict(prisma, email);
+    // bcrypt SELALU dijalankan (hasilnya dibuang saat konflik) agar waktu respons tidak membocorkan email yang sudah terdaftar.
+    const hashed = await hashPassword(password);
+    const passwordHash = conflict ? null : hashed;
 
     const ipAddress = clientIpOrNull(req);
     const userAgent = req.headers.get("user-agent") || null;
@@ -115,6 +132,7 @@ export async function POST(req: NextRequest) {
         meta: {
           ipAddress,
           userAgent,
+          ...(conflict ? { emailConflict: conflict.kind } : {}),
         },
       },
     });

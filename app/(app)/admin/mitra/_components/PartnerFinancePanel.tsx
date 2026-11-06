@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { BILLING_CATALOG, formatIdr } from "@/lib/billing/catalog";
+import { StepUpDialog, type StepUpSubmit } from "@/components/admin/StepUpDialog";
 
 type RuleRow = {
   closingBonusAmount: string | number;
@@ -54,6 +55,9 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // Simpan skema / approve komisi / buat pencairan menggerakkan uang: konfirmasi sandi + alasan (StepUpDialog).
+  const [pending, setPending] = useState<"rule" | "approve" | "disburse" | null>(null);
+
   const base = `/api/admin/partners/${partnerId}`;
 
   const reload = useCallback(async () => {
@@ -89,7 +93,8 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
     void reload();
   }, [reload]);
 
-  const saveRule = async () => {
+  /** Galat dilempar ke StepUpDialog (mis. sandi konfirmasi salah) dan tampil di dalam dialog. */
+  const saveRule = async (v: StepUpSubmit) => {
     setBusy(true);
     setErr(null);
     setMsg(null);
@@ -102,20 +107,20 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
           closingBonusPercent: closingPct.trim() === "" ? null : Number(closingPct),
           subscriptionSharePercent: Number(pct),
           isActive: isActiveRule,
+          confirmPassword: v.confirmPassword, totpCode: v.totpCode,
+          reason: v.reason,
         }),
       });
       const d = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(d?.error ?? "Gagal simpan");
       setMsg("Skema bagi hasil disimpan.");
       await reload();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Gagal");
     } finally {
       setBusy(false);
     }
   };
 
-  const approveAllAccrued = async () => {
+  const approveAllAccrued = async (v: StepUpSubmit) => {
     setBusy(true);
     setErr(null);
     setMsg(null);
@@ -123,27 +128,34 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
       const res = await fetch(`${base}/commissions/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approveAll: true }),
+        body: JSON.stringify({ approveAll: true, confirmPassword: v.confirmPassword, totpCode: v.totpCode, reason: v.reason }),
       });
       const d = (await res.json().catch(() => ({}))) as { error?: string; approved?: number };
       if (!res.ok) throw new Error(d.error ?? "Gagal approve");
       setMsg(`Disetujui ${d.approved ?? 0} entri.`);
       await reload();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Gagal");
     } finally {
       setBusy(false);
     }
   };
 
-  const createDisbursement = async () => {
-    const ids = Object.entries(selectedApproved)
+  const selectedIds = () =>
+    Object.entries(selectedApproved)
       .filter(([, v]) => v)
       .map(([id]) => id);
-    if (ids.length === 0) {
+
+  const askDisbursement = () => {
+    if (selectedIds().length === 0) {
       setErr("Pilih minimal satu entri approved.");
       return;
     }
+    setErr(null);
+    setPending("disburse");
+  };
+
+  const createDisbursement = async (v: StepUpSubmit) => {
+    const ids = selectedIds();
+    if (ids.length === 0) throw new Error("Pilih minimal satu entri approved.");
     setBusy(true);
     setErr(null);
     setMsg(null);
@@ -154,6 +166,8 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
         body: JSON.stringify({
           commissionEntryIds: ids,
           status: "pending",
+          confirmPassword: v.confirmPassword, totpCode: v.totpCode,
+          reason: v.reason,
         }),
       });
       const d = (await res.json().catch(() => ({}))) as { error?: string };
@@ -162,8 +176,6 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
         "Disbursement dibuat (pending). Tandai pembayaran selesai lewat PATCH /api/admin/disbursements/[id] jika payout sudah dikirim.",
       );
       await reload();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Gagal");
     } finally {
       setBusy(false);
     }
@@ -244,7 +256,7 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
             />
             <Label htmlFor={`active-${partnerId}`}>Skema aktif</Label>
           </div>
-          <Button type="button" disabled={busy} onClick={() => void saveRule()}>
+          <Button type="button" disabled={busy} onClick={() => setPending("rule")}>
             Simpan skema
           </Button>
         </div>
@@ -276,7 +288,7 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
             size="sm"
             disabled={busy || accrued.length === 0}
             type="button"
-            onClick={() => void approveAllAccrued()}
+            onClick={() => setPending("approve")}
           >
             Approve semua accrued
           </Button>
@@ -342,7 +354,7 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
             <Button
               type="button"
               disabled={busy || !Object.values(selectedApproved).some(Boolean)}
-              onClick={() => void createDisbursement()}
+              onClick={askDisbursement}
             >
               Buat disbursement (pending)
             </Button>
@@ -354,6 +366,29 @@ export function PartnerFinancePanel({ partnerId }: { partnerId: number }) {
             Rule default akan dibuat saat membuka halaman bagi hasil.
           </div>
         ) : null}
+
+        <StepUpDialog
+          open={pending != null}
+          onOpenChange={(open) => !open && setPending(null)}
+          title={
+            pending === "rule"
+              ? "Simpan skema bagi hasil"
+              : pending === "approve"
+                ? "Approve semua komisi accrued"
+                : "Buat pencairan komisi"
+          }
+          description={
+            pending === "rule"
+              ? "Skema ini menentukan komisi yang akan terutang ke mitra untuk transaksi berikutnya."
+              : pending === "approve"
+                ? `Menyetujui ${accrued.length} entri komisi accrued sehingga siap dicairkan.`
+                : `Membuat batch pencairan untuk ${selectedIds().length} entri approved senilai ${formatIdr(sumSelectedApproved)} ke rekening utama mitra.`
+          }
+          confirmLabel={pending === "rule" ? "Simpan skema" : pending === "approve" ? "Approve" : "Buat pencairan"}
+          onConfirm={(v) =>
+            pending === "rule" ? saveRule(v) : pending === "approve" ? approveAllAccrued(v) : createDisbursement(v)
+          }
+        />
       </CardContent>
     </Card>
   );

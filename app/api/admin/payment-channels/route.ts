@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { auditPlatform } from "@/lib/platform/audit";
+import { actorOf } from "@/lib/platform/legacy-audit";
+import { readRisky } from "@/lib/platform/legacy-risky";
 import { invalidateChannelSettings } from "@/lib/payment/channel-settings";
 import { channelUnavailableReason } from "@/lib/payment/channel-health";
 import { getLinkquMode } from "@/lib/payment/channel-probe";
@@ -52,17 +55,20 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ ...getLinkquMode(), channels }, { headers: { "Cache-Control": "no-store" } });
 }
 
-/** Aktifkan / nonaktifkan satu kanal untuk semua desa. Body: { code, enabled, note? } */
+/** Aktifkan / nonaktifkan satu kanal untuk semua desa. Body: { code, enabled, note?, confirmPassword, reason } */
 export async function PATCH(req: NextRequest) {
   const auth = await requirePlatformSession(req);
   if (!auth.ok) return auth.response;
 
-  const body = (await req.json().catch(() => null)) as { code?: unknown; enabled?: unknown; note?: unknown } | null;
-  const code = typeof body?.code === "string" ? body.code : "";
+  // Mematikan kanal memutus pembayaran semua desa: wajib konfirmasi sandi admin + alasan.
+  const risky = await readRisky(req, auth.admin);
+  if (!risky.ok) return risky.response;
+  const body = risky.body as { code?: unknown; enabled?: unknown; note?: unknown };
+  const code = typeof body.code === "string" ? body.code : "";
   if (!isKnownLinkquChannelCode(code)) {
     return NextResponse.json({ error: "Kode kanal tidak dikenal" }, { status: 400 });
   }
-  if (typeof body?.enabled !== "boolean") {
+  if (typeof body.enabled !== "boolean") {
     return NextResponse.json({ error: "Field enabled wajib berupa true/false" }, { status: 400 });
   }
   const note = typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 250) : null;
@@ -74,12 +80,26 @@ export async function PATCH(req: NextRequest) {
     updatedByUserId: auth.admin.platformUserId,
     updatedByName: auth.admin.name || auth.admin.email,
   };
+  const before = await prisma.paymentChannelSetting.findUnique({ where: { code }, select: { enabled: true, note: true } });
   const row = await prisma.paymentChannelSetting.upsert({
     where: { code },
     create: { code, ...data },
     update: data,
   });
   invalidateChannelSettings();
+  const label = listAllLinkquChannels().find((c) => c.code === code)?.label ?? code;
+  await auditPlatform(req, actorOf(auth), {
+    action: "payment_channel.update",
+    targetType: "system",
+    targetId: `payment_channel:${code}`,
+    summary: `Kanal pembayaran "${label}" (${code}) ${row.enabled ? "diaktifkan" : "dinonaktifkan"} untuk semua desa`,
+    metadata: {
+      reason: risky.reason,
+      code,
+      before: { enabled: before?.enabled ?? true, note: before?.note ?? null },
+      after: { enabled: row.enabled, note: row.note },
+    },
+  });
   logger.info(
     { code, enabled: row.enabled, note: row.note, by: auth.admin.email },
     "[LinkQu] Status kanal pembayaran diubah admin",

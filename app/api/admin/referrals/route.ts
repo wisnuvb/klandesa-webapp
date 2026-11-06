@@ -3,6 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { normalizeReferralCode } from "@/lib/referrals/tracking";
 import { provisionPartnerFromReferralCodeTx } from "@/lib/partner/provision";
+import { readRisky } from "@/lib/platform/legacy-risky";
+import { Prisma } from "@prisma/client";
+import { auditPlatform } from "@/lib/platform/audit";
+import { actorOf, clip } from "@/lib/platform/legacy-audit";
+
+/** Jalur lokal saja ("/m", "/tim"): tanpa skema/host ("//x", "https://x", "@x") karena disambung ke origin saat membuat tautan. */
+function safeLandingPath(raw: string): string | null {
+  const p = raw.trim() || "/m";
+  if (!/^\/[A-Za-z0-9/_\-.]*$/.test(p) || p.startsWith("//") || p.includes("..")) return null;
+  return p.slice(0, 120);
+}
 
 function readLimit(req: NextRequest): number {
   const raw = req.nextUrl.searchParams.get("limit");
@@ -96,19 +107,20 @@ export async function POST(req: NextRequest) {
   const auth = await requirePlatformSession(req);
   if (!auth.ok) return auth.response;
 
-  const body = (await req.json().catch(() => null)) as
-    | {
-        code?: string;
-        label?: string;
-        ownerName?: string;
-        ownerPhone?: string;
-        ownerEmail?: string;
-        commission?: string;
-        status?: string;
-        landingPath?: string;
-        notes?: string;
-      }
-    | null;
+  // Membuat kode referral dapat membuat/menautkan akun Mitra + aturan komisi (uang): wajib konfirmasi sandi + alasan.
+  const risky = await readRisky(req, auth.admin);
+  if (!risky.ok) return risky.response;
+  const body = risky.body as {
+    code?: string;
+    label?: string;
+    ownerName?: string;
+    ownerPhone?: string;
+    ownerEmail?: string;
+    commission?: string;
+    status?: string;
+    landingPath?: string;
+    notes?: string;
+  };
 
   const code = normalizeReferralCode(body?.code);
   const label = String(body?.label ?? "").trim();
@@ -121,7 +133,19 @@ export async function POST(req: NextRequest) {
 
   const status = String(body?.status ?? "active").trim() || "active";
   const normalizedStatus = status.slice(0, 30);
-  const landingPath = String(body?.landingPath ?? "/m").trim() || "/m";
+  const landingPath = safeLandingPath(String(body?.landingPath ?? "/m"));
+  if (!landingPath) {
+    return NextResponse.json({ error: "landingPath harus berupa jalur lokal seperti /m" }, { status: 400 });
+  }
+  // Batas panjang sesuai kolom DB (tanpa ini, input panjang menjadi galat basis data).
+  if (label.length > 120) return NextResponse.json({ error: "Label maksimal 120 karakter" }, { status: 400 });
+  const ownerName = String(body?.ownerName ?? "").trim();
+  const ownerPhone = String(body?.ownerPhone ?? "").trim();
+  const commission = String(body?.commission ?? "").trim();
+  const notes = String(body?.notes ?? "").trim();
+  if (ownerName.length > 120 || ownerPhone.length > 40 || commission.length > 80 || notes.length > 5000) {
+    return NextResponse.json({ error: "Salah satu isian terlalu panjang" }, { status: 400 });
+  }
 
   const ownerEmail = String(body?.ownerEmail ?? "").trim().toLowerCase().slice(0, 254) || null;
   if (/^active$/i.test(normalizedStatus) && ownerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) {
@@ -143,13 +167,13 @@ export async function POST(req: NextRequest) {
         data: {
           code,
           label,
-          ownerName: String(body?.ownerName ?? "").trim() || null,
-          ownerPhone: String(body?.ownerPhone ?? "").trim() || null,
+          ownerName: ownerName || null,
+          ownerPhone: ownerPhone || null,
           ownerEmail: ownerEmail ?? null,
-          commission: String(body?.commission ?? "").trim() || null,
+          commission: commission || null,
           status: normalizedStatus,
-          landingPath: landingPath.slice(0, 120),
-          notes: String(body?.notes ?? "").trim() || null,
+          landingPath,
+          notes: notes || null,
         },
         select: { id: true, code: true, status: true },
       });
@@ -164,9 +188,33 @@ export async function POST(req: NextRequest) {
       select: { id: true, code: true, partnerId: true },
     });
 
+    await auditPlatform(req, actorOf(auth), {
+      action: "referral.create",
+      targetType: withPartner?.partnerId != null ? "partner" : "system",
+      targetId: withPartner?.partnerId != null ? withPartner.partnerId : `referral:${created.id}`,
+      summary: `Membuat kode referral "${created.code}" (${clip(label, 80)})${withPartner?.partnerId != null ? `, tertaut mitra #${withPartner.partnerId}` : ""}`,
+      metadata: {
+        referralCodeId: created.id,
+        code: created.code,
+        status: created.status,
+        partnerId: withPartner?.partnerId ?? null,
+        commission: commission || null,
+        landingPath,
+      },
+    });
+
     return NextResponse.json({ ok: true, referralCode: withPartner ?? created }, { status: 201 });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Gagal membuat referral + mitra";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    // Pesan galat Prisma/SQL tidak boleh bocor ke klien; pesan Error biasa dari layanan (sudah Bahasa Indonesia) dipertahankan.
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      return NextResponse.json(
+        { error: e.code === "P2002" ? "Kode referral atau mitra untuk email ini sudah ada" : "Gagal membuat referral + mitra" },
+        { status: 400 },
+      );
+    }
+    if (e instanceof Error && !/prisma|invocation|\bSQL\b/i.test(e.message)) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Gagal membuat referral + mitra" }, { status: 400 });
   }
 }

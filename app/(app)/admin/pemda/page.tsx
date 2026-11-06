@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { StepUpDialog, type StepUpSubmit } from "@/components/admin/StepUpDialog";
 
 type RegionalUserRow = {
   id: number;
@@ -48,7 +49,9 @@ export default function AdminPemdaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
+  // Buat akun & aktifkan ulang = mengeluarkan akses: konfirmasi sandi + alasan lewat StepUpDialog.
+  const [confirmCreate, setConfirmCreate] = useState(false);
+  const [activateTarget, setActivateTarget] = useState<RegionalUserRow | null>(null);
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -83,45 +86,59 @@ export default function AdminPemdaPage() {
     void load();
   }, [load]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setError(null);
-    try {
-      const res = await fetch("/api/admin/regional-users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: string };
-      if (!res.ok) throw new Error(data?.error || "Gagal membuat akun");
-      setShowForm(false);
-      setForm({
-        email: "",
-        password: "",
-        name: "",
-        role: "regional_kabupaten",
-        scopeProvince: "",
-        scopeRegency: "",
-        scopeDistrict: "",
-        scopeKodeProvinsi: "",
-        scopeKodeKabKota: "",
-      });
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal membuat akun");
-    } finally {
-      setSaving(false);
-    }
+    setConfirmCreate(true);
   };
 
-  const toggleActive = async (id: number, isActive: boolean) => {
+  /** Galat dilempar ke StepUpDialog (mis. sandi konfirmasi salah) dan tampil di dalam dialog. */
+  const createAccount = async (v: StepUpSubmit) => {
+    const res = await fetch("/api/admin/regional-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, confirmPassword: v.confirmPassword, totpCode: v.totpCode, reason: v.reason }),
+    });
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (!res.ok) throw new Error(data?.error || "Gagal membuat akun");
+    setShowForm(false);
+    setForm({
+      email: "",
+      password: "",
+      name: "",
+      role: "regional_kabupaten",
+      scopeProvince: "",
+      scopeRegency: "",
+      scopeDistrict: "",
+      scopeKodeProvinsi: "",
+      scopeKodeKabKota: "",
+    });
+    await load();
+  };
+
+  // Menonaktifkan = tindakan protektif (tanpa step-up); mengaktifkan ulang membuka dialog konfirmasi.
+  const deactivate = async (id: number) => {
     const res = await fetch(`/api/admin/regional-users/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !isActive }),
+      body: JSON.stringify({ isActive: false }),
     });
     if (res.ok) await load();
+    else {
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      setError(data?.error || "Gagal menonaktifkan akun");
+    }
+  };
+
+  const activate = async (id: number, v: StepUpSubmit) => {
+    const res = await fetch(`/api/admin/regional-users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: true, confirmPassword: v.confirmPassword, totpCode: v.totpCode, reason: v.reason }),
+    });
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (!res.ok) throw new Error(data?.error || "Gagal mengaktifkan akun");
+    await load();
   };
 
   return (
@@ -268,9 +285,7 @@ export default function AdminPemdaPage() {
                 />
               </div>
               <div className="sm:col-span-2">
-                <Button type="submit" disabled={saving}>
-                  {saving ? "Menyimpan…" : "Simpan akun"}
-                </Button>
+                <Button type="submit">Simpan akun</Button>
               </div>
             </form>
           </CardContent>
@@ -326,7 +341,7 @@ export default function AdminPemdaPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => void toggleActive(u.id, u.isActive)}
+                      onClick={() => (u.isActive ? void deactivate(u.id) : setActivateTarget(u))}
                     >
                       {u.isActive ? "Nonaktifkan" : "Aktifkan"}
                     </Button>
@@ -337,6 +352,29 @@ export default function AdminPemdaPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <StepUpDialog
+        open={confirmCreate}
+        onOpenChange={setConfirmCreate}
+        title="Buat akun pemda"
+        description={
+          <>
+            Akun <strong>{form.email || "baru"}</strong> akan bisa masuk ke dasbor wilayah dengan kata sandi yang Anda isi.
+            Pastikan email, peran, dan lingkup wilayah sudah benar.
+          </>
+        }
+        confirmLabel="Buat akun"
+        onConfirm={createAccount}
+      />
+
+      <StepUpDialog
+        open={activateTarget != null}
+        onOpenChange={(open) => !open && setActivateTarget(null)}
+        title={`Aktifkan ulang ${activateTarget?.email ?? "akun"}`}
+        description="Akun ini akan bisa masuk lagi ke dasbor wilayahnya."
+        confirmLabel="Aktifkan"
+        onConfirm={(v) => (activateTarget ? activate(activateTarget.id, v) : Promise.resolve())}
+      />
     </div>
   );
 }

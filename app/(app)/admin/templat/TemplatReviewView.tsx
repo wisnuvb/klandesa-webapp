@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { StepUpDialog, type StepUpSubmit } from "@/components/admin/StepUpDialog";
 import { useApiGet } from "@/hooks/useApiGet";
 import type { ReviewItem } from "@/lib/village-apps/service";
 
@@ -14,6 +15,8 @@ const TYPE: Record<string, string> = { text: "Teks pendek", longtext: "Teks panj
 const PII: Record<string, string> = { NONE: "bukan pribadi", PERSONAL: "PRIBADI", SENSITIVE: "SANGAT SENSITIF" };
 
 type Action = { kind: "approve" | "reject" | "unpublish"; item: ReviewItem };
+/** Lencana "Resmi" (beri/cabut, atau terbitkan sebagai resmi) = konfirmasi sandi + alasan. */
+type OfficialStep = { kind: "official" | "unofficial" | "approve_official"; item: ReviewItem; note?: string };
 
 export function TemplatReviewView() {
   const [all, setAll] = useState(false);
@@ -23,6 +26,7 @@ export function TemplatReviewView() {
   const [official, setOfficial] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [officialStep, setOfficialStep] = useState<OfficialStep | null>(null);
 
   function open(a: Action) {
     setNote("");
@@ -31,16 +35,37 @@ export function TemplatReviewView() {
     setAction(a);
   }
 
-  async function toggleOfficial(t: ReviewItem) {
-    const r = await fetch(`/api/admin/app-templates/${t.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: t.official ? "unofficial" : "official" }) });
+  function toggleOfficial(t: ReviewItem) {
+    setOfficialStep({ kind: t.official ? "unofficial" : "official", item: t });
+  }
+
+  /** Galat dilempar ke StepUpDialog (mis. sandi konfirmasi salah) dan tampil di dalam dialog. */
+  async function confirmOfficial(v: StepUpSubmit) {
+    if (!officialStep) return;
+    const { kind, item, note: stepNote } = officialStep;
+    const body =
+      kind === "approve_official"
+        ? { decision: "approve", note: stepNote, official: true }
+        : { decision: kind };
+    const r = await fetch(`/api/admin/app-templates/${item.id}/decision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, confirmPassword: v.confirmPassword, totpCode: v.totpCode, reason: v.reason }),
+    });
     const j = await r.json().catch(() => null);
-    if (!r.ok) return toast.error(typeof j?.error === "string" ? j.error : "Gagal mengubah lencana.");
-    toast.success(t.official ? "Lencana resmi dicabut." : "Ditandai resmi.");
+    if (!r.ok) throw new Error(typeof j?.error === "string" ? j.error : "Gagal menyimpan keputusan.");
+    toast.success(kind === "approve_official" ? "Diterbitkan ke galeri sebagai resmi." : kind === "unofficial" ? "Lencana resmi dicabut." : "Ditandai resmi.");
     res.reload();
   }
 
   async function submit() {
     if (!action) return;
+    if (action.kind === "approve" && official) {
+      // Terbitkan sebagai resmi: lanjut ke konfirmasi sandi + alasan.
+      setOfficialStep({ kind: "approve_official", item: action.item, note });
+      setAction(null);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -139,7 +164,7 @@ export function TemplatReviewView() {
                 <Button type="button" variant="outline" className="min-h-11" onClick={() => open({ kind: "unpublish", item: t })}>
                   Cabut dari galeri
                 </Button>
-                <Button type="button" variant="outline" className="min-h-11" onClick={() => void toggleOfficial(t)}>
+                <Button type="button" variant="outline" className="min-h-11" onClick={() => toggleOfficial(t)}>
                   {t.official ? "Cabut lencana resmi" : "Tandai resmi"}
                 </Button>
               </div>
@@ -192,6 +217,29 @@ export function TemplatReviewView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StepUpDialog
+        open={officialStep != null}
+        onOpenChange={(o) => !o && setOfficialStep(null)}
+        title={
+          officialStep?.kind === "unofficial"
+            ? "Cabut lencana resmi?"
+            : officialStep?.kind === "approve_official"
+              ? "Terbitkan sebagai templat resmi?"
+              : "Tandai sebagai templat resmi?"
+        }
+        description={
+          <>
+            Templat <strong>{officialStep?.item.name}</strong>{" "}
+            {officialStep?.kind === "unofficial"
+              ? "tidak lagi menampilkan lencana Resmi di galeri."
+              : "akan tampil dengan lencana Resmi di galeri semua desa."}
+          </>
+        }
+        confirmLabel={officialStep?.kind === "unofficial" ? "Cabut lencana" : officialStep?.kind === "approve_official" ? "Terbitkan" : "Tandai resmi"}
+        destructive={officialStep?.kind === "unofficial"}
+        onConfirm={confirmOfficial}
+      />
     </div>
   );
 }

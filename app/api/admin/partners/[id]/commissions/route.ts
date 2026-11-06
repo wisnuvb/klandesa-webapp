@@ -4,10 +4,9 @@ import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { PARTNER_COMMISSION_TYPES, PARTNER_COMMISSION_STATUSES } from "@/lib/partner/commission";
 import { toJSONSafe } from "@/utils/json";
 
-function partnerIdFromParam(raw: string): number | null {
-  const n = Number(raw);
-  return Number.isFinite(n) ? Math.floor(n) : null;
-}
+import { parsePositiveInt } from "@/lib/platform/legacy-audit";
+
+const partnerIdFromParam = (raw: string): number | null => parsePositiveInt(raw);
 
 export async function GET(
   req: NextRequest,

@@ -6,27 +6,8 @@ import { Loader2, FlaskConical, Lock, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { StepUpDialog, type StepUpSubmit } from "@/components/admin/StepUpDialog";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 
 type Channel = {
   code: string;
@@ -91,8 +72,8 @@ export default function AdminPaymentChannelsPage() {
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [probing, setProbing] = useState<string | "all" | null>(null);
 
-  const [disableTarget, setDisableTarget] = useState<Channel | null>(null);
-  const [reason, setReason] = useState("");
+  // Semua perubahan kanal & uji kanal butuh konfirmasi sandi + alasan (StepUpDialog).
+  const [toggleTarget, setToggleTarget] = useState<{ c: Channel; enabled: boolean } | null>(null);
   const [probeConfirm, setProbeConfirm] = useState<{ codes?: string[] } | null>(null);
 
   const load = useCallback(async () => {
@@ -117,36 +98,43 @@ export default function AdminPaymentChannelsPage() {
     [data],
   );
 
-  const setEnabled = async (c: Channel, enabled: boolean, note?: string) => {
+  /** Galat dilempar ke StepUpDialog (mis. sandi konfirmasi salah) dan tampil di dalam dialog. */
+  const setEnabled = async (c: Channel, enabled: boolean, v: StepUpSubmit) => {
     setBusyCode(c.code);
     try {
       const r = await api<{ ok: boolean }>("/api/admin/payment-channels", {
         method: "PATCH",
-        body: JSON.stringify({ code: c.code, enabled, note }),
+        body: JSON.stringify({
+          code: c.code,
+          enabled,
+          // Catatan kanal (tampil di daftar) = alasan saat dinonaktifkan.
+          note: enabled ? undefined : v.reason,
+          confirmPassword: v.confirmPassword, totpCode: v.totpCode,
+          reason: v.reason,
+        }),
       });
       if (!r.ok) throw new Error(r.data.error || "Gagal menyimpan");
       toast.success(enabled ? `${c.label} diaktifkan` : `${c.label} dinonaktifkan`, {
         description: "Berlaku untuk semua desa dalam beberapa detik.",
       });
       await load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan");
     } finally {
       setBusyCode(null);
     }
   };
 
-  const runProbe = async (codes: string[] | undefined, confirmProduction = false) => {
+  const runProbe = async (codes: string[] | undefined, v: StepUpSubmit) => {
     setProbing(codes?.length === 1 ? codes[0] : "all");
     try {
       const r = await api<ProbeResponse>("/api/admin/payment-channels/probe", {
         method: "POST",
-        body: JSON.stringify({ codes, confirmProduction }),
+        body: JSON.stringify({
+          codes,
+          confirmProduction: data?.mode === "production",
+          confirmPassword: v.confirmPassword, totpCode: v.totpCode,
+          reason: v.reason,
+        }),
       });
-      if (r.status === 409 && r.data.needsConfirmation) {
-        setProbeConfirm({ codes });
-        return;
-      }
       if (!r.ok) throw new Error(r.data.error || "Uji kanal gagal");
       const ok = r.data.results.filter((x) => x.kind === "ok").length;
       const rejected = r.data.results.filter((x) => x.kind === "rejected");
@@ -157,8 +145,6 @@ export default function AdminPaymentChannelsPage() {
           : "Tidak ada kanal yang perlu dinonaktifkan.",
       });
       await load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Uji kanal gagal");
     } finally {
       setProbing(null);
     }
@@ -277,13 +263,7 @@ export default function AdminPaymentChannelsPage() {
                         checked={c.enabled && !c.envLocked}
                         disabled={c.envLocked || busy}
                         aria-label={`${c.enabled ? "Nonaktifkan" : "Aktifkan"} ${c.label}`}
-                        onCheckedChange={(next) => {
-                          if (next) void setEnabled(c, true);
-                          else {
-                            setReason("");
-                            setDisableTarget(c);
-                          }
-                        }}
+                        onCheckedChange={(next) => setToggleTarget({ c, enabled: next })}
                       />
                     </div>
                   </div>
@@ -299,74 +279,40 @@ export default function AdminPaymentChannelsPage() {
         nominal di luar batas kanal (mis. e-wallet maksimum Rp 2.500.000) otomatis dinonaktifkan di dialog pembayaran.
       </p>
 
-      {/* Alasan menonaktifkan */}
-      <Dialog open={disableTarget != null} onOpenChange={(open) => !open && setDisableTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nonaktifkan {disableTarget?.label}?</DialogTitle>
-            <DialogDescription>
-              Pengguna tidak akan bisa memilih kanal ini sampai Anda mengaktifkannya lagi. Tagihan yang sudah dibuat tetap bisa dibayar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="channel-reason">Alasan (opsional, hanya untuk catatan internal)</Label>
-            <Textarea
-              id="channel-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              maxLength={250}
-              placeholder="mis. Belum diaktifkan di dashboard LinkQu"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDisableTarget(null)}>
-              Batal
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                const target = disableTarget;
-                setDisableTarget(null);
-                if (target) void setEnabled(target, false, reason);
-              }}
-            >
-              Nonaktifkan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Aktifkan / nonaktifkan kanal: konfirmasi sandi + alasan */}
+      <StepUpDialog
+        open={toggleTarget != null}
+        onOpenChange={(open) => !open && setToggleTarget(null)}
+        title={`${toggleTarget?.enabled ? "Aktifkan" : "Nonaktifkan"} ${toggleTarget?.c.label ?? "kanal"}?`}
+        description={
+          toggleTarget?.enabled
+            ? "Kanal ini akan muncul lagi sebagai pilihan pembayaran untuk semua desa."
+            : "Pengguna tidak akan bisa memilih kanal ini sampai Anda mengaktifkannya lagi. Tagihan yang sudah dibuat tetap bisa dibayar."
+        }
+        confirmLabel={toggleTarget?.enabled ? "Aktifkan" : "Nonaktifkan"}
+        destructive={!toggleTarget?.enabled}
+        onConfirm={(v) => (toggleTarget ? setEnabled(toggleTarget.c, toggleTarget.enabled, v) : Promise.resolve())}
+      />
 
-      {/* Konfirmasi uji kanal */}
-      <AlertDialog open={probeConfirm != null} onOpenChange={(open) => !open && setProbeConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {probeConfirm?.codes?.length === 1 ? "Uji kanal ini ke LinkQu?" : "Uji semua kanal ke LinkQu?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Sistem membuat satu tagihan uji kecil (Rp 20.000) per kanal. Tagihan ini tidak dibayar dan kedaluwarsa sendiri.
-              {data?.mode === "production" && (
-                <strong className="mt-2 block text-amber-800">
-                  Server ini terhubung ke LinkQu PRODUKSI, jadi tagihan ujinya tercatat sungguhan di akun merchant.
-                </strong>
-              )}{" "}
-              Kanal yang <strong>ditolak</strong> LinkQu akan otomatis dinonaktifkan; kanal yang diterima tidak diubah.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                const codes = probeConfirm?.codes;
-                setProbeConfirm(null);
-                void runProbe(codes, data?.mode === "production");
-              }}
-            >
-              Mulai uji
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Uji kanal ke LinkQu: konfirmasi sandi + alasan */}
+      <StepUpDialog
+        open={probeConfirm != null}
+        onOpenChange={(open) => !open && setProbeConfirm(null)}
+        title={probeConfirm?.codes?.length === 1 ? "Uji kanal ini ke LinkQu?" : "Uji semua kanal ke LinkQu?"}
+        description={
+          <>
+            Sistem membuat satu tagihan uji kecil (Rp 20.000) per kanal. Tagihan ini tidak dibayar dan kedaluwarsa sendiri.
+            {data?.mode === "production" && (
+              <strong className="mt-2 block text-amber-800">
+                Server ini terhubung ke LinkQu PRODUKSI, jadi tagihan ujinya tercatat sungguhan di akun merchant.
+              </strong>
+            )}{" "}
+            Kanal yang <strong>ditolak</strong> LinkQu akan otomatis dinonaktifkan; kanal yang diterima tidak diubah.
+          </>
+        }
+        confirmLabel="Mulai uji"
+        onConfirm={(v) => runProbe(probeConfirm?.codes, v)}
+      />
     </div>
   );
 }

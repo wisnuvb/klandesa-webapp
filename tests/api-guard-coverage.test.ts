@@ -41,6 +41,8 @@ const UNGUARDED_ALLOWLIST: Record<string, string> = {
   "app/api/auth/register/route.ts": "pendaftaran publik",
   "app/api/auth/lupa-sandi/route.ts": "lupa kata sandi publik (Turnstile + batas laju; jawaban seragam)",
   "app/api/auth/atur-sandi/route.ts": "atur kata sandi lewat tautan email sekali pakai (token = rahasia; batas laju)",
+  "app/api/auth/platform/atur-sandi/peek/route.ts": "melihat (tanpa memakai) tautan atur sandi ADMIN PLATFORM; token di body POST (tautan memakai fragmen #token=), 256-bit = rahasia; batas laju per IP; respons seragam",
+  "app/api/auth/platform/atur-sandi/route.ts": "atur kata sandi ADMIN PLATFORM lewat tautan sekali pakai (token = rahasia, hash di DB; batas laju; sandi dicek sebelum token dipakai; 2FA tidak dilewati)",
   "app/api/partner-applications/route.ts": "formulir mitra publik",
   "app/api/referrals/track/route.ts": "pelacakan referral publik",
   "app/api/beasiswa/lpdp/route.ts": "proksi informasi publik",

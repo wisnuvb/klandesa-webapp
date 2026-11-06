@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { slugifyBlog } from "@/app/api/admin/blog/_slug";
 import { toJSONSafe } from "@/utils/json";
+import { auditPlatform } from "@/lib/platform/audit";
+import { actorOf, clip } from "@/lib/platform/legacy-audit";
 
 function readLimit(req: NextRequest): number {
   const raw = req.nextUrl.searchParams.get("limit");
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
   const title = String(body.title ?? "").trim();
   const slugInput = String(body.slug ?? "").trim();
   if (!title) return NextResponse.json({ error: "Judul wajib diisi" }, { status: 400 });
+  if (title.length > 200) return NextResponse.json({ error: "Judul maksimal 200 karakter" }, { status: 400 });
 
   const base = slugifyBlog(slugInput || title);
   if (!base) return NextResponse.json({ error: "Slug tidak valid" }, { status: 400 });
@@ -82,6 +85,14 @@ export async function POST(req: NextRequest) {
       createdByPlatformUserId: auth.admin.platformUserId,
     },
     select: { id: true },
+  });
+
+  await auditPlatform(req, actorOf(auth), {
+    action: "blog.create",
+    targetType: "system",
+    targetId: `blog_post:${created.id}`,
+    summary: `Membuat draf artikel blog "${clip(title, 120)}" (slug ${slug})`,
+    metadata: { postId: created.id.toString(), slug },
   });
 
   return NextResponse.json({ ok: true, id: created.id.toString() }, { status: 201 });

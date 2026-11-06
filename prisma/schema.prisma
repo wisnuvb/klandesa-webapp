@@ -285,11 +285,19 @@ model PlatformUser {
 
   role String @default("platform_admin") @db.VarChar(50)
 
+  /// 2FA TOTP (RFC 6238). Rahasia disimpan TERENKRIPSI (lib/platform/totp.ts); null = 2FA belum aktif.
+  totpSecretEnc     String?   @db.VarChar(255)
+  /// Terisi saat pendaftaran 2FA dikonfirmasi dengan kode pertama. Selama null, login tidak meminta kode.
+  totpEnabledAt     DateTime?
+  /// Array hash SHA-256 kode pemulihan sekali pakai (kode mentah hanya ditampilkan sekali saat pendaftaran).
+  recoveryCodeHashes Json?
+
   isActive  Boolean   @default(true)
   lastLogin DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  authTokens          PlatformAuthToken[]
   blogPosts           BlogPost[]
   themePacksReviewed          WebsiteThemePack[]    @relation("ThemePackReviewedBy")
   partnerDisbursementsCreated PartnerDisbursement[] @relation("DisbursementCreatedBy")
@@ -297,6 +305,58 @@ model PlatformUser {
   @@index([email])
   @@index([role])
   @@map("platform_users")
+}
+
+/// Tautan sekali pakai untuk admin platform (undangan akun baru / atur ulang sandi). Hanya hash token yang disimpan.
+model PlatformAuthToken {
+  id             Int          @id @default(autoincrement())
+  platformUserId Int
+  platformUser   PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  /// INVITE | RESET
+  purpose   String   @db.VarChar(20)
+  tokenHash String   @unique @db.VarChar(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdByPlatformUserId Int?
+  createdAt DateTime @default(now())
+
+  @@index([platformUserId, purpose, usedAt])
+  @@map("platform_auth_tokens")
+}
+
+/// Jejak SEMUA tindakan super admin (intervensi akun, ubah langganan, lihat data sensitif, kelola admin). Hanya-tambah:
+/// tidak ada API untuk mengubah/menghapus baris. Terpisah dari `audit_logs` (milik desa) agar tidak bocor ke desa.
+model PlatformAuditLog {
+  id BigInt @id @default(autoincrement())
+
+  actorId    Int?
+  /// Disalin agar jejak tetap terbaca walau akun admin kemudian dihapus.
+  actorEmail String @db.VarChar(255)
+
+  /// Notasi titik: "account.reset_link", "village.extend", "resident.view_sensitive", "admin.create", dst.
+  action     String  @db.VarChar(80)
+  /// user | village | resident | invoice | platform_user | partner | ...
+  targetType String  @db.VarChar(40)
+  targetId   String? @db.VarChar(100)
+  /// Desa terkait (bila ada) agar mudah disaring per desa.
+  villageId  Int?
+
+  /// Kalimat singkat terbaca manusia (Bahasa Indonesia). JANGAN memuat sandi/token/NIK utuh.
+  summary  String @db.VarChar(500)
+  /// Data terstruktur (sebelum/sesudah, alasan). JANGAN memuat rahasia.
+  metadata Json?
+
+  ipAddress String? @db.VarChar(50)
+  userAgent String? @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([targetType, targetId])
+  @@index([villageId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@map("platform_audit_logs")
 }
 
 model ReferralCode {
@@ -1821,6 +1881,7 @@ model BillingInvoice {
 
   @@index([villageId, createdAt(sort: Desc)])
   @@index([villageId, status])
+  @@index([status, paidAt])
   @@map("billing_invoices")
 }
 

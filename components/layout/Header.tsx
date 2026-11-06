@@ -170,6 +170,7 @@ export function Header({ title, subtitle, back, avatarSrc, onMenuClick }: Header
             size="icon"
             onClick={onMenuClick}
             className="md:hidden"
+            aria-label="Buka menu navigasi"
           >
             <Menu className="h-5 w-5" />
           </Button>

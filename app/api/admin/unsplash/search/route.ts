@@ -58,6 +58,8 @@ export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") || "").trim();
   if (!q)
     return NextResponse.json({ error: "Query q wajib diisi" }, { status: 400 });
+  if (q.length > 100)
+    return NextResponse.json({ error: "Query q maksimal 100 karakter" }, { status: 400 });
 
   const limit = readLimit(req);
   const url = new URL("https://api.unsplash.com/search/photos");
@@ -71,7 +73,10 @@ export async function GET(req: NextRequest) {
       "Accept-Version": "v1",
     },
     cache: "no-store",
-  });
+    redirect: "manual",
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null);
+  if (!res) return NextResponse.json({ error: "Gagal mengambil gambar" }, { status: 502 });
 
   const data = (await res.json().catch(() => null)) as
     | {

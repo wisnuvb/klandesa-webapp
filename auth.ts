@@ -120,6 +120,8 @@ providers.push(
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
       turnstileToken: { label: "Turnstile", type: "text" },
+      // Kode 2FA (TOTP/pemulihan) untuk admin platform; diabaikan oleh akun lain.
+      totpCode: { label: "Kode 2FA", type: "text" },
     },
     async authorize(credentials, req) {
       // Panggilan server→server ke API login: pakai NEXTAUTH_URL_INTERNAL (mis. http://127.0.0.1:<port>)
@@ -142,6 +144,7 @@ providers.push(
             email: credentials?.email,
             password: credentials?.password,
             turnstileToken: credentials?.turnstileToken,
+            totpCode: credentials?.totpCode,
           }),
         });
 
@@ -151,6 +154,8 @@ providers.push(
         // verifikasi keamanan gagal, dll.) agar tampil jelas di form, bukan
         // "CredentialsSignin" yang tidak bisa dipahami pengguna.
         if (!res.ok) {
+          // Admin platform ber-2FA: kode baku "TOTP_REQUIRED" agar halaman masuk menampilkan kolom kode (bukan pesan galat).
+          if (data?.code === "TOTP_REQUIRED") throw new AuthorizeError("TOTP_REQUIRED");
           throw new AuthorizeError(
             typeof data?.error === "string" && data.error
               ? data.error

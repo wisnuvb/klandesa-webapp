@@ -306,6 +306,12 @@ function derivePageKey(pathname: string): string {
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0) return "dashboard";
 
+  // Konsol owner: menu aktif mengikuti segmen kedua (/admin/akun/... -> "admin/akun"); selain itu "admin" (Dasbor Owner).
+  if (segments[0] === "admin") {
+    const sub = segments[1];
+    return sub && ["akun", "desa", "pendapatan", "mitra", "blog", "pembayaran", "audit", "keamanan"].includes(sub) ? `admin/${sub}` : "admin";
+  }
+
   // Try two-level path first (e.g. statistik/gender)
   const twoLevel = segments.slice(0, 2).join("/");
   if (isKnownPageKey(twoLevel)) return twoLevel;

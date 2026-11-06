@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StepUpDialog, type StepUpSubmit } from "@/components/admin/StepUpDialog";
 import { PartnerFinancePanel } from "./_components/PartnerFinancePanel";
 import { AdminReferralSection } from "./_components/AdminReferralSection";
 
@@ -93,6 +94,14 @@ function AdminMitraPageInner() {
     Record<number, string>
   >({});
   const [financePartnerId, setFinancePartnerId] = useState<number | null>(null);
+  // Setuju pendaftaran & tautan mitra-desa menggerakkan akses/uang: konfirmasi sandi + alasan (StepUpDialog).
+  const [approveTarget, setApproveTarget] = useState<PartnerApplicationRow | null>(null);
+  const [linkTarget, setLinkTarget] = useState<{
+    partnerId: number;
+    partnerName: string;
+    action: "link" | "unlink";
+    villageCode: string;
+  } | null>(null);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -138,7 +147,8 @@ function AdminMitraPageInner() {
           e && typeof e === "object" && "name" in e
             ? String((e as { name?: unknown }).name || "")
             : "";
-        if (name === "AbortError") return;
+        // abort("cleanup") membuat fetch menolak dengan string (bukan AbortError): jangan tampilkan sebagai galat.
+        if (name === "AbortError" || signal?.aborted) return;
         setError(e instanceof Error ? e.message : "Gagal memuat data");
       } finally {
         setLoading(false);
@@ -159,9 +169,10 @@ function AdminMitraPageInner() {
     };
   }, [load]);
 
-  const approve = async (applicationId: string) => {
+  /** Galat dilempar ke StepUpDialog (sandi salah, email mitra sudah terdaftar, dll) dan tampil di dalam dialog. */
+  const approve = async (applicationId: string, v: StepUpSubmit) => {
+    setApprovingId(applicationId);
     try {
-      setApprovingId(applicationId);
       setError(null);
       setApprovedPassword(null);
       setActionError(null);
@@ -171,7 +182,7 @@ function AdminMitraPageInner() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
+          body: JSON.stringify({ confirmPassword: v.confirmPassword, totpCode: v.totpCode, reason: v.reason }),
         },
       );
       const data = (await res.json().catch(() => null)) as {
@@ -190,27 +201,33 @@ function AdminMitraPageInner() {
       setActionOk(
         `${data?.approveInfo ?? "Pendaftaran disetujui."}${shareNote}`,
       );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal approve");
     } finally {
       setApprovingId(null);
     }
   };
 
+  const askVillageAcquisition = (
+    partner: PartnerRow,
+    action: "link" | "unlink",
+  ) => {
+    setActionError(null);
+    setActionOk(null);
+    const villageCode = (villageCodeByPartnerId[partner.id] || "").trim();
+    if (!villageCode) {
+      setActionError("Kode desa wajib diisi");
+      return;
+    }
+    setLinkTarget({ partnerId: partner.id, partnerName: partner.name, action, villageCode });
+  };
+
   const setVillageAcquisition = async (
     partnerId: number,
     action: "link" | "unlink",
+    villageCode: string,
+    v: StepUpSubmit,
   ) => {
+    setLinkingPartnerId(partnerId);
     try {
-      setLinkingPartnerId(partnerId);
-      setActionError(null);
-      setActionOk(null);
-      const villageCode = (villageCodeByPartnerId[partnerId] || "").trim();
-      if (!villageCode) {
-        setActionError("Kode desa wajib diisi");
-        return;
-      }
-
       const res = await fetch("/api/admin/villages", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -218,6 +235,8 @@ function AdminMitraPageInner() {
           villageCode,
           partnerId: action === "link" ? partnerId : null,
           acquisitionSource: "admin_mitra",
+          confirmPassword: v.confirmPassword, totpCode: v.totpCode,
+          reason: v.reason,
         }),
       });
       const data = (await res.json().catch(() => null)) as
@@ -234,10 +253,6 @@ function AdminMitraPageInner() {
       );
 
       await load();
-    } catch (e) {
-      setActionError(
-        e instanceof Error ? e.message : "Gagal memperbarui akuisisi desa",
-      );
     } finally {
       setLinkingPartnerId(null);
     }
@@ -340,7 +355,7 @@ function AdminMitraPageInner() {
                     <Button
                       className="w-full sm:w-auto"
                       disabled={approvingId === a.id || a.status !== "NEW"}
-                      onClick={() => approve(a.id)}
+                      onClick={() => setApproveTarget(a)}
                     >
                       {approvingId === a.id
                         ? "Memproses…"
@@ -414,7 +429,7 @@ function AdminMitraPageInner() {
                     <Button
                       className="w-full sm:w-auto"
                       disabled={linkingPartnerId === p.id}
-                      onClick={() => setVillageAcquisition(p.id, "link")}
+                      onClick={() => askVillageAcquisition(p, "link")}
                     >
                       {linkingPartnerId === p.id ? "Memproses…" : "Tautkan"}
                     </Button>
@@ -422,7 +437,7 @@ function AdminMitraPageInner() {
                       className="w-full sm:w-auto"
                       variant="outline"
                       disabled={linkingPartnerId === p.id}
-                      onClick={() => setVillageAcquisition(p.id, "unlink")}
+                      onClick={() => askVillageAcquisition(p, "unlink")}
                     >
                       Lepas
                     </Button>
@@ -451,6 +466,46 @@ function AdminMitraPageInner() {
       </Card>
         </>
       )}
+
+      <StepUpDialog
+        open={approveTarget != null}
+        onOpenChange={(open) => !open && setApproveTarget(null)}
+        title={`Setujui pendaftaran ${approveTarget?.name ?? "mitra"}`}
+        description={
+          <>
+            Membuat akun login mitra untuk <strong>{approveTarget?.email}</strong>. Jika email ini sudah terdaftar sebagai
+            mitra, persetujuan ditolak dan akun yang ada tidak diubah.
+          </>
+        }
+        confirmLabel="Setujui & buat akun"
+        onConfirm={(v) => (approveTarget ? approve(approveTarget.id, v) : Promise.resolve())}
+      />
+
+      <StepUpDialog
+        open={linkTarget != null}
+        onOpenChange={(open) => !open && setLinkTarget(null)}
+        title={linkTarget?.action === "unlink" ? "Lepas tautan desa dari mitra" : "Tautkan desa ke mitra"}
+        description={
+          linkTarget?.action === "unlink" ? (
+            <>
+              Desa <strong>{linkTarget?.villageCode}</strong> tidak lagi dihitung sebagai akuisisi mitra{" "}
+              <strong>{linkTarget?.partnerName}</strong>.
+            </>
+          ) : (
+            <>
+              Desa <strong>{linkTarget?.villageCode}</strong> dicatat sebagai akuisisi mitra{" "}
+              <strong>{linkTarget?.partnerName}</strong>. Komisi closing akan tercatat bila ini tautan pertama desa tersebut.
+            </>
+          )
+        }
+        confirmLabel={linkTarget?.action === "unlink" ? "Lepas tautan" : "Tautkan"}
+        destructive={linkTarget?.action === "unlink"}
+        onConfirm={(v) =>
+          linkTarget
+            ? setVillageAcquisition(linkTarget.partnerId, linkTarget.action, linkTarget.villageCode, v)
+            : Promise.resolve()
+        }
+      />
     </div>
   );
 }
