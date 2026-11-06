@@ -225,6 +225,10 @@ describe("Dasbor Owner & Pendapatan (MySQL nyata)", { skip: enabled ? false : "K
       const C = await mkV({ subscriptionStatus: "active", subscriptionPlan: "starter", subscriptionExpiry: null });
       await mkI(A.id, { amount: 3_500_000, paidAt: D("2035-03-01T00:00:00Z"), createdAt: D("2035-03-01T00:00:00Z") });
       await mkI(B.id, { amount: 100_000, planCode: "lengkap", paidAt: D("2033-01-01T00:00:00Z"), createdAt: D("2033-01-01T00:00:00Z") });
+      // Kredit AI: A beli 450rb (di dalam 90 hari) + 999rb (lewat 90 hari, tak dihitung); C (tanpa tagihan paket) beli 777rb (tak dihitung).
+      await mkI(A.id, { productType: "ai_credits", planCode: "default", amount: 450_000, paidAt: D("2035-05-20T00:00:00Z"), createdAt: D("2035-05-20T00:00:00Z") });
+      await mkI(A.id, { productType: "ai_credits", planCode: "default", amount: 999_000, paidAt: D("2035-02-01T00:00:00Z"), createdAt: D("2035-02-01T00:00:00Z") });
+      await mkI(C.id, { productType: "ai_credits", planCode: "default", amount: 777_000, paidAt: D("2035-05-25T00:00:00Z"), createdAt: D("2035-05-25T00:00:00Z") });
       await prisma.villageModuleSubscription.createMany({
         data: [
           { villageId: A.id, moduleCode: "arsip_storage", planCode: "starter", status: "active", startDate: D("2035-06-01T00:00:00Z"), expiryDate: D("2035-12-01T00:00:00Z") },
@@ -290,13 +294,13 @@ describe("Dasbor Owner & Pendapatan (MySQL nyata)", { skip: enabled ? false : "K
       assert.equal(after_.expiring.d30 - before_.expiring.d30, 1);
     });
 
-    it("MRR: selisih = tahun pertama + perpanjangan + paket lama + add-on (modul yang lewat masa & modul gratis tak dihitung)", () => {
-      const expected = Math.round(3_500_000 / 12) + 100_000 + 100_000 + 49_000 /* GPS */ + 35_000 /* arsip */ + 50_000 /* kapasitas 99rb-49rb */ + 49_000 /* bumdes paket lama */;
+    it("MRR: hanya desa dengan tagihan paket lunas; selisih = tahun pertama + perpanjangan + add-on + kredit AI (C tanpa tagihan, modul lewat masa, AI >90 hari tak dihitung)", () => {
+      const expected = Math.round(3_500_000 / 12) + 100_000 + 49_000 /* GPS */ + 35_000 /* arsip */ + 50_000 /* kapasitas 99rb-49rb */ + 150_000 /* kredit AI 450rb ÷ 3 */;
       const delta = after_.mrr.mrr - before_.mrr.mrr;
       assert.ok(Math.abs(delta - expected) <= 1, `delta ${delta} vs ${expected}`);
       assert.equal(after_.mrr.arr, after_.mrr.mrr * 12);
-      assert.equal(after_.mrr.activeVillages - before_.mrr.activeVillages, 3);
-      assert.equal(after_.mrr.activeWithoutPaidInvoice - before_.mrr.activeWithoutPaidInvoice, 1, "paket lama C tanpa tagihan lunas");
+      assert.equal(after_.mrr.activeVillages - before_.mrr.activeVillages, 2, "A dan B (punya tagihan lunas)");
+      assert.equal(after_.mrr.activeWithoutPaidInvoice - before_.mrr.activeWithoutPaidInvoice, 1, "paket lama C tanpa tagihan lunas: tak dihitung");
     });
 
     it("churn kasar: kedaluwarsa 30 hari terakhir yang pernah membayar; tak pernah bayar / >30 hari tak dihitung", () => {

@@ -67,12 +67,12 @@ describe("render konsol owner (server)", () => {
   });
 
   it("MRR: rumus & asumsi terlihat, berlabel perkiraan; konversi/churn tanpa data = 'Belum cukup data'", () => {
-    const mrr = computeMrr({ packages: [{ plan: "lengkap", firstYear: true, everPaid: false, count: 1 }], modules: [], gpsAddonVillages: 0 });
+    const mrr = computeMrr({ packages: [{ plan: "lengkap", firstYear: true, everPaid: true, count: 1 }, { plan: "starter", firstYear: false, everPaid: false, count: 2 }], modules: [], gpsAddonVillages: 0 });
     const html = renderToStaticMarkup(h(MrrBreakdown, { mrr }));
     assert.match(html, /Cara menghitung MRR/);
     assert.match(html, /PERKIRAAN/);
     assert.match(html, /Rp 291\.667/);
-    assert.match(html, /belum punya tagihan paket lunas/);
+    assert.match(html, /belum punya tagihan paket lunas[^<]*jadi tidak dihitung/);
 
     const villages = {
       total: 0, byStatus: { aktif: 0, trial: 0, tenggang: 0, kedaluwarsa: 0, nonaktif: 0 }, expiring: { d7: 0, d14: 0, d30: 0 }, growth: [],

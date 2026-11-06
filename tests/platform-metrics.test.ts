@@ -151,9 +151,25 @@ describe("estimasi MRR/ARR", () => {
       ],
       modules: [], gpsAddonVillages: 0,
     });
-    assert.equal(r.mrr, 100_000 + Math.round(3_500_000 / 12) + Math.round(5_000_000 / 12));
-    assert.equal(r.activeVillages, 7);
+    // starter tanpa tagihan lunas = aktif manual: TIDAK dihitung, hanya dilaporkan.
+    assert.equal(r.mrr, Math.round(3_500_000 / 12) + Math.round(5_000_000 / 12));
+    assert.equal(r.activeVillages, 6);
     assert.equal(r.activeWithoutPaidInvoice, 1);
+  });
+  it("desa aktif tanpa tagihan lunas tidak menyumbang MRR sama sekali", () => {
+    const r = computeMrr({ packages: [{ plan: "lengkap", firstYear: false, everPaid: false, count: 5 }], modules: [], gpsAddonVillages: 0 });
+    assert.equal(r.mrr, 0);
+    assert.equal(r.activeVillages, 0);
+    assert.equal(r.activeWithoutPaidInvoice, 5);
+  });
+  it("kredit AI: total pembelian 90 hari ÷ 3 sebagai baris tersendiri; tanpa pembelian tidak ada baris", () => {
+    const r = computeMrr({ packages: [], modules: [], gpsAddonVillages: 0, aiCredit: { villages: 2, total90d: 900_000 } });
+    assert.equal(r.mrr, 300_000);
+    const line = r.lines.find((l) => l.key === "ai_credit");
+    assert.ok(line);
+    assert.equal(line.count, 2);
+    assert.equal(line.subtotal, 300_000);
+    assert.equal(computeMrr({ packages: [], modules: [], gpsAddonVillages: 0, aiCredit: { villages: 0, total90d: 0 } }).lines.length, 0);
   });
   it("add-on: GPS Rp49.000, kapasitas = selisih dari tier paket, arsip harga katalog", () => {
     const r = computeMrr({

@@ -128,8 +128,11 @@ export async function mrrEstimate(now: Date): Promise<MrrEstimate> {
   const lengkapSetup = BILLING_CATALOG.desa_package.tiers.lengkap.setupFee;
   const websiteSetup = BILLING_CATALOG.website_custom.setupFee;
   const aliveActive = Prisma.sql`v.isActive = 1 AND LOWER(v.subscriptionStatus) = 'active' AND (v.subscriptionExpiry IS NULL OR v.subscriptionExpiry > ${now})`;
+  // Pelanggan NYATA: aktif + pernah punya tagihan paket lunas. Add-on/GPS/kredit AI hanya dihitung dari desa ini.
+  const aliveActivePaid = Prisma.sql`${aliveActive} AND ${paidPackageExists}`;
+  const aiFrom = new Date(now.getTime() - 90 * DAY_MS);
 
-  const [pkgRows, modRows, gps] = await Promise.all([
+  const [pkgRows, modRows, gpsRows, aiRows] = await Promise.all([
     prisma.$queryRaw<Array<{ plan: string; fy: bigint | number; ever: bigint | number; n: bigint }>>(Prisma.sql`
       SELECT LOWER(v.subscriptionPlan) AS plan,
         EXISTS (SELECT 1 FROM billing_invoices i WHERE i.villageId = v.id AND i.status = 'paid' AND i.productType = 'desa_package'
@@ -146,17 +149,22 @@ export async function mrrEstimate(now: Date): Promise<MrrEstimate> {
         ELSE 0 END AS fy,
         COUNT(*) AS n
       FROM village_module_subscriptions m JOIN villages v ON v.id = m.villageId
-      WHERE m.status = 'active' AND m.expiryDate > ${now} AND ${aliveActive}
+      WHERE m.status = 'active' AND m.expiryDate > ${now} AND ${aliveActivePaid}
       GROUP BY m.moduleCode, m.planCode, vplan, fy`),
-    prisma.village.count({
-      where: { isActive: true, subscriptionStatus: "active", absensiGpsAddonActive: true, absensiGpsAddonExpiry: { gt: now }, OR: [{ subscriptionExpiry: null }, { subscriptionExpiry: { gt: now } }] },
-    }),
+    prisma.$queryRaw<Array<{ n: bigint }>>(Prisma.sql`
+      SELECT COUNT(*) AS n FROM villages v
+      WHERE v.absensiGpsAddonActive = 1 AND v.absensiGpsAddonExpiry > ${now} AND ${aliveActivePaid}`),
+    prisma.$queryRaw<Array<{ n: bigint; total: Prisma.Decimal | bigint | number | null }>>(Prisma.sql`
+      SELECT COUNT(DISTINCT i.villageId) AS n, COALESCE(SUM(i.amount), 0) AS total
+      FROM billing_invoices i JOIN villages v ON v.id = i.villageId
+      WHERE i.status = 'paid' AND i.productType = 'ai_credits' AND i.paidAt > ${aiFrom} AND i.paidAt <= ${now} AND ${aliveActivePaid}`),
   ]);
 
   return computeMrr({
     packages: pkgRows.map((r) => ({ plan: String(r.plan ?? ""), firstYear: toNum(r.fy) > 0, everPaid: toNum(r.ever) > 0, count: toNum(r.n) })),
     modules: modRows.map((r) => ({ moduleCode: r.moduleCode, planCode: r.planCode, villagePlan: r.vplan, firstYear: toNum(r.fy) > 0, count: toNum(r.n) })),
-    gpsAddonVillages: gps,
+    gpsAddonVillages: toNum(gpsRows[0]?.n),
+    aiCredit: { villages: toNum(aiRows[0]?.n), total90d: toNum(aiRows[0]?.total) },
   });
 }
 

@@ -2,7 +2,8 @@
  * Estimasi MRR/ARR (PERKIRAAN, bukan pembukuan). MURNI: menerima hitungan hasil agregat SQL, memakai harga dari katalog di kode
  * (lib/billing/catalog.ts, lengkap.ts, attendance/addons.ts) sehingga mengikuti perubahan harga otomatis.
  *
- * Rumus (setiap desa BERLANGGANAN AKTIF = status "active" dan belum lewat masa berlaku, desa aktif):
+ * Rumus (setiap desa BERLANGGANAN AKTIF NYATA = status "active", belum lewat masa berlaku, desa aktif, DAN pernah punya tagihan paket lunas;
+ * desa aktif tanpa tagihan lunas = diaktifkan manual/bawaan skema/migrasi, TIDAK dihitung, hanya dilaporkan jumlahnya):
  *  - Paket Lengkap tahun pertama (ada tagihan lunas biaya awal >= Rp3,5 jt dalam 12 bulan terakhir): biaya awal / 12
  *    (biaya awal sudah termasuk 12 bulan, jadi dinormalkan per bulan). Selain itu (perpanjangan): Rp100.000 per bulan.
  *  - Paket lama (starter/profesional/enterprise): biaya tahunan / 12.
@@ -10,8 +11,9 @@
  *    Website Desa Kustom = biaya awal / 12 (tahun pertama) atau Rp78.000 (perpanjangan); add-on modul = harga katalog,
  *    kecuali desa Paket Lengkap (modul itu sudah termasuk, tidak ditagih).
  *  - Add-on GPS aktif dengan tanggal berakhir (yang tanpa tanggal berakhir = diaktifkan admin, tidak dihitung).
- * Tidak dihitung: trial, masa tenggang, kredit AI (sekali beli), diskon manual, perpanjangan manual admin tanpa tagihan
- * (desa tersebut dihitung pada tarif perpanjangan Paket Lengkap atau tarif paketnya).
+ *  - Kredit AI (dibeli sekali pakai, bukan langganan): dihitung sebagai run-rate = total tagihan `ai_credits` lunas 90 hari terakhir ÷ 3,
+ *    hanya dari desa berlangganan aktif nyata. Bersifat variabel (bergantung pemakaian), jadi tampil sebagai baris tersendiri.
+ * Tidak dihitung: trial, masa tenggang, desa aktif tanpa tagihan paket lunas, diskon manual.
  */
 import { BILLING_CATALOG } from "@/lib/billing/catalog";
 import { isLengkapPlan, LENGKAP_MONTHLY_FEE, LENGKAP_SETUP_FEE } from "@/lib/billing/lengkap";
@@ -22,16 +24,18 @@ import { formatRupiah } from "./format";
 
 export type MrrPackageRow = { plan: string; firstYear: boolean; everPaid: boolean; count: number };
 export type MrrModuleRow = { moduleCode: string; planCode: string | null; villagePlan: string | null; firstYear: boolean; count: number };
-export type MrrInput = { packages: MrrPackageRow[]; modules: MrrModuleRow[]; gpsAddonVillages: number };
+/** Pembelian kredit AI lunas dalam 90 hari terakhir oleh desa berlangganan aktif nyata. */
+export type MrrAiCreditInput = { villages: number; total90d: number };
+export type MrrInput = { packages: MrrPackageRow[]; modules: MrrModuleRow[]; gpsAddonVillages: number; aiCredit?: MrrAiCreditInput };
 
 export type MrrLine = { key: string; label: string; count: number; unit: number; subtotal: number };
 export type MrrEstimate = {
   mrr: number;
   arr: number;
   lines: MrrLine[];
-  /** Desa berlangganan aktif yang dihitung. */
+  /** Desa berlangganan aktif nyata (punya tagihan paket lunas) yang dihitung. */
   activeVillages: number;
-  /** Dari desa aktif tersebut: belum pernah punya tagihan paket lunas (diaktifkan manual/gratis/migrasi). Ikut dihitung. */
+  /** Desa berstatus aktif tetapi belum pernah punya tagihan paket lunas (diaktifkan manual/bawaan/migrasi): TIDAK dihitung dalam MRR. */
   activeWithoutPaidInvoice: number;
   assumptions: string[];
 };
@@ -39,9 +43,10 @@ export type MrrEstimate = {
 export const MRR_ASSUMPTIONS: string[] = [
   "Ini PERKIRAAN run-rate bulanan, bukan pembukuan: pendapatan sebenarnya ada di grafik pendapatan (tagihan lunas).",
   `Paket Lengkap tahun pertama = biaya awal ${formatRupiah(LENGKAP_SETUP_FEE)} dibagi 12 bulan; perpanjangan = ${formatRupiah(LENGKAP_MONTHLY_FEE)} per bulan.`,
-  "Paket lama = biaya tahunan dibagi 12. Add-on dihitung dari langganan add-on yang masih berlaku dengan harga katalog.",
-  "Trial dan masa tenggang tidak dihitung. Kredit AI (beli sekali) tidak dihitung. Diskon/harga khusus tidak terbaca.",
-  "Desa yang diaktifkan manual oleh admin tanpa tagihan tetap dihitung pada tarif paketnya, sehingga bisa melebihi kenyataan (lihat angka 'tanpa tagihan lunas').",
+  "Paket lama = biaya tahunan dibagi 12. Add-on (arsip/storage, kapasitas absensi, GPS, modul, website) dihitung dari langganan add-on yang masih berlaku dengan harga katalog.",
+  "Kredit AI dibeli sekali pakai, jadi dihitung sebagai rata-rata bulanan pembelian lunas 90 hari terakhir (total ÷ 3); angkanya naik-turun mengikuti pemakaian.",
+  "Hanya desa berlangganan aktif NYATA yang dihitung: status aktif, belum kedaluwarsa, dan pernah punya tagihan paket lunas. Trial, masa tenggang, dan desa yang diaktifkan manual tanpa tagihan tidak dihitung.",
+  "Diskon/harga khusus tidak terbaca (dipakai harga katalog).",
   "ARR = MRR × 12.",
 ];
 
@@ -66,8 +71,12 @@ export function computeMrr(input: MrrInput): MrrEstimate {
   let activeWithoutPaidInvoice = 0;
 
   for (const p of input.packages) {
+    if (!p.everPaid) {
+      // Aktif tanpa tagihan paket lunas: bukan pelanggan nyata, tidak masuk MRR (hanya dilaporkan).
+      activeWithoutPaidInvoice += p.count;
+      continue;
+    }
     activeVillages += p.count;
-    if (!p.everPaid) activeWithoutPaidInvoice += p.count;
     const plan = p.plan.toLowerCase();
     if (isLengkapPlan(plan)) {
       if (p.firstYear) add(acc, "lengkap_y1", "Paket Lengkap — tahun pertama (biaya awal ÷ 12)", p.count, LENGKAP_FIRST_YEAR_MONTHLY);
@@ -103,6 +112,11 @@ export function computeMrr(input: MrrInput): MrrEstimate {
   }
 
   add(acc, "gps", "Add-on GPS absensi", input.gpsAddonVillages, BILLING_CATALOG.absensi_gps_addon.monthlyFee);
+
+  const ai = input.aiCredit;
+  if (ai && ai.villages > 0 && ai.total90d > 0) {
+    add(acc, "ai_credit", "Kredit AI (rata-rata bulanan dari pembelian 90 hari terakhir)", ai.villages, ai.total90d / 3 / ai.villages);
+  }
 
   const lines = [...acc.values()].map((l) => ({ ...l, unit: Math.round(l.unit), subtotal: Math.round(l.subtotal) }));
   const mrr = lines.reduce((t, l) => t + l.subtotal, 0);

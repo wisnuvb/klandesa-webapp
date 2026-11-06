@@ -291,8 +291,8 @@ export function MrrBreakdown({ mrr }: { mrr: OverviewPayload["villages"]["mrr"] 
           </div>
         )}
         <p className="tabular-nums">
-          Dihitung dari {formatNumberId(mrr.activeVillages)} desa berlangganan aktif;{" "}
-          <strong>{formatNumberId(mrr.activeWithoutPaidInvoice)}</strong> di antaranya belum punya tagihan paket lunas (diaktifkan manual/gratis/migrasi) tetapi tetap dihitung.
+          Dihitung dari {formatNumberId(mrr.activeVillages)} desa berlangganan aktif yang pernah membayar paket.{" "}
+          <strong>{formatNumberId(mrr.activeWithoutPaidInvoice)}</strong> desa lain berstatus aktif tetapi belum punya tagihan paket lunas (diaktifkan manual/gratis/migrasi), jadi tidak dihitung.
         </p>
         <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
           {mrr.assumptions.map((a) => <li key={a}>{a}</li>)}
