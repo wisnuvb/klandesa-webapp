@@ -18,13 +18,34 @@ const hostOf = (raw: string | undefined): string | null => {
   }
 };
 
+/** Host tetap (tidak bergantung env) — selalu ada di remotePatterns, sehingga aman dipakai next/image tanpa risiko "host belum dikonfigurasi". */
+export const STATIC_IMAGE_HOSTS: readonly string[] = [
+  "**.digitaloceanspaces.com", // bucket Spaces & CDN bawaannya (https://<bucket>.<region>[.cdn].digitaloceanspaces.com)
+  "images.unsplash.com",
+  "klandesa.com",
+  "**.klandesa.com",
+];
+
+/**
+ * Apakah URL gambar pasti boleh diproses `/_next/image`? Hanya mencocokkan host tetap (bukan yang dari env
+ * saat build). Jawaban false = pakai <img> biasa; memanggil next/image untuk host yang tak terdaftar melempar error.
+ */
+export function isStaticOptimizableImageUrl(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" || u.port) return false;
+  const host = u.hostname.toLowerCase();
+  return STATIC_IMAGE_HOSTS.some((p) =>
+    p.startsWith("**.") ? host.endsWith(p.slice(2)) && host.length > p.length - 2 : host === p,
+  );
+}
+
 export function buildImageRemotePatterns(env: Record<string, string | undefined>): ImageRemotePattern[] {
-  const hosts = new Set<string>([
-    "**.digitaloceanspaces.com", // bucket Spaces & CDN bawaannya (https://<bucket>.<region>[.cdn].digitaloceanspaces.com)
-    "images.unsplash.com",
-    "klandesa.com",
-    "**.klandesa.com",
-  ]);
+  const hosts = new Set<string>(STATIC_IMAGE_HOSTS);
   for (const raw of [env.SPACES_CDN_BASE_URL, env.SPACES_ENDPOINT]) {
     const h = hostOf(raw);
     if (h) hosts.add(h);

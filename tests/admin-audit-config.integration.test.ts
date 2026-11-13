@@ -280,7 +280,9 @@ describe("Retrofit audit: konfigurasi, konten & akun (MySQL nyata)", { skip: SKI
 
       const ok = await put({
         title: `Artikel Uji ${t} v2`,
-        content: "isi",
+        // Lolos pagar mutu terbit (≥120 kata + ringkasan) karena PUT status=published memeriksanya.
+        content: Array.from({ length: 150 }, (_, i) => `kata${i}`).join(" "),
+        excerpt: "Ringkasan artikel uji audit.",
         coverImageUrl: "https://images.unsplash.com/photo-1",
         coverImageAttribution: { authorName: "Fotografer", authorUrl: "javascript:alert(1)", photoUrl: "https://unsplash.com/photos/1", ekstra: "x" },
         tags: ["uji", "audit"],

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getMarketingModules } from "@/lib/marketing/modules";
+import { getMarketingModules, getMarketingModuleCountLabel } from "@/lib/marketing/modules";
 import { ModuleCatalog } from "@/components/features/marketing/ModuleCatalog";
 import { getLandingPageMetadata } from "@/lib/seo/landing-pages";
 
@@ -22,7 +22,7 @@ export default function PlatformPage() {
           </p>
         </div>
       </div>
-      <ModuleCatalog modules={modules} />
+      <ModuleCatalog modules={modules} countLabel={getMarketingModuleCountLabel()} />
     </>
   );
 }

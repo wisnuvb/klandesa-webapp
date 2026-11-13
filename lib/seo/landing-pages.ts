@@ -93,10 +93,18 @@ const landingPageSeoMap: Record<LandingPageSeoKey, LandingPageSeoConfig> = {
   },
   solusiDesa: {
     pathname: "/solusi/desa",
-    title: "Solusi untuk Desa — Operasional & SDGs",
+    title: "Aplikasi untuk Kepala Desa, Sekdes & Perangkat Desa",
     description:
-      "Nilai bagi Kades, Sekdes, perangkat: administrasi satu login, PKK/BUMDes, heatmap pembangunan, dan early access untuk modul mutakhir.",
-    keywords: ["aplikasi desa", "digitalisasi pemerintahan desa", "sdgs", "klandesa"],
+      "Aplikasi desa untuk kepala desa, sekdes, dan perangkat: surat daring, data warga, APB Desa, Dana Desa, RKP Desa, dan laporan dalam satu login. Coba gratis 14 hari.",
+    keywords: [
+      "aplikasi desa",
+      "aplikasi untuk kepala desa",
+      "aplikasi administrasi desa",
+      "aplikasi sekdes",
+      "aplikasi perangkat desa",
+      "digitalisasi pemerintahan desa",
+      "klandesa",
+    ],
     robots: "index, follow",
   },
   solusiPemda: {

@@ -3,6 +3,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { slugifyBlog } from "@/app/api/admin/blog/_slug";
+import { checkBlogSeo } from "@/lib/blog/seo-check";
+import { forbiddenBlogSlugMessage, isForbiddenBlogSlug } from "@/lib/blog/slug-rules";
+import { invalidateBlogCache } from "@/lib/blog/cache";
+import { deleteReplacedBlogImages, removedInlineImageUrls } from "@/lib/blog/cover-cleanup";
 import { toJSONSafe } from "@/utils/json";
 import { auditPlatform } from "@/lib/platform/audit";
 import { actorOf, clip } from "@/lib/platform/legacy-audit";
@@ -127,6 +131,7 @@ export async function PUT(
     seoTitle?: unknown;
     seoDescription?: unknown;
     tags?: unknown;
+    allowSlugChange?: unknown;
   } | null;
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
@@ -188,6 +193,8 @@ export async function PUT(
     slug = slugifyBlog(slugIn);
     if (!slug)
       return NextResponse.json({ error: "Slug tidak valid" }, { status: 400 });
+    if (isForbiddenBlogSlug(slug))
+      return NextResponse.json({ error: forbiddenBlogSlugMessage(slug) }, { status: 400 });
     const existing = await prisma.blogPost.findUnique({
       where: { slug },
       select: { id: true },
@@ -207,9 +214,59 @@ export async function PUT(
 
   const before = await prisma.blogPost.findUnique({
     where: { id: postId },
-    select: { title: true, slug: true, status: true, publishedAt: true },
+    select: {
+      title: true,
+      slug: true,
+      status: true,
+      publishedAt: true,
+      excerpt: true,
+      content: true,
+      seoTitle: true,
+      seoDescription: true,
+      coverImageUrl: true,
+      tags: { select: { tag: { select: { name: true } } } },
+    },
   });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Mengganti slug artikel yang sudah terbit memutus URL lama (404, peringkat hilang; belum ada pengalihan).
+  // Wajib dikonfirmasi eksplisit oleh pemanggil.
+  if (
+    before.status === "published" &&
+    slug !== undefined &&
+    slug !== before.slug &&
+    body.allowSlugChange !== true
+  ) {
+    return NextResponse.json(
+      {
+        error: `Artikel sudah terbit. Mengganti slug dari "${before.slug}" memutus URL lama (404) dan peringkat pencariannya.`,
+        code: "SLUG_CHANGE_NEEDS_CONFIRM",
+      },
+      { status: 409 },
+    );
+  }
+
+  // Pagar mutu yang sama dengan rute /publish: memilih status "published" lewat Simpan tidak boleh
+  // melewatinya. Hanya saat peralihan ke terbit; menyunting artikel yang sudah terbit tidak diblokir.
+  if (statusOk === "published" && before.status !== "published") {
+    const check = checkBlogSeo({
+      title: title ?? before.title,
+      slug: slug ?? before.slug,
+      excerpt: excerpt ?? before.excerpt,
+      content: content ?? before.content,
+      seoTitle: seoTitle ?? before.seoTitle,
+      seoDescription: seoDescription ?? before.seoDescription,
+      coverImageUrl: coverImageUrl ?? before.coverImageUrl,
+      tags: tags ?? before.tags.map((t) => t.tag.name),
+    });
+    if (!check.canPublish) {
+      const reasons = check.items.filter((i) => i.status === "fail").map((i) => `${i.label}: ${i.detail}`);
+      return NextResponse.json(
+        { error: `Belum bisa diterbitkan. ${reasons.join(" ")}`, checks: check.items },
+        { status: 422 },
+      );
+    }
+  }
 
   let updated: { id: bigint; slug: string };
   try {
@@ -269,6 +326,24 @@ export async function PUT(
     throw e;
   }
 
+  invalidateBlogCache();
+
+  // Gambar yang tidak lagi dipakai (cover lama, atau gambar yang dibuang dari isi) dihapus dari Spaces:
+  // best-effort, setelah DB sukses. Pemeriksaan pemakaian bersama ada di deleteReplacedBlogImages.
+  const staleImages: string[] = [];
+  if (coverImageUrl !== undefined && before.coverImageUrl && before.coverImageUrl !== (coverImageUrl || null)) {
+    staleImages.push(before.coverImageUrl);
+  }
+  if (content !== undefined) staleImages.push(...removedInlineImageUrls(before.content, content));
+  const deletedKeys =
+    staleImages.length > 0
+      ? await deleteReplacedBlogImages(staleImages, {
+          postId,
+          coverImageUrl: coverImageUrl !== undefined ? coverImageUrl || null : before.coverImageUrl,
+          content: content ?? before.content,
+        })
+      : [];
+
   const changed = [
     title !== undefined && "title",
     slug !== undefined && "slug",
@@ -300,6 +375,16 @@ export async function PUT(
       after: { status: statusOk ?? before.status, slug: updated.slug, ...(title !== undefined ? { title: clip(title, 120) } : {}) },
     },
   });
+
+  if (deletedKeys.length > 0) {
+    await auditPlatform(req, actorOf(auth), {
+      action: "blog.image_delete",
+      targetType: "system",
+      targetId: `blog_post:${postId}`,
+      summary: `Menghapus ${deletedKeys.length} gambar yang tidak lagi dipakai (cover lama / dibuang dari isi) dari penyimpanan`,
+      metadata: { postId: postId.toString(), keys: deletedKeys },
+    });
+  }
 
   return NextResponse.json(
     { ok: true, post: toJSONSafe(updated) },

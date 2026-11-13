@@ -2,11 +2,7 @@ import type { NextConfig } from "next";
 import { buildImageRemotePatterns } from "./lib/image-hosts";
 
 const nextConfig: NextConfig = {
-  async redirects() {
-    return [
-      { source: "/fitur", destination: "/platform", permanent: true },
-    ];
-  },
+  // /fitur dulu 308 ke /platform; kini hub halaman topik (app/(landing)/fitur).
 
   /* config options here */
   // Enable experimental features for subdomain routing

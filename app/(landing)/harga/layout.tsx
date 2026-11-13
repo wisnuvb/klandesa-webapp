@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LENGKAP_SETUP_FEE } from "@/lib/billing/lengkap";
 import { getLandingPageMetadata } from "@/lib/seo/landing-pages";
+import { HARGA_FAQS } from "@/lib/marketing/harga-faqs";
 import { getMainSiteOrigin } from "@/lib/seo/url";
 
 export const metadata: Metadata = getLandingPageMetadata("harga");
@@ -30,12 +31,33 @@ export default function HargaLayout({
     },
   };
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: HARGA_FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.question,
+      acceptedAnswer: { "@type": "Answer", text: f.answer },
+    })),
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Beranda", item: origin },
+      { "@type": "ListItem", position: 2, name: "Harga", item: `${origin}/harga` },
+    ],
+  };
+
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
-      />
+      {[productJsonLd, faqJsonLd, breadcrumbJsonLd].map((ld) => (
+        <script
+          key={ld["@type"]}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
+        />
+      ))}
       {children}
     </>
   );

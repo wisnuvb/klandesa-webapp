@@ -4,6 +4,8 @@ import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { toJSONSafe } from "@/utils/json";
 import { auditPlatform } from "@/lib/platform/audit";
 import { actorOf, clip } from "@/lib/platform/legacy-audit";
+import { checkBlogSeo } from "@/lib/blog/seo-check";
+import { invalidateBlogCache } from "@/lib/blog/cache";
 
 export async function POST(
   req: NextRequest,
@@ -20,9 +22,31 @@ export async function POST(
 
   const before = await prisma.blogPost.findUnique({
     where: { id: postId },
-    select: { title: true, slug: true, status: true, publishedAt: true },
+    select: {
+      title: true,
+      slug: true,
+      status: true,
+      publishedAt: true,
+      excerpt: true,
+      content: true,
+      seoTitle: true,
+      seoDescription: true,
+      coverImageUrl: true,
+      tags: { select: { tag: { select: { name: true } } } },
+    },
   });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Pagar mutu: hanya pemeriksaan "fail" (judul/deskripsi/slug kosong, artikel tipis, penanda sisa).
+  // Peringatan lain cukup tampil di editor.
+  const check = checkBlogSeo({ ...before, tags: before.tags.map((t) => t.tag.name) });
+  if (!check.canPublish) {
+    const reasons = check.items.filter((i) => i.status === "fail").map((i) => `${i.label}: ${i.detail}`);
+    return NextResponse.json(
+      { error: `Belum bisa diterbitkan. ${reasons.join(" ")}`, checks: check.items },
+      { status: 422 },
+    );
+  }
 
   const updated = await prisma.blogPost.update({
     where: { id: postId },
@@ -33,6 +57,8 @@ export async function POST(
     },
     select: { id: true, slug: true, status: true, publishedAt: true },
   });
+
+  invalidateBlogCache();
 
   await auditPlatform(req, actorOf(auth), {
     action: "blog.publish",

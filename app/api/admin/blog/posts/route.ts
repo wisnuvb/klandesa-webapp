@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformSession } from "@/app/api/admin/_auth";
 import { slugifyBlog } from "@/app/api/admin/blog/_slug";
+import { forbiddenBlogSlugMessage, isForbiddenBlogSlug } from "@/lib/blog/slug-rules";
 import { toJSONSafe } from "@/utils/json";
 import { auditPlatform } from "@/lib/platform/audit";
 import { actorOf, clip } from "@/lib/platform/legacy-audit";
@@ -66,6 +67,9 @@ export async function POST(req: NextRequest) {
 
   const base = slugifyBlog(slugInput || title);
   if (!base) return NextResponse.json({ error: "Slug tidak valid" }, { status: 400 });
+  if (isForbiddenBlogSlug(base)) {
+    return NextResponse.json({ error: forbiddenBlogSlugMessage(base) }, { status: 400 });
+  }
 
   let slug = base;
   for (let i = 0; i < 50; i++) {

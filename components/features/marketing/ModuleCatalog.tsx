@@ -6,7 +6,7 @@ import { EARLY_ACCESS_LABEL } from "@/lib/marketing/copy";
 import { badgeLabelForStatus, groupMarketingModules } from "@/lib/marketing/modules";
 import type { MarketingAudience, MarketingModuleItem } from "@/lib/marketing/modules";
 
-type Props = { modules: MarketingModuleItem[] };
+type Props = { modules: MarketingModuleItem[]; countLabel?: string };
 
 const AUDIENCE_FILTER: { id: "all" | MarketingAudience; label: string }[] = [
   { id: "all", label: "Semua" },
@@ -15,7 +15,7 @@ const AUDIENCE_FILTER: { id: "all" | MarketingAudience; label: string }[] = [
   { id: "both", label: "Keduanya" },
 ];
 
-export function ModuleCatalog({ modules }: Props) {
+export function ModuleCatalog({ modules, countLabel }: Props) {
   const [q, setQ] = useState("");
   const [audience, setAudience] = useState<(typeof AUDIENCE_FILTER)[number]["id"]>(
     "all",
@@ -42,7 +42,7 @@ export function ModuleCatalog({ modules }: Props) {
     <div className="px-4 sm:px-6 lg:px-8 py-12 md:py-16 max-w-7xl mx-auto">
       <div className="mb-10">
         <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-          {modules.length} fitur aplikasi desa
+          {countLabel ?? modules.length} fitur aplikasi desa
         </h2>
         <p className="text-gray-600 max-w-3xl">
           Daftar ini sama dengan fitur di aplikasi Klandesa. Yang bertanda{" "}

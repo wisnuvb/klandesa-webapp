@@ -4,6 +4,7 @@ import { ContactModal } from "@/components/features/ContactModal";
 import { RegistrationModal } from "@/components/features/RegistrationModal";
 import { BILLING_CATALOG, formatIdr } from "@/lib/billing/catalog";
 import { AI_CREDIT_PACKAGES, AI_FREE_CREDITS } from "@/lib/ai/credit-packages";
+import { HARGA_FAQS as faqs } from "@/lib/marketing/harga-faqs";
 import {
   Dialog,
   DialogContent,
@@ -106,59 +107,8 @@ const includedGroups = [
   },
 ];
 
-const includedCount = includedGroups.reduce((sum, g) => sum + g.items.length, 0);
-
 const storageTiers = [ARSIP.professional, ARSIP.business, ARSIP.enterprise, ARSIP.promax];
 
-const faqs = [
-  {
-    question: "Berapa biaya yang harus dibayar desa?",
-    answer: `Biaya awal ${formatIdr(LENGKAP.setupFee)} sudah termasuk 12 bulan pertama. Mulai tahun ke-2 desa membayar ${formatIdr(LENGKAP.monthlyFee)} per bulan (setara ${formatIdr(LENGKAP.annualFee)} per tahun). Tidak ada biaya awal kedua saat perpanjangan.`,
-  },
-  {
-    question: "Apakah ada fitur yang harus dibayar terpisah?",
-    answer: `Tidak. Semua fitur modul sudah termasuk di Paket Lengkap, tanpa batas jumlah data dan tanpa paket bertingkat. Yang dibayar terpisah hanya hal yang memang menimbulkan biaya dan bisa diukur: penyimpanan arsip di atas ${INCLUDED_STORAGE_GB} GB, kredit Asisten Desa AI, GPS radius untuk absensi, dan layanan Website Desa kustom.`,
-  },
-  {
-    question: "Berapa perangkat desa yang bisa memakai absensi?",
-    answer:
-      "Paket Lengkap mencakup absensi QR untuk hingga 10 perangkat desa dengan riwayat 30 hari. Absensi GPS radius tersedia sebagai add-on terpisah.",
-  },
-  {
-    question: "Bagaimana cara kerja kredit Asisten Desa AI?",
-    answer: `Setiap pengguna mendapat ${AI_FREE_CREDITS.toLocaleString("id-ID")} kredit gratis. Satu pertanyaan memakai 1 kredit, dan kredit tidak dipotong bila jawaban gagal dibuat. Jika habis, kredit bisa diisi ulang mulai ${formatIdr(FIRST_AI_PACKAGE.price)} untuk ${FIRST_AI_PACKAGE.credits} kredit.`,
-  },
-  {
-    question: "Bagaimana cara perpanjangan di tahun ke-2?",
-    answer:
-      "Perpanjangan dilakukan dari halaman Tagihan di aplikasi, dengan pilihan 1, 3, 6, atau 12 bulan. Sisa masa berlaku tidak hangus: perpanjangan disambung dari tanggal berakhir yang masih berjalan.",
-  },
-  {
-    question: "Apakah tersedia trial?",
-    answer:
-      "Ya. Setiap desa baru mendapat trial gratis 14 hari tanpa perlu membayar di muka. Setelah trial, desa bisa membeli Paket Lengkap atau menghubungi tim kami untuk demo.",
-  },
-  {
-    question: "Bagaimana dengan desa yang sudah memakai paket Starter, Profesional, atau Enterprise?",
-    answer:
-      "Tidak ada perubahan. Desa yang sudah aktif tetap memakai paket dan harganya masing-masing. Paket Lengkap berlaku untuk desa baru.",
-  },
-  {
-    question: "Bagaimana cara pembayarannya?",
-    answer:
-      "Pembayaran melalui transfer bank atau metode yang tersedia di halaman Tagihan. Kami juga bisa membantu kebutuhan administrasi untuk pencairan APBDes.",
-  },
-  {
-    question: "Apakah data desa kami aman?",
-    answer:
-      "Kami menerapkan praktik keamanan cloud standar: koneksi HTTPS, kontrol akses berbasis peran, serta jejak audit untuk tindakan tulis di dashboard dan aplikasi seluler. Kebutuhan compliance khusus dibahas bersama tim IT/wilayah Anda.",
-  },
-  {
-    question: "Bagaimana dengan kabupaten atau kecamatan yang ingin memantau banyak desa?",
-    answer:
-      "Untuk pemantauan lintas desa dan dashboard akuntabilitas wilayah, hubungi tim kami. Skema lisensi kabupaten dibahas langsung sesuai jumlah desa dan kebutuhan.",
-  },
-];
 
 export default function PricingPage() {
   const [showRegistration, setShowRegistration] = React.useState(false);
@@ -308,7 +258,7 @@ export default function PricingPage() {
                   onClick={() => setShowAllFeatures(true)}
                   className={`mt-6 self-start inline-flex items-center gap-2 text-[#0f766e] hover:text-[#0d9488] underline underline-offset-4 cursor-pointer ${focusRing}`}
                 >
-                  <span>Lihat semua fitur ({includedCount})</span>
+                  <span>Lihat semua fitur yang termasuk</span>
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
@@ -490,14 +440,15 @@ export default function PricingPage() {
                   </button>
                 </h3>
 
-                {openFaq === index && (
-                  <div
-                    id={`faq-panel-${index}`}
-                    className="px-6 pb-5 animate-in slide-in-from-top-2 duration-200"
-                  >
-                    <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
-                  </div>
-                )}
+                {/* Selalu ada di HTML (hidden saat tertutup) agar jawaban terbaca crawler. */}
+                <div
+                  id={`faq-panel-${index}`}
+                  role="region"
+                  hidden={openFaq !== index}
+                  className="px-6 pb-5"
+                >
+                  <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+                </div>
               </div>
             ))}
           </div>
