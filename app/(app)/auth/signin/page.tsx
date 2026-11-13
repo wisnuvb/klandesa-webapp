@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { SignInForm } from "./SignInForm";
+import type { Metadata } from "next";
 
 function SignInFallback() {
   return (
@@ -16,6 +17,8 @@ function SignInFallback() {
     </div>
   );
 }
+
+export const metadata: Metadata = { title: "Masuk" };
 
 export default function SignInPage() {
   return (

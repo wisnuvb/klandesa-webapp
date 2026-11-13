@@ -4,6 +4,9 @@ import { resolveVillage } from "@/lib/village";
 import ArsipDigitalClient from "./ArsipDigitalClient";
 import type { ArchiveEntry, ArchiveFolderEntry } from "./_types";
 import { getActiveArsipAddon, getChargedMediaBytes, getEffectiveStorageLimitGb } from "@/lib/digitalArchive/quota";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Arsip Digital" };
 
 export default async function ArsipPage() {
   // Layout (app) statis tidak lagi menjadi penjaga izin modul; halaman yang membaca DB langsung wajib memeriksanya sendiri.

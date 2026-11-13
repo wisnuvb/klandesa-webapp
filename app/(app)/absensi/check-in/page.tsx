@@ -1,4 +1,7 @@
 import CheckInClient from "./CheckInClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Check-in Absensi" };
 
 export default function Page() {
   return (

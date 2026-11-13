@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveVillage } from "@/lib/village";
 import GaleriDesaClient from "./GaleriDesaClient";
 import type { GalleryCategory, GalleryImage } from "./_types";
+import type { Metadata } from "next";
 
 function normalizeCategory(input: string | null): GalleryCategory {
   const upper = (input || "").toUpperCase().trim();
@@ -25,6 +26,8 @@ function isImageFileType(fileType: string) {
   const ext = (fileType || "").toLowerCase().replace(/^\./, "");
   return ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
 }
+
+export const metadata: Metadata = { title: "Galeri Kegiatan Desa" };
 
 export default async function GaleriDesaPage() {
   // Layout (app) statis tidak lagi menjadi penjaga izin modul; halaman yang membaca DB langsung wajib memeriksanya sendiri.

@@ -1,8 +1,11 @@
 import { auth } from "@/auth";
 import { isRegionalAccount } from "@/lib/regional-session";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Ringkasan Wilayah" };
 
 export default async function WilayahLayout({
   children,

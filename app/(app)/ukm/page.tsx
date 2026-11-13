@@ -5,6 +5,9 @@ import ProdukUKMClient from "./ProdukUKMClient";
 import type { UkmProduct } from "./_types";
 import { normalizeImageUrls } from "./_utils";
 import { parseUkmSettings } from "@/lib/mobile/ukm-logic";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Katalog UMKM Desa" };
 
 export default async function ProdukUKMPage() {
   // Layout (app) statis tidak lagi menjadi penjaga izin modul; halaman yang membaca DB langsung wajib memeriksanya sendiri.

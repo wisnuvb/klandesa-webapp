@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { GuideCatalog } from "@/components/app/guide/GuideCatalog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const metadata = { title: "Bantuan | Klandesa" };
+export const metadata = { title: "Bantuan" };
 
 const guides = [
   {
