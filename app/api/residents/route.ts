@@ -1,3 +1,4 @@
+import { lifeStatusWhere, parseLifeStatus } from "@/lib/residents/life-status";
 import { requireVillageApiContext } from "@/lib/api-village-context";
 import { parsePageParams } from "@/lib/http/pagination";
 import { auditWeb } from "@/lib/audit/web-audit";
@@ -155,12 +156,17 @@ export async function GET(req: NextRequest) {
     const isBpjsKis = url.searchParams.get("isBpjsKis") ?? undefined;
     const isStunting = url.searchParams.get("isStunting") ?? undefined;
     const isPregnant = url.searchParams.get("isPregnant") ?? undefined;
+    // Opsional: tanpa parameter ini daftar TIDAK difilter (pemilih warga di formulir lain bergantung pada itu).
+    const lifeStatus = parseLifeStatus(url.searchParams.get("lifeStatus"));
+    if (lifeStatus === null) {
+      return NextResponse.json({ error: "lifeStatus tidak valid" }, { status: 400 });
+    }
 
     if (!isVillageSubscriptionActive(village)) {
       return subscriptionBlockedResponse(village);
     }
 
-    const where: Prisma.ResidentWhereInput = { villageId: village.id };
+    const where: Prisma.ResidentWhereInput = { villageId: village.id, ...(lifeStatus ? lifeStatusWhere(lifeStatus) : {}) };
     if (search) {
       where.OR = [
         { name: { contains: search } },

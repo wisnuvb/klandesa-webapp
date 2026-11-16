@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ChevronDown, FileSpreadsheet, FileText, Info, Loader2, TriangleAlert } from "lucide-react";
+import { ChevronDown, ExternalLink, FileSpreadsheet, FileText, Info, Loader2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Can } from "@/components/permissions/Can";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   SASARAN_STATUSES,
   SASARAN_STATUS_LABEL,
   areaLabel,
+  formatAgeParts,
   type SasaranReport,
   type SasaranStatus,
 } from "@/lib/pkk/sasaran";
@@ -194,14 +195,87 @@ export function SasaranTab() {
 type Person = SasaranList["people"][number];
 const genderCode = (g: string) => (/^l/i.test(g) ? "L" : /^(p|w)/i.test(g) ? "P" : "-");
 const areaText = (p: Person) => areaLabel(p.rw, p.rt).replace(/^Tanpa RT\/RW$/, "-");
+const ageText = (p: Person) =>
+  p.age === null ? "-" : formatAgeParts({ years: p.age, months: p.ageMonths ?? 0, days: p.ageDays ?? 0 });
 const personNote = (p: Person) => [p.isPregnant ? "Hamil" : null, p.maritalStatus, p.moveDate ? `Pindah ${tanggal(p.moveDate)}` : null].filter(Boolean).join(" · ");
-const personLine = (p: Person) => [genderCode(p.gender), p.age === null ? null : `${p.age} th`, areaText(p)].filter((x) => x && x !== "-").join(" · ");
+const personLine = (p: Person) => [genderCode(p.gender), ageText(p), areaText(p)].filter((x) => x && x !== "-").join(" · ");
+
+/** Nama warga: tautan ke rincian di tab baru bila boleh membuka Data Warga, selain itu teks biasa. */
+function PersonName({ p }: { p: Person }) {
+  return (
+    <Can resource="residents" action="read" fallback={<span>{p.name}</span>}>
+      <a
+        href={`/data-warga?detail=${p.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 rounded-sm underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {p.name}
+        <ExternalLink aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="sr-only">(rincian warga, dibuka di tab baru)</span>
+      </a>
+    </Can>
+  );
+}
+
+type Paged = { url: string; people: Person[]; total: number; next: number | null; error: string | null; moreLoading: boolean };
+
+/**
+ * Daftar bertahap: halaman pertama dimuat saat url berubah, halaman berikutnya lewat loadMore (tambah ke bawah).
+ * Hasil basi (url sudah berganti) dibuang. `loading` diturunkan dari url yang belum terjawab, tanpa setState sinkron di effect.
+ */
+function usePagedList(baseUrl: string | null) {
+  const [state, setState] = useState<Paged | null>(null);
+
+  useEffect(() => {
+    if (!baseUrl) return;
+    const ctrl = new AbortController();
+    fetch(`${baseUrl}&offset=0`, { signal: ctrl.signal, cache: "no-store" })
+      .then(async (res) => {
+        const body = (await res.json().catch(() => ({}))) as Partial<SasaranList> & { error?: string };
+        if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Gagal memuat daftar warga");
+        setState({ url: baseUrl, people: body.people ?? [], total: body.total ?? 0, next: body.nextOffset ?? null, error: null, moreLoading: false });
+      })
+      .catch((e) => {
+        if (e?.name !== "AbortError") setState({ url: baseUrl, people: [], total: 0, next: null, error: e instanceof Error ? e.message : "Gagal memuat daftar warga", moreLoading: false });
+      });
+    return () => ctrl.abort();
+  }, [baseUrl]);
+
+  const current = baseUrl && state?.url === baseUrl ? state : null;
+  const next = current?.next ?? null;
+  const moreLoading = current?.moreLoading ?? false;
+
+  const loadMore = useCallback(() => {
+    if (!baseUrl || next === null || moreLoading) return;
+    setState((p) => (p && p.url === baseUrl ? { ...p, moreLoading: true, error: null } : p));
+    fetch(`${baseUrl}&offset=${next}`, { cache: "no-store" })
+      .then(async (res) => {
+        const body = (await res.json().catch(() => ({}))) as Partial<SasaranList> & { error?: string };
+        if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Gagal memuat daftar warga");
+        setState((p) => (p && p.url === baseUrl ? { ...p, people: [...p.people, ...(body.people ?? [])], total: body.total ?? p.total, next: body.nextOffset ?? null, moreLoading: false } : p));
+      })
+      .catch((e) => setState((p) => (p && p.url === baseUrl ? { ...p, moreLoading: false, error: e instanceof Error ? e.message : "Gagal memuat daftar warga" } : p)));
+  }, [baseUrl, next, moreLoading]);
+
+  return { data: current, loading: Boolean(baseUrl) && current === null, loadMore };
+}
 
 function ResidentsDialog({ cell, status, onClose }: { cell: SasaranCell | null; status: SasaranStatus; onClose: () => void }) {
   const url = cell
-    ? `/api/pkk/sasaran/warga?group=${encodeURIComponent(cell.group)}&status=${status}${cell.area !== null ? `&area=${encodeURIComponent(cell.area)}` : ""}`
+    ? `/api/pkk/sasaran/warga?group=${encodeURIComponent(cell.group)}&status=${status}&limit=50${cell.area !== null ? `&area=${encodeURIComponent(cell.area)}` : ""}`
     : null;
-  const { data, loading, error } = useApiGet<SasaranList>(url);
+  const { data, loading, loadMore } = usePagedList(url);
+
+  // Gulir otomatis: saat penanda di dasar daftar terlihat, muat halaman berikutnya. Tombol di bawahnya tetap ada sebagai jalur keyboard/pembaca layar.
+  const sentinel = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && loadMore(), { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loadMore, data?.next, data?.people.length]);
 
   return (
     <Dialog open={cell !== null} onOpenChange={(o) => (o ? undefined : onClose())}>
@@ -209,8 +283,8 @@ function ResidentsDialog({ cell, status, onClose }: { cell: SasaranCell | null; 
         <DialogHeader>
           <DialogTitle>{cell?.title}</DialogTitle>
           <DialogDescription>
-            {data
-              ? `${data.total} warga (${SASARAN_STATUS_LABEL[status].toLowerCase()})${data.terpotong ? `, ditampilkan ${data.people.length} pertama` : ""}. NIK tidak ditampilkan.`
+            {data && !data.error
+              ? `${data.total} warga (${SASARAN_STATUS_LABEL[status].toLowerCase()})${data.next !== null ? `, ditampilkan ${data.people.length}` : ""}. NIK tidak ditampilkan.`
               : "Daftar nama warga di kelompok ini."}
           </DialogDescription>
         </DialogHeader>
@@ -221,16 +295,25 @@ function ResidentsDialog({ cell, status, onClose }: { cell: SasaranCell | null; 
             Memuat daftar…
           </p>
         ) : null}
-        {error ? <p role="alert" className="rounded-lg border border-destructive bg-destructive/10 p-4 text-destructive">{error}</p> : null}
+        {data?.error ? (
+          <div role="alert" className="flex flex-col items-start gap-2 rounded-lg border border-destructive bg-destructive/10 p-4 text-destructive">
+            <p>{data.error}</p>
+            {data.people.length > 0 ? (
+              <Button type="button" variant="outline" className="min-h-11" onClick={loadMore} disabled={data.next === null}>
+                Coba muat lagi
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
-        {data && data.people.length === 0 ? <p className="p-4 text-center text-muted-foreground">Tidak ada warga di kelompok ini.</p> : null}
+        {data && !data.error && data.people.length === 0 ? <p className="p-4 text-center text-muted-foreground">Tidak ada warga di kelompok ini.</p> : null}
         {data && data.people.length > 0 ? (
           <>
             {/* Ponsel: daftar bertumpuk (tabel 5 kolom terlalu sempit). Layar lebar: tabel. */}
             <ul className="divide-y sm:hidden">
               {data.people.map((p) => (
                 <li key={p.id} className="space-y-0.5 py-2">
-                  <p className="font-medium">{p.name}</p>
+                  <p className="font-medium"><PersonName p={p} /></p>
                   <p className="text-sm text-muted-foreground">{personLine(p)}</p>
                   {personNote(p) ? <p className="text-sm text-muted-foreground">{personNote(p)}</p> : null}
                 </li>
@@ -250,16 +333,29 @@ function ResidentsDialog({ cell, status, onClose }: { cell: SasaranCell | null; 
                 <TableBody>
                   {data.people.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="whitespace-normal font-medium">{p.name}</TableCell>
+                      <TableCell className="whitespace-normal font-medium"><PersonName p={p} /></TableCell>
                       <TableCell>{genderCode(p.gender)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{p.age === null ? "-" : `${p.age} th`}</TableCell>
-                      <TableCell>{areaText(p)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums">{ageText(p)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{areaText(p)}</TableCell>
                       <TableCell className="whitespace-normal text-muted-foreground">{personNote(p) || "-"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
+            {data.next !== null ? (
+              <div ref={sentinel} className="flex flex-col items-center gap-2 py-2">
+                <p role="status" className="text-sm text-muted-foreground">
+                  {data.moreLoading ? "Memuat lebih banyak…" : `Menampilkan ${data.people.length} dari ${data.total}`}
+                </p>
+                <Button type="button" variant="outline" className="min-h-11" onClick={loadMore} disabled={data.moreLoading}>
+                  {data.moreLoading ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
+                  Tampilkan {Math.min(50, data.total - data.people.length)} berikutnya
+                </Button>
+              </div>
+            ) : (
+              <p className="py-1 text-center text-sm text-muted-foreground">Semua {data.total} warga sudah ditampilkan.</p>
+            )}
           </>
         ) : null}
       </DialogContent>

@@ -8,7 +8,8 @@ import {
   type DataTableFetchResult,
 } from "@/components/ui/data-table";
 import { Plus, MoreVertical, FileSpreadsheet, FileText, Download, Upload, SlidersHorizontal, Users } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { DetailResidentModal } from "./DetailResidentModal";
 import { EditResidentModal } from "./EditResidentModal";
 import { AddResidentModal } from "./AddResidentModal";
@@ -22,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Resident } from "@prisma/client";
+import { DEFAULT_LIFE_STATUS, LIFE_STATUS_LABEL, isLifeStatus } from "@/lib/residents/life-status";
 import { ExportDataModal } from "./ExportDataModal";
 import {
   FilterWargaModal,
@@ -53,6 +55,27 @@ export const DataWargaTable = ({
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
 
+  // Tautan dalam: /data-warga?detail=<id> membuka rincian satu warga (dipakai daftar nama di tab Data Sasaran PKK, dibuka di tab baru).
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("detail");
+    if (!raw) return;
+    // Hapus parameter segera agar muat ulang halaman tidak membuka rincian yang sama lagi.
+    window.history.replaceState(null, "", window.location.pathname);
+    const id = Number(raw);
+    if (!Number.isInteger(id) || id <= 0) return;
+    const ctrl = new AbortController();
+    fetch(`/api/residents/${id}`, { signal: ctrl.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(res.status === 404 ? "Warga tidak ditemukan." : "Gagal membuka rincian warga.");
+        setSelectedResident((await res.json()) as Resident);
+        setShowDetailModal(true);
+      })
+      .catch((e) => {
+        if (e?.name !== "AbortError") toast.error(e instanceof Error ? e.message : "Gagal membuka rincian warga.");
+      });
+    return () => ctrl.abort();
+  }, []);
+
   // Memoize initialSort to prevent unnecessary re-renders
   const initialSort = useMemo(
     () => ({ key: "name", order: "asc" as const }),
@@ -83,6 +106,8 @@ export const DataWargaTable = ({
       if (params.sortKey) qs.set("sortKey", params.sortKey);
       if (params.sortOrder) qs.set("sortOrder", params.sortOrder);
       if (params.search) qs.set("search", params.search);
+      // Selalu kirim (termasuk "semua"): tanpa parameter ini API tidak menyaring sama sekali.
+      qs.set("lifeStatus", isLifeStatus(f.lifeStatus) ? f.lifeStatus : DEFAULT_LIFE_STATUS);
       if (f.gender && f.gender !== "all") qs.set("gender", f.gender);
       if (f.status && f.status !== "all") qs.set("status", f.status);
       if (f.religion && f.religion !== "all") qs.set("religion", f.religion);
@@ -184,6 +209,8 @@ export const DataWargaTable = ({
         <CardTitle>Daftar Data Warga</CardTitle>
         <p className="text-sm text-muted-foreground">
           Total {totalCount} data warga
+          {" "}({LIFE_STATUS_LABEL[isLifeStatus(filters.lifeStatus) ? filters.lifeStatus : DEFAULT_LIFE_STATUS].toLowerCase()}
+          {filters.lifeStatus === DEFAULT_LIFE_STATUS ? "; warga meninggal disembunyikan, ubah lewat Filter" : ""})
         </p>
       </CardHeader>
       <CardContent data-tour="warga-table">

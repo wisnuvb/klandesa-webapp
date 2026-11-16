@@ -2,7 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   ageOnDate,
+  ageParts,
   areaLabel,
+  birthDateRangeForGroup,
+  formatAgeParts,
   buildSasaranReport,
   groupsOf,
   inSasaran,
@@ -188,5 +191,75 @@ describe("status warga (filter pindah)", async () => {
     assert.match(text, /sudah tercatat pindah dari desa/);
     assert.match(sasaranFileName("Desa Contoh", "csv", new Date("2026-11-16T03:00:00Z"), "pindah"), /^data-sasaran-posyandu-desa-contoh-pindah-2026-11-16\.csv$/);
     assert.match(sasaranFileName("Desa Contoh", "csv", new Date("2026-11-16T03:00:00Z")), /^data-sasaran-posyandu-desa-contoh-2026-11-16\.csv$/);
+  });
+});
+
+describe("usia terperinci (tahun, bulan, hari)", () => {
+  const at = (y: number, m: number, d: number) => new Date(y, m - 1, d);
+  it("contoh tetap", () => {
+    assert.deepEqual(ageParts(at(2026, 8, 4), at(2026, 11, 16)), { years: 0, months: 3, days: 12 });
+    assert.deepEqual(ageParts(at(2000, 1, 15), at(2026, 11, 16)), { years: 26, months: 10, days: 1 });
+    assert.deepEqual(ageParts(at(2000, 11, 16), at(2026, 11, 16)), { years: 26, months: 0, days: 0 }, "tepat ulang tahun");
+    assert.deepEqual(ageParts(at(2026, 11, 16), at(2026, 11, 16)), { years: 0, months: 0, days: 0 }, "lahir hari ini");
+    assert.deepEqual(ageParts(at(2025, 12, 20), at(2026, 2, 10)), { years: 0, months: 1, days: 21 }, "melintasi pergantian tahun");
+    assert.equal(formatAgeParts({ years: 0, months: 3, days: 12 }), "0 th 3 bln 12 hr");
+    assert.equal(formatAgeParts(null), "-");
+  });
+  it("lahir 29 Februari dan akhir bulan tidak menghasilkan angka negatif; tahun selalu sama dengan usia penuh", () => {
+    assert.deepEqual(ageParts(at(2020, 2, 29), at(2026, 2, 28)), { years: 5, months: 11, days: 30 });
+    const p = ageParts(at(2025, 1, 31), at(2025, 3, 1))!;
+    assert.ok(p.months >= 0 && p.days >= 0);
+    for (let y = 0; y < 100; y += 7) {
+      for (let dm = 0; dm < 400; dm += 13) {
+        const now = new Date(2026, 10, 16);
+        const b = new Date(now.getFullYear() - y, now.getMonth(), now.getDate() - dm);
+        if (b > now) continue;
+        const a = ageParts(b, now)!;
+        assert.equal(a.years, ageOnDate(b, now), `${y} th -${dm} hr`);
+        assert.ok(a.months >= 0 && a.months <= 11 && a.days >= 0 && a.days <= 31, JSON.stringify(a));
+      }
+    }
+  });
+  it("tanggal lahir tidak valid → null", () => {
+    assert.equal(ageParts(new Date(2027, 0, 1), new Date(2026, 10, 16)), null);
+  });
+});
+
+describe("rentang tanggal lahir untuk penyempitan query (tidak boleh lebih sempit dari groupsOf)", () => {
+  it("setiap warga yang cocok menurut groupsOf selalu berada di dalam rentang database", () => {
+    const now = new Date(2026, 10, 16, 15);
+    const groups = ["balita", "prasekolah", "sekolah", "dewasa", "lansia", "wus", "pus"] as const;
+    for (let age = 0; age < 110; age++) {
+      for (const dayOff of [-2, -1, 0, 1, 2]) {
+        const b = new Date(now.getFullYear() - age, now.getMonth(), now.getDate() + dayOff);
+        if (b > now) continue;
+        const r = person({ birthDate: b, maritalStatus: "Menikah" });
+        for (const g of groups) {
+          if (!(groupsOf(r, now) as string[]).includes(g)) continue;
+          const range = birthDateRangeForGroup(g, now)!;
+          assert.ok(b <= range.lte && (range.gt === undefined || b > range.gt), `${g} usia ${age} ${dayOff} hari`);
+        }
+      }
+    }
+  });
+  it("ibu hamil tidak punya rentang usia (hanya tanda hamil)", () => {
+    assert.equal(birthDateRangeForGroup("ibuHamil", new Date()), null);
+  });
+});
+
+describe("status kehidupan Data Warga (filter)", async () => {
+  const m = await import("../lib/residents/life-status.ts");
+  it("tanpa parameter = tanpa filter (pemilih warga lain tak berubah); nilai asing ditolak", () => {
+    assert.equal(m.parseLifeStatus(null), undefined);
+    assert.equal(m.parseLifeStatus(""), undefined);
+    for (const s of m.LIFE_STATUSES) assert.equal(m.parseLifeStatus(s), s);
+    for (const bad of ["HIDUP", "mati", "1=1", " hidup", "aktif"]) assert.equal(m.parseLifeStatus(bad), null, bad);
+  });
+  it("kondisi query", () => {
+    assert.deepEqual(m.lifeStatusWhere("hidup"), { isAlive: true });
+    assert.deepEqual(m.lifeStatusWhere("meninggal"), { isAlive: false });
+    assert.deepEqual(m.lifeStatusWhere("pindah"), { isAlive: true, moveDate: { not: null } });
+    assert.deepEqual(m.lifeStatusWhere("semua"), {});
+    assert.equal(m.DEFAULT_LIFE_STATUS, "hidup");
   });
 });

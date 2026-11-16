@@ -39,6 +39,8 @@ export const createDataWargaColumns = ({
           </AvatarFallback>
         </Avatar>
         <span>{w.name}</span>
+        {/* Saat filter menampilkan warga meninggal/pindah, statusnya harus terbaca di barisnya (teks, bukan warna saja). */}
+        {!w.isAlive ? <Badge variant="secondary">Meninggal</Badge> : w.moveDate ? <Badge variant="outline">Pindah</Badge> : null}
       </div>
     ),
   },

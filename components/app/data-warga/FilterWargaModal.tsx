@@ -28,8 +28,11 @@ import {
 } from "@/utils/constants/user";
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
 import { ETHNICITIES } from "@/lib/residents/ethnicity";
+import { DEFAULT_LIFE_STATUS, LIFE_STATUSES, LIFE_STATUS_LABEL, isLifeStatus } from "@/lib/residents/life-status";
 
 export interface WargaFilters {
+  /** Status kehidupan (lib/residents/life-status): bawaan "hidup" agar warga meninggal tidak ikut tampil. */
+  lifeStatus: string;
   gender: string;
   status: string;
   religion: string;
@@ -49,6 +52,7 @@ export interface WargaFilters {
 }
 
 export const DEFAULT_FILTERS: WargaFilters = {
+  lifeStatus: DEFAULT_LIFE_STATUS,
   gender: "all",
   status: "all",
   religion: "all",
@@ -69,6 +73,7 @@ export const DEFAULT_FILTERS: WargaFilters = {
 
 export function countActiveFilters(filters: WargaFilters): number {
   let count = 0;
+  if (filters.lifeStatus !== DEFAULT_LIFE_STATUS) count++;
   if (filters.gender !== "all") count++;
   if (filters.status !== "all") count++;
   if (filters.religion !== "all") count++;
@@ -143,6 +148,22 @@ export function FilterWargaModal({
               Demografi
             </h3>
             <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status Kehidupan</Label>
+                <Select value={local.lifeStatus} onValueChange={(v) => set("lifeStatus", isLifeStatus(v) ? v : DEFAULT_LIFE_STATUS)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Hidup" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LIFE_STATUSES.map((v) => (
+                      <SelectItem key={v} value={v}>
+                        {LIFE_STATUS_LABEL[v]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label>Jenis Kelamin</Label>
                 <Select value={local.gender} onValueChange={(v) => set("gender", v)}>

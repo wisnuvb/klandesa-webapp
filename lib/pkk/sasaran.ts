@@ -190,5 +190,52 @@ export function inSasaran(r: SasaranResident, group: SasaranGroupKey | "semua", 
   return group === "semua" || groupsOf(r, now).includes(group);
 }
 
+export interface AgeParts {
+  years: number;
+  months: number;
+  days: number;
+}
+
+/** Usia terperinci (tahun, bulan, hari). `years` selalu sama dengan ageOnDate; null bila tanggal lahir tidak masuk akal. */
+export function ageParts(birthDate: Date, now: Date): AgeParts | null {
+  const years = ageOnDate(birthDate, now);
+  if (years === null) return null;
+  let months = now.getMonth() - birthDate.getMonth();
+  if (now.getDate() < birthDate.getDate()) months--;
+  if (months < 0) months += 12;
+  let days = now.getDate() - birthDate.getDate();
+  if (days < 0) {
+    // Pinjam hari dari bulan sebelumnya; bila hari lahir tak ada di bulan itu (31 Jan → 1 Mar) jangan negatif.
+    days = Math.max(0, now.getDate() + new Date(now.getFullYear(), now.getMonth(), 0).getDate() - birthDate.getDate());
+  }
+  return { years, months, days };
+}
+
+export const formatAgeParts = (a: AgeParts | null): string => (a ? `${a.years} th ${a.months} bln ${a.days} hr` : "-");
+
+/**
+ * Rentang usia penuh tiap kelompok, untuk menyempitkan query di database (lalu disaring ulang persis oleh groupsOf).
+ * Sengaja dilonggarkan 1 hari ke dua sisi agar hasil database tidak pernah lebih sempit daripada groupsOf.
+ */
+const GROUP_AGE_RANGE: Partial<Record<SasaranGroupKey, readonly [number, number | null]>> = {
+  balita: [0, 4],
+  prasekolah: [5, 5],
+  sekolah: [6, 18],
+  dewasa: [19, 59],
+  lansia: [60, null],
+  wus: [WUS_MIN_AGE, WUS_MAX_AGE],
+  pus: [WUS_MIN_AGE, WUS_MAX_AGE],
+};
+
+export function birthDateRangeForGroup(group: SasaranGroupKey, now: Date): { lte: Date; gt?: Date } | null {
+  const r = GROUP_AGE_RANGE[group];
+  if (!r) return null;
+  const DAY = 86_400_000;
+  const endOfDayYearsAgo = (years: number) => new Date(now.getFullYear() - years, now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const out: { lte: Date; gt?: Date } = { lte: new Date(endOfDayYearsAgo(r[0]).getTime() + DAY) };
+  if (r[1] !== null) out.gt = new Date(endOfDayYearsAgo(r[1] + 1).getTime() - DAY);
+  return out;
+}
+
 export const isSasaranGroup = (v: unknown): v is SasaranGroupKey =>
   typeof v === "string" && SASARAN_COLUMNS.some((c) => c.key === v);
