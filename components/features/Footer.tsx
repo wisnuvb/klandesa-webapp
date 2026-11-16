@@ -1,5 +1,6 @@
 "use client";
 
+import { CookieSettingsButton } from "@/components/analytics/CookieSettingsButton";
 import {
   ExternalLink,
   Facebook,
@@ -266,6 +267,7 @@ export function Footer() {
                 <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
               </Link>
             ))}
+            <CookieSettingsButton className="text-gray-400 hover:text-white text-sm transition-colors cursor-pointer" />
           </div>
         </div>
 

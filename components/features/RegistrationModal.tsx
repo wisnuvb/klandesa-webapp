@@ -17,6 +17,7 @@ import {
 import { KlandesaLogo } from "./KlandesaLogo";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
 import { getStoredReferralCode } from "@/lib/referrals/client";
+import { META_PIXEL_ID, newMetaEventId, trackMeta } from "@/lib/marketing/meta-pixel";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 import { Combobox } from "@/components/ui/combobox";
@@ -136,6 +137,9 @@ export function RegistrationModal({
           throw new Error(data?.error || "Pendaftaran gagal");
         }
 
+        // Konversi untuk iklan Meta (tanpa data pribadi). Dikirim sebelum pindah ke my.<domain>, yang bukan halaman ber-Pixel.
+        trackMeta("CompleteRegistration", { content_name: "trial-desa" }, newMetaEventId());
+
         const login = await signIn("credentials", {
           email: formData.emailDesa,
           password: formData.password,
@@ -159,6 +163,8 @@ export function RegistrationModal({
         const currentHost = window.location.host;
         const domain = currentHost.replace(/^(www\.|my\.)?/, "");
         const appUrl = `${window.location.protocol}//my.${domain}/onboarding`;
+        // Beri waktu singkat agar permintaan Pixel terkirim sebelum halaman berganti.
+        if (META_PIXEL_ID) await new Promise((resolve) => setTimeout(resolve, 400));
         window.location.href = appUrl;
       } catch (err) {
         setSubmitError(

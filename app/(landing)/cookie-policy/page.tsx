@@ -35,8 +35,8 @@ export default function CookiePolicyPage() {
     <LegalDocumentShell
       title="Kebijakan Cookie"
       description="Kebijakan ini menjelaskan bagaimana situs web dan aplikasi Klandesa menggunakan cookie serta teknologi penyimpanan setempat lainnya untuk meningkatkan pengalaman Anda dan mendukung keamanan layanan."
-      lastUpdatedIso="2026-04-30"
-      lastUpdatedLabel="30 April 2026"
+      lastUpdatedIso="2026-11-17"
+      lastUpdatedLabel="17 November 2026"
       currentSlug="cookie-policy"
     >
       <p>
@@ -83,13 +83,19 @@ export default function CookiePolicyPage() {
         setiap kali mengakses.
       </p>
 
-      <h3>Cookie pemasaran dan sosial (jika digunakan)</h3>
+      <h3>Cookie pemasaran dan sosial</h3>
       <p>
-        Apabila pada titik tertentu Klandesa menampilkan konten promosi atau
-        menyematkan layanan dari jejaring sosial, cookie terkait dapat dipasang
-        oleh pihak ketiga untuk mengukur interaksi atau menampilkan konten yang
-        relevan. Kami akan memberi tahu Anda secara jelas ketika fitur tersebut
-        aktif dan bagaimana cara menolaknya.
+        Pada halaman pemasaran publik (bukan di dalam aplikasi desa), Klandesa
+        dapat memakai <strong>Meta Pixel</strong> dari Meta Platforms untuk
+        mengukur hasil iklan kami di Facebook dan Instagram, misalnya berapa
+        pengunjung yang membuka halaman, menekan tombol WhatsApp, mengirim
+        formulir, atau mendaftar trial. Pixel hanya dimuat setelah Anda menekan
+        &ldquo;Setuju&rdquo; pada banner persetujuan, dan tidak dimuat bila Anda
+        menekan &ldquo;Tolak&rdquo;. Nama, nomor telepon, dan isian formulir Anda
+        tidak kami kirim ke Meta. Meta dapat menerima data teknis seperti alamat
+        IP, jenis perangkat, dan pengenal cookie, dan memprosesnya sesuai
+        kebijakan privasi Meta. Anda dapat mengubah pilihan kapan saja lewat
+        tautan &ldquo;Pengaturan cookie&rdquo; di bagian bawah halaman.
       </p>
 
       <h2 id="durasi">Durasi penyimpanan</h2>

@@ -9,6 +9,7 @@ import { RegistrationModal } from "@/components/features/RegistrationModal";
 import { ContactModal } from "@/components/features/ContactModal";
 import { WhatsAppButton } from "@/components/features/WhatsAppButton";
 import { GoogleAdsTag } from "@/components/GoogleAdsTag";
+import { MarketingTracking } from "@/components/analytics/MarketingTracking";
 import { captureReferralFromUrl, trackReferralClient } from "@/lib/referrals/client";
 
 // Create a context to share modal state across pages
@@ -49,6 +50,7 @@ export default function LandingLayout({
     >
       <AppDialogProvider>
         <GoogleAdsTag />
+        <MarketingTracking />
         <div className="min-h-screen bg-white">
         <Navbar
           onLoginClick={() => setShowLogin(true)}
