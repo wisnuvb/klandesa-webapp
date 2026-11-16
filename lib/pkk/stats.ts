@@ -31,7 +31,7 @@ export async function computePkkStats(villageId: number): Promise<PkkStats> {
   const [residents, dasawismaCount, posyanduSessionsThisMonth, stuntingFromVisits] =
     await Promise.all([
       prisma.resident.findMany({
-        where: { villageId, isAlive: true },
+        where: { villageId, isAlive: true, moveDate: null },
         select: {
           birthDate: true,
           isPregnant: true,

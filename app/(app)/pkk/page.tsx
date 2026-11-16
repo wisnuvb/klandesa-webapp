@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SasaranTab } from "./_components/SasaranTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppDialogs } from "@/components/providers/AppDialogProvider";
@@ -336,6 +337,7 @@ export default function PkkPage() {
           <TabsList>
             <TabsTrigger value="dasawisma">Dasawisma</TabsTrigger>
             <TabsTrigger value="posyandu">Posyandu</TabsTrigger>
+            <TabsTrigger value="sasaran">Data Sasaran</TabsTrigger>
             <TabsTrigger value="stunting">Stunting</TabsTrigger>
           </TabsList>
 
@@ -370,6 +372,10 @@ export default function PkkPage() {
             </Can>
 
             <PosyanduSessionsDataTable tableRefreshKey={tableRefreshKey} />
+          </TabsContent>
+
+          <TabsContent value="sasaran" className="space-y-4">
+            <SasaranTab />
           </TabsContent>
 
           <TabsContent value="stunting" className="space-y-4">
