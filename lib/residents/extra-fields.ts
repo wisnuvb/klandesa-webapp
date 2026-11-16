@@ -5,6 +5,7 @@
  */
 import { cleanText, isRecord } from "../form-input";
 import { ETHNICITY_MAX_LENGTH, normalizeEthnicity } from "./ethnicity";
+import { parseWelfareFields, type WelfareData } from "./welfare-fields";
 
 export const RESIDENCY_STATUS_LABEL = {
   TETAP: "Penduduk tetap",
@@ -20,7 +21,8 @@ export const KTP_STATUS_LABEL = {
 } as const;
 export type KtpStatus = keyof typeof KTP_STATUS_LABEL;
 
-export interface ExtraFieldsData {
+/** Termasuk kesejahteraan & hunian (BPJS, rumah, listrik, bantuan) dari welfare-fields. */
+export interface ExtraFieldsData extends WelfareData {
   ethnicity?: string | null;
   residencyStatus?: ResidencyStatus | null;
   arrivalDate?: Date | null;
@@ -102,6 +104,10 @@ export function parseExtraFields(body: unknown, now: Date = new Date()): ExtraFi
     if (t.tooLong) return { ok: false, error: `${TEXT_LABEL[k]} maksimal ${TEXT_LIMITS[k]} karakter.` };
     data[k] = t.value;
   }
+
+  const welfare = parseWelfareFields(body);
+  if (!welfare.ok) return welfare;
+  Object.assign(data, welfare.data);
 
   return { ok: true, data };
 }

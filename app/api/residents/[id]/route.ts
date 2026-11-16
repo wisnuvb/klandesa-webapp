@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { suspendCitizenAccounts } from "@/lib/mobile/citizen-status";
 import { residentLeavesVillage } from "@/lib/mobile/citizen-status-logic";
 import { parseExtraFields } from "@/lib/residents/extra-fields";
+import { reconcileWelfare } from "@/lib/residents/welfare-fields";
 import { normalizeGender } from "@/lib/residents/gender";
 import { archiveResident, isKependudukanV2, runKependudukanSync, syncAfterResidentUpdate, syncResidents } from "@/lib/kependudukan/sync";
 
@@ -103,6 +104,10 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    // Kesejahteraan: daya listrik hanya untuk jenis Meteran PLN (memeriksa juga nilai yang sudah tersimpan).
+    const welfareCheck = reconcileWelfare(extra.data, existing);
+    if (!welfareCheck.ok) return NextResponse.json({ error: welfareCheck.error }, { status: 400 });
 
     // Validate required fields
     if (!body.name?.trim()) {
@@ -303,6 +308,10 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    // Kesejahteraan: daya listrik hanya untuk jenis Meteran PLN (memeriksa juga nilai yang sudah tersimpan).
+    const welfareCheck = reconcileWelfare(extra.data, existing);
+    if (!welfareCheck.ok) return NextResponse.json({ error: welfareCheck.error }, { status: 400 });
 
     // Conditional validations only for provided fields
     if (body.name !== undefined && !String(body.name).trim()) {

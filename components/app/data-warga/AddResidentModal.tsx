@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { ResidentWelfareFields } from "./ResidentWelfareFields";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,15 @@ type AddResidentFormValues = {
   phone_number: string;
   email: string;
   is_live: "Y" | "N";
+  // Kesejahteraan & hunian (nama = kolom; lihat lib/residents/welfare-fields.ts)
+  isBpjsKis: boolean;
+  bpjsType: string;
+  houseOwnership: string;
+  electricityType: string;
+  electricityPowerVa?: number;
+  aidPkh: boolean;
+  aidBpnt: boolean;
+  aidOther: string;
 };
 
 export const AddResidentModal: React.FC<AddResidentModalProps> = ({
@@ -69,6 +79,7 @@ export const AddResidentModal: React.FC<AddResidentModalProps> = ({
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { isSubmitting },
   } = useForm<AddResidentFormValues>({
     defaultValues: {
@@ -91,6 +102,14 @@ export const AddResidentModal: React.FC<AddResidentModalProps> = ({
       phone_number: "",
       email: "",
       is_live: "Y",
+      isBpjsKis: false,
+      bpjsType: "",
+      houseOwnership: "",
+      electricityType: "",
+      electricityPowerVa: undefined,
+      aidPkh: false,
+      aidBpnt: false,
+      aidOther: "",
     },
   });
 
@@ -335,6 +354,9 @@ export const AddResidentModal: React.FC<AddResidentModalProps> = ({
               />
             </div>
           </div>
+
+          {/* Kesejahteraan & Hunian */}
+          <ResidentWelfareFields control={control} setValue={setValue} />
 
           {/* Status Kependudukan */}
           <div className="space-y-4">

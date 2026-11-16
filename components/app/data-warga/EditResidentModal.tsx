@@ -32,16 +32,19 @@ import {
   NATIONALITY_OPTIONS,
   DISABILITY_OPTIONS,
   CONTRACEPTION_OPTIONS,
-  HOUSE_OWNERSHIP_OPTIONS,
   DESIL_OPTIONS,
   COUNTRY_CODE_OPTIONS,
 } from "@/utils/constants/user";
 import { ImageAssetModal } from "@/components/ImageAssetModal";
 import { ResidentPhotoUploader } from "./ResidentPhotoUploader";
 import { EthnicityField } from "./EthnicityField";
+import { ResidentWelfareFields } from "./ResidentWelfareFields";
 import { normalizeGender } from "@/lib/residents/gender";
 import { KTP_STATUS_LABEL, RESIDENCY_STATUS_LABEL } from "@/lib/residents/extra-fields";
 import { Resident } from "@prisma/client";
+
+/** Isian kesejahteraan yang boleh dikosongkan lewat formulir (dikirim null, bukan dibuang). */
+const CLEARABLE_WELFARE_KEYS = ["bpjsType", "houseOwnership", "electricityType", "electricityPowerVa", "aidOther"] as const;
 
 interface EditResidentModalProps {
   resident: Resident | null;
@@ -134,6 +137,14 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
         removeFalse: false,
         removeNull: true,
       });
+
+      // removeEmptyFields membuang nilai kosong, padahal mengosongkan isian kesejahteraan adalah perubahan yang sah
+      // (mis. mencabut "lain-lain", mengganti jenis listrik): kirim sebagai null supaya benar-benar terhapus.
+      for (const key of CLEARABLE_WELFARE_KEYS) {
+        if (!(key in dirtyFields)) continue;
+        const v = (data as any)[key];
+        (cleanedData as any)[key] = v === "" || v === undefined || v === null || Number.isNaN(v) ? null : v;
+      }
 
       // If no fields changed, just close modal
       if (Object.keys(cleanedData).length === 0) {
@@ -555,6 +566,9 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
               </div>
             </div>
 
+            {/* Kesejahteraan & Hunian */}
+            <ResidentWelfareFields control={control} setValue={setValue} />
+
             {/* Media */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold border-b pb-2">Media</h3>
@@ -636,13 +650,6 @@ export const EditResidentModal: React.FC<EditResidentModalProps> = ({
                   label="RT Sementara"
                   placeholder="RT sementara"
                   maxLength={10}
-                />
-                <FormSelect
-                  name="houseOwnership"
-                  control={control}
-                  label="Kepemilikan Rumah"
-                  placeholder="Pilih kepemilikan rumah"
-                  options={HOUSE_OWNERSHIP_OPTIONS}
                 />
                 <FormSelect
                   name="desil"

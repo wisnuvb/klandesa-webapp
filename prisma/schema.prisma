@@ -578,6 +578,21 @@ model Resident {
   houseOwnership String? @db.VarChar(100)
   desil          String? @db.VarChar(50)
 
+  // Kesejahteraan & hunian (2026-11, aditif; lihat docs/PHASE14_WARGA_KESEJAHTERAAN.md). Permintaan perangkat desa 2026-11-16.
+  // Kepemilikan rumah memakai kolom `houseOwnership` di atas; "peserta BPJS" tetap `isBpjsKis`, kolom ini hanya jenisnya.
+  /// MANDIRI | BANTUAN_PEMERINTAH. Hanya bermakna bila isBpjsKis = true (diselaraskan di lib/residents/welfare-fields.ts)
+  bpjsType           String?  @db.VarChar(30)
+  /// METERAN | PASANG_SENDIRI | NON_METERAN
+  electricityType    String?  @db.VarChar(20)
+  /// Daya listrik terpasang dalam VA (mis. 450, 900, 1300); hanya untuk electricityType = METERAN
+  electricityPowerVa Int?
+  /// Menerima Program Keluarga Harapan
+  aidPkh             Boolean  @default(false)
+  /// Menerima BPNT/Sembako
+  aidBpnt            Boolean  @default(false)
+  /// Bantuan lain-lain (teks bebas, mis. "BLT Dana Desa"); terisi = menerima bantuan lain
+  aidOther           String?  @db.VarChar(255)
+
   // Kependudukan tambahan (2026-11, aditif; lihat docs/PHASE6_WARGA_FIELDS.md)
   /// Suku/etnis: teks baku dari daftar umum (lib/residents/ethnicity.ts), boleh teks bebas
   ethnicity       String?   @db.VarChar(100)

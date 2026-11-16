@@ -3,6 +3,7 @@ import { requireVillageApiContext } from "@/lib/api-village-context";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { BPJS_TYPE_LABEL, describeAid, describeElectricity, type BpjsType } from "@/lib/residents/welfare-fields";
 import * as XLSX from "xlsx";
 import { isVillageSubscriptionActive, subscriptionBlockedResponse } from "@/lib/subscription";
 
@@ -76,6 +77,12 @@ export async function GET(req: NextRequest) {
       Pekerjaan: resident.occupation || "",
       "Golongan Darah": resident.bloodType || "",
       Suku: resident.ethnicity || "",
+      // Kesejahteraan & hunian (2026-11): ditambahkan di akhir agar kolom lama tidak bergeser.
+      "Peserta BPJS": resident.isBpjsKis ? "Ya" : "Tidak",
+      "Jenis BPJS": resident.bpjsType ? BPJS_TYPE_LABEL[resident.bpjsType as BpjsType] ?? resident.bpjsType : "",
+      "Kepemilikan Rumah": resident.houseOwnership || "",
+      Listrik: describeElectricity(resident.electricityType, resident.electricityPowerVa).replace(/^-$/, ""),
+      "Jenis Bantuan": describeAid(resident).join("; "),
     }));
 
     // Generate filename with timestamp

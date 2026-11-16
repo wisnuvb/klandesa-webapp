@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { calculateAge } from "@/utils";
 import { DISABILITY_OPTIONS } from "@/utils/constants/user";
 import { normalizeGender } from "@/lib/residents/gender";
+import { BPJS_TYPE_LABEL, describeAid, describeElectricity, type BpjsType } from "@/lib/residents/welfare-fields";
 import { Resident } from "@prisma/client";
 import {
   KTP_STATUS_LABEL,
@@ -141,6 +142,7 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
     ? (DISABILITY_OPTIONS[String(resident.disabilityId)] ??
       `Kode ${resident.disabilityId}`)
     : null;
+  const aid = describeAid(resident);
   const bmi =
     resident.height && resident.weight
       ? resident.weight / (resident.height / 100) ** 2
@@ -301,6 +303,11 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
               <Field label="Peserta BPJS / KIS">
                 <YesNo value={resident.isBpjsKis} />
               </Field>
+              <Field label="Jenis Kepesertaan BPJS">
+                {resident.isBpjsKis && resident.bpjsType
+                  ? BPJS_TYPE_LABEL[resident.bpjsType as BpjsType] ?? resident.bpjsType
+                  : "-"}
+              </Field>
               <Field label="Disabilitas">
                 <YesNo value={resident.isDisability} />
               </Field>
@@ -337,7 +344,7 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
             </Grid>
           </Section>
 
-          <Section title="Ekonomi & Hunian">
+          <Section title="Ekonomi, Hunian & Bantuan">
             <Grid>
               <Field label="Penghasilan per Bulan">
                 {formatRupiah(resident.income)}
@@ -345,6 +352,22 @@ export const DetailResidentModal: React.FC<DetailResidentModalProps> = ({
               <Field label="Desil">{resident.desil || "-"}</Field>
               <Field label="Kepemilikan Rumah">
                 {resident.houseOwnership || "-"}
+              </Field>
+              <Field label="Listrik">
+                {describeElectricity(resident.electricityType, resident.electricityPowerVa)}
+              </Field>
+              <Field label="Jenis Bantuan yang Diterima">
+                {aid.length > 0 ? (
+                  <span className="flex flex-wrap gap-2">
+                    {aid.map((a) => (
+                      <Badge key={a} variant="secondary">
+                        {a}
+                      </Badge>
+                    ))}
+                  </span>
+                ) : (
+                  "-"
+                )}
               </Field>
             </Grid>
           </Section>
