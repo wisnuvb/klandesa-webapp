@@ -1,6 +1,7 @@
 /**
- * Pemberitahuan ke pemilik platform (email via Brevo) untuk dua peristiwa bisnis:
+ * Pemberitahuan ke pemilik platform (email via Brevo) untuk tiga peristiwa bisnis:
  *  - desa baru mendaftar (akun trial);
+ *  - kontak/lead baru dari formulir landing atau iklan;
  *  - pembayaran tagihan lunas (kecuali Website Desa Kustom, yang sudah punya email sendiri: lib/website-service/order-notification.ts).
  *
  * Aturan: tidak pernah melempar galat dan tidak pernah menahan pendaftaran/pemrosesan pembayaran (panggil dengan `void`);
@@ -13,6 +14,8 @@ import { formatIdr } from "@/lib/billing/catalog";
 import { sendTransactional } from "@/lib/email/send";
 import { escapeHtml } from "@/lib/email/render";
 import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
+import { getAppOrigin } from "@/lib/email/app-origin";
+import { contactSourceLabel, contactWaLink, isSyntheticContactEmail, oneLine } from "@/lib/contacts/lead";
 
 /** Penerima bawaan; env OWNER_NOTIFY_EMAIL menggantikannya (boleh beberapa alamat dipisah koma). */
 export const DEFAULT_OWNER_RECIPIENT = "wisnuvb@gmail.com";
@@ -124,6 +127,39 @@ export function buildPaymentPaidEmail(i: PaymentPaidInput) {
   );
 }
 
+export type ContactReceivedInput = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  subject: string;
+  message: string;
+  source: string;
+  sourcePath: string | null;
+  receivedAt: Date;
+};
+
+export function buildContactReceivedEmail(i: ContactReceivedInput) {
+  const label = contactSourceLabel(i.source);
+  const wa = contactWaLink(i.phone, "Halo, kami dari Klandesa. Terima kasih sudah mengisi formulir. ");
+  return render(
+    `[Klandesa] Lead baru (${label}): ${oneLine(i.name, 50)}`,
+    "Ada yang meminta dihubungi tim Klandesa. Sebaiknya dibalas lewat WhatsApp dalam 1 jam.",
+    [
+      ["Nama", oneLine(i.name, 120)],
+      ["WhatsApp", i.phone || "-"],
+      ["Buka chat", wa ?? "-"],
+      ["Email", i.email && !isSyntheticContactEmail(i.email) ? i.email : "-"],
+      ["Sumber", label],
+      ["Subjek", oneLine(i.subject, 120)],
+      ["Halaman asal", i.sourcePath ? oneLine(i.sourcePath, 200) : "-"],
+      ["Pesan", i.message.length > 800 ? `${i.message.slice(0, 799)}…` : i.message],
+      ["Diterima", formatWib(i.receivedAt)],
+      ["Kelola", `${getAppOrigin()}/admin/kontak`],
+    ],
+  );
+}
+
 async function deliver(content: { subject: string; html: string; text: string }, context: Record<string, unknown>) {
   for (const to of ownerRecipients()) {
     const res = await sendTransactional({ template: "owner-notify", to, content });
@@ -192,5 +228,19 @@ export async function notifyOwnerPaymentPaid(invoiceId: bigint | number): Promis
     );
   } catch (e) {
     logger.warn({ event: "payment-paid", invoiceId: String(invoiceId), err: e instanceof Error ? e.message : String(e) }, "[owner-notify] gagal menyiapkan email pemilik");
+  }
+}
+
+/**
+ * Kontak/lead baru dari formulir publik. Dibatasi 30 email/jam agar lonjakan (atau spam yang lolos Turnstile) tidak
+ * menguras kuota email; lead tetap tersimpan di tabel `contacts` dan tampil di /admin/kontak. Panggil dengan `void`.
+ */
+export async function notifyOwnerContactReceived(input: ContactReceivedInput): Promise<void> {
+  try {
+    const rl = await checkRateLimitDb(limiterKey("owner-notify-contact", "all"), { max: 30, windowMs: 60 * 60_000 });
+    if (!rl.ok) return;
+    await deliver(buildContactReceivedEmail(input), { event: "contact-received", contactId: input.id, source: input.source });
+  } catch (e) {
+    logger.warn({ event: "contact-received", err: e instanceof Error ? e.message : String(e) }, "[owner-notify] gagal menyiapkan email pemilik");
   }
 }

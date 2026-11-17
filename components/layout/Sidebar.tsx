@@ -22,6 +22,7 @@ import {
   UserSearch,
   TrendingUp,
   ScrollText,
+  Inbox,
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "../ui/utils";
@@ -126,6 +127,7 @@ const PLATFORM_SIDEBAR_MENU: MenuItem[] = [
   { id: "admin/desa", label: "Kelola Desa", icon: Users, path: "/admin/desa" },
   { id: "admin/pendapatan", label: "Pendapatan", icon: TrendingUp, path: "/admin/pendapatan" },
   { id: "admin/mitra", label: "Kelola Mitra", icon: HeartHandshake, path: "/admin/mitra" },
+  { id: "admin/kontak", label: "Kontak Masuk", icon: Inbox, path: "/admin/kontak" },
   { id: "admin/blog", label: "Kelola Blog", icon: FileText, path: "/admin/blog" },
   { id: "admin/pembayaran", label: "Kanal Pembayaran", icon: CreditCard, path: "/admin/pembayaran" },
   { id: "admin/audit", label: "Jejak Audit", icon: ScrollText, path: "/admin/audit" },

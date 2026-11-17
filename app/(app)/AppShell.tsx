@@ -254,6 +254,10 @@ const pageConfig = {
     subtitle:
       "Pendaftaran mitra, kode referral, akun dan bagi hasil (komisi & disbursement)",
   },
+  "admin/kontak": {
+    title: "Kontak Masuk",
+    subtitle: "Lead dari formulir landing dan iklan: balas lewat WhatsApp dan tandai sudah dihubungi",
+  },
   "admin/blog": {
     title: "Kelola Blog",
     subtitle: "Buat dan publish artikel blog Klandesa",
@@ -309,7 +313,7 @@ function derivePageKey(pathname: string): string {
   // Konsol owner: menu aktif mengikuti segmen kedua (/admin/akun/... -> "admin/akun"); selain itu "admin" (Dasbor Owner).
   if (segments[0] === "admin") {
     const sub = segments[1];
-    return sub && ["akun", "desa", "pendapatan", "mitra", "blog", "pembayaran", "audit", "keamanan"].includes(sub) ? `admin/${sub}` : "admin";
+    return sub && ["akun", "desa", "pendapatan", "mitra", "kontak", "blog", "pembayaran", "audit", "keamanan"].includes(sub) ? `admin/${sub}` : "admin";
   }
 
   // Try two-level path first (e.g. statistik/gender)
