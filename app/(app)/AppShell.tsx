@@ -112,6 +112,10 @@ const pageConfig = {
     title: "Forum Diskusi",
     subtitle: "Platform diskusi dan komunikasi warga",
   },
+  "aspirasi-publik": {
+    title: "Aspirasi Publik",
+    subtitle: "Tanggapi laporan warga yang tampil di halaman publik desa Anda",
+  },
   "pengaduan-masyarakat": {
     title: "Pengaduan Warga",
     subtitle: "Kelola laporan dan pengaduan masyarakat",
@@ -257,6 +261,10 @@ const pageConfig = {
   "admin/kontak": {
     title: "Kontak Masuk",
     subtitle: "Lead dari formulir landing dan iklan: balas lewat WhatsApp dan tandai sudah dihubungi",
+  },
+  "admin/aspirasi": {
+    title: "Aspirasi Warga",
+    subtitle: "Moderasi laporan warga, verifikasi klaim desa, dan tangani laporan konten",
   },
   "admin/blog": {
     title: "Kelola Blog",

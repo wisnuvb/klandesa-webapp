@@ -5,6 +5,8 @@ import { listStaticMarketingSitemapRoutes } from "@/lib/seo/landing-pages";
 import { listTopicPagePaths } from "@/lib/marketing/topic-pages";
 import { listIndexableLetterPaths } from "@/lib/letters/public-catalog";
 import { listPublishedBlogTags } from "@/lib/blog/public-posts";
+import { listAspirasiSitemapEntries } from "@/lib/aspirasi/public";
+import { aspirationPath, areaPath } from "@/lib/aspirasi/slug";
 import { getTenant } from "@/lib/tenant";
 import { resolveEffectiveStructure } from "@/lib/website-engine/normalize";
 import { getMainSiteOrigin, hostToOrigin, joinUrl } from "@/lib/seo/url";
@@ -89,6 +91,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: pathname === "/contoh-surat" ? 0.8 : 0.6,
     });
+  }
+
+  // Aspirasi Warga: kosong sampai ASPIRASI_INDEXING=on; hanya laporan/desa yang lolos pagar indeks. Dalam try sendiri
+  // agar DB tak tersedia (build) tidak menghilangkan URL lain.
+  try {
+    const asp = await listAspirasiSitemapEntries();
+    if (asp.hub) urls.push({ url: joinUrl(mainOrigin, "/aspirasi"), changeFrequency: "daily", priority: 0.6 });
+    for (const a of asp.areas) urls.push({ url: joinUrl(mainOrigin, areaPath(a.slug)), changeFrequency: "weekly", priority: 0.5 });
+    for (const a of asp.aspirations) {
+      urls.push({ url: joinUrl(mainOrigin, aspirationPath(a)), ...lastModifiedOf(a.lastModified), changeFrequency: "weekly", priority: 0.4 });
+    }
+  } catch {
+    // aspirasi dilewati; sitemap tetap valid
   }
 
   try {

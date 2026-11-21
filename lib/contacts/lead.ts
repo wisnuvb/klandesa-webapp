@@ -12,6 +12,77 @@ export function contactSourceLabel(source: string): string {
   return CONTACT_SOURCE_LABELS[source] ?? source;
 }
 
+/**
+ * Peran pengirim formulir kontak. Klandesa dijual ke pemerintah desa, jadi formulir bertanya peran lebih dulu:
+ * `perangkat_desa` = calon pelanggan (wajib menulis jabatan), `warga` = diarahkan ke formulir aspirasi (bukan lead),
+ * `lainnya` = pemda, mitra, media, dan sebagainya. Baris lama (sebelum kolom ada) bernilai NULL.
+ */
+export const CONTACT_ROLES = ["perangkat_desa", "warga", "lainnya"] as const;
+export type ContactRole = (typeof CONTACT_ROLES)[number];
+
+export const CONTACT_ROLE_LABELS: Record<ContactRole, string> = {
+  perangkat_desa: "Perangkat desa",
+  warga: "Warga",
+  lainnya: "Lainnya",
+};
+
+export function contactRoleLabel(role: string | null | undefined): string {
+  if (!role) return "Tidak diisi";
+  return CONTACT_ROLE_LABELS[role as ContactRole] ?? role;
+}
+
+/** Saran jabatan untuk kolom isian (datalist); pengguna tetap boleh menulis sendiri. */
+export const VILLAGE_POSITION_SUGGESTIONS = [
+  "Kepala Desa",
+  "Sekretaris Desa",
+  "Kaur Keuangan",
+  "Kaur Umum dan Perencanaan",
+  "Kaur Tata Usaha dan Umum",
+  "Kasi Pemerintahan",
+  "Kasi Kesejahteraan",
+  "Kasi Pelayanan",
+  "Kepala Dusun",
+  "Operator Desa / SID",
+  "Ketua BPD",
+  "Anggota BPD",
+  "Pendamping Desa",
+  "Ketua RT / RW",
+  "Pengurus BUMDes",
+] as const;
+
+export type ContactRoleInput =
+  | { ok: true; role: ContactRole | null; position: string | null }
+  | { ok: false; error: string; redirectTo?: string };
+
+/** Alamat formulir aspirasi warga: tujuan bagi pengirim berperan warga. */
+export const ASPIRASI_FORM_PATH = "/aspirasi/kirim";
+
+/**
+ * Validasi peran + jabatan dari badan permintaan. `role` kosong tetap diterima (klien lama yang belum memuat ulang);
+ * `warga` ditolak dengan petunjuk ke formulir aspirasi; `perangkat_desa` wajib berjabatan (2-120 karakter).
+ */
+export function parseContactRole(roleRaw: unknown, positionRaw: unknown): ContactRoleInput {
+  const role = String(roleRaw ?? "").trim().toLowerCase();
+  if (!role) return { ok: true, role: null, position: null };
+  if (!(CONTACT_ROLES as readonly string[]).includes(role)) {
+    return { ok: false, error: "Peran tidak dikenal. Pilih perangkat desa, warga, atau lainnya." };
+  }
+  if (role === "warga") {
+    return {
+      ok: false,
+      error:
+        "Klandesa adalah aplikasi untuk pemerintah desa. Untuk menyampaikan aspirasi atau melaporkan kondisi desa, gunakan formulir aspirasi warga.",
+      redirectTo: ASPIRASI_FORM_PATH,
+    };
+  }
+  const position = String(positionRaw ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (role === "perangkat_desa") {
+    if (position.length < 2) return { ok: false, error: "Jabatan di desa wajib diisi, contoh: Kepala Desa atau Operator Desa." };
+    return { ok: true, role, position };
+  }
+  return { ok: true, role: "lainnya", position: position || null };
+}
+
 /** Nomor Indonesia ke format internasional tanpa "+": 0812… -> 62812…; 62812… tetap; selain itu null. */
 export function normalizeWaNumber(phone: string | null | undefined): string | null {
   const digits = String(phone ?? "").replace(/\D/g, "");

@@ -300,6 +300,17 @@ export const VILLAGE_MODULE_REGISTRY: ModuleDefinition[] = [
     sortOrder: 503,
   },
   {
+    id: "aspirasi-publik",
+    label: "Aspirasi Publik",
+    path: "/aspirasi-publik",
+    permission: "citizen_reports",
+    sdgGoals: [16],
+    status: "beta",
+    group: "komunikasi",
+    groupLabel: "Komunikasi Warga",
+    sortOrder: 504,
+  },
+  {
     id: "bantuan-program-keluarga",
     label: "Bansos & Program",
     path: "/bantuan-program-keluarga",

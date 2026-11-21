@@ -48,6 +48,7 @@ export function Footer() {
         { name: "Beasiswa", path: "/beasiswa", type: "route" },
         { name: "Harga pangan", path: "/harga-pangan", type: "route" },
         { name: "Cek bansos program", path: "/cek-bantuan-program", type: "route" },
+        { name: "Aspirasi Warga", path: "/aspirasi", type: "route" },
       ],
     },
   ];

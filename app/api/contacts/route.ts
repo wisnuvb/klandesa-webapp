@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeReferralCode, trackReferralEvent } from "@/lib/referrals/tracking";
 import { requireTurnstile } from "@/lib/turnstile";
 import { notifyOwnerContactReceived } from "@/lib/notifications/owner-notify";
+import { CONTACT_ROLES, parseContactRole } from "@/lib/contacts/lead";
 
 function firstIp(req: NextRequest): string | null {
   return clientIpOrNull(req);
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest) {
           phone?: string;
           subject?: string;
           message?: string;
+          role?: string;
+          position?: string;
           referralCode?: string;
           sourcePath?: string;
           source?: string;
@@ -73,6 +76,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Peran pengirim: warga diarahkan ke formulir aspirasi (bukan lead penjualan); perangkat desa wajib berjabatan.
+    const roleResult = parseContactRole(body?.role, body?.position);
+    if (!roleResult.ok) {
+      return NextResponse.json(
+        { error: roleResult.error, redirectTo: roleResult.redirectTo ?? null },
+        { status: 422 }
+      );
+    }
+    const { role, position } = roleResult;
+
     const created = await prisma.contact.create({
       data: {
         name,
@@ -81,6 +94,8 @@ export async function POST(req: NextRequest) {
         subject,
         message,
         source,
+        role,
+        position,
         ipAddress: firstIp(req),
         userAgent: req.headers.get("user-agent"),
       },
@@ -110,6 +125,8 @@ export async function POST(req: NextRequest) {
       subject,
       message,
       source,
+      role,
+      position,
       sourcePath: sourcePath || null,
       receivedAt: created.createdAt,
     });
@@ -125,6 +142,8 @@ export async function POST(req: NextRequest) {
           phone: phone || "",
           subject,
           message,
+          role: role ?? "",
+          position: position ?? "",
         });
         if (!sync.accepted) {
           console.error(
@@ -178,12 +197,20 @@ export async function GET(req: NextRequest) {
       where.source = source;
     }
 
+    const role = sp.get("role")?.trim().toLowerCase();
+    if (role) {
+      if (role === "none") where.role = null;
+      else if ((CONTACT_ROLES as readonly string[]).includes(role)) where.role = role;
+      else return bad("role tidak valid.");
+    }
+
     const q = sp.get("q")?.trim().slice(0, 100);
     if (q) {
       where.OR = [
         { name: { contains: q } },
         { phone: { contains: q } },
         { email: { contains: q } },
+        { position: { contains: q } },
         { message: { contains: q } },
       ];
     }
@@ -197,7 +224,7 @@ export async function GET(req: NextRequest) {
     const limitRaw = Number(sp.get("limit") ?? DEFAULT_LIMIT);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), MAX_LIMIT) : DEFAULT_LIMIT;
 
-    const [rows, total, unresponded, unrespondedAds] = await Promise.all([
+    const [rows, total, unresponded, unrespondedAds, unrespondedWarga] = await Promise.all([
       prisma.contact.findMany({
         where,
         orderBy: { id: "desc" },
@@ -210,6 +237,8 @@ export async function GET(req: NextRequest) {
           subject: true,
           message: true,
           source: true,
+          role: true,
+          position: true,
           isResponded: true,
           respondedAt: true,
           respondedByUserId: true,
@@ -219,6 +248,7 @@ export async function GET(req: NextRequest) {
       prisma.contact.count(),
       prisma.contact.count({ where: { isResponded: false } }),
       prisma.contact.count({ where: { isResponded: false, source: "iklan-meta" } }),
+      prisma.contact.count({ where: { isResponded: false, role: "warga" } }),
     ]);
 
     const page = rows.slice(0, limit);
@@ -231,13 +261,15 @@ export async function GET(req: NextRequest) {
         subject: c.subject,
         message: c.message,
         source: c.source,
+        role: c.role,
+        position: c.position,
         isResponded: c.isResponded,
         respondedAt: c.respondedAt?.toISOString() ?? null,
         respondedByUserId: c.respondedByUserId,
         createdAt: c.createdAt.toISOString(),
       })),
       nextCursor: rows.length > limit ? String(page[page.length - 1]!.id) : null,
-      counts: { total, unresponded, unrespondedAds },
+      counts: { total, unresponded, unrespondedAds, unrespondedWarga },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Terjadi kesalahan server";

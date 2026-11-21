@@ -59,6 +59,12 @@ const UNGUARDED_ALLOWLIST: Record<string, string> = {
   "app/api/v1/openapi.json/route.ts": "dokumentasi OpenAPI publik; tidak memuat data desa",
   "app/api/v1/llms.txt/route.ts": "panduan alat AI publik; tidak memuat data desa",
   "app/api/app-build-id/route.ts": "hanya mengembalikan build ID (bukan data sensitif); di-poll berkala oleh pemberitahuan pembaruan",
+  "app/api/aspirasi/route.ts": "kirim aspirasi warga publik (Turnstile + batas laju per IP/kontak; selalu masuk antrean moderasi)",
+  "app/api/aspirasi/wilayah/route.ts": "referensi wilayah publik (proksi wilayah.id, berbatas laju)",
+  "app/api/aspirasi/areas/route.ts": "pencarian desa publik (hanya nama wilayah; berbatas laju)",
+  "app/api/aspirasi/status/route.ts": "cek status laporan oleh pelapor (kode + kontak; batas laju; respons seragam)",
+  "app/api/aspirasi/photos/route.ts": "unggah foto aspirasi publik (WebP tanpa metadata, 1,5 MB, batas laju per perangkat)",
+  "app/api/aspirasi/[code]/flag/route.ts": "laporan konten publik atas aspirasi (Turnstile + batas laju)",
   "app/api/contacts/route.ts": "POST formulir kontak publik; GET dijaga requirePlatformSession",
   // Lane sendiri dengan pemeriksaan di dalam handler:
   "app/api/ai/credit/route.ts": "hanya membaca kredit milik sesi sendiri",

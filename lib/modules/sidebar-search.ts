@@ -55,6 +55,7 @@ const MENU_SEARCH_SYNONYMS: Record<string, string[]> = {
   "pengumuman-desa": ["info desa", "broadcast warga", "notifikasi warga", "pengumuman"],
   "forum-diskusi": ["diskusi warga", "obrolan warga", "chat warga"],
   "pengaduan-masyarakat": ["komplain warga", "laporan warga", "keluhan warga", "pengaduan"],
+  "aspirasi-publik": ["aspirasi warga", "laporan warga publik", "tanggapi aspirasi", "klaim halaman desa", "banding laporan"],
   "galeri-desa": ["foto kegiatan", "dokumentasi kegiatan", "album foto"],
   website: ["web desa", "landing page desa", "portal publik desa", "situs desa"],
 

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getStoredReferralCode } from "@/lib/referrals/client";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { ContactRoleFields, WargaRedirectNotice, validateRoleFields, type ContactRoleValue } from "@/components/contacts/ContactRoleFields";
 import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 
 const intentOptions = [
@@ -38,6 +39,8 @@ function normalizePhone(value: string): string {
 }
 
 export function DemoContactSection() {
+  const [role, setRole] = React.useState<ContactRoleValue>("");
+  const [position, setPosition] = React.useState("");
   const [name, setName] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [village, setVillage] = React.useState("");
@@ -58,6 +61,11 @@ export function DemoContactSection() {
     const trimmedVillage = village.trim();
     const trimmedNote = note.trim();
 
+    const roleErrors = validateRoleFields(role, position);
+    if (roleErrors.role || roleErrors.position) {
+      setSubmitError(roleErrors.role ?? roleErrors.position ?? null);
+      return;
+    }
     if (!trimmedName) {
       setSubmitError("Mohon isi nama Anda.");
       return;
@@ -93,6 +101,8 @@ export function DemoContactSection() {
           email: "",
           subject: selectedIntent.subject,
           message: messageLines.join("\n"),
+          role,
+          position: role === "perangkat_desa" ? position.trim() : "",
           source: "demo",
           turnstileToken,
           referralCode: getStoredReferralCode(),
@@ -113,6 +123,7 @@ export function DemoContactSection() {
       setPhone("");
       setVillage("");
       setNote("");
+      setPosition("");
       setIntent("hubungi");
     } catch (err) {
       setSubmitError(
@@ -165,6 +176,23 @@ export function DemoContactSection() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <ContactRoleFields
+              idPrefix="demo"
+              role={role}
+              position={position}
+              onRoleChange={(r) => {
+                setRole(r);
+                setSubmitError(null);
+              }}
+              onPositionChange={setPosition}
+              inputClassName="w-full rounded-2xl border border-gray-300 bg-white px-4 py-4 text-base text-gray-900 outline-none transition focus:border-[#0d9488] focus:ring-2 focus:ring-[#0d9488]/25"
+              labelClassName="mb-2 block text-base text-gray-800"
+            />
+
+            {role === "warga" ? (
+              <WargaRedirectNotice onBack={() => setRole("perangkat_desa")} />
+            ) : (
+              <>
             <div>
               <label
                 htmlFor="demo-contact-name"
@@ -331,6 +359,8 @@ export function DemoContactSection() {
               Data hanya dipakai untuk menindaklanjuti permintaan Anda. Tidak perlu
               mengisi email.
             </p>
+              </>
+            )}
           </form>
         )}
       </div>

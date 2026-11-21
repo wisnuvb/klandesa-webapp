@@ -135,6 +135,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/api/polls", resource: "polls" },
   { prefix: "/api/bencana", resource: "bencana" },
   { prefix: "/api/keamanan", resource: "keamanan" },
+  // Aspirasi Publik (dasbor desa): menanggapi aspirasi warga = bagian dari layanan pengaduan & permohonan warga.
+  { prefix: "/api/aspirasi-publik", resource: "citizen_reports" },
   { prefix: "/api/integrations/export", resource: "integrations", suffixActions: { "": "export" } },
   { prefix: "/api/integrations", resource: "integrations" },
   { prefix: "/api/gis", resource: "gis" },

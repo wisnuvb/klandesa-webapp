@@ -6,8 +6,10 @@ import {
   contactWaLink,
   extractVillageFromMessage,
   isSyntheticContactEmail,
+  contactRoleLabel,
   normalizeWaNumber,
   oneLine,
+  parseContactRole,
 } from "@/lib/contacts/lead";
 import { buildContactReceivedEmail } from "@/lib/notifications/owner-notify";
 
@@ -62,4 +64,53 @@ test("email lead: memuat nama, WA, sumber, desa; tanpa email sintetis; teks peng
   assert.match(m.text, /Sumberharjo, Kab\. Sleman/);
   assert.match(m.text, /Email: -/);
   assert.match(m.text, /\/admin\/kontak/);
+});
+
+test("peran kosong tetap diterima (klien lama), peran tak dikenal ditolak", () => {
+  assert.deepEqual(parseContactRole(undefined, undefined), { ok: true, role: null, position: null });
+  assert.deepEqual(parseContactRole("", "apa saja"), { ok: true, role: null, position: null });
+  const bad = parseContactRole("direktur", "");
+  assert.equal(bad.ok, false);
+});
+
+test("warga diarahkan ke formulir aspirasi, bukan dijadikan lead", () => {
+  const r = parseContactRole("warga", "");
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.redirectTo, "/aspirasi/kirim");
+    assert.match(r.error, /aspirasi/i);
+  }
+});
+
+test("perangkat desa wajib berjabatan; jabatan dirapikan dan dipotong", () => {
+  assert.equal(parseContactRole("perangkat_desa", "").ok, false);
+  assert.equal(parseContactRole("perangkat_desa", " x ").ok, false);
+  assert.deepEqual(parseContactRole("PERANGKAT_DESA", "  Sekretaris   Desa "), { ok: true, role: "perangkat_desa", position: "Sekretaris Desa" });
+  const long = parseContactRole("perangkat_desa", "K".repeat(300));
+  assert.equal(long.ok && long.position?.length, 120);
+});
+
+test("peran lainnya boleh tanpa jabatan; label peran terbaca", () => {
+  assert.deepEqual(parseContactRole("lainnya", ""), { ok: true, role: "lainnya", position: null });
+  assert.equal(contactRoleLabel("perangkat_desa"), "Perangkat desa");
+  assert.equal(contactRoleLabel(null), "Tidak diisi");
+});
+
+test("email pemilik memuat peran dan jabatan", () => {
+  const mail = buildContactReceivedEmail({
+    id: "1",
+    name: "Budi",
+    phone: "081234567890",
+    email: "kontak+081234567890@inbound.klandesa.id",
+    subject: "Demo",
+    message: "Desa: Sumberharjo",
+    source: "demo",
+    role: "perangkat_desa",
+    position: "Sekretaris Desa",
+    sourcePath: "/demo",
+    receivedAt: new Date("2026-11-21T03:00:00Z"),
+  });
+  assert.match(mail.text, /Peran: Perangkat desa/);
+  assert.match(mail.text, /Jabatan: Sekretaris Desa/);
+  assert.match(mail.subject, /Sekretaris Desa/);
 });

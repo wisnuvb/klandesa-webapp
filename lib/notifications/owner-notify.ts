@@ -15,7 +15,7 @@ import { sendTransactional } from "@/lib/email/send";
 import { escapeHtml } from "@/lib/email/render";
 import { checkRateLimitDb, limiterKey } from "@/lib/mobile/rate-limit";
 import { getAppOrigin } from "@/lib/email/app-origin";
-import { contactSourceLabel, contactWaLink, isSyntheticContactEmail, oneLine } from "@/lib/contacts/lead";
+import { contactRoleLabel, contactSourceLabel, contactWaLink, isSyntheticContactEmail, oneLine } from "@/lib/contacts/lead";
 
 /** Penerima bawaan; env OWNER_NOTIFY_EMAIL menggantikannya (boleh beberapa alamat dipisah koma). */
 export const DEFAULT_OWNER_RECIPIENT = "wisnuvb@gmail.com";
@@ -135,6 +135,9 @@ export type ContactReceivedInput = {
   subject: string;
   message: string;
   source: string;
+  /** Peran pengirim (perangkat_desa | lainnya); NULL = klien lama yang belum mengirim peran. */
+  role?: string | null;
+  position?: string | null;
   sourcePath: string | null;
   receivedAt: Date;
 };
@@ -143,13 +146,15 @@ export function buildContactReceivedEmail(i: ContactReceivedInput) {
   const label = contactSourceLabel(i.source);
   const wa = contactWaLink(i.phone, "Halo, kami dari Klandesa. Terima kasih sudah mengisi formulir. ");
   return render(
-    `[Klandesa] Lead baru (${label}): ${oneLine(i.name, 50)}`,
+    `[Klandesa] Lead baru (${label}${i.position ? `, ${oneLine(i.position, 30)}` : ""}): ${oneLine(i.name, 50)}`,
     "Ada yang meminta dihubungi tim Klandesa. Sebaiknya dibalas lewat WhatsApp dalam 1 jam.",
     [
       ["Nama", oneLine(i.name, 120)],
       ["WhatsApp", i.phone || "-"],
       ["Buka chat", wa ?? "-"],
       ["Email", i.email && !isSyntheticContactEmail(i.email) ? i.email : "-"],
+      ["Peran", contactRoleLabel(i.role)],
+      ["Jabatan", i.position ? oneLine(i.position, 120) : "-"],
       ["Sumber", label],
       ["Subjek", oneLine(i.subject, 120)],
       ["Halaman asal", i.sourcePath ? oneLine(i.sourcePath, 200) : "-"],

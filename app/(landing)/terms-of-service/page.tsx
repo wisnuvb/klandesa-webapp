@@ -119,6 +119,37 @@ export default function TermsOfServicePage() {
         sebelumnya untuk periode perpanjangan berikutnya.
       </p>
 
+      {/* DRAF: perlu ditinjau pemilik/hukum */}
+      <h2 id="aspirasi-warga">Aspirasi Warga</h2>
+      <p>
+        Bagian ini berlaku bagi siapa pun yang mengirim atau membaca laporan di{" "}
+        <Link href="/aspirasi">Aspirasi Warga</Link>:
+      </p>
+      <ul>
+        <li>
+          Klandesa adalah platform perantara. Laporan dikirim warga dan{" "}
+          <strong>belum tentu telah diverifikasi Klandesa</strong>; Klandesa bukan lembaga pengaduan resmi dan bukan
+          layanan darurat.
+        </li>
+        <li>
+          Pelapor bertanggung jawab atas kebenaran laporannya. Dilarang menulis NIK, nomor telepon, alamat rumah, atau
+          tuduhan terhadap orang tertentu tanpa dasar, serta mengirim spam, iklan, atau konten melanggar hukum.
+        </li>
+        <li>
+          Klandesa berhak menyunting seperlunya (misalnya menyamarkan data pribadi), menolak, menyembunyikan, atau
+          menghapus laporan, dan mengubah status pengindeksan mesin pencari, tanpa kewajiban menayangkan setiap laporan.
+        </li>
+        <li>
+          Pemerintah desa yang telah diverifikasi dapat menanggapi dan menyanggah laporan secara terbuka. Tanggapan
+          tersebut menjadi tanggung jawab desa yang bersangkutan.
+        </li>
+        <li>
+          Keberatan atas sebuah laporan dapat diajukan lewat tombol &ldquo;Laporkan konten ini&rdquo; atau, bagi desa
+          terverifikasi, lewat dasbor Aspirasi Publik; kami meninjaunya dan dapat menyembunyikan laporan selama
+          peninjauan.
+        </li>
+      </ul>
+
       <h2 id="larangan">Larangan penggunaan</h2>
       <p>Anda dilarang menggunakan layanan untuk:</p>
       <ul>

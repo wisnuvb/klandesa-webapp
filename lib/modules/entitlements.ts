@@ -37,6 +37,7 @@ const CORE_STARTER_IDS = new Set([
   "pengumuman-desa",
   "forum-diskusi",
   "pengaduan-masyarakat",
+  "aspirasi-publik",
   "bantuan-program-keluarga",
   "galeri-desa",
   "absensi",

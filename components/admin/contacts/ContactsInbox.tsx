@@ -11,7 +11,9 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiJson, formatWib } from "@/components/admin/security/api";
 import {
+  CONTACT_ROLES,
   ageLabel,
+  contactRoleLabel,
   contactSourceLabel,
   contactWaLink,
   extractVillageFromMessage,
@@ -26,6 +28,8 @@ type ContactRow = {
   subject: string;
   message: string;
   source: string;
+  role: string | null;
+  position: string | null;
   isResponded: boolean;
   respondedAt: string | null;
   createdAt: string;
@@ -33,9 +37,9 @@ type ContactRow = {
 type Counts = { total: number; unresponded: number; unrespondedAds: number };
 type Page = { contacts: ContactRow[]; nextCursor: string | null; counts: Counts };
 type Status = "belum" | "sudah" | "semua";
-type Filters = { status: Status; source: string; q: string };
+type Filters = { status: Status; source: string; role: string; q: string };
 
-const DEFAULT_FILTERS: Filters = { status: "belum", source: "", q: "" };
+const DEFAULT_FILTERS: Filters = { status: "belum", source: "", role: "", q: "" };
 const SOURCE_OPTIONS = ["iklan-meta", "demo", "landing"];
 
 function toQuery(f: Filters, cursor?: string | null): string {
@@ -43,6 +47,7 @@ function toQuery(f: Filters, cursor?: string | null): string {
   if (f.status === "belum") p.set("responded", "false");
   if (f.status === "sudah") p.set("responded", "true");
   if (f.source) p.set("source", f.source);
+  if (f.role) p.set("role", f.role);
   if (f.q.trim()) p.set("q", f.q.trim());
   if (cursor) p.set("cursor", cursor);
   p.set("limit", "30");
@@ -50,7 +55,7 @@ function toQuery(f: Filters, cursor?: string | null): string {
 }
 
 export function ContactsInbox() {
-  const ids = { status: useId(), source: useId(), q: useId() };
+  const ids = { status: useId(), source: useId(), role: useId(), q: useId() };
   const [draft, setDraft] = useState<Filters>(DEFAULT_FILTERS);
   const [applied, setApplied] = useState<Filters>(DEFAULT_FILTERS);
   const [rows, setRows] = useState<ContactRow[] | null>(null);
@@ -173,8 +178,20 @@ export function ContactsInbox() {
                 ))}
               </SearchSelect>
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor={ids.q}>Cari (nama, nomor, desa, atau isi pesan)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor={ids.role}>Peran pengirim</Label>
+              <SearchSelect id={ids.role} value={draft.role} onChange={(e) => set("role")(e.target.value)} className="w-full">
+                <option value="">Semua peran</option>
+                {CONTACT_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {contactRoleLabel(r)}
+                  </option>
+                ))}
+                <option value="none">Belum diisi (data lama)</option>
+              </SearchSelect>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+              <Label htmlFor={ids.q}>Cari (nama, nomor, jabatan, desa, pesan)</Label>
               <Input id={ids.q} value={draft.q} onChange={(e) => set("q")(e.target.value)} maxLength={100} placeholder="Mis. Sumberharjo atau 0812" />
             </div>
             <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
@@ -219,7 +236,7 @@ export function ContactsInbox() {
         </div>
       ) : rows.length === 0 && !error ? (
         <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-          {applied.status === "belum" && !applied.q && !applied.source ? "Semua kontak sudah dihubungi." : "Tidak ada kontak yang cocok dengan saringan ini."}
+          {applied.status === "belum" && !applied.q && !applied.source && !applied.role ? "Semua kontak sudah dihubungi." : "Tidak ada kontak yang cocok dengan saringan ini."}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -236,6 +253,10 @@ export function ContactsInbox() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={r.source === "iklan-meta" ? "default" : "outline"}>{contactSourceLabel(r.source)}</Badge>
+                    <Badge variant={r.role === "perangkat_desa" ? "secondary" : "outline"}>
+                      {contactRoleLabel(r.role)}
+                      {r.position ? ` · ${r.position}` : ""}
+                    </Badge>
                     {r.isResponded ? (
                       <Badge variant="secondary" className="gap-1">
                         <CheckCircle2 className="h-3 w-3" aria-hidden="true" />

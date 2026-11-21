@@ -162,6 +162,42 @@ export default function PrivacyPolicyPage() {
         sesuai regulasi yang berlaku.
       </p>
 
+      {/* DRAF: perlu ditinjau pemilik/hukum */}
+      <h2 id="aspirasi-warga">Aspirasi Warga</h2>
+      <p>
+        Fitur <Link href="/aspirasi">Aspirasi Warga</Link> memungkinkan siapa pun melaporkan kondisi desa. Berikut cara
+        kami memperlakukan datanya:
+      </p>
+      <ul>
+        <li>
+          <strong>Yang kami kumpulkan:</strong> isi laporan (judul, uraian, patokan lokasi, foto), desa yang dilaporkan,
+          serta kontak pelapor (nomor WhatsApp dan/atau email, nama bila diisi). Alamat IP hanya disimpan dalam bentuk
+          hash untuk membatasi penyalahgunaan.
+        </li>
+        <li>
+          <strong>Kontak tidak ditampilkan.</strong> Nama dan kontak pelapor hanya dapat dilihat tim peninjau Klandesa
+          dan dipakai untuk memberi kabar atau meminta keterangan; tidak pernah tampil di halaman publik maupun dibagikan
+          kepada pemerintah desa.
+        </li>
+        <li>
+          <strong>Ditinjau sebelum tayang.</strong> Setiap laporan ditinjau moderator. Nomor telepon, email, dan tautan di
+          dalam teks laporan disamarkan; laporan yang memuat NIK atau data pribadi orang lain ditolak atau disunting.
+        </li>
+        <li>
+          <strong>Tayang publik tanpa identitas.</strong> Laporan yang lolos tayang di situs Klandesa. Laporan baru baru
+          dapat diindeks mesin pencari setelah masa tenggang 7 hari, agar desa sempat menanggapi atau berkeberatan.
+        </li>
+        <li>
+          <strong>Permintaan penghapusan.</strong> Siapa pun dapat memakai tombol &ldquo;Laporkan konten ini&rdquo; pada
+          halaman laporan untuk meminta konten yang memuat data pribadi ditinjau; laporan semacam itu dapat disembunyikan
+          sementara sampai ditinjau.
+        </li>
+        <li>
+          <strong>Retensi (usulan):</strong> kontak pelapor disimpan sampai peninjauan laporan selesai ditambah 12 bulan,
+          lalu dihapus atau dianonimkan; isi laporan yang tayang dapat tetap tersedia kecuali dihapus lewat peninjauan.
+        </li>
+      </ul>
+
       <h2 id="retensi">Penyimpanan dan penghapusan</h2>
       <p>
         Data disimpan selama akun aktif atau selama diperlukan untuk memenuhi

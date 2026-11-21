@@ -92,6 +92,9 @@ model Village {
   forumReplies           ForumReply[]
   citizenReports         CitizenReport[]
   citizenReportResponses CitizenReportResponse[]
+  aspirationArea         AspirationArea?          @relation("AspirationAreaVillage")
+  aspirationClaims       VillageClaim[]
+  aspirationReplies      AspirationReply[]
   adminNotifications     AdminNotification[]
   billingInvoices        BillingInvoice[]
   partnerCommissionEntries PartnerCommissionEntry[]
@@ -453,6 +456,8 @@ model User {
   citizenReportResponses CitizenReportResponse[]
   notificationReads      NotificationRead[]
   respondedContacts      Contact[]                @relation("ContactRespondedBy")
+  villageClaims          VillageClaim[]           @relation("VillageClaimant")
+  aspirationReplies      AspirationReply[]        @relation("AspirationReplyAuthor")
   cooperativeMemberLinks CooperativeMember[]      @relation("CoopMemberUser")
   coopLedgerCreates      CooperativeLedgerEntry[] @relation("CoopLedgerCreatedBy")
   bumdesTransactionCreates BumdesTransaction[]  @relation("BumdesTransactionCreatedBy")
@@ -1951,6 +1956,11 @@ model Contact {
 
   source String @default("landing") @db.VarChar(50)
 
+  /// Peran pengirim: perangkat_desa | warga | lainnya. NULL = baris lama (sebelum formulir menanyakan peran).
+  role     String? @db.VarChar(20)
+  /// Jabatan di desa (wajib untuk perangkat_desa).
+  position String? @db.VarChar(120)
+
   isResponded       Boolean   @default(false)
   respondedAt       DateTime?
   respondedByUserId Int?
@@ -1963,6 +1973,7 @@ model Contact {
   updatedAt DateTime @updatedAt
 
   @@index([isResponded, createdAt(sort: Desc)])
+  @@index([role, createdAt(sort: Desc)])
   @@map("contacts")
 }
 
@@ -7081,4 +7092,190 @@ model EmailLog {
   @@index([createdAt])
   @@index([template, toHash, createdAt])
   @@map("email_logs")
+}
+
+// ============================================
+// ASPIRASI WARGA PUBLIK (laporan kondisi desa + tanggapan desa)
+// Dasar: docs/ASPIRASI_WARGA.md. Data kontak pelapor TIDAK PERNAH ikut kueri publik.
+// ============================================
+
+/// Satu desa/kelurahan yang punya halaman aspirasi publik. Dibuat saat laporan pertama masuk, walau desanya belum jadi
+/// pelanggan. `villageId` terisi setelah klaim desa disetujui admin platform.
+model AspirationArea {
+  id Int @id @default(autoincrement())
+
+  /// Alamat halaman: /aspirasi/desa/<slug>. Dari nama desa + kecamatan + kabupaten.
+  slug String @unique @db.VarChar(190)
+  /// Kode wilayah.id (mis. 64.02.05.2003). NULL bila pelapor mengetik wilayah sendiri.
+  wilayahCode String? @unique @db.VarChar(20)
+  /// desa | kelurahan
+  kind     String @default("desa") @db.VarChar(12)
+  name     String @db.VarChar(120)
+  district String @db.VarChar(120)
+  regency  String @db.VarChar(120)
+  province String @db.VarChar(120)
+
+  villageId Int?      @unique
+  village   Village?  @relation("AspirationAreaVillage", fields: [villageId], references: [id], onDelete: SetNull)
+  claimedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aspirations Aspiration[]
+  claims      VillageClaim[]
+
+  @@index([name])
+  @@index([regency, district])
+  @@map("aspiration_areas")
+}
+
+model Aspiration {
+  id BigInt @id @default(autoincrement())
+
+  /// Kode acak 10 karakter (huruf kecil + angka tanpa yang membingungkan). Bagian akhir alamat dan nomor tiket pelapor.
+  code String @unique @db.VarChar(12)
+  /// Bagian judul pada alamat; dibuat saat kirim dan tidak berubah walau moderator menyunting judul.
+  slug String @db.VarChar(120)
+
+  areaId Int
+  area   AspirationArea @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
+  /// sampah | jalan | air | listrik | kesehatan | pendidikan | keamanan | lingkungan | pelayanan | lainnya
+  category     String  @db.VarChar(30)
+  title        String  @db.VarChar(160)
+  body         String  @db.Text
+  /// Patokan lokasi bebas (dusun, RT, dekat apa). Bukan alamat rumah.
+  locationNote String? @db.VarChar(200)
+  /// [{ "url": "...", "key": "aspirasi/YYYY/MM/uuid.webp" }]; hanya tampil setelah moderasi.
+  photos       Json?
+
+  // --- PRIBADI: tidak pernah dipilih (select) oleh kueri publik ---
+  reporterName  String? @db.VarChar(120)
+  reporterPhone String? @db.VarChar(30)
+  reporterEmail String? @db.VarChar(255)
+  /// sha256(ip + rahasia). Hanya untuk pembatas laju dan deteksi penyalahgunaan; IP mentah tidak disimpan.
+  ipHash        String? @db.VarChar(64)
+
+  // --- Moderasi platform ---
+  /// PENDING (antre) | PUBLISHED | REJECTED | HIDDEN (disembunyikan sementara, mis. diduga memuat data pribadi) | REMOVED (takedown)
+  status         String    @default("PENDING") @db.VarChar(12)
+  publishedAt    DateTime?
+  moderatedAt    DateTime?
+  /// ID admin platform (PlatformUser); sengaja tanpa FK agar riwayat tetap bila akunnya dihapus.
+  moderatedById  Int?
+  /// Catatan internal moderator (tidak tampil ke siapa pun selain admin platform).
+  moderationNote String?   @db.VarChar(500)
+  /// Alasan penolakan yang boleh dilihat pelapor lewat cek status.
+  rejectReason   String?   @db.VarChar(300)
+  /// true = jangan diindeks mesin pencari walau lolos pagar lain.
+  noindex        Boolean   @default(false)
+
+  // --- Tindak lanjut desa ---
+  /// NEW | RESPONDED | IN_PROGRESS | RESOLVED | DISPUTED
+  progress   String    @default("NEW") @db.VarChar(14)
+  progressAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  replies AspirationReply[]
+  flags   AspirationFlag[]
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([areaId, status, publishedAt(sort: Desc)])
+  @@index([ipHash, createdAt])
+  @@map("aspirations")
+}
+
+/// Tanggapan resmi desa yang sudah diklaim (jawaban, kabar progres, sanggahan/banding, atau tanda selesai).
+model AspirationReply {
+  id BigInt @id @default(autoincrement())
+
+  aspirationId BigInt
+  aspiration   Aspiration @relation(fields: [aspirationId], references: [id], onDelete: Cascade)
+
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  authorUserId Int?
+  author       User? @relation("AspirationReplyAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  /// Tampil publik, mis. "Pemerintah Desa Muara Badak Ulu".
+  authorLabel  String @db.VarChar(160)
+
+  /// RESPONSE | PROGRESS | DISPUTE | RESOLVED
+  kind   String @db.VarChar(12)
+  body   String @db.Text
+  /// PUBLISHED | REMOVED
+  status String @default("PUBLISHED") @db.VarChar(12)
+
+  createdAt DateTime @default(now())
+
+  @@index([aspirationId, createdAt])
+  @@index([villageId, createdAt])
+  @@map("aspiration_replies")
+}
+
+/// Laporan konten dari publik atau desa (data pribadi, fitnah, hoaks, spam, sudah selesai, lainnya).
+model AspirationFlag {
+  id BigInt @id @default(autoincrement())
+
+  aspirationId BigInt
+  aspiration   Aspiration @relation(fields: [aspirationId], references: [id], onDelete: Cascade)
+
+  /// PERSONAL_DATA | DEFAMATION | HOAX | SPAM | RESOLVED | OTHER
+  reason  String  @db.VarChar(20)
+  detail  String? @db.Text
+  /// PUBLIC | VILLAGE
+  source  String  @default("PUBLIC") @db.VarChar(10)
+  /// Kontak pelapor konten (opsional, pribadi) agar admin bisa meminta keterangan.
+  contact String? @db.VarChar(255)
+  villageId Int?
+  ipHash  String? @db.VarChar(64)
+
+  /// OPEN | ACTIONED | DISMISSED
+  status      String    @default("OPEN") @db.VarChar(10)
+  handledAt   DateTime?
+  handledById Int?
+  handleNote  String?   @db.VarChar(500)
+
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([aspirationId, status])
+  @@map("aspiration_flags")
+}
+
+/// Permohonan akun desa terdaftar untuk menjadi pengelola halaman aspirasi sebuah wilayah. Disetujui manual admin platform.
+model VillageClaim {
+  id Int @id @default(autoincrement())
+
+  areaId Int
+  area   AspirationArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  villageId Int
+  village   Village @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation("VillageClaimant", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Jabatan pemohon di desa.
+  position     String  @db.VarChar(120)
+  contactPhone String? @db.VarChar(30)
+  /// Bukti: tautan situs resmi desa, nomor SK, atau keterangan lain (teks bebas).
+  evidenceNote String  @db.Text
+
+  /// PENDING | APPROVED | REJECTED | REVOKED
+  status       String    @default("PENDING") @db.VarChar(10)
+  reviewedAt   DateTime?
+  reviewedById Int?
+  reviewNote   String?   @db.VarChar(500)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([areaId, status])
+  @@index([villageId, status])
+  @@map("village_claims")
 }

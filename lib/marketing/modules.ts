@@ -105,6 +105,8 @@ export const MARKETING_MODULE_COPY: Partial<Record<string, string>> = {
   "pengumuman-desa": "Kanal komunikasi resmi antara pemdes dan masyarakat.",
   "forum-diskusi": "Ruangan aspirasi warga dengan moderasi perangkat desa.",
   "pengaduan-masyarakat": "Aduan dapat dilacak demi akuntabilitas pelayanan.",
+  "aspirasi-publik":
+    "Laporan warga tentang kondisi desa tampil terbuka di klandesa.com, dan desa yang sudah terverifikasi dapat menanggapi, memberi kabar progres, atau menyanggah secara terbuka.",
   "bantuan-program-keluarga":
     "Pencatatan penerima program sosial mendukung SDGs tanpa menyalahgunakan data.",
   "galeri-desa": "Arsip foto kegiatan desa untuk komunikasi dan transparansi.",
@@ -266,6 +268,7 @@ export const MARKETING_GROUPS: MarketingGroup[] = [
       "permohonan-warga",
       "layanan-mandiri",
       "pengaduan-masyarakat",
+      "aspirasi-publik",
       "pengumuman-desa",
       "forum-diskusi",
       "polling",

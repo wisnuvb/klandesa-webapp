@@ -18,6 +18,7 @@ import { getStoredReferralCode } from "@/lib/referrals/client";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { isTurnstileRequiredOnClient } from "@/lib/turnstile-config";
 import { SearchSelect } from "@/components/ui/search-select";
+import { ContactRoleFields, WargaRedirectNotice, validateRoleFields, type ContactRoleValue } from "@/components/contacts/ContactRoleFields";
 
 interface ContactModalProps {
   onClose: () => void;
@@ -49,6 +50,8 @@ export function ContactModal({ onClose }: ContactModalProps) {
     subject: "",
     message: "",
   });
+  const [role, setRole] = React.useState<ContactRoleValue>("");
+  const [position, setPosition] = React.useState("");
   const [isSubmitted, setIsSubmitted] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
@@ -61,6 +64,11 @@ export function ContactModal({ onClose }: ContactModalProps) {
       setIsSubmitting(true);
       setSubmitError(null);
 
+      const roleErrors = validateRoleFields(role, position);
+      if (roleErrors.role || roleErrors.position) {
+        throw new Error(roleErrors.role ?? roleErrors.position);
+      }
+
       if (turnstileRequired && !turnstileToken) {
         throw new Error("Selesaikan verifikasi keamanan terlebih dahulu");
       }
@@ -70,6 +78,8 @@ export function ContactModal({ onClose }: ContactModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          role,
+          position: role === "perangkat_desa" ? position.trim() : "",
           turnstileToken,
           referralCode: getStoredReferralCode(),
           sourcePath:
@@ -277,6 +287,23 @@ export function ContactModal({ onClose }: ContactModalProps) {
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-5">
+                    <ContactRoleFields
+                      idPrefix="modal"
+                      role={role}
+                      position={position}
+                      onRoleChange={(r) => {
+                        setRole(r);
+                        setSubmitError(null);
+                      }}
+                      onPositionChange={setPosition}
+                      inputClassName="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all outline-none bg-gray-50 focus:bg-white"
+                      labelClassName="block text-sm text-gray-700 mb-2"
+                    />
+
+                    {role === "warga" ? (
+                      <WargaRedirectNotice onBack={() => setRole("perangkat_desa")} />
+                    ) : (
+                    <>
                     {/* Name */}
                     <div>
                       <label
@@ -419,6 +446,8 @@ export function ContactModal({ onClose }: ContactModalProps) {
                       </span>
                       <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </button>
+                    </>
+                    )}
                   </form>
 
                   {submitError && (
